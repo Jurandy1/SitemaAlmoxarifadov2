@@ -17,16 +17,16 @@ import { executeFinalMovimentacao } from "./movimentacao-modal-handler.js";
 export function renderEstoqueGas() {
     if (!DOM_ELEMENTS.estoqueGasAtualEl) return;
     
-    if (DOM_ELEMENTS.loadingEstoqueGasEl) DOM_ELEMENTOS.loadingEstoqueGasEl.style.display = 'none';
+    if (DOM_ELEMENTS.loadingEstoqueGasEl) DOM_ELEMENTS.loadingEstoqueGasEl.style.display = 'none';
     
     if (isEstoqueInicialDefinido('gas')) {
-        if(DOM_ELEMENTS.btnAbrirInicialGas) DOM_ELEMENTOS.btnAbrirInicialGas.classList.add('hidden'); 
-        if(DOM_ELEMENTS.formInicialGasContainer) DOM_ELEMENTOS.formInicialGasContainer.classList.add('hidden'); 
-        if(DOM_ELEMENTS.resumoEstoqueGasEl) DOM_ELEMENTOS.resumoEstoqueGasEl.classList.remove('hidden');
+        if(DOM_ELEMENTS.btnAbrirInicialGas) DOM_ELEMENTS.btnAbrirInicialGas.classList.add('hidden'); 
+        if(DOM_ELEMENTS.formInicialGasContainer) DOM_ELEMENTS.formInicialGasContainer.classList.add('hidden'); 
+        if(DOM_ELEMENTS.resumoEstoqueGasEl) DOM_ELEMENTS.resumoEstoqueGasEl.classList.remove('hidden');
     } else { 
-        if(DOM_ELEMENTS.btnAbrirInicialGas) DOM_ELEMENTOS.btnAbrirInicialGas.classList.remove('hidden'); 
-        if(DOM_ELEMENTS.formInicialGasContainer) DOM_ELEMENTOS.formInicialGasContainer.classList.add('hidden'); 
-        if(DOM_ELEMENTS.resumoEstoqueGasEl) DOM_ELEMENTOS.resumoEstoqueGasEl.classList.add('hidden'); 
+        if(DOM_ELEMENTS.btnAbrirInicialGas) DOM_ELEMENTS.btnAbrirInicialGas.classList.remove('hidden'); 
+        if(DOM_ELEMENTS.formInicialGasContainer) DOM_ELEMENTS.formInicialGasContainer.classList.add('hidden'); 
+        if(DOM_ELEMENTS.resumoEstoqueGasEl) DOM_ELEMENTS.resumoEstoqueGasEl.classList.add('hidden'); 
     }
 
     const estoqueGas = getEstoqueGas();
@@ -37,10 +37,10 @@ export function renderEstoqueGas() {
     const totalSaidas = movs.filter(m => m.tipo === 'entrega').reduce((sum, m) => sum + m.quantidade, 0);
     const estoqueAtual = estoqueInicial + totalEntradas - totalSaidas;
 
-    if (DOM_ELEMENTS.estoqueGasInicialEl) DOM_ELEMENTOS.estoqueGasInicialEl.textContent = estoqueInicial;
-    if (DOM_ELEMENTOS.estoqueGasEntradasEl) DOM_ELEMENTOS.estoqueGasEntradasEl.textContent = `+${totalEntradas}`;
-    if (DOM_ELEMENTOS.estoqueGasSaidasEl) DOM_ELEMENTOS.estoqueGasSaidasEl.textContent = `-${totalSaidas}`;
-    if (DOM_ELEMENTOS.estoqueGasAtualEl) DOM_ELEMENTOS.estoqueGasAtualEl.textContent = estoqueAtual;
+    if (DOM_ELEMENTS.estoqueGasInicialEl) DOM_ELEMENTS.estoqueGasInicialEl.textContent = estoqueInicial;
+    if (DOM_ELEMENTS.estoqueGasEntradasEl) DOM_ELEMENTS.estoqueGasEntradasEl.textContent = `+${totalEntradas}`;
+    if (DOM_ELEMENTS.estoqueGasSaidasEl) DOM_ELEMENTS.estoqueGasSaidasEl.textContent = `-${totalSaidas}`;
+    if (DOM_ELEMENTS.estoqueGasAtualEl) DOM_ELEMENTS.estoqueGasAtualEl.textContent = estoqueAtual;
 }
 
 /**
@@ -64,7 +64,7 @@ export async function handleInicialEstoqueSubmit(e) {
     }
     
     DOM_ELEMENTS.btnSubmitInicialGas.disabled = true; 
-    DOM_ELEMENTOS.btnSubmitInicialGas.innerHTML = '<div class="loading-spinner-small mx-auto"></div>';
+    DOM_ELEMENTS.btnSubmitInicialGas.innerHTML = '<div class="loading-spinner-small mx-auto"></div>';
     
     try {
         await addDoc(COLLECTIONS.estoqueGas, { 
@@ -76,13 +76,13 @@ export async function handleInicialEstoqueSubmit(e) {
             registradoEm: serverTimestamp() // Data do Lançamento
         });
         showAlert('alert-inicial-gas', "Estoque inicial salvo!", 'success', 2000);
-         DOM_ELEMENTOS.formInicialGasContainer.classList.add('hidden');
-         DOM_ELEMENTOS.btnAbrirInicialGas.classList.add('hidden');
+         DOM_ELEMENTS.formInicialGasContainer.classList.add('hidden');
+         DOM_ELEMENTS.btnAbrirInicialGas.classList.add('hidden');
     } catch (error) {
         console.error("Erro ao salvar estoque inicial:", error);
         showAlert('alert-inicial-gas', `Erro ao salvar: ${error.message}`, 'error');
-        DOM_ELEMENTOS.btnSubmitInicialGas.disabled = false; 
-        DOM_ELEMENTOS.btnSubmitInicialGas.textContent = 'Salvar Inicial'; 
+        DOM_ELEMENTS.btnSubmitInicialGas.disabled = false; 
+        DOM_ELEMENTS.btnSubmitInicialGas.textContent = 'Salvar Inicial'; 
     }
 }
 
@@ -94,9 +94,9 @@ export async function handleEntradaEstoqueSubmit(e) {
     if (!isReady()) { showAlert('alert-gas', 'Erro: Não autenticado.', 'error'); return; } 
     
     const inputQtd = DOM_ELEMENTS.inputQtdEntradaGas.value;
-    const inputData = DOM_ELEMENTOS.inputDataEntradaGas.value;
-    const inputResp = DOM_ELEMENTOS.inputResponsavelEntradaGas.value;
-    const inputNf = DOM_ELEMENTOS.inputNfEntradaGas.value;
+    const inputData = DOM_ELEMENTS.inputDataEntradaGas.value;
+    const inputResp = DOM_ELEMENTS.inputResponsavelEntradaGas.value;
+    const inputNf = DOM_ELEMENTS.inputNfEntradaGas.value;
     
     const quantidade = parseInt(inputQtd, 10);
     const data = dateToTimestamp(inputData);
@@ -110,8 +110,8 @@ export async function handleEntradaEstoqueSubmit(e) {
         showAlert('alert-gas', `Defina o Estoque Inicial de Gás antes de lançar entradas.`, 'warning'); return; 
     }
     
-    DOM_ELEMENTOS.btnSubmitEntradaGas.disabled = true; 
-    DOM_ELEMENTOS.btnSubmitEntradaGas.innerHTML = '<div class="loading-spinner-small mx-auto"></div>';
+    DOM_ELEMENTS.btnSubmitEntradaGas.disabled = true; 
+    DOM_ELEMENTS.btnSubmitEntradaGas.innerHTML = '<div class="loading-spinner-small mx-auto"></div>';
     
     try {
         await addDoc(COLLECTIONS.estoqueGas, { 
@@ -123,14 +123,14 @@ export async function handleEntradaEstoqueSubmit(e) {
             registradoEm: serverTimestamp() // Data do Lançamento
         });
         showAlert('alert-gas', 'Entrada no estoque salva!', 'success');
-        DOM_ELEMENTOS.formEntradaGas.reset(); 
-        DOM_ELEMENTOS.inputDataEntradaGas.value = getTodayDateString(); 
+        DOM_ELEMENTS.formEntradaGas.reset(); 
+        DOM_ELEMENTS.inputDataEntradaGas.value = getTodayDateString(); 
     } catch (error) {
         console.error("Erro salvar entrada estoque:", error); 
         showAlert('alert-gas', `Erro: ${error.message}`, 'error');
     } finally { 
-        DOM_ELEMENTOS.btnSubmitEntradaGas.disabled = false; 
-        DOM_ELEMENTOS.btnSubmitEntradaGas.textContent = 'Salvar Entrada'; 
+        DOM_ELEMENTS.btnSubmitEntradaGas.disabled = false; 
+        DOM_ELEMENTS.btnSubmitEntradaGas.textContent = 'Salvar Entrada'; 
     }
 }
 
@@ -143,18 +143,18 @@ export async function handleEntradaEstoqueSubmit(e) {
  */
 export function toggleGasFormInputs() {
     if (!DOM_ELEMENTS.selectTipoGas) return; 
-    const tipo = DOM_ELEMENTOS.selectTipoGas.value;
+    const tipo = DOM_ELEMENTS.selectTipoGas.value;
     if (tipo === 'troca') {
-        DOM_ELEMENTOS.formGroupQtdEntregueGas?.classList.remove('hidden');
-        DOM_ELEMENTOS.formGroupQtdRetornoGas?.classList.remove('hidden');
+        DOM_ELEMENTS.formGroupQtdEntregueGas?.classList.remove('hidden');
+        DOM_ELEMENTS.formGroupQtdRetornoGas?.classList.remove('hidden');
     } else if (tipo === 'entrega') {
-        DOM_ELEMENTOS.formGroupQtdEntregueGas?.classList.remove('hidden');
-        DOM_ELEMENTOS.formGroupQtdRetornoGas?.classList.add('hidden');
-        if(DOM_ELEMENTOS.inputQtdRetornoGas) DOM_ELEMENTOS.inputQtdRetornoGas.value = "0"; 
+        DOM_ELEMENTS.formGroupQtdEntregueGas?.classList.remove('hidden');
+        DOM_ELEMENTS.formGroupQtdRetornoGas?.classList.add('hidden');
+        if(DOM_ELEMENTS.inputQtdRetornoGas) DOM_ELEMENTS.inputQtdRetornoGas.value = "0"; 
     } else if (tipo === 'retorno') {
-        DOM_ELEMENTOS.formGroupQtdEntregueGas?.classList.add('hidden');
-        DOM_ELEMENTOS.formGroupQtdRetornoGas?.classList.remove('hidden');
-        if(DOM_ELEMENTOS.inputQtdEntregueGas) DOM_ELEMENTOS.inputQtdEntregueGas.value = "0"; 
+        DOM_ELEMENTS.formGroupQtdEntregueGas?.classList.add('hidden');
+        DOM_ELEMENTS.formGroupQtdRetornoGas?.classList.remove('hidden');
+        if(DOM_ELEMENTS.inputQtdEntregueGas) DOM_ELEMENTS.inputQtdEntregueGas.value = "0"; 
     }
 }
 
@@ -174,7 +174,7 @@ export function getUnidadeSaldoGas(unidadeId) {
  */
 export function checkUnidadeSaldoAlertGas() {
     const selectValue = DOM_ELEMENTS.selectUnidadeGas.value;
-    const saldoAlertaEl = DOM_ELEMENTOS.unidadeSaldoAlertaGas;
+    const saldoAlertaEl = DOM_ELEMENTS.unidadeSaldoAlertaGas;
     
     if (!selectValue || !saldoAlertaEl) {
         if(saldoAlertaEl) saldoAlertaEl.style.display = 'none';
@@ -211,15 +211,15 @@ export async function handleGasSubmit(e) {
     e.preventDefault();
     if (!isReady()) { showAlert('alert-gas', 'Erro: Não autenticado.', 'error'); return; }
     
-    const selectValue = DOM_ELEMENTOS.selectUnidadeGas.value; 
+    const selectValue = DOM_ELEMENTS.selectUnidadeGas.value; 
     if (!selectValue) { showAlert('alert-gas', 'Selecione uma unidade.', 'warning'); return; }
     const [unidadeId, unidadeNome, tipoUnidadeRaw] = selectValue.split('|');
     
-    const tipoMovimentacao = DOM_ELEMENTOS.selectTipoGas.value; 
-    const qtdEntregue = parseInt(DOM_ELEMENTOS.inputQtdEntregueGas.value, 10) || 0;
-    const qtdRetorno = parseInt(DOM_ELEMENTOS.inputQtdRetornoGas.value, 10) || 0;
-    const data = dateToTimestamp(DOM_ELEMENTOS.inputDataGas.value); // Data da Movimentação
-    const responsavelUnidade = capitalizeString(DOM_ELEMENTOS.inputResponsavelGas.value.trim()); 
+    const tipoMovimentacao = DOM_ELEMENTS.selectTipoGas.value; 
+    const qtdEntregue = parseInt(DOM_ELEMENTS.inputQtdEntregueGas.value, 10) || 0;
+    const qtdRetorno = parseInt(DOM_ELEMENTS.inputQtdRetornoGas.value, 10) || 0;
+    const data = dateToTimestamp(DOM_ELEMENTS.inputDataGas.value); // Data da Movimentação
+    const responsavelUnidade = capitalizeString(DOM_ELEMENTS.inputResponsavelGas.value.trim()); 
     
     if (!unidadeId || !data || !responsavelUnidade) {
         showAlert('alert-gas', 'Dados inválidos. Verifique Unidade, Data e Nome de quem Recebeu/Devolveu.', 'warning'); return;
@@ -239,7 +239,7 @@ export async function handleGasSubmit(e) {
         if (!isEstoqueInicialDefinido('gas')) {
             showAlert('alert-gas', 'Defina o Estoque Inicial de Gás antes de lançar saídas.', 'warning'); return;
         }
-        const estoqueAtual = parseInt(DOM_ELEMENTOS.estoqueGasAtualEl.textContent) || 0;
+        const estoqueAtual = parseInt(DOM_ELEMENTS.estoqueGasAtualEl.textContent) || 0;
         if (qtdEntregue > estoqueAtual) {
             showAlert('alert-gas', `Erro: Estoque insuficiente. Disponível: ${estoqueAtual}`, 'error'); return;
         }
@@ -301,7 +301,7 @@ export function renderGasStatus(newFilter = null) {
     }
 
     if (statusArray.length === 0) { 
-        DOM_ELEMENTOS.tableStatusGas.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-slate-500">Nenhuma movimentação registrada.</td></tr>'; 
+        DOM_ELEMENTS.tableStatusGas.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-slate-500">Nenhuma movimentação registrada.</td></tr>'; 
         return; 
     }
      let html = '';
@@ -331,7 +331,7 @@ export function renderGasStatus(newFilter = null) {
             </td>
         </tr>`;
     });
-    DOM_ELEMENTOS.tableStatusGas.innerHTML = html;
+    DOM_ELEMENTS.tableStatusGas.innerHTML = html;
      if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); } 
 
     const filtroStatusGasEl = document.getElementById('filtro-status-gas');
@@ -353,7 +353,7 @@ export function renderGasMovimentacoesHistory() {
         .sort((a, b) => (b.registradoEm?.toMillis() || 0) - (a.registradoEm?.toMillis() || 0));
 
     if (historicoOrdenado.length === 0) {
-        DOM_ELEMENTOS.tableHistoricoGasAll.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-slate-500">Nenhuma movimentação de unidade registrada.</td></tr>`;
+        DOM_ELEMENTS.tableHistoricoGasAll.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-slate-500">Nenhuma movimentação de unidade registrada.</td></tr>`;
         return;
     }
     
@@ -385,11 +385,11 @@ export function renderGasMovimentacoesHistory() {
         </tr>`;
     });
 
-    DOM_ELEMENTOS.tableHistoricoGasAll.innerHTML = html;
+    DOM_ELEMENTS.tableHistoricoGasAll.innerHTML = html;
     if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
 
     const filtroEl = document.getElementById(`filtro-historico-gas`);
-    if (filtroEl && filtroEl.value) { filterTable(filtroEl, DOM_ELEMENTOS.tableHistoricoGasAll.id); }
+    if (filtroEl && filtroEl.value) { filterTable(filtroEl, DOM_ELEMENTS.tableHistoricoGasAll.id); }
 }
 
 
@@ -399,7 +399,7 @@ export function renderGasMovimentacoesHistory() {
 
 export function initGasListeners() {
     if (DOM_ELEMENTS.formGas) {
-        DOM_ELEMENTOS.formGas.addEventListener('submit', handleGasSubmit);
+        DOM_ELEMENTS.formGas.addEventListener('submit', handleGasSubmit);
     }
     if (DOM_ELEMENTS.selectTipoGas) {
         DOM_ELEMENTOS.selectTipoGas.addEventListener('change', toggleGasFormInputs);
@@ -407,16 +407,16 @@ export function initGasListeners() {
     if (DOM_ELEMENTS.selectUnidadeGas) {
          DOM_ELEMENTOS.selectUnidadeGas.addEventListener('change', checkUnidadeSaldoAlertGas);
     }
-    if (DOM_ELEMENTOS.formInicialGas) {
+    if (DOM_ELEMENTS.formInicialGas) {
         DOM_ELEMENTOS.formInicialGas.addEventListener('submit', handleInicialEstoqueSubmit);
     }
-    if (DOM_ELEMENTOS.btnAbrirInicialGas) {
+    if (DOM_ELEMENTS.btnAbrirInicialGas) {
         DOM_ELEMENTOS.btnAbrirInicialGas.addEventListener('click', () => { 
             DOM_ELEMENTOS.formInicialGasContainer?.classList.remove('hidden'); 
             DOM_ELEMENTOS.btnAbrirInicialGas?.classList.add('hidden'); 
         });
     }
-    if (DOM_ELEMENTOS.formEntradaGas) {
+    if (DOM_ELEMENTS.formEntradaGas) {
         DOM_ELEMENTOS.formEntradaGas.addEventListener('submit', handleEntradaEstoqueSubmit);
     }
     if (document.getElementById('filtro-status-gas')) {
@@ -442,8 +442,8 @@ export function initGasListeners() {
         const formName = btn.dataset.form;
         document.querySelectorAll('#content-gas .form-tab-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        DOM_ELEMENTOS.formGas.classList.toggle('hidden', formName !== 'saida-gas');
-        DOM_ELEMENTOS.formEntradaGas.classList.toggle('hidden', formName !== 'entrada-gas');
+        DOM_ELEMENTS.formGas.classList.toggle('hidden', formName !== 'saida-gas');
+        DOM_ELEMENTS.formEntradaGas.classList.toggle('hidden', formName !== 'entrada-gas');
     }));
 }
 
@@ -458,8 +458,11 @@ export function onGasTabChange() {
     renderGasStatus();
     renderGasMovimentacoesHistory();
     // Garante que o input de data está em dia
-    if (DOM_ELEMENTOS.inputDataGas) DOM_ELEMENTOS.inputDataGas.value = getTodayDateString();
-    if (DOM_ELEMENTOS.inputDataEntradaGas) DOM_ELEMENTOS.inputDataEntradaGas.value = getTodayDateString();
-    document.getElementById('filtro-status-gas')?.value = ''; 
-    document.getElementById('filtro-historico-gas')?.value = '';
+    if (DOM_ELEMENTS.inputDataGas) DOM_ELEMENTOS.inputDataGas.value = getTodayDateString();
+    if (DOM_ELEMENTS.inputDataEntradaGas) DOM_ELEMENTOS.inputDataEntradaGas.value = getTodayDateString();
+    // CORRIGIDO: Usar verificação `if` em vez de encadeamento opcional na atribuição (Causa do erro 463:5)
+    const filtroStatus = document.getElementById('filtro-status-gas');
+    if (filtroStatus) filtroStatus.value = '';
+    const filtroHistorico = document.getElementById('filtro-historico-gas');
+    if (filtroHistorico) filtroHistorico.value = '';
 }
