@@ -34,7 +34,8 @@ function setupApp() {
     if (DOM_ELEMENTS.btnConfirmDelete) DOM_ELEMENTS.btnConfirmDelete.addEventListener('click', executeDelete);
     
     // 5. Configurar listener para o modal de movimentação final
-    if (DOM_ELEMENTS.btnSalvarMovimentacaoFinal) DOM_ELEMENTOS.btnSalvarMovimentacaoFinal.addEventListener('click', handleFinalMovimentacaoSubmit);
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
+    if (DOM_ELEMENTS.btnSalvarMovimentacaoFinal) DOM_ELEMENTS.btnSalvarMovimentacaoFinal.addEventListener('click', handleFinalMovimentacaoSubmit);
 
     console.log("Setup inicial do DOM concluído.");
     
