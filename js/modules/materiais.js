@@ -1,6 +1,7 @@
 // js/modules/materiais.js
 import { Timestamp, addDoc, updateDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { getMateriais } from "../utils/cache.js";
+// CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
 import { DOM_ELEMENTS, showAlert, filterTable, switchSubTabView } from "../utils/dom-helpers.js";
 import { getTodayDateString, dateToTimestamp, capitalizeString, formatTimestamp, formatTimestampComTempo } from "../utils/formatters.js";
 import { isReady } from "./auth.js";
@@ -18,6 +19,7 @@ export async function handleMateriaisSubmit(e) {
     e.preventDefault();
     if (!isReady()) { showAlert('alert-materiais', 'Erro: Não autenticado.', 'error'); return; }
     
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     const selectValue = DOM_ELEMENTS.selectUnidadeMateriais.value; 
     if (!selectValue) { showAlert('alert-materiais', 'Selecione uma unidade.', 'warning'); return; }
     const [unidadeId, unidadeNome, tipoUnidadeRaw] = selectValue.split('|');
@@ -114,6 +116,7 @@ export function renderMateriaisStatus() {
     const retirada = materiais.filter(m => m.status === 'retirada');
     const entregue = materiais.filter(m => m.status === 'entregue');
     
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (DOM_ELEMENTS.summaryMateriaisRequisitado) DOM_ELEMENTS.summaryMateriaisRequisitado.textContent = requisitado.length;
     if (DOM_ELEMENTS.summaryMateriaisSeparacao) DOM_ELEMENTS.summaryMateriaisSeparacao.textContent = separacao.length;
     if (DOM_ELEMENTS.summaryMateriaisRetirada) DOM_ELEMENTS.summaryMateriaisRetirada.textContent = retirada.length;
@@ -275,6 +278,7 @@ async function handleMarcarEntregue(e) {
     if (!material) return;
     
     // Preenche e abre o modal de finalização
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     DOM_ELEMENTS.finalizarEntregaMaterialIdEl.value = materialId;
     DOM_ELEMENTS.inputEntregaResponsavelAlmox.value = material.responsavelSeparador || '';
     DOM_ELEMENTS.inputEntregaResponsavelUnidade.value = material.responsavelLancamento || '';
@@ -290,6 +294,7 @@ async function handleMarcarEntregue(e) {
 export async function handleFinalizarEntregaSubmit() {
     if (!isReady()) return;
     
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     const materialId = DOM_ELEMENTS.finalizarEntregaMaterialIdEl.value;
     const respAlmox = capitalizeString(DOM_ELEMENTS.inputEntregaResponsavelAlmox.value.trim());
     const respUnidade = capitalizeString(DOM_ELEMENTS.inputEntregaResponsavelUnidade.value.trim());
@@ -337,6 +342,7 @@ export async function handleFinalizarEntregaSubmit() {
  * Abre o modal para informar o nome do separador.
  */
 function openSeparadorModal(materialId) {
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (!DOM_ELEMENTS.separadorModal) return;
     console.log("Abrindo modal para material ID:", materialId);
     DOM_ELEMENTS.separadorMaterialIdEl.value = materialId;
@@ -353,6 +359,7 @@ function openSeparadorModal(materialId) {
  * Salva o nome do separador e move o status para 'separacao'.
  */
 export async function handleSalvarSeparador() {
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (!isReady() || !DOM_ELEMENTS.inputSeparadorNome) return;
 
     const nomeSeparador = capitalizeString(DOM_ELEMENTS.inputSeparadorNome.value.trim());
@@ -471,6 +478,7 @@ async function handleDownloadPedido(materialId, fileURL) {
 // =========================================================================
 
 export function initMateriaisListeners() {
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (DOM_ELEMENTS.formMateriais) {
         DOM_ELEMENTS.formMateriais.addEventListener('submit', handleMateriaisSubmit);
     }
@@ -516,5 +524,6 @@ export function initMateriaisListeners() {
 export function onMateriaisTabChange() {
     switchSubTabView('materiais', 'lancar-materiais');
     renderMateriaisStatus(); 
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (DOM_ELEMENTS.inputDataSeparacao) DOM_ELEMENTS.inputDataSeparacao.value = getTodayDateString();
 }
