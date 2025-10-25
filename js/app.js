@@ -4,6 +4,7 @@
 import { initializeFirebaseServices } from "./services/firestore-service.js";
 import { initAuthAndListeners } from "./modules/auth.js";
 import { renderDashboard, startDashboardRefresh, stopDashboardRefresh, renderDashboardAguaChart, renderDashboardGasChart } from "./modules/dashboard.js";
+// CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
 import { renderUIModules, renderUnidadeControls, initAllListeners, DOM_ELEMENTS, findDOMElements, updateLastUpdateTime } from "./modules/control-helpers.js";
 import { executeDelete } from "./utils/db-utils.js";
 import { handleFinalMovimentacaoSubmit } from "./modules/movimentacao-modal-handler.js";
@@ -23,6 +24,7 @@ function setupApp() {
     
     // 2. Definir datas iniciais
     const todayStr = getTodayDateString();
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     [DOM_ELEMENTS.inputDataAgua, DOM_ELEMENTS.inputDataGas, DOM_ELEMENTS.inputDataSeparacao, DOM_ELEMENTS.inputDataEntradaAgua, DOM_ELEMENTS.inputDataEntradaGas].forEach(input => {
         if(input) input.value = todayStr;
     });
