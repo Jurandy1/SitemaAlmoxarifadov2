@@ -39,8 +39,8 @@ export function renderEstoqueAgua() {
 
     if (DOM_ELEMENTS.estoqueAguaInicialEl) DOM_ELEMENTOS.estoqueAguaInicialEl.textContent = estoqueInicial;
     if (DOM_ELEMENTS.estoqueAguaEntradasEl) DOM_ELEMENTOS.estoqueAguaEntradasEl.textContent = `+${totalEntradas}`;
-    if (DOM_ELEMENTOS.estoqueAguaSaidasEl) DOM_ELEMENTOS.estoqueAguaSaidasEl.textContent = `-${totalSaidas}`;
-    if (DOM_ELEMENTOS.estoqueAguaAtualEl) DOM_ELEMENTOS.estoqueAguaAtualEl.textContent = estoqueAtual;
+    if (DOM_ELEMENTS.estoqueAguaSaidasEl) DOM_ELEMENTOS.estoqueAguaSaidasEl.textContent = `-${totalSaidas}`;
+    if (DOM_ELEMENTS.estoqueAguaAtualEl) DOM_ELEMENTOS.estoqueAguaAtualEl.textContent = estoqueAtual;
 }
 
 /**
@@ -175,7 +175,7 @@ export function getUnidadeSaldoAgua(unidadeId) {
  */
 export function checkUnidadeSaldoAlertAgua() {
     const selectValue = DOM_ELEMENTS.selectUnidadeAgua.value;
-    const saldoAlertaEl = DOM_ELEMENTOS.unidadeSaldoAlertaAgua;
+    const saldoAlertaEl = DOM_ELEMENTS.unidadeSaldoAlertaAgua;
     
     if (!selectValue || !saldoAlertaEl) {
         if(saldoAlertaEl) saldoAlertaEl.style.display = 'none';
@@ -212,11 +212,11 @@ export async function handleAguaSubmit(e) {
     e.preventDefault();
     if (!isReady()) { showAlert('alert-agua', 'Erro: Não autenticado.', 'error'); return; }
     
-    const selectValue = DOM_ELEMENTOS.selectUnidadeAgua.value; 
+    const selectValue = DOM_ELEMENTS.selectUnidadeAgua.value; 
     if (!selectValue) { showAlert('alert-agua', 'Selecione uma unidade.', 'warning'); return; }
     const [unidadeId, unidadeNome, tipoUnidadeRaw] = selectValue.split('|');
     
-    const tipoMovimentacao = DOM_ELEMENTOS.selectTipoAgua.value; 
+    const tipoMovimentacao = DOM_ELEMENTS.selectTipoAgua.value; 
     const qtdEntregue = parseInt(DOM_ELEMENTOS.inputQtdEntregueAgua.value, 10) || 0;
     const qtdRetorno = parseInt(DOM_ELEMENTOS.inputQtdRetornoAgua.value, 10) || 0;
     const data = dateToTimestamp(DOM_ELEMENTOS.inputDataAgua.value); // Data da Movimentação
@@ -355,7 +355,7 @@ export function renderAguaMovimentacoesHistory() {
         .sort((a, b) => (b.registradoEm?.toMillis() || 0) - (a.registradoEm?.toMillis() || 0));
 
     if (historicoOrdenado.length === 0) {
-        DOM_ELEMENTOS.tableHistoricoAguaAll.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-slate-500">Nenhuma movimentação de unidade registrada.</td></tr>`;
+        DOM_ELEMENTS.tableHistoricoAguaAll.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-slate-500">Nenhuma movimentação de unidade registrada.</td></tr>`;
         return;
     }
     
@@ -387,7 +387,7 @@ export function renderAguaMovimentacoesHistory() {
         </tr>`;
     });
 
-    DOM_ELEMENTOS.tableHistoricoAguaAll.innerHTML = html;
+    DOM_ELEMENTS.tableHistoricoAguaAll.innerHTML = html;
     if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
 
     const filtroEl = document.getElementById(`filtro-historico-agua`);
@@ -404,7 +404,7 @@ export function initAguaListeners() {
         DOM_ELEMENTS.formAgua.addEventListener('submit', handleAguaSubmit);
     }
     if (DOM_ELEMENTS.selectTipoAgua) {
-        DOM_ELEMENTOS.selectTipoAgua.addEventListener('change', toggleAguaFormInputs);
+        DOM_ELEMENTS.selectTipoAgua.addEventListener('change', toggleAguaFormInputs);
     }
     if (DOM_ELEMENTS.selectUnidadeAgua) {
          DOM_ELEMENTOS.selectUnidadeAgua.addEventListener('change', checkUnidadeSaldoAlertAgua);
@@ -412,13 +412,13 @@ export function initAguaListeners() {
     if (DOM_ELEMENTS.formInicialAgua) {
         DOM_ELEMENTOS.formInicialAgua.addEventListener('submit', handleInicialEstoqueSubmit);
     }
-    if (DOM_ELEMENTOS.btnAbrirInicialAgua) {
+    if (DOM_ELEMENTS.btnAbrirInicialAgua) {
         DOM_ELEMENTOS.btnAbrirInicialAgua.addEventListener('click', () => { 
             DOM_ELEMENTOS.formInicialAguaContainer?.classList.remove('hidden'); 
             DOM_ELEMENTOS.btnAbrirInicialAgua?.classList.add('hidden'); 
         });
     }
-    if (DOM_ELEMENTOS.formEntradaAgua) {
+    if (DOM_ELEMENTS.formEntradaAgua) {
         DOM_ELEMENTOS.formEntradaAgua.addEventListener('submit', handleEntradaEstoqueSubmit);
     }
     if (document.getElementById('filtro-status-agua')) {
@@ -444,8 +444,8 @@ export function initAguaListeners() {
         const formName = btn.dataset.form;
         document.querySelectorAll('#content-agua .form-tab-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        DOM_ELEMENTOS.formAgua.classList.toggle('hidden', formName !== 'saida-agua');
-        DOM_ELEMENTOS.formEntradaAgua.classList.toggle('hidden', formName !== 'entrada-agua');
+        DOM_ELEMENTS.formAgua.classList.toggle('hidden', formName !== 'saida-agua');
+        DOM_ELEMENTS.formEntradaAgua.classList.toggle('hidden', formName !== 'entrada-agua');
     }));
 
 }
@@ -461,8 +461,12 @@ export function onAguaTabChange() {
     renderAguaStatus();
     renderAguaMovimentacoesHistory();
     // Garante que o input de data está em dia
-    if (DOM_ELEMENTOS.inputDataAgua) DOM_ELEMENTOS.inputDataAgua.value = getTodayDateString();
-    if (DOM_ELEMENTOS.inputDataEntradaAgua) DOM_ELEMENTOS.inputDataEntradaAgua.value = getTodayDateString();
-    document.getElementById('filtro-status-agua')?.value = ''; 
-    document.getElementById('filtro-historico-agua')?.value = '';
+    if (DOM_ELEMENTS.inputDataAgua) DOM_ELEMENTOS.inputDataAgua.value = getTodayDateString();
+    if (DOM_ELEMENTS.inputDataEntradaAgua) DOM_ELEMENTOS.inputDataEntradaAgua.value = getTodayDateString();
+    
+    // CORRIGIDO: Usar verificação `if` em vez de encadeamento opcional na atribuição (linha 466)
+    const filtroStatus = document.getElementById('filtro-status-agua');
+    if (filtroStatus) filtroStatus.value = '';
+    const filtroHistorico = document.getElementById('filtro-historico-agua');
+    if (filtroHistorico) filtroHistorico.value = '';
 }
