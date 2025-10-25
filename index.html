@@ -821,7 +821,7 @@
                                 <input type="text" id="input-responsavel-entrada-gas" class="form-input" placeholder="Nome de quem recebeu a NF" required>
                            </div>
                             <div>
-                                <label for="input-nf-entrada-gas" class="form-label">Nota Fiscal (Opcional)</label>
+                                <label for="input-nf-entrada-gas" class_name="form-label">Nota Fiscal (Opcional)</label>
                                 <input type="text" id="input-nf-entrada-gas" class="form-input" placeholder="Nº da Nota Fiscal">
                            </div>
                            <button type="submit" id="btn-submit-entrada-gas" class="btn-primary w-full !mt-6">
@@ -880,4 +880,501 @@
             <div id="subview-historico-gas" class="hidden">
                  <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
                     <h2 class="text-xl font-bold text-gray-800 mb-4"><i data-lucide="archive" class="inline-block -mt-1 mr-2"></i> Histórico Geral de Movimentações (Gás)</h2>
-                    <p class="text-sm text-gray-600 mb-4">Detalhes de **todas** as entregas e retornos de botijões nas unidades, incluindo
+                    <p class="text-sm text-gray-600 mb-4">Detalhes de **todas** as entregas e retornos de botijões nas unidades, incluindo responsáveis e datas.</p>
+                    <div id="alert-historico-gas" class="alert mb-4"></div>
+                    
+                    <div class="mb-4">
+                        <label for="filtro-historico-gas" class="form-label text-xs">Buscar no Histórico:</label>
+                        <input type="text" id="filtro-historico-gas" data-table="table-historico-gas-all" class="form-input" placeholder="Buscar por unidade, responsável, data...">
+                    </div>
+
+                    <div class="overflow-x-auto border border-gray-200 rounded-lg max-h-96">
+                        <table class="table w-full text-sm">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th>Unidade</th>
+                                    <th>Tipo</th>
+                                    <th>Qtd.</th>
+                                    <th>Data Movimentação</th>
+                                    <th>Resp. Almox.</th>
+                                    <th>Resp. Unidade</th>
+                                    <th class="text-center">Lançado Em</th>
+                                    <th class="text-center">Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-historico-gas-all" class="divide-y divide-gray-100">
+                                <tr><td colspan="8" class="text-center py-10"><div class="loading-spinner-small mx-auto"></div></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sub-view: Previsão (Gás) -->
+            <div id="subview-previsao-gas" class="hidden">
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 max-w-6xl mx-auto">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-2">
+                        <i data-lucide="bar-chart-3" class="inline-block -mt-1"></i> Previsão Inteligente de Consumo - Gás
+                    </h2>
+                    <p class="text-sm text-gray-500 mb-6">
+                        Calcule previsões precisas baseadas no histórico de consumo para planejar compras.
+                    </p>
+                    
+                    <!-- Etapa 1 -->
+                    <div class="mb-6">
+                        <h3 class="font-semibold text-gray-700 mb-3 text-lg">1. Selecione o modo de previsão:</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <!-- JS usa onclick="selecionarModoPrevisao('gas', ...)" -->
+                            <div class="previsao-option-card" data-modo="unidade-especifica" onclick="selecionarModoPrevisao('gas', 'unidade-especifica')">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <div class="bg-blue-100 p-2 rounded-full"><i data-lucide="building" class="text-blue-600"></i></div>
+                                    <h4 class="font-bold text-gray-800">Unidade Específica</h4>
+                                </div>
+                                <p class="text-sm text-gray-600">Previsão detalhada para uma unidade individual</p>
+                            </div>
+                            <div class="previsao-option-card" data-modo="por-tipo" onclick="selecionarModoPrevisao('gas', 'por-tipo')">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <div class="bg-green-100 p-2 rounded-full"><i data-lucide="layers" class="text-green-600"></i></div>
+                                    <h4 class="font-bold text-gray-800">Por Tipo</h4>
+                                </div>
+                                <p class="text-sm text-gray-600">Previsão para todas as unidades de um tipo</p>
+                            </div>
+                            <div class="previsao-option-card" data-modo="completo" onclick="selecionarModoPrevisao('gas', 'completo')">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <div class="bg-purple-100 p-2 rounded-full"><i data-lucide="globe" class="text-purple-600"></i></div>
+                                    <h4 class="font-bold text-gray-800">Completo</h4>
+                                </div>
+                                <p class="text-sm text-gray-600">Previsão total para todas as unidades</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Etapa 2 -->
+                    <div id="config-previsao-gas" class="hidden mb-6 p-4 bg-gray-50 rounded-lg border">
+                        <h3 class="font-semibold text-gray-700 mb-3 text-lg">2. Configure sua previsão:</h3>
+                        <div id="select-unidade-container-gas" class="hidden mb-4">
+                            <label for="select-previsao-unidade-gas-v2" class="form-label">Selecione a Unidade:</label>
+                            <select id="select-previsao-unidade-gas-v2" class="form-select"></select>
+                        </div>
+                        <div id="select-tipo-container-gas" class="hidden mb-4">
+                            <label for="select-previsao-tipo-gas" class="form-label">Selecione o Tipo:</label>
+                            <select id="select-previsao-tipo-gas" class="form-select"></select>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label for="dias-previsao-gas" class="form-label">Período da Previsão (dias):</label>
+                                <input type="number" id="dias-previsao-gas" class="form-input" min="1" value="7">
+                            </div>
+                            <div>
+                                <label for="margem-seguranca-gas" class="form-label">Margem de Segurança (%):</label>
+                                <input type="number" id="margem-seguranca-gas" class="form-input" min="0" max="100" value="15">
+                            </div>
+                        </div>
+                        <div class="mb-4" id="exclusao-container-gas">
+                            <label class="form-label">Excluir Unidades do Cálculo (opcional)</label>
+                            <div class="flex gap-2">
+                                <select id="select-exclusao-gas" class="form-select flex-1"></select>
+                                <button type="button" onclick="adicionarExclusao('gas')" class="btn-secondary flex-shrink-0">
+                                    + Adicionar
+                                </button>
+                            </div>
+                            <div id="lista-exclusoes-gas" class="flex flex-wrap gap-2 mt-3"></div>
+                        </div>
+                    </div>
+
+                    <!-- Etapa 3 -->
+                    <div class="text-center mb-6">
+                        <button id="btn-calcular-previsao-gas-v2" class="btn-primary btn-lg px-8" onclick="calcularPrevisaoInteligente('gas')">
+                            <i data-lucide="calculator"></i>
+                            Calcular Previsão
+                        </button>
+                    </div>
+
+                    <!-- Etapa 4: Resultados -->
+                    <div id="resultado-previsao-gas-v2" class="hidden space-y-6">
+                        <div id="alertas-previsao-gas"></div>
+                        <div class="previsao-card">
+                            <h3 class="text-xl font-bold mb-4">📊 Resultados da Previsão</h3>
+                            <div id="resultado-content-gas"></div>
+                        </div>
+                        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                            <h4 class="font-semibold text-gray-700 mb-3">📈 Tendência de Consumo</h4>
+                            <div class="chart-container">
+                                <canvas id="grafico-previsao-gas"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================================== -->
+        <!-- PAINEL ENTREGA DE MATERIAIS (ID: content-materiais)      -->
+        <!-- ========================================================== -->
+        <div id="content-materiais" class="fade-in hidden">
+            <!-- Sub-navegação -->
+            <div class="flex flex-wrap gap-2 mb-6" id="sub-nav-materiais">
+                <button class="sub-nav-btn active" data-subview="lancar-materiais">
+                   <i data-lucide="edit-3"></i>
+                   <span>Lançar Requisição</span>
+                </button>
+                <button class="sub-nav-btn" data-subview="status-workflow">
+                   <i data-lucide="kanban-square"></i>
+                   <span>Workflow de Separação</span>
+                </button>
+                <button class="sub-nav-btn" data-subview="historico-entregues">
+                   <i data-lucide="archive"></i>
+                   <span>Histórico de Entregues</span>
+                </button>
+            </div>
+
+            <!-- Sub-view: Lançar Requisição -->
+            <div id="subview-lancar-materiais">
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 max-w-2xl mx-auto">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">Lançar Requisição de Material</h2>
+                    <form id="form-materiais" class="space-y-4">
+                        <div>
+                            <label for="select-unidade-materiais" class="form-label">Unidade (Apenas habilitadas)</label>
+                            <select id="select-unidade-materiais" class="form-select" required></select>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label for="select-tipo-materiais" class="form-label">Tipo de Material</label>
+                                <select id="select-tipo-materiais" class="form-select" required>
+                                    <option value="">-- Selecione --</option>
+                                    <option value="alimenticio">Alimentício</option>
+                                    <option value="higiene">Higiene</option>
+                                    <option value="limpeza">Limpeza</option>
+                                    <option value="expediente">Expediente</option>
+                                    <option value="outros">Outros</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="input-data-separacao" class="form-label">Data Limite (Separação)</label>
+                                <input type="date" id="input-data-separacao" class="form-input" required>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="textarea-itens-materiais" class="form-label">Itens / Observações (Opcional)</label>
+                            <textarea id="textarea-itens-materiais" class="form-textarea" placeholder="Ex: 5 caixas de leite, 10 pacotes de café..."></textarea>
+                        </div>
+                        <div>
+                            <label for="input-responsavel-materiais" class="form-label">Responsável pelo Lançamento (Unidade)</label>
+                            <input type="text" id="input-responsavel-materiais" class="form-input" placeholder="Seu nome" required>
+                        </div>
+                        <div>
+                            <label for="input-arquivo-materiais" class="form-label">Anexar Pedido (PDF/JPG/PNG, Opcional, Máx 10MB)</label>
+                            <input type="file" id="input-arquivo-materiais" class="form-input" accept=".pdf,.jpg,.jpeg,.png">
+                        </div>
+                        
+                        <button type="submit" id="btn-submit-materiais" class="btn-primary w-full !mt-6">
+                            <i data-lucide="save"></i> <span>Registrar Requisição</span>
+                        </button>
+                    </form>
+                    <div id="alert-materiais" class="alert mt-4"></div>
+                </div>
+            </div>
+
+            <!-- Sub-view: Workflow -->
+            <div id="subview-status-workflow" class="hidden space-y-6">
+                <!-- 1. Para Separar (Requisitado) -->
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                    <h3 class="text-xl font-bold text-gray-800 mb-2">1. Para Separar (<span id="summary-materiais-requisitado">0</span>)</h3>
+                    <p class="text-sm text-gray-500 mb-4">Requisições que aguardam um separador.</p>
+                    <div id="alert-para-separar" class="alert mb-4"></div>
+                    <div class="overflow-x-auto border border-gray-200 rounded-lg">
+                        <table class="table w-full text-sm">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th>Unidade</th>
+                                    <th>Tipo</th>
+                                    <th>Data Limite</th>
+                                    <th>Lançado por</th>
+                                    <th class="text-center">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-para-separar" class="divide-y divide-gray-100">
+                                <tr><td colspan="5" class="text-center py-10"><div class="loading-spinner-small mx-auto"></div></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 2. Em Separação -->
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                    <h3 class="text-xl font-bold text-gray-800 mb-2">2. Em Separação (<span id="summary-materiais-separacao">0</span>)</h3>
+                    <p class="text-sm text-gray-500 mb-4">Materiais que estão sendo separados no almoxarifado.</p>
+                    <div id="alert-em-separacao" class="alert mb-4"></div>
+                    <div class="overflow-x-auto border border-gray-200 rounded-lg">
+                        <table class="table w-full text-sm">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th>Unidade</th>
+                                    <th>Tipo</th>
+                                    <th>Separador</th>
+                                    <th>Iniciado Em</th>
+                                    <th class="text-center">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-em-separacao" class="divide-y divide-gray-100">
+                                <tr><td colspan="5" class="text-center py-10"><div class="loading-spinner-small mx-auto"></div></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- 3. Pronto para Entrega/Retirada -->
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                    <h3 class="text-xl font-bold text-gray-800 mb-2">3. Pronto p/ Entrega (<span id="summary-materiais-retirada">0</span>)</h3>
+                    <p class="text-sm text-gray-500 mb-4">Materiais aguardando retirada pela unidade.</p>
+                    <div id="alert-pronto-entrega" class="alert mb-4"></div>
+                    <div class="overflow-x-auto border border-gray-200 rounded-lg">
+                        <table class="table w-full text-sm">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th>Unidade</th>
+                                    <th>Tipo</th>
+                                    <th>Separador</th>
+                                    <th>Pronto Em</th>
+                                    <th class="text-center">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-pronto-entrega" class="divide-y divide-gray-100">
+                                <tr><td colspan="5" class="text-center py-10"><div class="loading-spinner-small mx-auto"></div></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sub-view: Histórico de Entregues -->
+            <div id="subview-historico-entregues" class="hidden">
+                 <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4"><i data-lucide="archive" class="inline-block -mt-1 mr-2"></i> Histórico de Materiais Entregues</h2>
+                    <p class="text-sm text-gray-600 mb-4">Detalhes de todos os materiais que já foram finalizados e entregues.</p>
+                    <div id="alert-historico-entregues" class="alert mb-4"></div>
+                    
+                    <div class="mb-4">
+                        <label for="filtro-historico-entregues" class="form-label text-xs">Buscar no Histórico:</label>
+                        <input type="text" id="filtro-historico-entregues" data-table="table-historico-entregues" class="form-input" placeholder="Buscar por unidade, responsável, data...">
+                    </div>
+
+                    <div class="overflow-x-auto border border-gray-200 rounded-lg max-h-96">
+                        <table class="table w-full text-sm">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th>Unidade</th>
+                                    <th>Tipo</th>
+                                    <th>Data Entrega</th>
+                                    <th>Resp. Unidade</th>
+                                    <th>Resp. Almox.</th>
+                                    <th class="text-center">Lançado Em</th>
+                                    <th class="text-center">Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-historico-entregues" class="divide-y divide-gray-100">
+                                <tr><td colspan="7" class="text-center py-10"><div class="loading-spinner-small mx-auto"></div></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ============================================= -->
+        <!-- PAINEL GESTÃO (ID: content-gestao)            -->
+        <!-- ============================================= -->
+        <div id="content-gestao" class="fade-in hidden">
+            
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Coluna da Tabela -->
+                <div class="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">Gestão de Unidades</h2>
+                    <div id="alert-gestao" class="alert mb-4"></div>
+                    
+                    <div class="mb-4 flex flex-wrap gap-4">
+                        <div>
+                            <label for="filtro-unidade-nome" class="form-label text-xs">Buscar por Nome:</label>
+                            <input type="text" id="filtro-unidade-nome" class="form-input" placeholder="Nome da unidade...">
+                        </div>
+                        <div>
+                            <label for="filtro-unidade-tipo" class="form-label text-xs">Filtrar por Tipo:</label>
+                            <input type="text" id="filtro-unidade-tipo" class="form-input" placeholder="CRAS, CREAS, SEDE...">
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto border border-gray-200 rounded-lg">
+                        <table class="table w-full text-sm">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th>Nome da Unidade</th>
+                                    <th>Tipo</th>
+                                    <th class="text-center">Atende Água</th>
+                                    <th class="text-center">Atende Gás</th>
+                                    <th class="text-center">Atende Materiais</th>
+                                    <th class="text-center">Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-gestao-unidades" class="divide-y divide-gray-100">
+                                <tr><td colspan="6" class="text-center py-10"><div class="loading-spinner-small mx-auto"></div></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Coluna de Adição em Lote -->
+                <div class="lg:col-span-1 bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                    <h3 class="text-xl font-bold text-gray-800 mb-2">Adicionar em Lote</h3>
+                    <p class="text-sm text-gray-500 mb-4">Cole do Excel (duas colunas: TIPO [TAB] NOME). Unidades duplicadas serão ignoradas.</p>
+                    <textarea id="textarea-bulk-unidades" class="form-textarea h-48" placeholder="CRAS	Unidade 1&#10;CREAS	Unidade 2&#10;SEDE	Unidade 3"></textarea>
+                    <button id="btn-bulk-add-unidades" class="btn-primary w-full mt-3">Adicionar Unidades</button>
+                </div>
+            </div>
+            
+        </div>
+
+        <!-- ============================================= -->
+        <!-- PAINEL RELATÓRIO (ID: content-relatorio)      -->
+        <!-- ============================================= -->
+        <div id="content-relatorio" class="fade-in hidden">
+            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 max-w-lg mx-auto">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">Gerar Relatório de Entregas</h2>
+                <div class="space-y-4">
+                    <div>
+                        <label for="relatorio-tipo" class="form-label">Tipo de Recurso</label>
+                        <select id="relatorio-tipo" class="form-select">
+                            <option value="agua">Água</option>
+                            <option value="gas">Gás</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="relatorio-data-inicio" class="form-label">Data de Início</label>
+                        <input type="date" id="relatorio-data-inicio" class="form-input" required>
+                    </div>
+                    <div>
+                        <label for="relatorio-data-fim" class="form-label">Data de Fim</label>
+                        <input type="date" id="relatorio-data-fim" class="form-input" required>
+                    </div>
+                    <button id="btn-gerar-pdf" class="btn-primary w-full !mt-6">
+                        <i data-lucide="file-down"></i> <span>Gerar Relatório PDF</span>
+                    </button>
+                </div>
+                <div id="alert-relatorio" class="alert mt-4"></div>
+            </div>
+        </div>
+        
+    </main>
+
+    <!-- ============================================= -->
+    <!-- MODAIS GLOBAIS                                -->
+    <!-- ============================================= -->
+    
+    <!-- Modal: Confirmar Exclusão -->
+    <div id="confirm-delete-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title"><i data-lucide="alert-triangle" class="inline-block -mt-1 mr-2 text-red-500"></i> Confirmar Exclusão</h3>
+                <button class="modal-close" onclick="document.getElementById('confirm-delete-modal').style.display='none'">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Você tem certeza que deseja remover permanentemente este item?</p>
+                <p id="delete-details" class="text-sm font-medium text-gray-800 mt-2"></p>
+                <div id="delete-warning-unidade" class="alert alert-error mt-3">
+                    <strong>Atenção:</strong> Ao remover uma unidade, **todo o histórico** de água, gás e materiais associado a ela também será permanentemente removido.
+                </div>
+                 <div id="delete-warning-inicial" class="alert alert-warning mt-3">
+                    <strong>Atenção:</strong> Remover um lançamento inicial pode causar inconsistências graves no cálculo do estoque.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="btn-cancel-delete" class="btn-secondary" onclick="document.getElementById('confirm-delete-modal').style.display='none'">Cancelar</button>
+                <button id="btn-confirm-delete" class="btn-danger"><i data-lucide="trash-2"></i> Confirmar Exclusão</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal: Responsável Almoxarifado (Água/Gás) -->
+    <div id="almoxarifado-responsavel-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title"><i data-lucide="box" class="inline-block -mt-1 mr-2"></i> Confirmação de Movimentação</h3>
+                <button class="modal-close" onclick="document.getElementById('almoxarifado-responsavel-modal').style.display='none'">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="text-sm mb-4">Informe seu nome (Responsável do Almoxarifado) para registrar quem está realizando a movimentação.</p>
+                <div>
+                    <label for="input-almox-responsavel-nome" class="form-label">Seu Nome (Almoxarifado)</label>
+                    <input type="text" id="input-almox-responsavel-nome" class="form-input" placeholder="Seu nome aqui..." required>
+                </div>
+                <!-- Campos ocultos para armazenar os dados temporariamente -->
+                <input type="hidden" id="almox-temp-unidadeId">
+                <input type="hidden" id="almox-temp-unidadeNome">
+                <input type="hidden" id="almox-temp-tipoUnidadeRaw">
+                <input type="hidden" id="almox-temp-tipoMovimentacao">
+                <input type="hidden" id="almox-temp-qtdEntregue">
+                <input type="hidden" id="almox-temp-qtdRetorno">
+                <input type="hidden" id="almox-temp-data">
+                <input type="hidden" id="almox-temp-responsavelUnidade">
+                <input type="hidden" id="almox-temp-itemType">
+                <div id="alert-almox-responsavel" class="alert mt-3"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="document.getElementById('almoxarifado-responsavel-modal').style.display='none'">Cancelar</button>
+                <button id="btn-salvar-movimentacao-final" class="btn-primary"><i data-lucide="save"></i> Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Informar Separador (Materiais) -->
+    <div id="separador-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title"><i data-lucide="user-check" class="inline-block -mt-1 mr-2 text-green-600"></i> Iniciar Separação</h3>
+                <button class="modal-close" onclick="document.getElementById('separador-modal').style.display='none'">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="text-sm mb-4">Informe o nome do responsável pela separação deste material.</p>
+                <div>
+                    <label for="input-separador-nome" class="form-label">Nome do Separador (Almoxarifado)</label>
+                    <input type="text" id="input-separador-nome" class="form-input" placeholder="Nome do separador..." required>
+                </div>
+                <input type="hidden" id="separador-material-id">
+                <div id="alert-separador" class="alert mt-3"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="document.getElementById('separador-modal').style.display='none'">Cancelar</button>
+                <button id="btn-salvar-separador" class="btn-primary">Salvar Nome e Liberar</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal: Finalizar Entrega (Materiais) -->
+    <div id="finalizar-entrega-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title"><i data-lucide="check-circle" class="inline-block -mt-1 mr-2 text-blue-600"></i> Finalizar Entrega de Material</h3>
+                <button class="modal-close" onclick="document.getElementById('finalizar-entrega-modal').style.display='none'">&times;</button>
+            </div>
+            <div class="modal-body space-y-4">
+                <p class="text-sm">Confirme quem entregou (Almoxarifado) e quem recebeu (Unidade).</p>
+                <div>
+                    <label for="input-entrega-responsavel-almox" class="form-label">Quem Entregou (Almoxarifado)</label>
+                    <input type="text" id="input-entrega-responsavel-almox" class="form-input" placeholder="Nome do separador/entregador..." required>
+                </div>
+                 <div>
+                    <label for="input-entrega-responsavel-unidade" class="form-label">Quem Recebeu (Unidade)</label>
+                    <input type="text" id="input-entrega-responsavel-unidade" class="form-input" placeholder="Nome de quem recebeu na unidade..." required>
+                </div>
+                <input type="hidden" id="finalizar-entrega-material-id">
+                <div id="alert-finalizar-entrega" class="alert mt-3"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="document.getElementById('finalizar-entrega-modal').style.display='none'">Cancelar</button>
+                <button id="btn-confirmar-finalizacao-entrega" class="btn-primary"><i data-lucide="check-circle"></i> Confirmar Finalização</button>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
