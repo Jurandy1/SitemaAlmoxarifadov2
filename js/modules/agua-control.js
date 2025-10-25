@@ -26,7 +26,7 @@ export function renderEstoqueAgua() {
     } else { 
         if(DOM_ELEMENTS.btnAbrirInicialAgua) DOM_ELEMENTS.btnAbrirInicialAgua.classList.remove('hidden'); 
         if(DOM_ELEMENTS.formInicialAguaContainer) DOM_ELEMENTS.formInicialAguaContainer.classList.add('hidden'); 
-        if(DOM_ELEMENTS.resumoEstoqueAguaEl) DOM_ELEMENTOS.resumoEstoqueAguaEl.classList.add('hidden'); 
+        if(DOM_ELEMENTS.resumoEstoqueAguaEl) DOM_ELEMENTS.resumoEstoqueAguaEl.classList.add('hidden'); 
     }
 
     const estoqueAgua = getEstoqueAgua();
@@ -37,10 +37,10 @@ export function renderEstoqueAgua() {
     const totalSaidas = movs.filter(m => m.tipo === 'entrega').reduce((sum, m) => sum + m.quantidade, 0);
     const estoqueAtual = estoqueInicial + totalEntradas - totalSaidas;
 
-    if (DOM_ELEMENTS.estoqueAguaInicialEl) DOM_ELEMENTOS.estoqueAguaInicialEl.textContent = estoqueInicial;
-    if (DOM_ELEMENTS.estoqueAguaEntradasEl) DOM_ELEMENTOS.estoqueAguaEntradasEl.textContent = `+${totalEntradas}`;
-    if (DOM_ELEMENTS.estoqueAguaSaidasEl) DOM_ELEMENTOS.estoqueAguaSaidasEl.textContent = `-${totalSaidas}`;
-    if (DOM_ELEMENTS.estoqueAguaAtualEl) DOM_ELEMENTOS.estoqueAguaAtualEl.textContent = estoqueAtual;
+    if (DOM_ELEMENTS.estoqueAguaInicialEl) DOM_ELEMENTS.estoqueAguaInicialEl.textContent = estoqueInicial;
+    if (DOM_ELEMENTS.estoqueAguaEntradasEl) DOM_ELEMENTS.estoqueAguaEntradasEl.textContent = `+${totalEntradas}`;
+    if (DOM_ELEMENTS.estoqueAguaSaidasEl) DOM_ELEMENTS.estoqueAguaSaidasEl.textContent = `-${totalSaidas}`;
+    if (DOM_ELEMENTS.estoqueAguaAtualEl) DOM_ELEMENTS.estoqueAguaAtualEl.textContent = estoqueAtual;
 }
 
 /**
@@ -111,7 +111,7 @@ export async function handleEntradaEstoqueSubmit(e) {
     }
     
     DOM_ELEMENTS.btnSubmitEntradaAgua.disabled = true; 
-    DOM_ELEMENTOS.btnSubmitEntradaAgua.innerHTML = '<div class="loading-spinner-small mx-auto"></div>';
+    DOM_ELEMENTS.btnSubmitEntradaAgua.innerHTML = '<div class="loading-spinner-small mx-auto"></div>';
     
     try {
         await addDoc(COLLECTIONS.estoqueAgua, { 
@@ -123,14 +123,14 @@ export async function handleEntradaEstoqueSubmit(e) {
             registradoEm: serverTimestamp() // Data do Lançamento
         });
         showAlert('alert-agua', 'Entrada no estoque salva!', 'success');
-        DOM_ELEMENTOS.formEntradaAgua.reset(); 
-        DOM_ELEMENTOS.inputDataEntradaAgua.value = getTodayDateString(); 
+        DOM_ELEMENTS.formEntradaAgua.reset(); 
+        DOM_ELEMENTS.inputDataEntradaAgua.value = getTodayDateString(); 
     } catch (error) {
         console.error("Erro salvar entrada estoque:", error); 
         showAlert('alert-agua', `Erro: ${error.message}`, 'error');
     } finally { 
-        DOM_ELEMENTOS.btnSubmitEntradaAgua.disabled = false; 
-        DOM_ELEMENTOS.btnSubmitEntradaAgua.textContent = 'Salvar Entrada'; 
+        DOM_ELEMENTS.btnSubmitEntradaAgua.disabled = false; 
+        DOM_ELEMENTS.btnSubmitEntradaAgua.textContent = 'Salvar Entrada'; 
     }
 }
 
@@ -144,18 +144,18 @@ export async function handleEntradaEstoqueSubmit(e) {
  */
 export function toggleAguaFormInputs() {
     if (!DOM_ELEMENTS.selectTipoAgua) return; 
-    const tipo = DOM_ELEMENTOS.selectTipoAgua.value;
+    const tipo = DOM_ELEMENTS.selectTipoAgua.value;
     if (tipo === 'troca') {
-        DOM_ELEMENTOS.formGroupQtdEntregueAgua?.classList.remove('hidden');
-        DOM_ELEMENTOS.formGroupQtdRetornoAgua?.classList.remove('hidden');
+        DOM_ELEMENTS.formGroupQtdEntregueAgua?.classList.remove('hidden');
+        DOM_ELEMENTS.formGroupQtdRetornoAgua?.classList.remove('hidden');
     } else if (tipo === 'entrega') {
-        DOM_ELEMENTOS.formGroupQtdEntregueAgua?.classList.remove('hidden');
-        DOM_ELEMENTOS.formGroupQtdRetornoAgua?.classList.add('hidden');
-        if (DOM_ELEMENTOS.inputQtdRetornoAgua) DOM_ELEMENTOS.inputQtdRetornoAgua.value = "0"; 
+        DOM_ELEMENTS.formGroupQtdEntregueAgua?.classList.remove('hidden');
+        DOM_ELEMENTS.formGroupQtdRetornoAgua?.classList.add('hidden');
+        if (DOM_ELEMENTS.inputQtdRetornoAgua) DOM_ELEMENTS.inputQtdRetornoAgua.value = "0"; 
     } else if (tipo === 'retorno') {
-        DOM_ELEMENTOS.formGroupQtdEntregueAgua?.classList.add('hidden');
-        DOM_ELEMENTOS.formGroupQtdRetornoAgua?.classList.remove('hidden');
-        if (DOM_ELEMENTOS.inputQtdEntregueAgua) DOM_ELEMENTOS.inputQtdEntregueAgua.value = "0"; 
+        DOM_ELEMENTS.formGroupQtdEntregueAgua?.classList.add('hidden');
+        DOM_ELEMENTS.formGroupQtdRetornoAgua?.classList.remove('hidden');
+        if (DOM_ELEMENTS.inputQtdEntregueAgua) DOM_ELEMENTS.inputQtdEntregueAgua.value = "0"; 
     }
 }
 
@@ -174,6 +174,7 @@ export function getUnidadeSaldoAgua(unidadeId) {
  * Verifica e exibe o alerta de saldo no formulário.
  */
 export function checkUnidadeSaldoAlertAgua() {
+    if (!DOM_ELEMENTS.selectUnidadeAgua) return;
     const selectValue = DOM_ELEMENTS.selectUnidadeAgua.value;
     const saldoAlertaEl = DOM_ELEMENTS.unidadeSaldoAlertaAgua;
     
@@ -217,10 +218,10 @@ export async function handleAguaSubmit(e) {
     const [unidadeId, unidadeNome, tipoUnidadeRaw] = selectValue.split('|');
     
     const tipoMovimentacao = DOM_ELEMENTS.selectTipoAgua.value; 
-    const qtdEntregue = parseInt(DOM_ELEMENTOS.inputQtdEntregueAgua.value, 10) || 0;
-    const qtdRetorno = parseInt(DOM_ELEMENTOS.inputQtdRetornoAgua.value, 10) || 0;
-    const data = dateToTimestamp(DOM_ELEMENTOS.inputDataAgua.value); // Data da Movimentação
-    const responsavelUnidade = capitalizeString(DOM_ELEMENTOS.inputResponsavelAgua.value.trim()); 
+    const qtdEntregue = parseInt(DOM_ELEMENTS.inputQtdEntregueAgua.value, 10) || 0;
+    const qtdRetorno = parseInt(DOM_ELEMENTS.inputQtdRetornoAgua.value, 10) || 0;
+    const data = dateToTimestamp(DOM_ELEMENTS.inputDataAgua.value); // Data da Movimentação
+    const responsavelUnidade = capitalizeString(DOM_ELEMENTS.inputResponsavelAgua.value.trim()); 
     
     if (!unidadeId || !data || !responsavelUnidade) {
         showAlert('alert-agua', 'Dados inválidos. Verifique Unidade, Data e Nome de quem Recebeu/Devolveu.', 'warning'); return;
@@ -240,7 +241,7 @@ export async function handleAguaSubmit(e) {
         if (!isEstoqueInicialDefinido('agua')) {
             showAlert('alert-agua', 'Defina o Estoque Inicial de Água antes de lançar saídas.', 'warning'); return;
         }
-        const estoqueAtual = parseInt(DOM_ELEMENTOS.estoqueAguaAtualEl.textContent) || 0;
+        const estoqueAtual = parseInt(DOM_ELEMENTS.estoqueAguaAtualEl.textContent) || 0;
         if (qtdEntregue > estoqueAtual) {
             showAlert('alert-agua', `Erro: Estoque insuficiente. Disponível: ${estoqueAtual}`, 'error'); return;
         }
@@ -333,7 +334,7 @@ export function renderAguaStatus(newFilter = null) {
             </td>
         </tr>`;
     });
-    DOM_ELEMENTOS.tableStatusAgua.innerHTML = html;
+    DOM_ELEMENTS.tableStatusAgua.innerHTML = html;
      if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); } 
 
     const filtroStatusAguaEl = document.getElementById('filtro-status-agua');
@@ -391,7 +392,7 @@ export function renderAguaMovimentacoesHistory() {
     if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
 
     const filtroEl = document.getElementById(`filtro-historico-agua`);
-    if (filtroEl && filtroEl.value) { filterTable(filtroEl, DOM_ELEMENTOS.tableHistoricoAguaAll.id); }
+    if (filtroEl && filtroEl.value) { filterTable(filtroEl, DOM_ELEMENTS.tableHistoricoAguaAll.id); }
 }
 
 
@@ -407,19 +408,19 @@ export function initAguaListeners() {
         DOM_ELEMENTS.selectTipoAgua.addEventListener('change', toggleAguaFormInputs);
     }
     if (DOM_ELEMENTS.selectUnidadeAgua) {
-         DOM_ELEMENTOS.selectUnidadeAgua.addEventListener('change', checkUnidadeSaldoAlertAgua);
+         DOM_ELEMENTS.selectUnidadeAgua.addEventListener('change', checkUnidadeSaldoAlertAgua);
     }
     if (DOM_ELEMENTS.formInicialAgua) {
-        DOM_ELEMENTOS.formInicialAgua.addEventListener('submit', handleInicialEstoqueSubmit);
+        DOM_ELEMENTS.formInicialAgua.addEventListener('submit', handleInicialEstoqueSubmit);
     }
     if (DOM_ELEMENTS.btnAbrirInicialAgua) {
-        DOM_ELEMENTOS.btnAbrirInicialAgua.addEventListener('click', () => { 
-            DOM_ELEMENTOS.formInicialAguaContainer?.classList.remove('hidden'); 
-            DOM_ELEMENTOS.btnAbrirInicialAgua?.classList.add('hidden'); 
+        DOM_ELEMENTS.btnAbrirInicialAgua.addEventListener('click', () => { 
+            DOM_ELEMENTS.formInicialAguaContainer?.classList.remove('hidden'); 
+            DOM_ELEMENTS.btnAbrirInicialAgua?.classList.add('hidden'); 
         });
     }
     if (DOM_ELEMENTS.formEntradaAgua) {
-        DOM_ELEMENTOS.formEntradaAgua.addEventListener('submit', handleEntradaEstoqueSubmit);
+        DOM_ELEMENTS.formEntradaAgua.addEventListener('submit', handleEntradaEstoqueSubmit);
     }
     if (document.getElementById('filtro-status-agua')) {
         document.getElementById('filtro-status-agua').addEventListener('input', () => filterTable(document.getElementById('filtro-status-agua'), 'table-status-agua'));
@@ -444,8 +445,8 @@ export function initAguaListeners() {
         const formName = btn.dataset.form;
         document.querySelectorAll('#content-agua .form-tab-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        DOM_ELEMENTS.formAgua.classList.toggle('hidden', formName !== 'saida-agua');
-        DOM_ELEMENTS.formEntradaAgua.classList.toggle('hidden', formName !== 'entrada-agua');
+        if (DOM_ELEMENTS.formAgua) DOM_ELEMENTS.formAgua.classList.toggle('hidden', formName !== 'saida-agua');
+        if (DOM_ELEMENTS.formEntradaAgua) DOM_ELEMENTS.formEntradaAgua.classList.toggle('hidden', formName !== 'entrada-agua');
     }));
 
 }
@@ -461,8 +462,8 @@ export function onAguaTabChange() {
     renderAguaStatus();
     renderAguaMovimentacoesHistory();
     // Garante que o input de data está em dia
-    if (DOM_ELEMENTS.inputDataAgua) DOM_ELEMENTOS.inputDataAgua.value = getTodayDateString();
-    if (DOM_ELEMENTS.inputDataEntradaAgua) DOM_ELEMENTOS.inputDataEntradaAgua.value = getTodayDateString();
+    if (DOM_ELEMENTS.inputDataAgua) DOM_ELEMENTS.inputDataAgua.value = getTodayDateString();
+    if (DOM_ELEMENTS.inputDataEntradaAgua) DOM_ELEMENTS.inputDataEntradaAgua.value = getTodayDateString();
     
     // CORRIGIDO: Usar verificação `if` em vez de encadeamento opcional na atribuição (linha 466)
     const filtroStatus = document.getElementById('filtro-status-agua');
