@@ -266,7 +266,7 @@ export function initGestaoListeners() {
         DOM_ELEMENTS.tableGestaoUnidades.addEventListener('change', handleGestaoToggle); 
     }
     if (DOM_ELEMENTS.filtroUnidadeNome) {
-        DOM_ELEMENTS.filtroUnidadeNome.addEventListener('input', renderGestaoUnidades); 
+        DOM_ELEMENTOS.filtroUnidadeNome.addEventListener('input', renderGestaoUnidades); 
     }
     if (DOM_ELEMENTS.filtroUnidadeTipo) {
         DOM_ELEMENTOS.filtroUnidadeTipo.addEventListener('input', renderGestaoUnidades); 
