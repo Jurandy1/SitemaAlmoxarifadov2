@@ -1,5 +1,6 @@
 // js/modules/dashboard.js
 import { getAguaMovimentacoes, getGasMovimentacoes, getEstoqueAgua, getEstoqueGas, getMateriais, isEstoqueInicialDefinido, getCurrentDashboardMaterialFilter, setCurrentDashboardMaterialFilter, initialMaterialFilter } from "../utils/cache.js";
+// CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
 import { DOM_ELEMENTS, showAlert, switchTab } from "../utils/dom-helpers.js";
 import { formatTimestamp } from "../utils/formatters.js";
 
@@ -153,6 +154,7 @@ function renderDashboardAguaSummary() {
     const totalEntregue30d = movs30Dias.filter(m => m.tipo === 'entrega').reduce((sum, m) => sum + m.quantidade, 0);
     const totalRecebido30d = movs30Dias.filter(m => m.tipo === 'retorno').reduce((sum, m) => sum + m.quantidade, 0);
 
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (DOM_ELEMENTS.summaryAguaPendente) DOM_ELEMENTS.summaryAguaPendente.textContent = totalEntregueGeral - totalRecebidoGeral; 
     if (DOM_ELEMENTS.summaryAguaEntregue) DOM_ELEMENTS.summaryAguaEntregue.textContent = totalEntregue30d;
     if (DOM_ELEMENTS.summaryAguaRecebido) DOM_ELEMENTS.summaryAguaRecebido.textContent = totalRecebido30d;
@@ -180,6 +182,7 @@ function renderDashboardGasSummary() {
     const totalEntregue30d = movs30Dias.filter(m => m.tipo === 'entrega').reduce((sum, m) => sum + m.quantidade, 0);
     const totalRecebido30d = movs30Dias.filter(m => m.tipo === 'retorno').reduce((sum, m) => sum + m.quantidade, 0);
 
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (DOM_ELEMENTS.summaryGasPendente) DOM_ELEMENTS.summaryGasPendente.textContent = totalEntregueGeral - totalRecebidoGeral; 
     if (DOM_ELEMENTS.summaryGasEntregue) DOM_ELEMENTS.summaryGasEntregue.textContent = totalEntregue30d;
     if (DOM_ELEMENTS.summaryGasRecebido) DOM_ELEMENTS.summaryGasRecebido.textContent = totalRecebido30d;
@@ -192,6 +195,7 @@ function renderDashboardGasSummary() {
  * Renderiza a lista de materiais pendentes para a sub-view 'materiais' do dashboard.
  */
 function renderDashboardMateriaisList() {
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (!DOM_ELEMENTS.dashboardMateriaisListContainer || !DOM_ELEMENTS.loadingMateriaisDashboard) return; 
     
     DOM_ELEMENTS.loadingMateriaisDashboard.style.display = 'none'; 
@@ -249,6 +253,7 @@ function renderDashboardMateriaisList() {
  * Renderiza os contadores de materiais para a visão geral e sub-views.
  */
 function renderDashboardMateriaisCounts() {
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (!DOM_ELEMENTS.summaryMateriaisRequisitado) return;
     
     const materiais = getMateriais();
@@ -273,6 +278,7 @@ function renderDashboardMateriaisCounts() {
  * @param {string|null} filterStatus Status para filtrar ('requisitado', 'separacao', 'retirada' ou null/default).
  */
 export function renderDashboardMateriaisProntos(filterStatus = null) {
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     const container = DOM_ELEMENTS.dashboardMateriaisProntosContainer;
     const titleEl = DOM_ELEMENTS.dashboardMateriaisTitle; 
     const clearButton = DOM_ELEMENTS.btnClearDashboardFilter; 
@@ -313,7 +319,7 @@ export function renderDashboardMateriaisProntos(filterStatus = null) {
     }, {});
 
     const tiposComDados = Object.keys(gruposPendentes).filter(tipo => gruposPendentes[tipo].length > 0).sort();
-    const tiposNaoFixosComDados = tiposComDados.filter(tipo => !COLUNAS_DOM.includes(tipo));
+    const tiposNaoFixosComDados = tiposComDados.filter(tipo => !COLUNAS_DOM.includes(tipo)).sort();
     const tiposSubstitutos = [...tiposNaoFixosComDados];
     
     let totalPendentesVisiveis = 0;
@@ -463,6 +469,7 @@ export function stopDashboardRefresh() {
 // =========================================================================
 
 export function initDashboardListeners() {
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (DOM_ELEMENTS.dashboardNavControls) {
         DOM_ELEMENTS.dashboardNavControls.addEventListener('click', (e) => { 
             const btn = e.target.closest('button.dashboard-nav-btn[data-view]'); 
