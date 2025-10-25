@@ -1,7 +1,7 @@
 // js/modules/gestao.js
 import { addDoc, updateDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { getUnidades } from "../utils/cache.js";
-// CORRIGIDO: Importações movidas para o local correto (formatters.js)
+// Linha 4 CORRIGIDA
 import { DOM_ELEMENTS, showAlert, openConfirmDeleteModal } from "../utils/dom-helpers.js"; 
 import { normalizeString, capitalizeString } from "../utils/formatters.js";
 import { isReady } from "./auth.js";
@@ -19,7 +19,7 @@ export function renderGestaoUnidades() {
     
     const unidades = getUnidades();
     const filtroNome = normalizeString(DOM_ELEMENTS.filtroUnidadeNome?.value || '');
-    const filtroTipo = normalizeString(DOM_ELEMENTS.filtroUnidadeTipo?.value || '');
+    const filtroTipo = normalizeString(DOM_ELEMENTOS.filtroUnidadeTipo?.value || '');
     
     const unidadesFiltradas = unidades.filter(unidade => {
         const nomeNormalizado = normalizeString(unidade.nome);
@@ -189,7 +189,7 @@ async function handleSaveUnidadeClick(e) {
  * Adiciona unidades em lote.
  */
 export async function handleBulkAddUnidades() {
-     if (!isReady() || !DOM_ELEMENTS.textareaBulkUnidades) return;
+     if (!isReady() || !DOM_ELEMENTOS.textareaBulkUnidades) return;
      
      const text = DOM_ELEMENTOS.textareaBulkUnidades.value.trim();
      if (!text) { showAlert('alert-gestao', 'A área de texto está vazia.', 'warning'); return; }
@@ -259,19 +259,19 @@ export async function handleBulkAddUnidades() {
 // =========================================================================
 
 export function initGestaoListeners() {
-    if (DOM_ELEMENTS.tableGestaoUnidades) { 
-        DOM_ELEMENTS.tableGestaoUnidades.addEventListener('click', handleEditUnidadeClick);
-        DOM_ELEMENTS.tableGestaoUnidades.addEventListener('click', handleCancelEditUnidadeClick);
-        DOM_ELEMENTS.tableGestaoUnidades.addEventListener('click', handleSaveUnidadeClick);
-        DOM_ELEMENTS.tableGestaoUnidades.addEventListener('change', handleGestaoToggle); 
+    if (DOM_ELEMENTOS.tableGestaoUnidades) { 
+        DOM_ELEMENTOS.tableGestaoUnidades.addEventListener('click', handleEditUnidadeClick);
+        DOM_ELEMENTOS.tableGestaoUnidades.addEventListener('click', handleCancelEditUnidadeClick);
+        DOM_ELEMENTOS.tableGestaoUnidades.addEventListener('click', handleSaveUnidadeClick);
+        DOM_ELEMENTOS.tableGestaoUnidades.addEventListener('change', handleGestaoToggle); 
     }
-    if (DOM_ELEMENTS.filtroUnidadeNome) {
+    if (DOM_ELEMENTOS.filtroUnidadeNome) {
         DOM_ELEMENTOS.filtroUnidadeNome.addEventListener('input', renderGestaoUnidades); 
     }
-    if (DOM_ELEMENTS.filtroUnidadeTipo) {
+    if (DOM_ELEMENTOS.filtroUnidadeTipo) {
         DOM_ELEMENTOS.filtroUnidadeTipo.addEventListener('input', renderGestaoUnidades); 
     }
-    if (DOM_ELEMENTS.btnBulkAddUnidades) {
+    if (DOM_ELEMENTOS.btnBulkAddUnidades) {
         DOM_ELEMENTOS.btnBulkAddUnidades.addEventListener('click', handleBulkAddUnidades);
     }
 }
