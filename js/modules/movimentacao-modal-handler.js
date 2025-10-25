@@ -1,7 +1,7 @@
 // js/modules/movimentacao-modal-handler.js
 import { Timestamp, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { DOM_ELEMENTS, showAlert } from "../utils/dom-helpers.js";
-import { capitalizeString } from "../utils/formatters.js";
+import { capitalizeString, formatTimestamp } from "../utils/formatters.js";
 import { COLLECTIONS } from "../services/firestore-service.js";
 
 // Variáveis temporárias para o fluxo
@@ -19,20 +19,31 @@ export function executeFinalMovimentacao(data) {
     const { tipoMovimentacao, qtdEntregue, qtdRetorno, itemType } = data;
     const itemLabel = itemType === 'agua' ? 'galão(ões)' : 'botijão(ões)';
 
-    // Preenche os campos hidden do modal
-    document.getElementById('almox-temp-unidadeId').value = data.unidadeId;
-    document.getElementById('almox-temp-unidadeNome').value = data.unidadeNome;
-    document.getElementById('almox-temp-tipoUnidadeRaw').value = data.tipoUnidadeRaw;
-    document.getElementById('almox-temp-tipoMovimentacao').value = tipoMovimentacao;
-    document.getElementById('almox-temp-qtdEntregue').value = qtdEntregue;
-    document.getElementById('almox-temp-qtdRetorno').value = qtdRetorno;
-    document.getElementById('almox-temp-data').value = data.data.toMillis();
-    document.getElementById('almox-temp-responsavelUnidade').value = data.responsavelUnidade;
-    document.getElementById('almox-temp-itemType').value = itemType;
+    // Preenche os campos hidden do modal (assumindo que existem no HTML)
+    const tempUnidadeIdEl = document.getElementById('almox-temp-unidadeId');
+    const tempUnidadeNomeEl = document.getElementById('almox-temp-unidadeNome');
+    const tempTipoUnidadeRawEl = document.getElementById('almox-temp-tipoUnidadeRaw');
+    const tempTipoMovimentacaoEl = document.getElementById('almox-temp-tipoMovimentacao');
+    const tempQtdEntregueEl = document.getElementById('almox-temp-qtdEntregue');
+    const tempQtdRetornoEl = document.getElementById('almox-temp-qtdRetorno');
+    const tempDataEl = document.getElementById('almox-temp-data');
+    const tempResponsavelUnidadeEl = document.getElementById('almox-temp-responsavelUnidade');
+    const tempItemTypeEl = document.getElementById('almox-temp-itemType');
+
+    if (tempUnidadeIdEl) tempUnidadeIdEl.value = data.unidadeId;
+    if (tempUnidadeNomeEl) tempUnidadeNomeEl.value = data.unidadeNome;
+    if (tempTipoUnidadeRawEl) tempTipoUnidadeRawEl.value = data.tipoUnidadeRaw;
+    if (tempTipoMovimentacaoEl) tempTipoMovimentacaoEl.value = tipoMovimentacao;
+    if (tempQtdEntregueEl) tempQtdEntregueEl.value = qtdEntregue;
+    if (tempQtdRetornoEl) tempQtdRetornoEl.value = qtdRetorno;
+    if (tempDataEl) tempDataEl.value = data.data.toMillis();
+    if (tempResponsavelUnidadeEl) tempResponsavelUnidadeEl.value = data.responsavelUnidade;
+    if (tempItemTypeEl) tempItemTypeEl.value = itemType;
+
 
     const modalTitle = DOM_ELEMENTS.almoxarifadoResponsavelModal.querySelector('.modal-title');
-    const modalBody = DOM_ELEMENTOS.almoxarifadoResponsavelModal.querySelector('.modal-body p');
-    const btnConfirm = DOM_ELEMENTOS.btnSalvarMovimentacaoFinal;
+    const modalBody = DOM_ELEMENTS.almoxarifadoResponsavelModal.querySelector('.modal-body p');
+    const btnConfirm = DOM_ELEMENTS.btnSalvarMovimentacaoFinal;
     
     if (tipoMovimentacao === 'entrega' || (tipoMovimentacao === 'troca' && qtdEntregue > 0)) {
          modalBody.innerHTML = `Informe seu nome (Responsável do Almoxarifado) para registrar quem está realizando a **entrega** de **${qtdEntregue}** ${itemLabel} cheio(s). Esta informação é crucial para o rastreio.`;
@@ -48,15 +59,15 @@ export function executeFinalMovimentacao(data) {
     if (modalTitle) modalTitle.innerHTML = `<i data-lucide="box" class="w-5 h-5"></i> Confirmação de Movimentação (${itemType === 'agua' ? 'Água' : 'Gás'})`;
     if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); } 
     
-    DOM_ELEMENTOS.almoxarifadoResponsavelModal.style.display = 'flex';
-    if (DOM_ELEMENTOS.inputAlmoxResponsavelNome) DOM_ELEMENTOS.inputAlmoxResponsavelNome.focus();
+    DOM_ELEMENTS.almoxarifadoResponsavelModal.style.display = 'flex';
+    if (DOM_ELEMENTS.inputAlmoxResponsavelNome) DOM_ELEMENTS.inputAlmoxResponsavelNome.focus();
 }
 
 /**
  * Handler para o clique final no modal de movimentação.
  */
 export async function handleFinalMovimentacaoSubmit() {
-    const nomeAlmoxarifado = capitalizeString(DOM_ELEMENTOS.inputAlmoxResponsavelNome.value.trim());
+    const nomeAlmoxarifado = capitalizeString(DOM_ELEMENTS.inputAlmoxResponsavelNome.value.trim());
     const itemType = document.getElementById('almox-temp-itemType').value;
     
     if (!nomeAlmoxarifado) {
@@ -64,10 +75,10 @@ export async function handleFinalMovimentacaoSubmit() {
         return;
     }
     
-    const btnModal = DOM_ELEMENTOS.btnSalvarMovimentacaoFinal;
+    const btnModal = DOM_ELEMENTS.btnSalvarMovimentacaoFinal;
     const alertId = itemType === 'agua' ? 'alert-agua' : 'alert-gas';
-    const formToReset = itemType === 'agua' ? DOM_ELEMENTOS.formAgua : DOM_ELEMENTOS.formGas;
-    const inputData = itemType === 'agua' ? DOM_ELEMENTOS.inputDataAgua : DOM_ELEMENTOS.inputDataGas;
+    const formToReset = itemType === 'agua' ? DOM_ELEMENTS.formAgua : DOM_ELEMENTS.formGas;
+    const inputData = itemType === 'agua' ? DOM_ELEMENTS.inputDataAgua : DOM_ELEMENTS.inputDataGas;
     const collection = itemType === 'agua' ? COLLECTIONS.aguaMov : COLLECTIONS.gasMov;
     
     btnModal.disabled = true;
@@ -132,9 +143,12 @@ export async function handleFinalMovimentacaoSubmit() {
         showAlert(alertId, `Movimentação salva! ${msgSucesso.join('; ')}.`, 'success');
         
         if(formToReset) formToReset.reset(); 
-        if(inputData) inputData.value = document.getElementById('almox-temp-data').value ? formatTimestamp(dataTemp) : capitalizeString(document.getElementById('almox-temp-data').value);
         
-        DOM_ELEMENTOS.almoxarifadoResponsavelModal.style.display = 'none';
+        // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
+        const dataInputEl = itemType === 'agua' ? DOM_ELEMENTS.inputDataAgua : DOM_ELEMENTS.inputDataGas;
+        if(dataInputEl) dataInputEl.value = formatTimestamp(dataTemp);
+        
+        DOM_ELEMENTS.almoxarifadoResponsavelModal.style.display = 'none';
 
     } catch (error) { 
         console.error(`Erro salvar movimentação (${itemType}):`, error); 
@@ -145,6 +159,6 @@ export async function handleFinalMovimentacaoSubmit() {
         btnModal.innerHTML = '<i data-lucide="package-open"></i> Confirmar Movimentação';
         if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
 
-        if (DOM_ELEMENTOS.inputAlmoxResponsavelNome) DOM_ELEMENTOS.inputAlmoxResponsavelNome.value = '';
+        if (DOM_ELEMENTS.inputAlmoxResponsavelNome) DOM_ELEMENTS.inputAlmoxResponsavelNome.value = '';
     }
 }
