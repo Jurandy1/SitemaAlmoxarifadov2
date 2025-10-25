@@ -44,21 +44,22 @@
 </head>
 <body class="bg-gray-50 text-slate-700 antialiased font-sans h-full flex flex-col">
 
-    <!-- 1) CABEÇALHO (HERO / BRAND BAR) -->
-    <header class="bg-blue-900 shadow-lg w-full">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center h-24">
-                <!-- Lado Esquerdo: Logo e Títulos -->
-                <div class="flex items-center gap-5">
-                    <!-- Logo -->
-                    <div class="bg-white/95 p-2 rounded-lg border-2 border-white/30 shadow-md flex-shrink-0">
-                        <img src="SaoLuis.png" alt="Logo SEMCAS São Luís" class="h-16 w-auto" onerror="this.src='https://placehold.co/150x60/ffffff/1e40af?text=SEMCAS'; this.onerror=null;">
-                    </div>
-                    <!-- Títulos -->
-                    <div class="hidden sm:block">
-                        <h1 class="text-3xl font-bold text-white tracking-tight">CONTROLE DE ALMOXARIFADO</h1>
-                        <p class="text-sm text-white/90 font-medium">SEMCAS – Secretaria Municipal da Criança e Assistência Social</p>
-                    </div>
+    <!-- 1) CABEÇALHO (BANNER HERO RESPONSIVO) -->
+    <header class="shadow-lg w-full relative">
+        <!-- Container do Banner: Altura responsiva e fallback de cor -->
+        <div class="h-40 sm:h-56 md:h-64 overflow-hidden relative bg-blue-900">
+            <!-- Imagem do Banner (slz.png) -->
+            <img 
+                src="slz.png" 
+                alt="Prefeitura de São Luís - SEMCAS" 
+                class="w-full h-full object-cover" 
+                onerror="this.style.display='none'; document.getElementById('header-overlay-text-container').classList.remove('bg-white/70', 'backdrop-blur-sm'); document.getElementById('header-overlay-title').classList.remove('text-gray-900'); document.getElementById('header-overlay-title').classList.add('text-white'); document.getElementById('header-overlay-subtitle').classList.remove('text-gray-700'); document.getElementById('header-overlay-subtitle').classList.add('text-white/90');"
+            >
+            <!-- Overlay com o título do sistema -->
+            <div id="header-overlay-text" class="absolute inset-0 flex flex-col justify-center items-center text-center p-4">
+                <div id="header-overlay-text-container" class="bg-white/70 backdrop-blur-sm rounded-xl p-3 sm:p-5 shadow-xl transition-all">
+                    <h1 id="header-overlay-title" class="text-xl sm:text-3xl font-bold text-gray-900 tracking-tight leading-tight">CONTROLE DE ALMOXARIFADO</h1>
+                    <p id="header-overlay-subtitle" class="text-xs sm:text-sm text-gray-700 font-medium mt-1 hidden sm:block">SEMCAS – Secretaria Municipal da Criança e Assistência Social</p>
                 </div>
             </div>
         </div>
