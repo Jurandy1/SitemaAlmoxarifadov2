@@ -1,6 +1,7 @@
 // js/modules/relatorios.js
 import { Timestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { getAguaMovimentacoes, getGasMovimentacoes } from "../utils/cache.js";
+// CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
 import { DOM_ELEMENTS, showAlert } from "../utils/dom-helpers.js";
 import { dateToTimestamp, formatTimestamp, getTodayDateString } from "../utils/formatters.js"; // Importa getTodayDateString
 import { isReady } from "./auth.js";
@@ -37,6 +38,7 @@ export function handleGerarPdf() {
 
     if (movsFiltradas.length === 0) { showAlert('alert-relatorio', 'Nenhum dado de entrega encontrado para este período.', 'info'); return; }
     
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     DOM_ELEMENTS.btnGerarPdf.disabled = true; 
     DOM_ELEMENTS.btnGerarPdf.innerHTML = '<div class="loading-spinner-small mx-auto"></div>';
     
@@ -101,6 +103,7 @@ export function handleGerarPdf() {
         console.error("Erro ao gerar PDF:", error); 
         showAlert('alert-relatorio', `Erro ao gerar PDF: ${error.message}`, 'error');
     } finally { 
+        // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
         DOM_ELEMENTS.btnGerarPdf.disabled = false; 
         DOM_ELEMENTS.btnGerarPdf.textContent = 'Gerar Relatório PDF'; 
         if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
@@ -112,6 +115,7 @@ export function handleGerarPdf() {
 // =========================================================================
 
 export function initRelatoriosListeners() {
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (DOM_ELEMENTS.btnGerarPdf) {
         DOM_ELEMENTS.btnGerarPdf.addEventListener('click', handleGerarPdf);
     }
@@ -122,7 +126,7 @@ export function initRelatoriosListeners() {
  */
 export function onRelatorioTabChange() {
     // Garante que as datas estão preenchidas
-    // CORREÇÃO: Usa getTodayDateString() e calcula data de 30 dias atrás
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (DOM_ELEMENTS.relatorioDataInicio) {
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
