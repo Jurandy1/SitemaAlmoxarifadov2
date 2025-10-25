@@ -1,6 +1,7 @@
 // js/modules/gas-control.js
 import { Timestamp, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { getUnidades, getGasMovimentacoes, isEstoqueInicialDefinido, getCurrentStatusFilter, setCurrentStatusFilter, getEstoqueGas } from "../utils/cache.js";
+// CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
 import { DOM_ELEMENTS, showAlert, switchSubTabView, handleSaldoFilterUI, filterTable } from "../utils/dom-helpers.js";
 import { getTodayDateString, dateToTimestamp, capitalizeString, formatTimestampComTempo } from "../utils/formatters.js";
 import { isReady } from "./auth.js";
@@ -15,6 +16,7 @@ import { executeFinalMovimentacao } from "./movimentacao-modal-handler.js";
  * Renderiza o resumo do estoque de gás.
  */
 export function renderEstoqueGas() {
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (!DOM_ELEMENTS.estoqueGasAtualEl) return;
     
     if (DOM_ELEMENTS.loadingEstoqueGasEl) DOM_ELEMENTS.loadingEstoqueGasEl.style.display = 'none';
@@ -49,6 +51,7 @@ export function renderEstoqueGas() {
 export async function handleInicialEstoqueSubmit(e) {
     e.preventDefault();
     
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     const inputQtd = DOM_ELEMENTS.inputInicialQtdGas.value;
     const inputResp = DOM_ELEMENTS.inputInicialResponsavelGas.value;
     
@@ -93,6 +96,7 @@ export async function handleEntradaEstoqueSubmit(e) {
     e.preventDefault();
     if (!isReady()) { showAlert('alert-gas', 'Erro: Não autenticado.', 'error'); return; } 
     
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     const inputQtd = DOM_ELEMENTS.inputQtdEntradaGas.value;
     const inputData = DOM_ELEMENTS.inputDataEntradaGas.value;
     const inputResp = DOM_ELEMENTS.inputResponsavelEntradaGas.value;
@@ -142,6 +146,7 @@ export async function handleEntradaEstoqueSubmit(e) {
  * Controla a visibilidade dos campos de quantidade no formulário de movimentação.
  */
 export function toggleGasFormInputs() {
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (!DOM_ELEMENTS.selectTipoGas) return; 
     const tipo = DOM_ELEMENTS.selectTipoGas.value;
     if (tipo === 'troca') {
@@ -173,6 +178,7 @@ export function getUnidadeSaldoGas(unidadeId) {
  * Verifica e exibe o alerta de saldo no formulário.
  */
 export function checkUnidadeSaldoAlertGas() {
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (!DOM_ELEMENTS.selectUnidadeGas) return;
     const selectValue = DOM_ELEMENTS.selectUnidadeGas.value;
     const saldoAlertaEl = DOM_ELEMENTS.unidadeSaldoAlertaGas;
@@ -212,6 +218,7 @@ export async function handleGasSubmit(e) {
     e.preventDefault();
     if (!isReady()) { showAlert('alert-gas', 'Erro: Não autenticado.', 'error'); return; }
     
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     const selectValue = DOM_ELEMENTS.selectUnidadeGas.value; 
     if (!selectValue) { showAlert('alert-gas', 'Selecione uma unidade.', 'warning'); return; }
     const [unidadeId, unidadeNome, tipoUnidadeRaw] = selectValue.split('|');
@@ -240,6 +247,7 @@ export async function handleGasSubmit(e) {
         if (!isEstoqueInicialDefinido('gas')) {
             showAlert('alert-gas', 'Defina o Estoque Inicial de Gás antes de lançar saídas.', 'warning'); return;
         }
+        // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
         const estoqueAtual = parseInt(DOM_ELEMENTS.estoqueGasAtualEl.textContent) || 0;
         if (qtdEntregue > estoqueAtual) {
             showAlert('alert-gas', `Erro: Estoque insuficiente. Disponível: ${estoqueAtual}`, 'error'); return;
@@ -258,6 +266,7 @@ export async function handleGasSubmit(e) {
  * Renderiza a tabela de status/saldo de botijões.
  */
 export function renderGasStatus(newFilter = null) {
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (!DOM_ELEMENTS.tableStatusGas) return;
     
     const currentFilter = newFilter || getCurrentStatusFilter('gas');
@@ -302,6 +311,7 @@ export function renderGasStatus(newFilter = null) {
     }
 
     if (statusArray.length === 0) { 
+        // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
         DOM_ELEMENTS.tableStatusGas.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-slate-500">Nenhuma movimentação registrada.</td></tr>'; 
         return; 
     }
@@ -332,6 +342,7 @@ export function renderGasStatus(newFilter = null) {
             </td>
         </tr>`;
     });
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     DOM_ELEMENTS.tableStatusGas.innerHTML = html;
      if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); } 
 
@@ -345,6 +356,7 @@ export function renderGasStatus(newFilter = null) {
  * Renderiza a tabela de histórico geral de movimentações.
  */
 export function renderGasMovimentacoesHistory() {
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (!DOM_ELEMENTS.tableHistoricoGasAll) return;
     
     const movimentacoes = getGasMovimentacoes();
@@ -354,6 +366,7 @@ export function renderGasMovimentacoesHistory() {
         .sort((a, b) => (b.registradoEm?.toMillis() || 0) - (a.registradoEm?.toMillis() || 0));
 
     if (historicoOrdenado.length === 0) {
+        // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
         DOM_ELEMENTS.tableHistoricoGasAll.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-slate-500">Nenhuma movimentação de unidade registrada.</td></tr>`;
         return;
     }
@@ -386,10 +399,12 @@ export function renderGasMovimentacoesHistory() {
         </tr>`;
     });
 
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     DOM_ELEMENTS.tableHistoricoGasAll.innerHTML = html;
     if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
 
     const filtroEl = document.getElementById(`filtro-historico-gas`);
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (filtroEl && filtroEl.value) { filterTable(filtroEl, DOM_ELEMENTS.tableHistoricoGasAll.id); }
 }
 
@@ -399,6 +414,7 @@ export function renderGasMovimentacoesHistory() {
 // =========================================================================
 
 export function initGasListeners() {
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (DOM_ELEMENTS.formGas) {
         DOM_ELEMENTS.formGas.addEventListener('submit', handleGasSubmit);
     }
@@ -448,6 +464,7 @@ export function initGasListeners() {
         const formName = btn.dataset.form;
         document.querySelectorAll('#content-gas .form-tab-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
+        // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
         if (DOM_ELEMENTS.formGas) DOM_ELEMENTS.formGas.classList.toggle('hidden', formName !== 'saida-gas');
         if (DOM_ELEMENTS.formEntradaGas) DOM_ELEMENTS.formEntradaGas.classList.toggle('hidden', formName !== 'entrada-gas');
     }));
