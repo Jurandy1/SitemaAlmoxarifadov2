@@ -40,7 +40,8 @@ function setupApp() {
     console.log("Setup inicial do DOM concluído.");
     
     // 6. Configurar o estado inicial do dashboard (inicia o refresh ao entrar na aba)
-    document.querySelector('.nav-btn[data-tab="dashboard"]').click();
+    const dashboardBtn = document.querySelector('.nav-btn[data-tab="dashboard"]');
+    if (dashboardBtn) dashboardBtn.click();
 }
 
 /**
