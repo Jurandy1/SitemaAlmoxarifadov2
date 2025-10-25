@@ -36,6 +36,7 @@ function renderUIModules() {
         DOM_ELEMENTS.contentPanes.forEach(pane => {
             if (!pane.classList.contains("hidden")) {
                 const tabName = pane.id.replace("content-", "");
+                console.log(`renderUIModules calling for tab: ${tabName}`); // Log added
                 switch (tabName) {
                     case "dashboard":
                         renderDashboard(); 
@@ -133,27 +134,33 @@ function renderUnidadeControls() {
 function initAllListeners() {
     DOM_ELEMENTS.navButtons.forEach(button => button.addEventListener("click", () => {
         stopDashboardRefresh(); 
-        switchTab(button.dataset.tab);
+        switchTab(button.dataset.tab); // This logs "Switching to tab: ..."
 
         switch (button.dataset.tab) {
             case "dashboard":
+                console.log("Calling initDashboardListeners, startDashboardRefresh, renderDashboard..."); // Add log
                 initDashboardListeners();
                 startDashboardRefresh();
                 renderDashboard();
                 break;
             case "agua":
+                console.log("Calling onAguaTabChange..."); // Add log
                 onAguaTabChange();
                 break;
             case "gas":
+                console.log("Calling onGasTabChange..."); // Add log
                 onGasTabChange();
                 break;
             case "materiais":
+                console.log("Calling onMateriaisTabChange..."); // Add log
                 onMateriaisTabChange();
                 break;
             case "gestao":
+                console.log("Calling onGestaoTabChange..."); // Add log
                 onGestaoTabChange();
                 break;
             case "relatorio":
+                console.log("Calling onRelatorioTabChange..."); // Add log
                 onRelatorioTabChange();
                 break;
         }
@@ -161,23 +168,35 @@ function initAllListeners() {
 
     document.querySelector("main").addEventListener("click", (e) => {
         const removeBtn = e.target.closest("button.btn-remove[data-id]");
+        // Debugging: Log the button dataset if found
+        // if (removeBtn) {
+        //     console.log("Remove button clicked, dataset:", removeBtn.dataset);
+        // }
         if (removeBtn) {
-            openConfirmDeleteModal(
-                removeBtn.dataset.id, 
-                removeBtn.dataset.type, 
-                removeBtn.dataset.details, 
-                removeBtn.dataset.type === "agua" 
-                    ? "alert-agua" 
-                    : removeBtn.dataset.type === "gas" 
-                        ? "alert-gas" 
-                        : "alert-gestao"
-            );
+             // Determine alert ID based on type
+             let alertId = 'alert-gestao'; // Default
+             if (removeBtn.dataset.type === 'agua') alertId = 'alert-agua';
+             else if (removeBtn.dataset.type === 'gas') alertId = 'alert-gas';
+             else if (removeBtn.dataset.type === 'materiais') alertId = 'alert-materiais'; // Added case
+             // Add cases for 'unidade' if needed, though default might be okay
+
+             console.log(`openConfirmDeleteModal called with type: ${removeBtn.dataset.type}, alertId: ${alertId}`); // Log added
+
+             openConfirmDeleteModal(
+                removeBtn.dataset.id,
+                removeBtn.dataset.type,
+                removeBtn.dataset.details,
+                alertId // Use the determined alert ID
+                // Pass collectionRef and isInicial if applicable (modified openConfirmDeleteModal in dom-helpers needed)
+             );
         }
     });
 
     if (DOM_ELEMENTS.btnCancelDelete) 
         DOM_ELEMENTS.btnCancelDelete.addEventListener("click", () => DOM_ELEMENTS.confirmDeleteModal.style.display = "none");
     
+    // Initial listeners setup for all modules regardless of the starting tab
+    console.log("Initializing listeners for all modules..."); // Add log
     initDashboardListeners();
     initAguaListeners();
     initGasListeners();
