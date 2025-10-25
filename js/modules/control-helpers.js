@@ -23,6 +23,7 @@ import {
     startDashboardRefresh, 
     stopDashboardRefresh 
 } from "./dashboard.js";
+import { initPrevisaoListeners, onPrevisaoTabChange } from "./previsao-control.js"; // <--- NOVO
 import { getTodayDateString } from "../utils/formatters.js";
 
 // ======================================================================
@@ -37,25 +38,37 @@ function renderUIModules() {
             if (!pane.classList.contains("hidden")) {
                 const tabName = pane.id.replace("content-", "");
                 console.log(`renderUIModules calling for tab: ${tabName}`); // Log added
-                switch (tabName) {
-                    case "dashboard":
-                        renderDashboard(); 
-                        break;
-                    case "agua":
+                
+                // --- ATUALIZADO: Chama a orquestração de subviews ---
+                if (tabName === 'agua') {
+                    // Se for a aba de previsão que está visível, chama a lógica dela
+                    if (!document.getElementById('subview-previsao-agua')?.classList.contains('hidden')) {
+                        onPrevisaoTabChange('agua');
+                    } else {
                         onAguaTabChange();
-                        break;
-                    case "gas":
+                    }
+                } else if (tabName === 'gas') {
+                    // Se for a aba de previsão que está visível, chama a lógica dela
+                     if (!document.getElementById('subview-previsao-gas')?.classList.contains('hidden')) {
+                        onPrevisaoTabChange('gas');
+                    } else {
                         onGasTabChange();
-                        break;
-                    case "materiais":
-                        onMateriaisTabChange();
-                        break;
-                    case "gestao":
-                        onGestaoTabChange();
-                        break;
-                    case "relatorio":
-                        onRelatorioTabChange();
-                        break;
+                    }
+                } else {
+                    switch (tabName) {
+                        case "dashboard":
+                            renderDashboard(); 
+                            break;
+                        case "materiais":
+                            onMateriaisTabChange();
+                            break;
+                        case "gestao":
+                            onGestaoTabChange();
+                            break;
+                        case "relatorio":
+                            onRelatorioTabChange();
+                            break;
+                    }
                 }
             }
         });
@@ -130,6 +143,9 @@ function renderUnidadeControls() {
         if (selectTipoGas) selectTipoGas.innerHTML = html;
     }
 }
+// Expõe a função para ser chamada pelo módulo de previsão
+window.renderUnidadeControls = renderUnidadeControls;
+
 
 function initAllListeners() {
     DOM_ELEMENTS.navButtons.forEach(button => button.addEventListener("click", () => {
@@ -165,6 +181,36 @@ function initAllListeners() {
                 break;
         }
     }));
+    
+    // Listener para as sub-abas de Água (ATUALIZADO PARA INCLUIR PREVISÃO)
+    if (document.getElementById('sub-nav-agua')) {
+        document.getElementById('sub-nav-agua').addEventListener('click', (e) => {
+            const btn = e.target.closest('.sub-nav-btn');
+            if (btn && btn.dataset.subview) {
+                switchSubTabView('agua', btn.dataset.subview);
+                if (btn.dataset.subview === 'previsao-agua') {
+                     onPrevisaoTabChange('agua'); // Chama a orquestração da previsão
+                } else {
+                    onAguaTabChange(); // Re-renderiza o status se sair da previsão
+                }
+            }
+        });
+    }
+
+    // Listener para as sub-abas de Gás (ATUALIZADO PARA INCLUIR PREVISÃO)
+    if (document.getElementById('sub-nav-gas')) {
+        document.getElementById('sub-nav-gas').addEventListener('click', (e) => {
+            const btn = e.target.closest('.sub-nav-btn');
+            if (btn && btn.dataset.subview) {
+                switchSubTabView('gas', btn.dataset.subview);
+                if (btn.dataset.subview === 'previsao-gas') {
+                     onPrevisaoTabChange('gas'); // Chama a orquestração da previsão
+                } else {
+                    onGasTabChange(); // Re-renderiza o status se sair da previsão
+                }
+            }
+        });
+    }
 
     document.querySelector("main").addEventListener("click", (e) => {
         const removeBtn = e.target.closest("button.btn-remove[data-id]");
@@ -203,6 +249,7 @@ function initAllListeners() {
     initMateriaisListeners();
     initGestaoListeners();
     initRelatoriosListeners();
+    initPrevisaoListeners(); // <--- NOVO
 }
 
 // ================================================================
