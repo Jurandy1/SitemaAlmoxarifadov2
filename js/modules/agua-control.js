@@ -1,6 +1,7 @@
 // js/modules/agua-control.js
 import { Timestamp, addDoc, updateDoc, serverTimestamp, query, where, getDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { getUnidades, getAguaMovimentacoes, isEstoqueInicialDefinido, getCurrentStatusFilter, setCurrentStatusFilter, getEstoqueAgua } from "../utils/cache.js";
+// CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
 import { DOM_ELEMENTS, showAlert, switchSubTabView, handleSaldoFilterUI, openConfirmDeleteModal, filterTable } from "../utils/dom-helpers.js";
 import { getTodayDateString, dateToTimestamp, capitalizeString, formatTimestampComTempo } from "../utils/formatters.js";
 import { isReady, getUserId } from "./auth.js";
@@ -15,6 +16,7 @@ import { executeFinalMovimentacao } from "./movimentacao-modal-handler.js";
  * Renderiza o resumo do estoque de água.
  */
 export function renderEstoqueAgua() {
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (!DOM_ELEMENTS.estoqueAguaAtualEl) return; 
     
     if (DOM_ELEMENTS.loadingEstoqueAguaEl) DOM_ELEMENTS.loadingEstoqueAguaEl.style.display = 'none'; 
@@ -49,6 +51,7 @@ export function renderEstoqueAgua() {
 export async function handleInicialEstoqueSubmit(e) {
     e.preventDefault();
     
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     const inputQtd = DOM_ELEMENTS.inputInicialQtdAgua.value;
     const inputResp = DOM_ELEMENTS.inputInicialResponsavelAgua.value;
     
@@ -93,6 +96,7 @@ export async function handleEntradaEstoqueSubmit(e) {
     e.preventDefault();
     if (!isReady()) { showAlert('alert-agua', 'Erro: Não autenticado.', 'error'); return; } 
     
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     const inputQtd = DOM_ELEMENTS.inputQtdEntradaAgua.value;
     const inputData = DOM_ELEMENTS.inputDataEntradaAgua.value;
     const inputResp = DOM_ELEMENTS.inputResponsavelEntradaAgua.value;
@@ -143,6 +147,7 @@ export async function handleEntradaEstoqueSubmit(e) {
  * Controla a visibilidade dos campos de quantidade no formulário de movimentação.
  */
 export function toggleAguaFormInputs() {
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (!DOM_ELEMENTS.selectTipoAgua) return; 
     const tipo = DOM_ELEMENTS.selectTipoAgua.value;
     if (tipo === 'troca') {
@@ -174,6 +179,7 @@ export function getUnidadeSaldoAgua(unidadeId) {
  * Verifica e exibe o alerta de saldo no formulário.
  */
 export function checkUnidadeSaldoAlertAgua() {
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (!DOM_ELEMENTS.selectUnidadeAgua) return;
     const selectValue = DOM_ELEMENTS.selectUnidadeAgua.value;
     const saldoAlertaEl = DOM_ELEMENTS.unidadeSaldoAlertaAgua;
@@ -213,6 +219,7 @@ export async function handleAguaSubmit(e) {
     e.preventDefault();
     if (!isReady()) { showAlert('alert-agua', 'Erro: Não autenticado.', 'error'); return; }
     
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     const selectValue = DOM_ELEMENTS.selectUnidadeAgua.value; 
     if (!selectValue) { showAlert('alert-agua', 'Selecione uma unidade.', 'warning'); return; }
     const [unidadeId, unidadeNome, tipoUnidadeRaw] = selectValue.split('|');
@@ -241,6 +248,7 @@ export async function handleAguaSubmit(e) {
         if (!isEstoqueInicialDefinido('agua')) {
             showAlert('alert-agua', 'Defina o Estoque Inicial de Água antes de lançar saídas.', 'warning'); return;
         }
+        // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
         const estoqueAtual = parseInt(DOM_ELEMENTS.estoqueAguaAtualEl.textContent) || 0;
         if (qtdEntregue > estoqueAtual) {
             showAlert('alert-agua', `Erro: Estoque insuficiente. Disponível: ${estoqueAtual}`, 'error'); return;
@@ -259,6 +267,7 @@ export async function handleAguaSubmit(e) {
  * Renderiza a tabela de status/saldo de galões.
  */
 export function renderAguaStatus(newFilter = null) {
+     // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
      if (!DOM_ELEMENTS.tableStatusAgua) return;
      
      const currentFilter = newFilter || getCurrentStatusFilter('agua');
@@ -303,6 +312,7 @@ export function renderAguaStatus(newFilter = null) {
     }
 
     if (statusArray.length === 0) { 
+        // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
         DOM_ELEMENTS.tableStatusAgua.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-slate-500">Nenhuma movimentação registrada.</td></tr>'; 
         return; 
     }
@@ -334,6 +344,7 @@ export function renderAguaStatus(newFilter = null) {
             </td>
         </tr>`;
     });
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     DOM_ELEMENTS.tableStatusAgua.innerHTML = html;
      if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); } 
 
@@ -347,6 +358,7 @@ export function renderAguaStatus(newFilter = null) {
  * Renderiza a tabela de histórico geral de movimentações.
  */
 export function renderAguaMovimentacoesHistory() {
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (!DOM_ELEMENTS.tableHistoricoAguaAll) return;
     
     const movimentacoes = getAguaMovimentacoes();
@@ -356,6 +368,7 @@ export function renderAguaMovimentacoesHistory() {
         .sort((a, b) => (b.registradoEm?.toMillis() || 0) - (a.registradoEm?.toMillis() || 0));
 
     if (historicoOrdenado.length === 0) {
+        // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
         DOM_ELEMENTS.tableHistoricoAguaAll.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-slate-500">Nenhuma movimentação de unidade registrada.</td></tr>`;
         return;
     }
@@ -388,10 +401,12 @@ export function renderAguaMovimentacoesHistory() {
         </tr>`;
     });
 
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     DOM_ELEMENTS.tableHistoricoAguaAll.innerHTML = html;
     if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
 
     const filtroEl = document.getElementById(`filtro-historico-agua`);
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (filtroEl && filtroEl.value) { filterTable(filtroEl, DOM_ELEMENTS.tableHistoricoAguaAll.id); }
 }
 
@@ -401,6 +416,7 @@ export function renderAguaMovimentacoesHistory() {
 // =========================================================================
 
 export function initAguaListeners() {
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (DOM_ELEMENTS.formAgua) {
         DOM_ELEMENTS.formAgua.addEventListener('submit', handleAguaSubmit);
     }
@@ -445,6 +461,7 @@ export function initAguaListeners() {
         const formName = btn.dataset.form;
         document.querySelectorAll('#content-agua .form-tab-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
+        // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
         if (DOM_ELEMENTS.formAgua) DOM_ELEMENTS.formAgua.classList.toggle('hidden', formName !== 'saida-agua');
         if (DOM_ELEMENTS.formEntradaAgua) DOM_ELEMENTS.formEntradaAgua.classList.toggle('hidden', formName !== 'entrada-agua');
     }));
@@ -462,6 +479,7 @@ export function onAguaTabChange() {
     renderAguaStatus();
     renderAguaMovimentacoesHistory();
     // Garante que o input de data está em dia
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (DOM_ELEMENTS.inputDataAgua) DOM_ELEMENTS.inputDataAgua.value = getTodayDateString();
     if (DOM_ELEMENTS.inputDataEntradaAgua) DOM_ELEMENTS.inputDataEntradaAgua.value = getTodayDateString();
     
