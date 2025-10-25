@@ -1003,34 +1003,50 @@
         <!-- ========================================================== -->
         <!-- PAINEL ENTREGA DE MATERIAIS (ID: content-materiais)      -->
         <!-- ========================================================== -->
-        <div id="content-materiais" class="fade-in hidden">
-            <!-- Sub-navegação -->
-             <div class="flex flex-wrap gap-2 mb-6" id="sub-nav-materiais">
-                 <!-- Ajustado para linkar com as subviews corretamente -->
-                 <button class="sub-nav-btn active" data-subview="lancar-materiais">
-                    <i data-lucide="edit-3"></i>
-                    <span>Registrar Requisição</span>
-                 </button>
-                 <button class="sub-nav-btn" data-subview="status-workflow-para-separar">
-                    <i data-lucide="clipboard-list"></i>
-                    <span>Para Separar</span>
-                 </button>
-                  <button class="sub-nav-btn" data-subview="status-workflow-em-separacao">
-                    <i data-lucide="loader-2" class="animate-spin"></i>
-                    <span>Em Separação</span>
-                 </button>
-                  <button class="sub-nav-btn" data-subview="status-workflow-pronto-entrega">
-                    <i data-lucide="package-check"></i>
-                    <span>Pronto p/ Entrega</span>
-                 </button>
-                 <button class="sub-nav-btn" data-subview="historico-entregues">
-                    <i data-lucide="archive"></i>
-                    <span>Histórico (Entregues)</span>
-                 </button>
-             </div>
+        <!-- 🚚 ENTREGA DE MATERIAIS --> 
+        <div id="content-materiais" class="tab-content hidden px-6 py-6"> 
 
-            <!-- Sub-view: Lançar Requisição (Layout Atualizado) -->
-            <div id="subview-lancar-materiais">
+            <!-- Painel de instruções --> 
+            <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 shadow-sm"> 
+                <div class="flex justify-between items-center"> 
+                    <div class="flex items-center gap-2"> 
+                        <i data-lucide="info" class="text-blue-600 w-5 h-5"></i> 
+                        <h2 class="font-semibold text-blue-700">Como usar esta aba</h2> 
+                    </div> 
+
+                    <button id="toggleInstructions" class="text-sm text-blue-700 underline hover:text-blue-900 transition">Ocultar</button> 
+                </div> 
+                <div id="instructionContent" class="mt-3 text-sm text-blue-800 space-y-1"> 
+                    <p>1️⃣ <strong>Registrar Requisição:</strong> preencha o formulário e clique em <em>Salvar</em>.</p>
+                    <p>2️⃣ <strong>Para Separar:</strong> visualize as requisições pendentes e clique em <em>Iniciar Separação</em>.</p> 
+                    <p>3️⃣ <strong>Em Separação:</strong> finalize e marque como <em>Pronto p/ Entrega</em>.</p> 
+                    <p>4️⃣ <strong>Pronto p/ Entrega:</strong> confirme quando o material for entregue.</p> 
+                    <p>5️⃣ <strong>Histórico:</strong> veja todas as entregas concluídas.</p> 
+                </div> 
+            </div> 
+
+            <!-- Sub-abas --> 
+            <div class="flex flex-wrap gap-3 mb-6"> 
+                <button class="subtab-btn active" data-subtab="registrar"> 
+                    <i data-lucide="file-plus" class="w-4 h-4 mr-2"></i> Registrar Requisição 
+                </button> 
+                <button class="subtab-btn" data-subtab="para-separar"> 
+                    <i data-lucide="list-checks" class="w-4 h-4 mr-2"></i> Para Separar 
+                </button> 
+                <button class="subtab-btn" data-subtab="em-separacao"> 
+                    <i data-lucide="package" class="w-4 h-4 mr-2"></i> Em Separação 
+                </button> 
+                <button class="subtab-btn" data-subtab="pronto"> 
+                    <i data-lucide="truck" class="w-4 h-4 mr-2"></i> Pronto p/ Entrega 
+                </button> 
+                <button class="subtab-btn" data-subtab="historico"> 
+                    <i data-lucide="clock" class="w-4 h-4 mr-2"></i> Histórico 
+                </button> 
+            </div> 
+
+            <!-- Sub-abas: conteudos --> 
+            <div id="subtab-registrar" class="subtab-content"> 
+                <!-- Conteúdo original da subview-lancar-materiais -->
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <!-- Coluna do Formulário -->
                     <div class="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm p-6">
@@ -1047,7 +1063,7 @@
                                 <label for="select-tipo-materiais" class="form-label">Tipo de Material</label>
                                 <select id="select-tipo-materiais" class="form-select" required>
                                     <option value="">-- Selecione --</option>
-                                    <option value="alimenticio">Alimento</option> <!-- Ajustado -->
+                                    <option value="alimenticio">Alimento</option>
                                     <option value="higiene">Higiene</option>
                                     <option value="limpeza">Limpeza</option>
                                     <option value="expediente">Expediente</option>
@@ -1055,18 +1071,15 @@
                                 </select>
                             </div>
                              <div>
-                                <!-- Label atualizada -->
                                 <label for="input-data-separacao" class="form-label">Data da Requisição (Opcional)</label> 
-                                <input type="date" id="input-data-separacao" class="form-input"> <!-- Removido 'required' -->
+                                <input type="date" id="input-data-separacao" class="form-input"> 
                             </div>
                             <div>
-                                <!-- Label atualizada -->
                                 <label for="input-arquivo-materiais" class="form-label">Anexar Pedido (PDF ou Excel)</label>
-                                <input type="file" id="input-arquivo-materiais" class="form-input" accept=".pdf,.xls,.xlsx,.jpg,.jpeg,.png"> <!-- Aceita Excel -->
+                                <input type="file" id="input-arquivo-materiais" class="form-input" accept=".pdf,.xls,.xlsx,.jpg,.jpeg,.png"> 
                                 <p class="text-xs text-gray-500 mt-1">Opcional. Anexe o arquivo do pedido (Máx 10MB).</p>
                             </div>
                             <div>
-                                <!-- Label atualizada -->
                                 <label for="textarea-itens-materiais" class="form-label">Observação/Itens Solicitados:</label>
                                 <textarea id="textarea-itens-materiais" class="form-textarea" placeholder="Liste os itens ou descreva o pedido... (Opcional)"></textarea>
                             </div>
@@ -1076,7 +1089,7 @@
                             </div>
                             
                             <button type="submit" id="btn-submit-materiais" class="btn-primary w-full !mt-6">
-                                <i data-lucide="save"></i> <span>Registrar Requisição</span> <!-- Texto atualizado -->
+                                <i data-lucide="save"></i> <span>Registrar Requisição</span>
                             </button>
                         </form>
                         <div id="alert-materiais" class="alert mt-4"></div>
@@ -1123,14 +1136,15 @@
                          </div>
                     </div>
                 </div>
-            </div>
+                <!-- Fim do conteúdo original do formulário -->
+            </div> 
 
-            <!-- Sub-view: Workflow - Para Separar -->
-            <div id="subview-status-workflow-para-separar" class="hidden space-y-6">
+            <div id="subtab-para-separar" class="subtab-content hidden"> 
                 <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
                     <h3 class="text-xl font-bold text-gray-800 mb-2">1. Para Separar</h3>
                     <p class="text-sm text-gray-500 mb-4">Requisições que aguardam um separador.</p>
-                    <div id="alert-para-separar" class="alert mb-4"></div>
+                    <!-- Alerta com ID atualizado para alert-para-separar -->
+                    <div id="alert-para-separar" class="alert mb-4"></div> 
                     <div class="overflow-x-auto border border-gray-200 rounded-lg">
                         <table class="table w-full text-sm">
                             <thead class="bg-gray-50">
@@ -1142,20 +1156,48 @@
                                     <th class="text-center">Ações</th>
                                 </tr>
                             </thead>
-                            <tbody id="table-para-separar" class="divide-y divide-gray-100">
-                                <tr><td colspan="5" class="text-center py-10"><div class="loading-spinner-small mx-auto"></div></td></tr>
-                            </tbody>
+                            <!-- ID atualizado para table-para-separar -->
+                            <tbody id="table-para-separar" class="divide-y divide-gray-100"> 
+                                <!-- Exemplo visual com tooltips (mantido aqui para referência, mas o JS o renderiza dinamicamente) -->
+                                <tr class="border-b hover:bg-gray-50 transition"> 
+                                    <td class="py-2 px-4">REQ-001</td> 
+                                    <td class="py-2 px-4">CRAS 1</td> 
+                                    <td class="py-2 px-4">25/10/2025</td> 
+                                    <td class="py-2 px-4 text-center"> 
+                                        <div class="flex justify-center gap-2"> 
+                                            <div class="tooltip"> 
+                                                <button class="action-btn bg-green-100 hover:bg-green-200 text-green-800"> 
+                                                    <i data-lucide="play-circle" class="w-4 h-4"></i> 
+                                                </button> 
+                                                <span class="tooltip-text">Iniciar separação</span> 
+                                            </div> 
+                                            <div class="tooltip"> 
+                                                <button class="action-btn bg-blue-100 hover:bg-blue-200 text-blue-800"> 
+                                                    <i data-lucide="download" class="w-4 h-4"></i> 
+                                                </button> 
+                                                <span class="tooltip-text">Baixar requisição</span> 
+                                            </div> 
+                                             <div class="tooltip"> 
+                                                <button class="action-btn bg-red-100 hover:bg-red-200 text-red-800"> 
+                                                    <i data-lucide="trash-2" class="w-4 h-4"></i> 
+                                                </button> 
+                                                <span class="tooltip-text">Remover requisição</span> 
+                                            </div> 
+                                        </div> 
+                                    </td> 
+                                </tr>
+                            </tbody> 
                         </table>
                     </div>
                 </div>
-            </div>
+            </div> 
 
-            <!-- Sub-view: Workflow - Em Separação -->
-            <div id="subview-status-workflow-em-separacao" class="hidden space-y-6">
-                 <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+            <div id="subtab-em-separacao" class="subtab-content hidden"> 
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
                     <h3 class="text-xl font-bold text-gray-800 mb-2">2. Em Separação</h3>
                     <p class="text-sm text-gray-500 mb-4">Materiais que estão sendo separados no almoxarifado.</p>
-                    <div id="alert-em-separacao" class="alert mb-4"></div>
+                    <!-- Alerta com ID atualizado para alert-em-separacao -->
+                    <div id="alert-em-separacao" class="alert mb-4"></div> 
                     <div class="overflow-x-auto border border-gray-200 rounded-lg">
                         <table class="table w-full text-sm">
                             <thead class="bg-gray-50">
@@ -1167,20 +1209,43 @@
                                     <th class="text-center">Ações</th>
                                 </tr>
                             </thead>
-                            <tbody id="table-em-separacao" class="divide-y divide-gray-100">
-                                <tr><td colspan="5" class="text-center py-10"><div class="loading-spinner-small mx-auto"></div></td></tr>
-                            </tbody>
+                            <!-- ID atualizado para table-em-separacao -->
+                            <tbody id="table-em-separacao" class="divide-y divide-gray-100"> 
+                                <!-- Exemplo visual com tooltips -->
+                                <tr class="border-b hover:bg-gray-50 transition"> 
+                                    <td class="py-2 px-4">REQ-002</td> 
+                                    <td class="py-2 px-4">SEDE</td> 
+                                    <td class="py-2 px-4">João Silva</td> 
+                                    <td class="py-2 px-4">25/10/2025 14:00</td> 
+                                    <td class="py-2 px-4 text-center"> 
+                                        <div class="flex justify-center gap-2"> 
+                                             <div class="tooltip"> 
+                                                <button class="action-btn bg-blue-100 hover:bg-blue-200 text-blue-800"> 
+                                                    <i data-lucide="download" class="w-4 h-4"></i> 
+                                                </button> 
+                                                <span class="tooltip-text">Baixar requisição</span> 
+                                            </div> 
+                                            <div class="tooltip"> 
+                                                <button class="action-btn bg-teal-100 hover:bg-teal-200 text-teal-800"> 
+                                                    <i data-lucide="package-check" class="w-4 h-4"></i> 
+                                                </button> 
+                                                <span class="tooltip-text">Marcar como Pronto p/ Entrega</span> 
+                                            </div> 
+                                        </div> 
+                                    </td> 
+                                </tr>
+                            </tbody> 
                         </table>
                     </div>
                 </div>
-            </div>
+            </div> 
 
-             <!-- Sub-view: Workflow - Pronto p/ Entrega -->
-            <div id="subview-status-workflow-pronto-entrega" class="hidden space-y-6">
-                 <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+            <div id="subtab-pronto" class="subtab-content hidden"> 
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
                     <h3 class="text-xl font-bold text-gray-800 mb-2">3. Pronto p/ Entrega</h3>
-                    <p class="text-sm text-gray-500 mb-4">Materiais aguardando retirada pela unidade.</p>
-                    <div id="alert-pronto-entrega" class="alert mb-4"></div>
+                    <p class="text-sm text-gray-500 mb-4">Materiais que aguardam a confirmação de recebimento da unidade.</p>
+                    <!-- Alerta com ID atualizado para alert-pronto-entrega -->
+                    <div id="alert-pronto-entrega" class="alert mb-4"></div> 
                     <div class="overflow-x-auto border border-gray-200 rounded-lg">
                         <table class="table w-full text-sm">
                             <thead class="bg-gray-50">
@@ -1192,20 +1257,37 @@
                                     <th class="text-center">Ações</th>
                                 </tr>
                             </thead>
-                            <tbody id="table-pronto-entrega" class="divide-y divide-gray-100">
-                                <tr><td colspan="5" class="text-center py-10"><div class="loading-spinner-small mx-auto"></div></td></tr>
-                            </tbody>
+                            <!-- ID atualizado para table-pronto-entrega -->
+                            <tbody id="table-pronto-entrega" class="divide-y divide-gray-100"> 
+                                <!-- Exemplo visual com tooltips -->
+                                <tr class="border-b hover:bg-gray-50 transition"> 
+                                    <td class="py-2 px-4">REQ-003</td> 
+                                    <td class="py-2 px-4">CRAS 2</td> 
+                                    <td class="py-2 px-4">Maria Souza</td> 
+                                    <td class="py-2 px-4">25/10/2025</td> 
+                                    <td class="py-2 px-4 text-center"> 
+                                        <div class="flex justify-center gap-2"> 
+                                            <div class="tooltip"> 
+                                                <button class="action-btn bg-blue-100 hover:bg-blue-200 text-blue-800"> 
+                                                    <i data-lucide="check-circle" class="w-4 h-4"></i> 
+                                                </button> 
+                                                <span class="tooltip-text">Finalizar e Registrar Entrega</span> 
+                                            </div> 
+                                        </div> 
+                                    </td> 
+                                </tr>
+                            </tbody> 
                         </table>
                     </div>
                 </div>
-            </div>
+            </div> 
 
-            <!-- Sub-view: Histórico de Entregues -->
-            <div id="subview-historico-entregues" class="hidden">
-                 <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+            <div id="subtab-historico" class="subtab-content hidden"> 
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
                     <h2 class="text-xl font-bold text-gray-800 mb-4"><i data-lucide="archive" class="inline-block -mt-1 mr-2"></i> Histórico de Materiais Entregues</h2>
                     <p class="text-sm text-gray-600 mb-4">Detalhes de todos os materiais que já foram finalizados e entregues.</p>
-                    <div id="alert-historico-entregues" class="alert mb-4"></div>
+                    <!-- Alerta com ID atualizado para alert-historico-entregues -->
+                    <div id="alert-historico-entregues" class="alert mb-4"></div> 
                     
                     <div class="mb-4">
                         <label for="filtro-historico-entregues" class="form-label text-xs">Buscar no Histórico:</label>
@@ -1225,15 +1307,33 @@
                                     <th class="text-center">Ação</th>
                                 </tr>
                             </thead>
-                            <tbody id="table-historico-entregues" class="divide-y divide-gray-100">
-                                <tr><td colspan="7" class="text-center py-10"><div class="loading-spinner-small mx-auto"></div></td></tr>
-                            </tbody>
+                            <!-- ID atualizado para table-historico-entregues -->
+                            <tbody id="table-historico-entregues" class="divide-y divide-gray-100"> 
+                                <!-- Exemplo -->
+                                <tr class="border-b hover:bg-gray-50 transition">
+                                    <td class="py-2 px-4">CRAS 3</td>
+                                    <td class="py-2 px-4">Alimento</td>
+                                    <td class="py-2 px-4">24/10/2025</td>
+                                    <td class="py-2 px-4">Ana Costa</td>
+                                    <td class="py-2 px-4">Carlos Santos</td>
+                                    <td class="py-2 px-4 text-center text-xs">24/10/2025 10:30</td>
+                                    <td class="py-2 px-4 text-center">
+                                        <div class="tooltip"> 
+                                            <button class="action-btn bg-red-100 hover:bg-red-200 text-red-800"> 
+                                                <i data-lucide="trash-2" class="w-4 h-4"></i> 
+                                            </button> 
+                                            <span class="tooltip-text">Remover histórico</span> 
+                                        </div> 
+                                    </td>
+                                </tr>
+                            </tbody> 
                         </table>
                     </div>
                 </div>
-            </div>
+            </div> 
+        </div> 
+        <!-- Fim do novo content-materiais -->
 
-        </div>
 
         <!-- ============================================= -->
         <!-- PAINEL GESTÃO (ID: content-gestao)            -->
@@ -1429,6 +1529,71 @@
         </div>
     </div>
 
+    <!-- Script de inicialização da lógica de Abas e Instruções do novo bloco -->
+    <script> 
+        document.addEventListener('DOMContentLoaded', () => { 
+            // lucide.createIcons() é chamado no final do app.js / dom-helpers.js, mas repetimos para garantir os ícones da aba de materiais
+            if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') {
+                lucide.createIcons(); 
+            }
+
+            // Alternância de instruções 
+            const toggleBtn = document.getElementById('toggleInstructions'); 
+            const content = document.getElementById('instructionContent'); 
+            if (toggleBtn && content) {
+                toggleBtn.addEventListener('click', () => { 
+                    const isVisible = !content.classList.contains('hidden'); 
+                    content.classList.toggle('hidden', isVisible); 
+                    toggleBtn.textContent = isVisible ? 'Mostrar' : 'Ocultar'; 
+                }); 
+            }
+
+            // Alternância das sub-abas 
+            const subtabBtns = document.querySelectorAll('#content-materiais .subtab-btn'); 
+            const subtabContents = document.querySelectorAll('#content-materiais .subtab-content'); 
+            
+            subtabBtns.forEach(btn => { 
+                btn.addEventListener('click', () => { 
+                    subtabBtns.forEach(b => b.classList.remove('active')); 
+                    btn.classList.add('active'); 
+                    const target = btn.getAttribute('data-subtab'); 
+                    
+                    subtabContents.forEach(c => c.classList.add('hidden')); 
+                    
+                    const targetContent = document.getElementById('subtab-' + target);
+                    if (targetContent) {
+                        targetContent.classList.remove('hidden'); 
+                    }
+                    
+                    // Re-cria os ícones Lucide dentro da aba ativa
+                    if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') {
+                        lucide.createIcons(); 
+                    }
+                    
+                    // Chama a lógica de re-renderização do módulo principal
+                    if (typeof onMateriaisTabChange === 'function') {
+                        // Embora a lógica de "renderMateriaisStatus" seja chamada no onMateriaisTabChange, 
+                        // o módulo original não está preparado para sub-abas. Como o usuário solicitou 
+                        // a implementação via script puro no HTML, faremos a chamada principal 
+                        // para garantir que os dados sejam atualizados, ignorando a subview interna 
+                        // que o módulo JS original usava. O novo DOM do HTML se encarrega da visualização.
+                        onMateriaisTabChange(); 
+                    }
+
+                }); 
+            }); 
+            
+            // Corrige o bug de inicialização do módulo JS:
+            // Quando a aba de Materiais é clicada, ela chama onMateriaisTabChange, que por sua vez
+            // chama switchSubTabView('materiais', 'lancar-materiais'). O novo HTML não tem as IDs
+            // subview-lancar-materiais etc. mas sim subtab-registrar.
+            // A solução é garantir que a aba correta é mostrada na inicialização.
+            // Para manter a coerência, vamos mapear o clique inicial no JS para a aba "Registrar".
+            const initialTab = document.querySelector('#content-materiais .subtab-btn.active');
+            if(initialTab) initialTab.click();
+
+        }); 
+    </script> 
+
 </body>
 </html>
-
