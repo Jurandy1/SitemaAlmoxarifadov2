@@ -2,7 +2,7 @@
 import { Timestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { getAguaMovimentacoes, getGasMovimentacoes } from "../utils/cache.js";
 import { DOM_ELEMENTS, showAlert } from "../utils/dom-helpers.js";
-import { dateToTimestamp, formatTimestamp } from "../utils/formatters.js";
+import { dateToTimestamp, formatTimestamp, getTodayDateString } from "../utils/formatters.js"; // Importa getTodayDateString
 import { isReady } from "./auth.js";
 
 /**
@@ -10,13 +10,14 @@ import { isReady } from "./auth.js";
  */
 export function handleGerarPdf() {
     if (!isReady()) { showAlert('alert-relatorio', 'Erro: Não autenticado.', 'error'); return; }
-    if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined') {
+    if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined' || typeof window.jspdf.plugin.autotable === 'undefined') {
         showAlert('alert-relatorio', 'Erro: Bibliotecas PDF não carregadas. Tente recarregar a página.', 'error'); return;
     }
     
     const { jsPDF } = window.jspdf;
-    const autoTable = window.jspdf.AutoTable; 
+    const autoTable = window.jspdf.plugin.autotable; 
 
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     const tipo = DOM_ELEMENTS.relatorioTipo.value; 
     const dataInicioStr = DOM_ELEMENTS.relatorioDataInicio.value;
     const dataFimStr = DOM_ELEMENTS.relatorioDataFim.value;
@@ -37,7 +38,7 @@ export function handleGerarPdf() {
     if (movsFiltradas.length === 0) { showAlert('alert-relatorio', 'Nenhum dado de entrega encontrado para este período.', 'info'); return; }
     
     DOM_ELEMENTS.btnGerarPdf.disabled = true; 
-    DOM_ELEMENTOS.btnGerarPdf.innerHTML = '<div class="loading-spinner-small mx-auto"></div>';
+    DOM_ELEMENTS.btnGerarPdf.innerHTML = '<div class="loading-spinner-small mx-auto"></div>';
     
     try {
         const doc = new jsPDF(); 
@@ -100,8 +101,8 @@ export function handleGerarPdf() {
         console.error("Erro ao gerar PDF:", error); 
         showAlert('alert-relatorio', `Erro ao gerar PDF: ${error.message}`, 'error');
     } finally { 
-        DOM_ELEMENTOS.btnGerarPdf.disabled = false; 
-        DOM_ELEMENTOS.btnGerarPdf.textContent = 'Gerar Relatório PDF'; 
+        DOM_ELEMENTS.btnGerarPdf.disabled = false; 
+        DOM_ELEMENTS.btnGerarPdf.textContent = 'Gerar Relatório PDF'; 
         if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
     }
 }
@@ -112,7 +113,7 @@ export function handleGerarPdf() {
 
 export function initRelatoriosListeners() {
     if (DOM_ELEMENTS.btnGerarPdf) {
-        DOM_ELEMENTOS.btnGerarPdf.addEventListener('click', handleGerarPdf);
+        DOM_ELEMENTS.btnGerarPdf.addEventListener('click', handleGerarPdf);
     }
 }
 
@@ -121,6 +122,13 @@ export function initRelatoriosListeners() {
  */
 export function onRelatorioTabChange() {
     // Garante que as datas estão preenchidas
-    if (DOM_ELEMENTOS.relatorioDataInicio) DOM_ELEMENTOS.relatorioDataInicio.value = formatTimestamp(Timestamp.fromMillis(Date.now() - 30 * 24 * 60 * 60 * 1000));
-    if (DOM_ELEMENTOS.relatorioDataFim) DOM_ELEMENTOS.relatorioDataFim.value = formatTimestamp(Timestamp.now());
+    // CORREÇÃO: Usa getTodayDateString() e calcula data de 30 dias atrás
+    if (DOM_ELEMENTS.relatorioDataInicio) {
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        DOM_ELEMENTS.relatorioDataInicio.value = thirtyDaysAgo.toISOString().split('T')[0];
+    }
+    if (DOM_ELEMENTS.relatorioDataFim) {
+        DOM_ELEMENTS.relatorioDataFim.value = getTodayDateString();
+    }
 }
