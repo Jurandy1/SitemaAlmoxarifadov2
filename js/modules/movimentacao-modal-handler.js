@@ -1,5 +1,6 @@
 // js/modules/movimentacao-modal-handler.js
 import { Timestamp, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+// CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
 import { DOM_ELEMENTS, showAlert } from "../utils/dom-helpers.js";
 import { capitalizeString, formatTimestamp } from "../utils/formatters.js";
 import { COLLECTIONS } from "../services/firestore-service.js";
@@ -12,6 +13,7 @@ let almoxTempFields = {};
  * @param {Object} data Dados da movimentação.
  */
 export function executeFinalMovimentacao(data) {
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (!DOM_ELEMENTS.almoxarifadoResponsavelModal) return;
 
     almoxTempFields = data;
@@ -67,6 +69,7 @@ export function executeFinalMovimentacao(data) {
  * Handler para o clique final no modal de movimentação.
  */
 export async function handleFinalMovimentacaoSubmit() {
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     const nomeAlmoxarifado = capitalizeString(DOM_ELEMENTS.inputAlmoxResponsavelNome.value.trim());
     const itemType = document.getElementById('almox-temp-itemType').value;
     
