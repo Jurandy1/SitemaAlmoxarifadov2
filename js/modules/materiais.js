@@ -2,7 +2,7 @@
 import { Timestamp, addDoc, updateDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { getMateriais } from "../utils/cache.js";
 import { DOM_ELEMENTS, showAlert, filterTable, switchSubTabView } from "../utils/dom-helpers.js";
-import { getTodayDateString, dateToTimestamp, capitalizeString } from "../utils/formatters.js";
+import { getTodayDateString, dateToTimestamp, capitalizeString, formatTimestamp, formatTimestampComTempo } from "../utils/formatters.js";
 import { isReady } from "./auth.js";
 import { COLLECTIONS } from "../services/firestore-service.js";
 import { uploadFile, deleteFile } from "../services/storage-service.js";
@@ -23,17 +23,18 @@ export async function handleMateriaisSubmit(e) {
     const [unidadeId, unidadeNome, tipoUnidadeRaw] = selectValue.split('|');
     const tipoUnidade = (tipoUnidadeRaw || '').toUpperCase() === 'SEMCAS' ? 'SEDE' : (tipoUnidadeRaw || '').toUpperCase();
 
-    const tipoMaterial = DOM_ELEMENTOS.selectTipoMateriais.value;
-    const dataSeparacao = DOM_ELEMENTOS.inputDataSeparacao.value ? dateToTimestamp(DOM_ELEMENTOS.inputDataSeparacao.value) : serverTimestamp();
-    const itens = DOM_ELEMENTOS.textareaItensMateriais.value.trim();
-    const responsavelLancamento = capitalizeString(DOM_ELEMENTOS.inputResponsavelMateriais.value.trim()); 
-    const arquivo = DOM_ELEMENTOS.inputArquivoMateriais.files[0];
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
+    const tipoMaterial = DOM_ELEMENTS.selectTipoMateriais.value;
+    const dataSeparacao = DOM_ELEMENTS.inputDataSeparacao.value ? dateToTimestamp(DOM_ELEMENTS.inputDataSeparacao.value) : serverTimestamp();
+    const itens = DOM_ELEMENTS.textareaItensMateriais.value.trim();
+    const responsavelLancamento = capitalizeString(DOM_ELEMENTS.inputResponsavelMateriais.value.trim()); 
+    const arquivo = DOM_ELEMENTS.inputArquivoMateriais.files[0];
      
     if (!unidadeId || !tipoMaterial || !responsavelLancamento) {
         showAlert('alert-materiais', 'Dados inválidos. Verifique unidade, tipo e Responsável pelo Lançamento.', 'warning'); return;
     }
     
-    DOM_ELEMENTOS.btnSubmitMateriais.disabled = true; 
+    DOM_ELEMENTS.btnSubmitMateriais.disabled = true; 
     
     let fileURL = null;
     let storagePath = null;
@@ -41,11 +42,11 @@ export async function handleMateriaisSubmit(e) {
     if (arquivo) {
         if (arquivo.size > 10 * 1024 * 1024) { 
             showAlert('alert-materiais', 'Erro: Arquivo muito grande (máx 10MB).', 'error');
-            DOM_ELEMENTOS.btnSubmitMateriais.disabled = false;
+            DOM_ELEMENTS.btnSubmitMateriais.disabled = false;
             return;
         }
         
-        DOM_ELEMENTOS.btnSubmitMateriais.innerHTML = '<div class="loading-spinner-small mx-auto"></div><span class="ml-2">Enviando arquivo...</span>';
+        DOM_ELEMENTS.btnSubmitMateriais.innerHTML = '<div class="loading-spinner-small mx-auto"></div><span class="ml-2">Enviando arquivo...</span>';
         showAlert('alert-materiais', 'Enviando arquivo anexo...', 'info', 10000);
 
         try {
@@ -57,12 +58,12 @@ export async function handleMateriaisSubmit(e) {
         } catch (error) {
             console.error("Erro no upload do arquivo:", error);
             showAlert('alert-materiais', `Erro ao enviar arquivo: ${error.message}`, 'error');
-            DOM_ELEMENTOS.btnSubmitMateriais.disabled = false; 
-            DOM_ELEMENTOS.btnSubmitMateriais.textContent = 'Registrar Requisição';
+            DOM_ELEMENTS.btnSubmitMateriais.disabled = false; 
+            DOM_ELEMENTS.btnSubmitMateriais.textContent = 'Registrar Requisição';
             return;
         }
     } else {
-         DOM_ELEMENTOS.btnSubmitMateriais.innerHTML = '<div class="loading-spinner-small mx-auto"></div>';
+         DOM_ELEMENTS.btnSubmitMateriais.innerHTML = '<div class="loading-spinner-small mx-auto"></div>';
     }
     
     try {
@@ -84,14 +85,14 @@ export async function handleMateriaisSubmit(e) {
             downloadInfo: { count: 0, lastDownload: null, blockedUntil: null }
         });
         showAlert('alert-materiais', 'Requisição registrada! O status inicial é "Para Separar".', 'success');
-        DOM_ELEMENTOS.formMateriais.reset(); 
-        DOM_ELEMENTOS.inputDataSeparacao.value = getTodayDateString(); 
+        DOM_ELEMENTS.formMateriais.reset(); 
+        DOM_ELEMENTS.inputDataSeparacao.value = getTodayDateString(); 
     } catch (error) { 
         console.error("Erro salvar requisição:", error);
         showAlert('alert-materiais', `Erro: ${error.message}`, 'error');
     } finally { 
-        DOM_ELEMENTOS.btnSubmitMateriais.disabled = false; 
-        DOM_ELEMENTOS.btnSubmitMateriais.textContent = 'Registrar Requisição';
+        DOM_ELEMENTS.btnSubmitMateriais.disabled = false; 
+        DOM_ELEMENTS.btnSubmitMateriais.textContent = 'Registrar Requisição';
         if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
     }
 }
@@ -113,21 +114,21 @@ export function renderMateriaisStatus() {
     const retirada = materiais.filter(m => m.status === 'retirada');
     const entregue = materiais.filter(m => m.status === 'entregue');
     
-    if (DOM_ELEMENTOS.summaryMateriaisRequisitado) DOM_ELEMENTOS.summaryMateriaisRequisitado.textContent = requisitado.length;
-    if (DOM_ELEMENTOS.summaryMateriaisSeparacao) DOM_ELEMENTOS.summaryMateriaisSeparacao.textContent = separacao.length;
-    if (DOM_ELEMENTOS.summaryMateriaisRetirada) DOM_ELEMENTOS.summaryMateriaisRetirada.textContent = retirada.length;
+    if (DOM_ELEMENTS.summaryMateriaisRequisitado) DOM_ELEMENTS.summaryMateriaisRequisitado.textContent = requisitado.length;
+    if (DOM_ELEMENTS.summaryMateriaisSeparacao) DOM_ELEMENTS.summaryMateriaisSeparacao.textContent = separacao.length;
+    if (DOM_ELEMENTS.summaryMateriaisRetirada) DOM_ELEMENTS.summaryMateriaisRetirada.textContent = retirada.length;
     
     // 1. Para Separar (Status: requisitado)
-    renderMaterialSubTable(DOM_ELEMENTOS.tableParaSeparar, requisitado, 'requisitado');
+    renderMaterialSubTable(DOM_ELEMENTS.tableParaSeparar, requisitado, 'requisitado');
     
     // 2. Em Separação (Status: separacao)
-    renderMaterialSubTable(DOM_ELEMENTOS.tableEmSeparacao, separacao, 'separacao');
+    renderMaterialSubTable(DOM_ELEMENTS.tableEmSeparacao, separacao, 'separacao');
     
     // 3. Pronto p/ Entrega (Status: retirada)
-    renderMaterialSubTable(DOM_ELEMENTOS.tableProntoEntrega, retirada, 'retirada');
+    renderMaterialSubTable(DOM_ELEMENTS.tableProntoEntrega, retirada, 'retirada');
     
     // 4. Histórico (Status: entregue)
-    renderMaterialSubTable(DOM_ELEMENTOS.tableHistoricoEntregues, entregue.sort((a,b) => (b.dataEntrega?.toMillis() || 0) - (a.dataEntrega?.toMillis() || 0)), 'entregue');
+    renderMaterialSubTable(DOM_ELEMENTS.tableHistoricoEntregues, entregue.sort((a,b) => (b.dataEntrega?.toMillis() || 0) - (a.dataEntrega?.toMillis() || 0)), 'entregue');
 }
 
 /**
@@ -274,13 +275,13 @@ async function handleMarcarEntregue(e) {
     if (!material) return;
     
     // Preenche e abre o modal de finalização
-    DOM_ELEMENTOS.finalizarEntregaMaterialIdEl.value = materialId;
-    DOM_ELEMENTOS.inputEntregaResponsavelAlmox.value = material.responsavelSeparador || '';
-    DOM_ELEMENTOS.inputEntregaResponsavelUnidade.value = material.responsavelLancamento || '';
-    DOM_ELEMENTOS.alertFinalizarEntrega.style.display = 'none';
+    DOM_ELEMENTS.finalizarEntregaMaterialIdEl.value = materialId;
+    DOM_ELEMENTS.inputEntregaResponsavelAlmox.value = material.responsavelSeparador || '';
+    DOM_ELEMENTS.inputEntregaResponsavelUnidade.value = material.responsavelLancamento || '';
+    DOM_ELEMENTS.alertFinalizarEntrega.style.display = 'none';
 
-    DOM_ELEMENTOS.finalizarEntregaModal.style.display = 'flex';
-    DOM_ELEMENTOS.inputEntregaResponsavelAlmox.focus();
+    DOM_ELEMENTS.finalizarEntregaModal.style.display = 'flex';
+    DOM_ELEMENTS.inputEntregaResponsavelAlmox.focus();
 }
 
 /**
@@ -289,17 +290,17 @@ async function handleMarcarEntregue(e) {
 export async function handleFinalizarEntregaSubmit() {
     if (!isReady()) return;
     
-    const materialId = DOM_ELEMENTOS.finalizarEntregaMaterialIdEl.value;
-    const respAlmox = capitalizeString(DOM_ELEMENTOS.inputEntregaResponsavelAlmox.value.trim());
-    const respUnidade = capitalizeString(DOM_ELEMENTOS.inputEntregaResponsavelUnidade.value.trim());
+    const materialId = DOM_ELEMENTS.finalizarEntregaMaterialIdEl.value;
+    const respAlmox = capitalizeString(DOM_ELEMENTS.inputEntregaResponsavelAlmox.value.trim());
+    const respUnidade = capitalizeString(DOM_ELEMENTS.inputEntregaResponsavelUnidade.value.trim());
     
     if (!respAlmox || !respUnidade) {
         showAlert('alert-finalizar-entrega', 'Informe o responsável pela entrega (Almoxarifado) e quem recebeu (Unidade).', 'warning');
         return;
     }
     
-    DOM_ELEMENTOS.btnConfirmarFinalizacaoEntrega.disabled = true;
-    DOM_ELEMENTOS.btnConfirmarFinalizacaoEntrega.innerHTML = '<div class="loading-spinner-small mx-auto"></div>';
+    DOM_ELEMENTS.btnConfirmarFinalizacaoEntrega.disabled = true;
+    DOM_ELEMENTS.btnConfirmarFinalizacaoEntrega.innerHTML = '<div class="loading-spinner-small mx-auto"></div>';
     
     const material = getMateriais().find(m => m.id === materialId);
     const storagePath = material?.storagePath;
@@ -325,9 +326,9 @@ export async function handleFinalizarEntregaSubmit() {
         showAlert('alert-finalizar-entrega', `Erro: ${error.message}`, 'error'); 
         showAlert('alert-pronto-entrega', `Erro ao finalizar: ${error.message}`, 'error'); 
     } finally {
-        DOM_ELEMENTOS.finalizarEntregaModal.style.display = 'none';
-        DOM_ELEMENTOS.btnConfirmarFinalizacaoEntrega.disabled = false;
-        DOM_ELEMENTOS.btnConfirmarFinalizacaoEntrega.innerHTML = '<i data-lucide="check-circle"></i> Confirmar Finalização';
+        DOM_ELEMENTS.finalizarEntregaModal.style.display = 'none';
+        DOM_ELEMENTS.btnConfirmarFinalizacaoEntrega.disabled = false;
+        DOM_ELEMENTS.btnConfirmarFinalizacaoEntrega.innerHTML = '<i data-lucide="check-circle"></i> Confirmar Finalização';
         if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
     }
 }
@@ -336,35 +337,35 @@ export async function handleFinalizarEntregaSubmit() {
  * Abre o modal para informar o nome do separador.
  */
 function openSeparadorModal(materialId) {
-    if (!DOM_ELEMENTOS.separadorModal) return;
+    if (!DOM_ELEMENTS.separadorModal) return;
     console.log("Abrindo modal para material ID:", materialId);
-    DOM_ELEMENTOS.separadorMaterialIdEl.value = materialId;
-    DOM_ELEMENTOS.inputSeparadorNome.value = '';
-    DOM_ELEMENTOS.inputSeparadorNome.disabled = false;
-    DOM_ELEMENTOS.btnSalvarSeparador.disabled = false;
-    DOM_ELEMENTOS.btnSalvarSeparador.innerHTML = 'Salvar Nome e Liberar';
-    DOM_ELEMENTOS.alertSeparador.style.display = 'none';
-    DOM_ELEMENTOS.separadorModal.style.display = 'flex';
-    DOM_ELEMENTOS.inputSeparadorNome.focus();
+    DOM_ELEMENTS.separadorMaterialIdEl.value = materialId;
+    DOM_ELEMENTS.inputSeparadorNome.value = '';
+    DOM_ELEMENTS.inputSeparadorNome.disabled = false;
+    DOM_ELEMENTS.btnSalvarSeparador.disabled = false;
+    DOM_ELEMENTS.btnSalvarSeparador.innerHTML = 'Salvar Nome e Liberar';
+    DOM_ELEMENTS.alertSeparador.style.display = 'none';
+    DOM_ELEMENTS.separadorModal.style.display = 'flex';
+    DOM_ELEMENTS.inputSeparadorNome.focus();
 }
 
 /**
  * Salva o nome do separador e move o status para 'separacao'.
  */
 export async function handleSalvarSeparador() {
-    if (!isReady() || !DOM_ELEMENTOS.inputSeparadorNome) return;
+    if (!isReady() || !DOM_ELEMENTS.inputSeparadorNome) return;
 
-    const nomeSeparador = capitalizeString(DOM_ELEMENTOS.inputSeparadorNome.value.trim());
-    const materialId = DOM_ELEMENTOS.separadorMaterialIdEl.value;
+    const nomeSeparador = capitalizeString(DOM_ELEMENTS.inputSeparadorNome.value.trim());
+    const materialId = DOM_ELEMENTS.separadorMaterialIdEl.value;
 
     if (!nomeSeparador) {
         showAlert('alert-separador', 'Por favor, informe o nome do separador.', 'warning');
         return;
     }
 
-    DOM_ELEMENTOS.btnSalvarSeparador.disabled = true;
-    DOM_ELEMENTOS.inputSeparadorNome.disabled = true;
-    DOM_ELEMENTOS.btnSalvarSeparador.innerHTML = '<div class="loading-spinner-small mx-auto"></div>';
+    DOM_ELEMENTS.btnSalvarSeparador.disabled = true;
+    DOM_ELEMENTS.inputSeparadorNome.disabled = true;
+    DOM_ELEMENTS.btnSalvarSeparador.innerHTML = '<div class="loading-spinner-small mx-auto"></div>';
 
     try {
         const docRef = doc(COLLECTIONS.materiais, materialId);
@@ -376,7 +377,7 @@ export async function handleSalvarSeparador() {
 
         showAlert('alert-separador', 'Nome salvo! O status foi atualizado para "Em Separação".', 'success', 4000);
         setTimeout(() => {
-            if (DOM_ELEMENTOS.separadorModal) DOM_ELEMENTOS.separadorModal.style.display = 'none';
+            if (DOM_ELEMENTS.separadorModal) DOM_ELEMENTS.separadorModal.style.display = 'none';
         }, 2000);
 
         const material = getMateriais().find(m => m.id === materialId);
@@ -389,9 +390,9 @@ export async function handleSalvarSeparador() {
     } catch (error) {
         console.error("Erro ao salvar nome do separador:", error);
         showAlert('alert-separador', `Erro ao salvar: ${error.message}`, 'error');
-        DOM_ELEMENTOS.btnSalvarSeparador.disabled = false;
-        DOM_ELEMENTOS.inputSeparadorNome.disabled = false;
-        DOM_ELEMENTOS.btnSalvarSeparador.innerHTML = 'Salvar Nome e Liberar';
+        DOM_ELEMENTS.btnSalvarSeparador.disabled = false;
+        DOM_ELEMENTS.inputSeparadorNome.disabled = false;
+        DOM_ELEMENTS.btnSalvarSeparador.innerHTML = 'Salvar Nome e Liberar';
     }
 }
 
@@ -471,34 +472,37 @@ async function handleDownloadPedido(materialId, fileURL) {
 
 export function initMateriaisListeners() {
     if (DOM_ELEMENTS.formMateriais) {
-        DOM_ELEMENTOS.formMateriais.addEventListener('submit', handleMateriaisSubmit);
+        DOM_ELEMENTS.formMateriais.addEventListener('submit', handleMateriaisSubmit);
     }
 
     // Listeners de clique centralizados para as tabelas de workflow
-    document.querySelector('#content-materiais').addEventListener('click', (e) => {
-        const retiradaBtn = e.target.closest('button.btn-retirada[data-id]');
-        const entregueBtn = e.target.closest('button.btn-entregue[data-id]');
-        const startSeparacaoBtn = e.target.closest('button.btn-start-separacao[data-id]');
-        const downloadPedidoBtn = e.target.closest('button.btn-download-pedido[data-id]');
+    const contentMateriais = document.querySelector('#content-materiais');
+    if (contentMateriais) {
+        contentMateriais.addEventListener('click', (e) => {
+            const retiradaBtn = e.target.closest('button.btn-retirada[data-id]');
+            const entregueBtn = e.target.closest('button.btn-entregue[data-id]');
+            const startSeparacaoBtn = e.target.closest('button.btn-start-separacao[data-id]');
+            const downloadPedidoBtn = e.target.closest('button.btn-download-pedido[data-id]');
 
-        if (retiradaBtn) {
-             handleMarcarRetirada(e);
-        } else if (entregueBtn) {
-             handleMarcarEntregue(e);
-        } else if (startSeparacaoBtn) {
-             openSeparadorModal(startSeparacaoBtn.dataset.id);
-        } else if (downloadPedidoBtn) {
-             handleDownloadPedido(downloadPedidoBtn.dataset.id, downloadPedidoBtn.dataset.url);
-        }
-    });
+            if (retiradaBtn) {
+                 handleMarcarRetirada(e);
+            } else if (entregueBtn) {
+                 handleMarcarEntregue(e);
+            } else if (startSeparacaoBtn) {
+                 openSeparadorModal(startSeparacaoBtn.dataset.id);
+            } else if (downloadPedidoBtn) {
+                 handleDownloadPedido(downloadPedidoBtn.dataset.id, downloadPedidoBtn.dataset.url);
+            }
+        });
+    }
 
     // Listener para o modal do separador
     if (DOM_ELEMENTS.btnSalvarSeparador) {
-        DOM_ELEMENTOS.btnSalvarSeparador.addEventListener('click', handleSalvarSeparador);
+        DOM_ELEMENTS.btnSalvarSeparador.addEventListener('click', handleSalvarSeparador);
     }
     // Listener para o modal de finalização de entrega
-    if (DOM_ELEMENTOS.btnConfirmarFinalizacaoEntrega) {
-        DOM_ELEMENTOS.btnConfirmarFinalizacaoEntrega.addEventListener('click', handleFinalizarEntregaSubmit);
+    if (DOM_ELEMENTS.btnConfirmarFinalizacaoEntrega) {
+        DOM_ELEMENTS.btnConfirmarFinalizacaoEntrega.addEventListener('click', handleFinalizarEntregaSubmit);
     }
     // Listeners para filtros de busca (Histórico)
     if (document.getElementById('filtro-historico-entregues')) {
@@ -512,5 +516,5 @@ export function initMateriaisListeners() {
 export function onMateriaisTabChange() {
     switchSubTabView('materiais', 'lancar-materiais');
     renderMateriaisStatus(); 
-    if (DOM_ELEMENTOS.inputDataSeparacao) DOM_ELEMENTOS.inputDataSeparacao.value = getTodayDateString();
+    if (DOM_ELEMENTS.inputDataSeparacao) DOM_ELEMENTS.inputDataSeparacao.value = getTodayDateString();
 }
