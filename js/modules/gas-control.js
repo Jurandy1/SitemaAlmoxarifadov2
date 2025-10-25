@@ -402,22 +402,27 @@ export function initGasListeners() {
         DOM_ELEMENTS.formGas.addEventListener('submit', handleGasSubmit);
     }
     if (DOM_ELEMENTS.selectTipoGas) {
-        DOM_ELEMENTOS.selectTipoGas.addEventListener('change', toggleGasFormInputs);
+        // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
+        DOM_ELEMENTS.selectTipoGas.addEventListener('change', toggleGasFormInputs);
     }
     if (DOM_ELEMENTS.selectUnidadeGas) {
-         DOM_ELEMENTOS.selectUnidadeGas.addEventListener('change', checkUnidadeSaldoAlertGas);
+         // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
+         DOM_ELEMENTS.selectUnidadeGas.addEventListener('change', checkUnidadeSaldoAlertGas);
     }
     if (DOM_ELEMENTS.formInicialGas) {
-        DOM_ELEMENTOS.formInicialGas.addEventListener('submit', handleInicialEstoqueSubmit);
+        // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
+        DOM_ELEMENTS.formInicialGas.addEventListener('submit', handleInicialEstoqueSubmit);
     }
     if (DOM_ELEMENTS.btnAbrirInicialGas) {
-        DOM_ELEMENTOS.btnAbrirInicialGas.addEventListener('click', () => { 
-            DOM_ELEMENTOS.formInicialGasContainer?.classList.remove('hidden'); 
-            DOM_ELEMENTOS.btnAbrirInicialGas?.classList.add('hidden'); 
+        // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS (incluindo o uso dentro da função)
+        DOM_ELEMENTS.btnAbrirInicialGas.addEventListener('click', () => { 
+            DOM_ELEMENTS.formInicialGasContainer?.classList.remove('hidden'); 
+            DOM_ELEMENTS.btnAbrirInicialGas?.classList.add('hidden'); 
         });
     }
     if (DOM_ELEMENTS.formEntradaGas) {
-        DOM_ELEMENTOS.formEntradaGas.addEventListener('submit', handleEntradaEstoqueSubmit);
+        // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
+        DOM_ELEMENTS.formEntradaGas.addEventListener('submit', handleEntradaEstoqueSubmit);
     }
     if (document.getElementById('filtro-status-gas')) {
         document.getElementById('filtro-status-gas').addEventListener('input', () => filterTable(document.getElementById('filtro-status-gas'), 'table-status-gas'));
@@ -458,8 +463,9 @@ export function onGasTabChange() {
     renderGasStatus();
     renderGasMovimentacoesHistory();
     // Garante que o input de data está em dia
-    if (DOM_ELEMENTS.inputDataGas) DOM_ELEMENTOS.inputDataGas.value = getTodayDateString();
-    if (DOM_ELEMENTS.inputDataEntradaGas) DOM_ELEMENTOS.inputDataEntradaGas.value = getTodayDateString();
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
+    if (DOM_ELEMENTS.inputDataGas) DOM_ELEMENTS.inputDataGas.value = getTodayDateString();
+    if (DOM_ELEMENTS.inputDataEntradaGas) DOM_ELEMENTS.inputDataEntradaGas.value = getTodayDateString();
     // CORRIGIDO: Usar verificação `if` em vez de encadeamento opcional na atribuição (Causa do erro 463:5)
     const filtroStatus = document.getElementById('filtro-status-gas');
     if (filtroStatus) filtroStatus.value = '';
