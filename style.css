@@ -136,7 +136,6 @@ body {
 }
 
 /* Estado: Em Separação (implícito, app.js não põe classe) */
-/* O app.js gera .status-indicator.separando */
 /* Vamos usar um padrão para o 'li' que não é nem requisitado nem retirada */
 .materiais-prontos-col li:not(.item-requisitado):not(.item-retirada) {
     background-color: #fffbeb; /* bg-yellow-50 */
@@ -574,7 +573,7 @@ button .loading-spinner-small {
 .btn-warning.active {
     background-color: #b91c1c !important; /* bg-red-700 */
     color: #ffffff !important;
-    border-color: #991b1b !important; /* border-red-800 */
+    border-color: #991b1c !important; /* border-red-800 */
 }
 .btn-warning.active:hover {
     background-color: #991b1b !important;
@@ -588,4 +587,93 @@ button .loading-spinner-small {
 }
 .btn-info.active:hover {
     background-color: #1d3674 !important; /* dark blue hover */
+}
+
+
+/* ======= ENTREGA DE MATERIAIS MODERNA ======= */ 
+.subtab-btn { 
+    
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb; /* border-gray-200 */
+  border-radius: 0.5rem; /* rounded-lg */
+  padding: 0.5rem 1rem; /* px-4 py-2 */
+  font-size: 0.875rem; /* text-sm */
+  font-weight: 500; /* font-medium */
+  display: inline-flex;
+  align-items: center;
+  color: #4b5563; /* text-gray-700 */
+  transition: all 0.2s ease-in-out; 
+} 
+
+.subtab-btn:hover {
+    background-color: #eff6ff; /* hover:bg-blue-50 */ 
+    border-color: #93c5fd; /* hover:border-blue-300 */ 
+    color: #1e40af;
+}
+
+.subtab-btn.active { 
+  background-color: #2563eb; /* bg-blue-600 */ 
+  color: #ffffff; 
+  border-color: #2563eb; 
+  box-shadow: 0 1px 3px 0 rgba(0,0,0,0.1), 0 1px 2px 0 rgba(0,0,0,0.06); /* shadow */
+} 
+
+.subtab-content { 
+  animation: fadeIn 0.3s ease; 
+} 
+
+@keyframes fadeIn { 
+  from { opacity: 0; transform: translateY(4px); } 
+  to { opacity: 1; transform: translateY(0); } 
+} 
+
+/* Painel de instruções */ 
+#instructionContent p { 
+  position: relative; 
+  padding-left: 1.2rem; 
+} 
+#instructionContent p::before { 
+  content: "•"; 
+  position: absolute; 
+  left: 0; 
+  color: #2563eb; 
+  font-weight: bold; 
+} 
+
+/* Tooltip de ajuda */ 
+.tooltip { 
+  position: relative; 
+  display: inline-block; 
+} 
+.tooltip .tooltip-text { 
+  visibility: hidden; 
+  background-color: #1e40af; 
+  color: #fff; 
+  text-align: center; 
+  border-radius: 6px; 
+  padding: 4px 8px; 
+  position: absolute; 
+  z-index: 10; 
+  bottom: 125%; 
+  left: 50%; 
+  transform: translateX(-50%); 
+  font-size: 0.75rem; 
+  opacity: 0; 
+  transition: opacity 0.3s; 
+  white-space: nowrap; 
+} 
+.tooltip:hover .tooltip-text { 
+  visibility: visible; 
+  opacity: 1; 
+} 
+
+/* Botões de ação */ 
+.action-btn { 
+  border-radius: 0.375rem; /* rounded-md */
+  padding: 0.5rem; /* p-2 */
+  transition: all 0.2s ease-in-out; 
+  border: 1px solid transparent; 
+} 
+.action-btn:hover { 
+  border-color: #d1d5db; /* border-gray-300 */
 }
