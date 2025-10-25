@@ -1,6 +1,7 @@
 // js/modules/control-helpers.js
 import { getUnidades } from "../utils/cache.js";
-import { DOM_ELEMENTS, switchTab } from "../utils/dom-helpers.js";
+// CORREÇÃO: Importa explicitamente DOM_ELEMENTS e as funções do dom-helpers
+import { DOM_ELEMENTS, switchTab, findDOMElements, showAlert, switchSubTabView, filterTable, updateLastUpdateTime, handleSaldoFilterUI, openConfirmDeleteModal } from "../utils/dom-helpers.js";
 import { onAguaTabChange, initAguaListeners } from "./agua-control.js";
 import { onGasTabChange, initGasListeners } from "./gas-control.js";
 import { onMateriaisTabChange, initMateriaisListeners } from "./materiais.js";
@@ -181,3 +182,13 @@ export function initAllListeners() {
     initGestaoListeners();
     initRelatoriosListeners();
 }
+
+// CORREÇÃO: Exporta findDOMElements e DOM_ELEMENTS para que o app.js possa usá-los (linha 7)
+export { 
+    renderUIModules, 
+    renderUnidadeControls, 
+    initAllListeners, 
+    DOM_ELEMENTS, 
+    findDOMElements, 
+    updateLastUpdateTime 
+};
