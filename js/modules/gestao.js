@@ -1,7 +1,9 @@
 // js/modules/gestao.js
 import { addDoc, updateDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { getUnidades } from "../utils/cache.js";
-import { DOM_ELEMENTS, showAlert, normalizeString, capitalizeString, openConfirmDeleteModal } from "../utils/dom-helpers.js";
+// CORRIGIDO: Importações movidas para o local correto (formatters.js)
+import { DOM_ELEMENTS, showAlert, openConfirmDeleteModal } from "../utils/dom-helpers.js"; 
+import { normalizeString, capitalizeString } from "../utils/formatters.js";
 import { isReady } from "./auth.js";
 import { COLLECTIONS } from "../services/firestore-service.js";
 
@@ -267,7 +269,7 @@ export function initGestaoListeners() {
         DOM_ELEMENTS.filtroUnidadeNome.addEventListener('input', renderGestaoUnidades); 
     }
     if (DOM_ELEMENTS.filtroUnidadeTipo) {
-        DOM_ELEMENTS.filtroUnidadeTipo.addEventListener('input', renderGestaoUnidades); 
+        DOM_ELEMENTOS.filtroUnidadeTipo.addEventListener('input', renderGestaoUnidades); 
     }
     if (DOM_ELEMENTS.btnBulkAddUnidades) {
         DOM_ELEMENTOS.btnBulkAddUnidades.addEventListener('click', handleBulkAddUnidades);
