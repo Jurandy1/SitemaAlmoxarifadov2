@@ -591,22 +591,21 @@
                     <div class="mb-6">
                         <h3 class="font-semibold text-gray-700 mb-3 text-lg">1. Selecione o modo de previsão:</h3>
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <!-- JS usa onclick="selecionarModoPrevisao('agua', ...)" -->
-                            <div class="previsao-option-card" data-modo="unidade-especifica" onclick="selecionarModoPrevisao('agua', 'unidade-especifica')">
+                            <div class="previsao-option-card" data-modo="unidade-especifica">
                                 <div class="flex items-center gap-3 mb-2">
                                     <div class="bg-blue-100 p-2 rounded-full"><i data-lucide="building" class="text-blue-600"></i></div>
                                     <h4 class="font-bold text-gray-800">Unidade Específica</h4>
                                 </div>
                                 <p class="text-sm text-gray-600">Previsão detalhada para uma unidade individual</p>
                             </div>
-                            <div class="previsao-option-card" data-modo="por-tipo" onclick="selecionarModoPrevisao('agua', 'por-tipo')">
+                            <div class="previsao-option-card" data-modo="por-tipo">
                                 <div class="flex items-center gap-3 mb-2">
                                     <div class="bg-green-100 p-2 rounded-full"><i data-lucide="layers" class="text-green-600"></i></div>
                                     <h4 class="font-bold text-gray-800">Por Tipo</h4>
                                 </div>
                                 <p class="text-sm text-gray-600">Previsão para todas as unidades de um tipo</p>
                             </div>
-                            <div class="previsao-option-card" data-modo="completo" onclick="selecionarModoPrevisao('agua', 'completo')">
+                            <div class="previsao-option-card" data-modo="completo">
                                 <div class="flex items-center gap-3 mb-2">
                                     <div class="bg-purple-100 p-2 rounded-full"><i data-lucide="globe" class="text-purple-600"></i></div>
                                     <h4 class="font-bold text-gray-800">Completo</h4>
@@ -641,7 +640,7 @@
                             <label class="form-label">Excluir Unidades do Cálculo (opcional)</label>
                             <div class="flex gap-2">
                                 <select id="select-exclusao-agua" class="form-select flex-1"></select>
-                                <button type="button" onclick="adicionarExclusao('agua')" class="btn-secondary flex-shrink-0">
+                                <button type="button" id="btn-adicionar-exclusao-agua" class="btn-secondary flex-shrink-0">
                                     + Adicionar
                                 </button>
                             </div>
@@ -651,9 +650,9 @@
 
                     <!-- Etapa 3 -->
                     <div class="text-center mb-6">
-                        <button id="btn-calcular-previsao-agua-v2" class="btn-primary btn-lg px-8" onclick="calcularPrevisaoInteligente('agua')">
+                        <button id="btn-calcular-previsao-agua-v2" class="btn-primary btn-lg px-8">
                             <i data-lucide="calculator"></i>
-                            Calcular Previsão
+                            <span>Calcular Previsão</span>
                         </button>
                     </div>
 
@@ -916,22 +915,21 @@
                     <div class="mb-6">
                         <h3 class="font-semibold text-gray-700 mb-3 text-lg">1. Selecione o modo de previsão:</h3>
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <!-- JS usa onclick="selecionarModoPrevisao('gas', ...)" -->
-                            <div class="previsao-option-card" data-modo="unidade-especifica" onclick="selecionarModoPrevisao('gas', 'unidade-especifica')">
+                            <div class="previsao-option-card" data-modo="unidade-especifica">
                                 <div class="flex items-center gap-3 mb-2">
                                     <div class="bg-blue-100 p-2 rounded-full"><i data-lucide="building" class="text-blue-600"></i></div>
                                     <h4 class="font-bold text-gray-800">Unidade Específica</h4>
                                 </div>
                                 <p class="text-sm text-gray-600">Previsão detalhada para uma unidade individual</p>
                             </div>
-                            <div class="previsao-option-card" data-modo="por-tipo" onclick="selecionarModoPrevisao('gas', 'por-tipo')">
+                            <div class="previsao-option-card" data-modo="por-tipo">
                                 <div class="flex items-center gap-3 mb-2">
                                     <div class="bg-green-100 p-2 rounded-full"><i data-lucide="layers" class="text-green-600"></i></div>
                                     <h4 class="font-bold text-gray-800">Por Tipo</h4>
                                 </div>
                                 <p class="text-sm text-gray-600">Previsão para todas as unidades de um tipo</p>
                             </div>
-                            <div class="previsao-option-card" data-modo="completo" onclick="selecionarModoPrevisao('gas', 'completo')">
+                            <div class="previsao-option-card" data-modo="completo">
                                 <div class="flex items-center gap-3 mb-2">
                                     <div class="bg-purple-100 p-2 rounded-full"><i data-lucide="globe" class="text-purple-600"></i></div>
                                     <h4 class="font-bold text-gray-800">Completo</h4>
@@ -966,7 +964,7 @@
                             <label class="form-label">Excluir Unidades do Cálculo (opcional)</label>
                             <div class="flex gap-2">
                                 <select id="select-exclusao-gas" class="form-select flex-1"></select>
-                                <button type="button" onclick="adicionarExclusao('gas')" class="btn-secondary flex-shrink-0">
+                                <button type="button" id="btn-adicionar-exclusao-gas" class="btn-secondary flex-shrink-0">
                                     + Adicionar
                                 </button>
                             </div>
@@ -976,9 +974,9 @@
 
                     <!-- Etapa 3 -->
                     <div class="text-center mb-6">
-                        <button id="btn-calcular-previsao-gas-v2" class="btn-primary btn-lg px-8" onclick="calcularPrevisaoInteligente('gas')">
+                        <button id="btn-calcular-previsao-gas-v2" class="btn-primary btn-lg px-8">
                             <i data-lucide="calculator"></i>
-                            Calcular Previsão
+                            <span>Calcular Previsão</span>
                         </button>
                     </div>
 
