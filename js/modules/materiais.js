@@ -27,7 +27,8 @@ export async function handleMateriaisSubmit(e) {
 
     // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     const tipoMaterial = DOM_ELEMENTS.selectTipoMateriais.value;
-    const dataSeparacao = DOM_ELEMENTS.inputDataSeparacao.value ? dateToTimestamp(DOM_ELEMENTS.inputDataSeparacao.value) : serverTimestamp();
+    // Data da Requisição agora é opcional, usar serverTimestamp se vazio
+    const dataRequisicao = DOM_ELEMENTS.inputDataSeparacao.value ? dateToTimestamp(DOM_ELEMENTS.inputDataSeparacao.value) : serverTimestamp();
     const itens = DOM_ELEMENTS.textareaItensMateriais.value.trim();
     const responsavelLancamento = capitalizeString(DOM_ELEMENTS.inputResponsavelMateriais.value.trim()); 
     const arquivo = DOM_ELEMENTS.inputArquivoMateriais.files[0];
@@ -61,7 +62,9 @@ export async function handleMateriaisSubmit(e) {
             console.error("Erro no upload do arquivo:", error);
             showAlert('alert-materiais', `Erro ao enviar arquivo: ${error.message}`, 'error');
             DOM_ELEMENTS.btnSubmitMateriais.disabled = false; 
-            DOM_ELEMENTS.btnSubmitMateriais.textContent = 'Registrar Requisição';
+            // Texto original do botão
+            DOM_ELEMENTS.btnSubmitMateriais.innerHTML = '<i data-lucide="save"></i> <span>Registrar Requisição</span>';
+            if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
             return;
         }
     } else {
@@ -71,9 +74,12 @@ export async function handleMateriaisSubmit(e) {
     try {
         await addDoc(COLLECTIONS.materiais, {
             unidadeId, unidadeNome, tipoUnidade, tipoMaterial,
-            dataSeparacao: dataSeparacao, 
+            // Campo renomeado para dataRequisicao
+            dataRequisicao: dataRequisicao, 
+            // Mantendo dataSeparacao como null inicialmente ou usar dataRequisicao como placeholder? Usarei null.
+            dataSeparacao: null, 
             itens,
-            status: 'requisitado',
+            status: 'requisitado', // Status inicial
             dataInicioSeparacao: null, 
             dataRetirada: null,
             dataEntrega: null,
@@ -88,13 +94,15 @@ export async function handleMateriaisSubmit(e) {
         });
         showAlert('alert-materiais', 'Requisição registrada! O status inicial é "Para Separar".', 'success');
         DOM_ELEMENTS.formMateriais.reset(); 
+        // Resetar data para hoje
         DOM_ELEMENTS.inputDataSeparacao.value = getTodayDateString(); 
     } catch (error) { 
         console.error("Erro salvar requisição:", error);
         showAlert('alert-materiais', `Erro: ${error.message}`, 'error');
     } finally { 
         DOM_ELEMENTS.btnSubmitMateriais.disabled = false; 
-        DOM_ELEMENTS.btnSubmitMateriais.textContent = 'Registrar Requisição';
+        // Texto original do botão
+        DOM_ELEMENTS.btnSubmitMateriais.innerHTML = '<i data-lucide="save"></i> <span>Registrar Requisição</span>';
         if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
     }
 }
@@ -116,21 +124,15 @@ export function renderMateriaisStatus() {
     const retirada = materiais.filter(m => m.status === 'retirada');
     const entregue = materiais.filter(m => m.status === 'entregue');
     
-    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS (Atualiza os resumos)
     if (DOM_ELEMENTS.summaryMateriaisRequisitado) DOM_ELEMENTS.summaryMateriaisRequisitado.textContent = requisitado.length;
     if (DOM_ELEMENTS.summaryMateriaisSeparacao) DOM_ELEMENTS.summaryMateriaisSeparacao.textContent = separacao.length;
     if (DOM_ELEMENTS.summaryMateriaisRetirada) DOM_ELEMENTS.summaryMateriaisRetirada.textContent = retirada.length;
     
-    // 1. Para Separar (Status: requisitado)
+    // Renderiza tabelas individuais
     renderMaterialSubTable(DOM_ELEMENTS.tableParaSeparar, requisitado, 'requisitado');
-    
-    // 2. Em Separação (Status: separacao)
     renderMaterialSubTable(DOM_ELEMENTS.tableEmSeparacao, separacao, 'separacao');
-    
-    // 3. Pronto p/ Entrega (Status: retirada)
     renderMaterialSubTable(DOM_ELEMENTS.tableProntoEntrega, retirada, 'retirada');
-    
-    // 4. Histórico (Status: entregue)
     renderMaterialSubTable(DOM_ELEMENTS.tableHistoricoEntregues, entregue.sort((a,b) => (b.dataEntrega?.toMillis() || 0) - (a.dataEntrega?.toMillis() || 0)), 'entregue');
 }
 
@@ -140,13 +142,15 @@ export function renderMateriaisStatus() {
 function renderMaterialSubTable(tableBody, data, status) {
     if (!tableBody) return;
     
+    // Define a mensagem padrão caso não haja dados
+    let msgVazio = 'Nenhum item encontrado para este status.';
+    if (status === 'requisitado') msgVazio = 'Nenhuma requisição pendente de separação.';
+    else if (status === 'separacao') msgVazio = 'Nenhuma requisição em separação.';
+    else if (status === 'retirada') msgVazio = 'Nenhum material pronto para entrega.';
+    else if (status === 'entregue') msgVazio = 'Nenhuma entrega finalizada.';
+
     if (data.length === 0) {
-        let msg = '';
-        if (status === 'requisitado') msg = 'Nenhuma requisição pendente de separação.';
-        else if (status === 'separacao') msg = 'Nenhuma requisição em separação.';
-        else if (status === 'retirada') msg = 'Nenhum material pronto para entrega.';
-        else if (status === 'entregue') msg = 'Nenhuma entrega finalizada.';
-        tableBody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-slate-500">' + msg + '</td></tr>';
+        tableBody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-slate-500">${msgVazio}</td></tr>`;
         return;
     }
 
@@ -155,79 +159,71 @@ function renderMaterialSubTable(tableBody, data, status) {
     data.forEach(m => {
         let acoesHtml = '';
         let rowContent = '';
-        const dataRequisicao = capitalizeString(m.tipoMaterial || 'N/D'); // Data da Requisicao
+        const dataRequisicaoFormatada = formatTimestamp(m.dataRequisicao || m.registradoEm); // Usa dataRequisicao ou registradoEm
         const responsavelLancamento = m.responsavelLancamento || 'N/A';
         const separador = m.responsavelSeparador || 'N/A';
-        const dataInicioSeparacao = formatTimestampComTempo(m.dataInicioSeparacao);
+        const dataInicioSeparacaoFormatada = formatTimestampComTempo(m.dataInicioSeparacao);
+        const dataRetiradaFormatada = formatTimestamp(m.dataRetirada); // Data que ficou pronto
+        const hasFile = m.fileURL;
+        const downloadBtn = hasFile 
+            ? `<button class="btn-icon btn-download-pedido text-blue-600 hover:text-blue-800" data-id="${m.id}" data-url="${m.fileURL}" title="Baixar Pedido"><i data-lucide="download-cloud"></i></button>`
+            : '<span class="btn-icon text-gray-400" title="Sem anexo"><i data-lucide="file-x"></i></span>';
+        const removeBtn = `<button class="btn-icon btn-remove text-red-600 hover:text-red-800" data-id="${m.id}" data-type="materiais" data-details="${m.unidadeNome} - ${status}" title="Remover Requisição"><i data-lucide="trash-2"></i></button>`;
         
         if (status === 'requisitado') {
-            const hasFile = m.fileURL;
-            const downloadBtn = hasFile 
-                ? '<button class="btn-icon btn-download-pedido text-blue-600 hover:text-blue-800" data-id="' + m.id + '" data-url="' + m.fileURL + '" title="Baixar Pedido"><i data-lucide="download-cloud"></i></button>'
-                : '<span class="btn-icon text-gray-400" title="Sem anexo"><i data-lucide="file-x"></i></span>';
-            
             acoesHtml = downloadBtn + 
-                ' <button class="btn-icon btn-start-separacao text-green-600 hover:text-green-800" data-id="' + m.id + '" title="Informar Separador e Iniciar"><i data-lucide="play-circle"></i></button>' +
-                ' <button class="btn-icon btn-remove text-red-600 hover:text-red-800" data-id="' + m.id + '" data-type="materiais" data-details="' + m.unidadeNome + ' - Requisitado" title="Remover Requisição"><i data-lucide="trash-2"></i></button>';
+                ` <button class="btn-icon btn-start-separacao text-green-600 hover:text-green-800" data-id="${m.id}" title="Informar Separador e Iniciar"><i data-lucide="play-circle"></i></button>` +
+                removeBtn;
             
-            rowContent = '<td>' + m.unidadeNome + '</td>' +
-                '<td class="capitalize">' + m.tipoMaterial + '</td>' +
-                '<td>' + formatTimestamp(m.dataSeparacao) + '</td>' +
-                '<td>' + responsavelLancamento + '</td>' +
-                '<td class="text-center space-x-2">' + acoesHtml + '</td>';
+            rowContent = `<td>${m.unidadeNome}</td>` +
+                `<td class="capitalize">${m.tipoMaterial}</td>` +
+                `<td>${dataRequisicaoFormatada}</td>` + // Coluna Data Requisição
+                `<td>${responsavelLancamento}</td>` +
+                `<td class="text-center space-x-2">${acoesHtml}</td>`;
             
         } else if (status === 'separacao') {
-             const hasFile = m.fileURL;
-             const downloadBtn = hasFile 
-                ? '<button class="btn-icon btn-download-pedido text-blue-600 hover:text-blue-800" data-id="' + m.id + '" data-url="' + m.fileURL + '" title="Baixar Pedido"><i data-lucide="download-cloud"></i></button>'
-                : '<span class="btn-icon text-gray-400" title="Sem anexo"><i data-lucide="file-x"></i></span>';
-            
             acoesHtml = downloadBtn + 
-                ' <button class="btn-success btn-retirada text-xs py-1 px-2" data-id="' + m.id + '" title="Marcar como pronto para entrega">Pronto para Entrega</button>';
+                ` <button class="btn-success btn-retirada text-xs py-1 px-2" data-id="${m.id}" title="Marcar como pronto para entrega">Pronto p/ Entrega</button>`;
             
-            rowContent = '<td>' + m.unidadeNome + '</td>' +
-                '<td class="capitalize">' + m.tipoMaterial + '</td>' +
-                '<td>' + separador + '</td>' +
-                '<td class="text-xs">' + dataInicioSeparacao + '</td>' +
-                '<td class="text-center space-x-2">' + acoesHtml + '</td>';
+            rowContent = `<td>${m.unidadeNome}</td>` +
+                `<td class="capitalize">${m.tipoMaterial}</td>` +
+                `<td>${separador}</td>` +
+                `<td class="text-xs">${dataInicioSeparacaoFormatada}</td>` +
+                `<td class="text-center space-x-2">${acoesHtml}</td>`;
             
         } else if (status === 'retirada') {
-            acoesHtml = 
-                ' <button class="btn-success btn-entregue text-xs py-1 px-2" data-id="' + m.id + '" title="Finalizar entrega e registrar responsáveis">Entregue</button>';
+            acoesHtml = `<button class="btn-success btn-entregue text-xs py-1 px-2" data-id="${m.id}" title="Finalizar entrega e registrar responsáveis">Entregue</button>`;
             
-            rowContent = '<td>' + m.unidadeNome + '</td>' +
-                '<td class="capitalize">' + m.tipoMaterial + '</td>' +
-                '<td>' + separador + '</td>' +
-                '<td>' + (formatTimestamp(m.dataRetirada) || 'N/A') + '</td>' +
-                '<td class="text-center space-x-2">' + acoesHtml + '</td>';
+            rowContent = `<td>${m.unidadeNome}</td>` +
+                `<td class="capitalize">${m.tipoMaterial}</td>` +
+                `<td>${separador}</td>` +
+                `<td>${dataRetiradaFormatada}</td>` + // Coluna Pronto Em
+                `<td class="text-center space-x-2">${acoesHtml}</td>`;
             
         } else if (status === 'entregue') {
-            const dataEntrega = formatTimestamp(m.dataEntrega);
+            const dataEntregaFormatada = formatTimestamp(m.dataEntrega);
             const respUnidade = m.responsavelRecebimento || m.responsavelLancamento || 'N/A';
             const respAlmox = m.responsavelEntrega || m.responsavelSeparador || 'N/A';
-            const dataLancamento = formatTimestampComTempo(m.registradoEm);
+            const dataLancamentoFormatada = formatTimestampComTempo(m.registradoEm);
 
-            const details = `Entrega ${m.unidadeNome} - Finalizada`;
-
-            rowContent = '<td>' + m.unidadeNome + '</td>' +
-                '<td class="capitalize">' + m.tipoMaterial + '</td>' +
-                '<td>' + dataEntrega + '</td>' +
-                '<td>' + respUnidade + '</td>' +
-                '<td>' + respAlmox + '</td>' +
-                '<td class="text-center text-xs">' + dataLancamento + '</td>' +
-                 '<td class="text-center">' +
-                    '<button class="btn-icon btn-remove text-red-600 hover:text-red-800" data-id="' + m.id + '" data-type="materiais" data-details="' + details + '" title="Remover Requisição"><i data-lucide="trash-2"></i></button>' +
-                 '</td>';
+            rowContent = `<td>${m.unidadeNome}</td>` +
+                `<td class="capitalize">${m.tipoMaterial}</td>` +
+                `<td>${dataEntregaFormatada}</td>` +
+                `<td>${respUnidade}</td>` +
+                `<td>${respAlmox}</td>` +
+                `<td class="text-center text-xs">${dataLancamentoFormatada}</td>` +
+                `<td class="text-center">${removeBtn}</td>`;
         }
         
         // Linha principal
-        html += '<tr>' + rowContent + '</tr>';
+        html += `<tr>${rowContent}</tr>`;
         
-        // Incluir linha de observação se houver
+        // Incluir linha de observação se houver itens/obs
         if (m.itens) {
-            html += '<tr class="obs-row ' + (status === 'entregue' ? 'opacity-60' : '') + ' border-b border-slate-200">' +
-                '<td colspan="7" class="pt-0 pb-1 px-6 text-xs text-slate-500 whitespace-pre-wrap italic">Obs: ' + m.itens + '</td>' +
-                '</tr>';
+            html += `<tr class="obs-row ${status === 'entregue' ? 'opacity-60' : ''} border-b border-slate-200">` +
+                // Ajusta o colspan dinamicamente baseado nas colunas da tabela
+                `<td colspan="${status === 'entregue' ? '7' : '5'}" class="pt-0 pb-1 px-6 text-xs text-slate-500 whitespace-pre-wrap italic">Obs: ${m.itens}</td>` +
+                `</tr>`;
         }
     });
 
@@ -281,7 +277,8 @@ async function handleMarcarEntregue(e) {
     // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     DOM_ELEMENTS.finalizarEntregaMaterialIdEl.value = materialId;
     DOM_ELEMENTS.inputEntregaResponsavelAlmox.value = material.responsavelSeparador || '';
-    DOM_ELEMENTS.inputEntregaResponsavelUnidade.value = material.responsavelLancamento || '';
+    // Tenta pegar o responsável pelo lançamento como default para quem recebeu
+    DOM_ELEMENTS.inputEntregaResponsavelUnidade.value = material.responsavelLancamento || ''; 
     DOM_ELEMENTS.alertFinalizarEntrega.style.display = 'none';
 
     DOM_ELEMENTS.finalizarEntregaModal.style.display = 'flex';
@@ -317,13 +314,21 @@ export async function handleFinalizarEntregaSubmit() {
             dataEntrega: serverTimestamp(),
             responsavelEntrega: respAlmox,
             responsavelRecebimento: respUnidade,
-            registradoEm: serverTimestamp()
+            // Atualiza registradoEm para refletir a data da finalização
+            registradoEm: serverTimestamp() 
         });
-        showAlert('alert-pronto-entrega', `Material entregue para ${respUnidade}! Processo finalizado.`, 'success', 3000);
+        // Alerta na subview correta
+        showAlert('alert-pronto-entrega', `Material entregue para ${respUnidade}! Processo finalizado.`, 'success', 3000); 
         
-        // Excluir arquivo do Storage
+        // Excluir arquivo do Storage APÓS a atualização do status
         if (storagePath) {
              await deleteFile(storagePath);
+             // Atualiza o doc para remover referências ao arquivo deletado
+             await updateDoc(docRef, {
+                 fileURL: null,
+                 storagePath: null
+             });
+             console.log(`Referências do arquivo removidas do Firestore para ${materialId}`);
         }
 
     } catch (error) { 
@@ -382,21 +387,22 @@ export async function handleSalvarSeparador() {
             dataInicioSeparacao: serverTimestamp()
         });
 
-        showAlert('alert-separador', 'Nome salvo! O status foi atualizado para "Em Separação".', 'success', 4000);
-        setTimeout(() => {
-            if (DOM_ELEMENTS.separadorModal) DOM_ELEMENTS.separadorModal.style.display = 'none';
-        }, 2000);
+        // Mostra o alerta na view "Para Separar"
+        showAlert('alert-para-separar', 'Nome salvo! O status foi atualizado para "Em Separação".', 'success', 3000); 
+        DOM_ELEMENTS.separadorModal.style.display = 'none'; // Fecha o modal imediatamente
 
+        // Tenta baixar o arquivo automaticamente, se existir
         const material = getMateriais().find(m => m.id === materialId);
         if (material?.fileURL) {
-             setTimeout(() => {
-                 handleDownloadPedido(materialId, material.fileURL);
-             }, 500);
+             // Pequeno delay para garantir que a UI atualize antes do download
+             setTimeout(() => { 
+                 handleDownloadPedido(materialId, material.fileURL); 
+             }, 300);
         }
 
     } catch (error) {
         console.error("Erro ao salvar nome do separador:", error);
-        showAlert('alert-separador', `Erro ao salvar: ${error.message}`, 'error');
+        showAlert('alert-separador', `Erro ao salvar: ${error.message}`, 'error'); // Alerta dentro do modal
         DOM_ELEMENTS.btnSalvarSeparador.disabled = false;
         DOM_ELEMENTS.inputSeparadorNome.disabled = false;
         DOM_ELEMENTS.btnSalvarSeparador.innerHTML = 'Salvar Nome e Liberar';
@@ -411,11 +417,12 @@ async function handleDownloadPedido(materialId, fileURL) {
 
     const material = getMateriais().find(m => m.id === materialId);
     if (!material) {
-        showAlert('alert-materiais', 'Erro: Registro não encontrado.', 'error');
+        // Usa o alerta da view "Para Separar" como fallback se não encontrar outro
+        showAlert('alert-para-separar', 'Erro: Registro não encontrado.', 'error'); 
         return;
     }
 
-    const alertId = 'alert-materiais'; // Alerta genérico para os subviews
+    const alertId = 'alert-para-separar'; // Assume que o download é mais comum nesta fase
 
     const now = Timestamp.now();
     const downloadInfo = material.downloadInfo || { count: 0, lastDownload: null, blockedUntil: null };
@@ -427,27 +434,31 @@ async function handleDownloadPedido(materialId, fileURL) {
         return;
     }
 
-    // Verifica limite de downloads
-    if (downloadInfo.count >= 2) {
-        showAlert(alertId, 'Limite de 2 downloads atingido para este pedido.', 'warning');
-        const blockedUntil = Timestamp.fromMillis(now.toMillis() + 3 * 60 * 1000);
-        try {
-            const docRef = doc(COLLECTIONS.materiais, materialId);
-            await updateDoc(docRef, { 'downloadInfo.blockedUntil': blockedUntil });
-        } catch (error) {
-            console.error("Erro ao bloquear download:", error);
+    // Verifica limite de downloads (Exemplo: Limite de 2 downloads)
+    const DOWNLOAD_LIMIT = 2; 
+    // Duração do bloqueio em minutos após atingir o limite
+    const BLOCK_DURATION_MINUTES = 3; 
+
+    if (downloadInfo.count >= DOWNLOAD_LIMIT) {
+        showAlert(alertId, `Limite de ${DOWNLOAD_LIMIT} downloads atingido para este pedido.`, 'warning');
+        // Bloqueia por X minutos se ainda não estiver bloqueado ou se o bloqueio expirou
+        if (!downloadInfo.blockedUntil || downloadInfo.blockedUntil.toMillis() <= now.toMillis()){
+            const blockedUntil = Timestamp.fromMillis(now.toMillis() + BLOCK_DURATION_MINUTES * 60 * 1000);
+            try {
+                const docRef = doc(COLLECTIONS.materiais, materialId);
+                await updateDoc(docRef, { 'downloadInfo.blockedUntil': blockedUntil });
+            } catch (error) { console.error("Erro ao bloquear download:", error); }
         }
         return;
     }
 
     // Incrementa contador e registra download
     const newCount = downloadInfo.count + 1;
-    let newBlockedUntil = null;
-    let blockDurationMinutes = 0;
+    let newBlockedUntil = downloadInfo.blockedUntil; // Mantém bloqueio existente se houver
 
-    if (newCount === 2) {
-        blockDurationMinutes = 3;
-        newBlockedUntil = Timestamp.fromMillis(now.toMillis() + blockDurationMinutes * 60 * 1000);
+    // Se atingiu o limite AGORA, define o bloqueio
+    if (newCount === DOWNLOAD_LIMIT) {
+        newBlockedUntil = Timestamp.fromMillis(now.toMillis() + BLOCK_DURATION_MINUTES * 60 * 1000);
     }
 
     try {
@@ -455,15 +466,15 @@ async function handleDownloadPedido(materialId, fileURL) {
         await updateDoc(docRef, {
             'downloadInfo.count': newCount,
             'downloadInfo.lastDownload': now,
-            'downloadInfo.blockedUntil': newBlockedUntil
+            'downloadInfo.blockedUntil': newBlockedUntil // Atualiza mesmo se for null
         });
 
-        window.open(fileURL, '_blank');
+        window.open(fileURL, '_blank'); // Abre o link de download
 
-        if (blockDurationMinutes > 0) {
-            showAlert(alertId, `Download ${newCount}/2 realizado. Próximo download bloqueado por ${blockDurationMinutes} min.`, 'info', 6000);
+        if (newBlockedUntil && newCount === DOWNLOAD_LIMIT) {
+            showAlert(alertId, `Download ${newCount}/${DOWNLOAD_LIMIT} realizado. Próximo download bloqueado por ${BLOCK_DURATION_MINUTES} min.`, 'info', 6000);
         } else {
-            showAlert(alertId, `Download ${newCount}/2 realizado.`, 'info', 4000);
+            showAlert(alertId, `Download ${newCount}/${DOWNLOAD_LIMIT} realizado.`, 'info', 4000);
         }
 
     } catch (error) {
@@ -483,7 +494,7 @@ export function initMateriaisListeners() {
         DOM_ELEMENTS.formMateriais.addEventListener('submit', handleMateriaisSubmit);
     }
 
-    // Listeners de clique centralizados para as tabelas de workflow
+    // Listener de clique centralizado para as tabelas de workflow e botões
     const contentMateriais = document.querySelector('#content-materiais');
     if (contentMateriais) {
         contentMateriais.addEventListener('click', (e) => {
@@ -516,14 +527,28 @@ export function initMateriaisListeners() {
     if (document.getElementById('filtro-historico-entregues')) {
         document.getElementById('filtro-historico-entregues').addEventListener('input', () => filterTable(document.getElementById('filtro-historico-entregues'), 'table-historico-entregues'));
     }
+
+    // **** ADICIONADO: Listener para a sub-navegação ****
+    const subNavMateriais = document.getElementById('sub-nav-materiais');
+    if (subNavMateriais) {
+        subNavMateriais.addEventListener('click', (e) => {
+            const btn = e.target.closest('.sub-nav-btn');
+            if (btn && btn.dataset.subview) {
+                switchSubTabView('materiais', btn.dataset.subview);
+            }
+        });
+    }
+    // **** FIM DA ADIÇÃO ****
 }
 
 /**
  * Função de orquestração para a tab de Materiais.
  */
 export function onMateriaisTabChange() {
-    switchSubTabView('materiais', 'lancar-materiais');
+    // Define a subview inicial ao carregar a aba
+    switchSubTabView('materiais', 'lancar-materiais'); 
     renderMateriaisStatus(); 
     // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (DOM_ELEMENTS.inputDataSeparacao) DOM_ELEMENTS.inputDataSeparacao.value = getTodayDateString();
 }
+
