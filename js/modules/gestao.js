@@ -19,7 +19,7 @@ export function renderGestaoUnidades() {
     
     const unidades = getUnidades();
     const filtroNome = normalizeString(DOM_ELEMENTS.filtroUnidadeNome?.value || '');
-    const filtroTipo = normalizeString(DOM_ELEMENTOS.filtroUnidadeTipo?.value || '');
+    const filtroTipo = normalizeString(DOM_ELEMENTS.filtroUnidadeTipo?.value || '');
     
     const unidadesFiltradas = unidades.filter(unidade => {
         const nomeNormalizado = normalizeString(unidade.nome);
@@ -32,7 +32,7 @@ export function renderGestaoUnidades() {
     });
 
     if (unidadesFiltradas.length === 0) { 
-        DOM_ELEMENTOS.tableGestaoUnidades.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-slate-500">Nenhuma unidade encontrada.</td></tr>`; 
+        DOM_ELEMENTS.tableGestaoUnidades.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-slate-500">Nenhuma unidade encontrada.</td></tr>`; 
         return; 
     }
     
@@ -57,7 +57,7 @@ export function renderGestaoUnidades() {
                 </td>
             </tr>`;
     });
-    DOM_ELEMENTOS.tableGestaoUnidades.innerHTML = html;
+    DOM_ELEMENTS.tableGestaoUnidades.innerHTML = html;
 
     if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); } 
 }
@@ -189,9 +189,9 @@ async function handleSaveUnidadeClick(e) {
  * Adiciona unidades em lote.
  */
 export async function handleBulkAddUnidades() {
-     if (!isReady() || !DOM_ELEMENTOS.textareaBulkUnidades) return;
+     if (!isReady() || !DOM_ELEMENTS.textareaBulkUnidades) return;
      
-     const text = DOM_ELEMENTOS.textareaBulkUnidades.value.trim();
+     const text = DOM_ELEMENTS.textareaBulkUnidades.value.trim();
      if (!text) { showAlert('alert-gestao', 'A área de texto está vazia.', 'warning'); return; }
      
      const lines = text.split('\n');
@@ -229,8 +229,8 @@ export async function handleBulkAddUnidades() {
          return;
      }
      
-     DOM_ELEMENTOS.btnBulkAddUnidades.disabled = true; 
-     DOM_ELEMENTOS.btnBulkAddUnidades.innerHTML = '<div class="loading-spinner-small mx-auto"></div>';
+     DOM_ELEMENTS.btnBulkAddUnidades.disabled = true; 
+     DOM_ELEMENTS.btnBulkAddUnidades.innerHTML = '<div class="loading-spinner-small mx-auto"></div>';
      let adicionadasCount = 0;
      
      try {
@@ -239,7 +239,7 @@ export async function handleBulkAddUnidades() {
              adicionadasCount++;
          }
          showAlert('alert-gestao', `${adicionadasCount} unidade(s) adicionada(s) com sucesso!`, 'success');
-         DOM_ELEMENTOS.textareaBulkUnidades.value = ''; 
+         DOM_ELEMENTS.textareaBulkUnidades.value = ''; 
          
          if(erros.length > 0) {
               showAlert('alert-gestao', `Algumas linhas foram ignoradas. Verifique o console (F12) para detalhes.`, 'warning', 8000);
@@ -249,8 +249,8 @@ export async function handleBulkAddUnidades() {
          console.error("Erro ao adicionar unidades em lote:", error);
          showAlert('alert-gestao', `Erro ao adicionar unidades: ${error.message}. ${adicionadasCount} foram adicionadas antes do erro.`, 'error');
      } finally {
-         DOM_ELEMENTOS.btnBulkAddUnidades.disabled = false; 
-         DOM_ELEMENTOS.btnBulkAddUnidades.textContent = 'Adicionar Unidades';
+         DOM_ELEMENTS.btnBulkAddUnidades.disabled = false; 
+         DOM_ELEMENTS.btnBulkAddUnidades.textContent = 'Adicionar Unidades';
      }
 }
 
@@ -259,20 +259,20 @@ export async function handleBulkAddUnidades() {
 // =========================================================================
 
 export function initGestaoListeners() {
-    if (DOM_ELEMENTOS.tableGestaoUnidades) { 
-        DOM_ELEMENTOS.tableGestaoUnidades.addEventListener('click', handleEditUnidadeClick);
-        DOM_ELEMENTOS.tableGestaoUnidades.addEventListener('click', handleCancelEditUnidadeClick);
-        DOM_ELEMENTOS.tableGestaoUnidades.addEventListener('click', handleSaveUnidadeClick);
-        DOM_ELEMENTOS.tableGestaoUnidades.addEventListener('change', handleGestaoToggle); 
+    if (DOM_ELEMENTS.tableGestaoUnidades) { 
+        DOM_ELEMENTS.tableGestaoUnidades.addEventListener('click', handleEditUnidadeClick);
+        DOM_ELEMENTS.tableGestaoUnidades.addEventListener('click', handleCancelEditUnidadeClick);
+        DOM_ELEMENTS.tableGestaoUnidades.addEventListener('click', handleSaveUnidadeClick);
+        DOM_ELEMENTS.tableGestaoUnidades.addEventListener('change', handleGestaoToggle); 
     }
-    if (DOM_ELEMENTOS.filtroUnidadeNome) {
-        DOM_ELEMENTOS.filtroUnidadeNome.addEventListener('input', renderGestaoUnidades); 
+    if (DOM_ELEMENTS.filtroUnidadeNome) {
+        DOM_ELEMENTS.filtroUnidadeNome.addEventListener('input', renderGestaoUnidades); 
     }
-    if (DOM_ELEMENTOS.filtroUnidadeTipo) {
-        DOM_ELEMENTOS.filtroUnidadeTipo.addEventListener('input', renderGestaoUnidades); 
+    if (DOM_ELEMENTS.filtroUnidadeTipo) {
+        DOM_ELEMENTS.filtroUnidadeTipo.addEventListener('input', renderGestaoUnidades); 
     }
-    if (DOM_ELEMENTOS.btnBulkAddUnidades) {
-        DOM_ELEMENTOS.btnBulkAddUnidades.addEventListener('click', handleBulkAddUnidades);
+    if (DOM_ELEMENTS.btnBulkAddUnidades) {
+        DOM_ELEMENTS.btnBulkAddUnidades.addEventListener('click', handleBulkAddUnidades);
     }
 }
 
