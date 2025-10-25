@@ -182,10 +182,10 @@ function renderMaterialSubTable(tableBody, data, status) {
                 `<td class="text-center space-x-2">${acoesHtml}</td>`;
             
         } else if (status === 'separacao') {
-             // ***** MODIFICADO: Usa btn-icon para "Pronto p/ Entrega" *****
+             // ***** CORRIGIDO: Usa btn-icon para "Pronto p/ Entrega" *****
             acoesHtml = downloadBtn + 
                 ` <button class="btn-icon btn-retirada text-teal-600 hover:text-teal-800" data-id="${m.id}" title="Marcar como pronto para entrega"><i data-lucide="package-check"></i></button>`;
-                // ***** FIM DA MODIFICAÇÃO *****
+                // ***** FIM DA CORREÇÃO *****
             
             rowContent = `<td>${m.unidadeNome}</td>` +
                 `<td class="capitalize">${m.tipoMaterial}</td>` +
@@ -194,9 +194,9 @@ function renderMaterialSubTable(tableBody, data, status) {
                 `<td class="text-center space-x-2">${acoesHtml}</td>`;
             
         } else if (status === 'retirada') {
-             // ***** MODIFICADO: Usa btn-icon para "Entregue" *****
+             // ***** CORRIGIDO: Usa btn-icon para "Entregue" *****
             acoesHtml = `<button class="btn-icon btn-entregue text-blue-600 hover:text-blue-800" data-id="${m.id}" title="Finalizar entrega e registrar responsáveis"><i data-lucide="check-circle"></i></button>`;
-             // ***** FIM DA MODIFICAÇÃO *****
+             // ***** FIM DA CORREÇÃO *****
             
             rowContent = `<td>${m.unidadeNome}</td>` +
                 `<td class="capitalize">${m.tipoMaterial}</td>` +
@@ -247,10 +247,9 @@ async function handleMarcarRetirada(e) {
     const materialId = button.dataset.id;
     if (!isReady() || !materialId) return;
     
-    // ***** MODIFICADO: Muda o ícone para spinner *****
+    // Muda o ícone para spinner
     button.disabled = true; 
     button.innerHTML = '<div class="loading-spinner-small mx-auto" style="width: 1rem; height: 1rem; border-width: 2px;"></div>'; 
-    // ***** FIM DA MODIFICAÇÃO *****
     
     try {
         const docRef = doc(COLLECTIONS.materiais, materialId);
@@ -262,11 +261,10 @@ async function handleMarcarRetirada(e) {
     } catch (error) { 
         console.error("Erro marcar p/ retirada:", error); 
         showAlert('alert-em-separacao', `Erro: ${error.message}`, 'error'); 
-        // ***** MODIFICADO: Restaura o ícone original em caso de erro *****
+        // Restaura o ícone original em caso de erro
         button.disabled = false; 
         button.innerHTML = '<i data-lucide="package-check"></i>'; 
         if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
-         // ***** FIM DA MODIFICAÇÃO *****
     }
 }
 
