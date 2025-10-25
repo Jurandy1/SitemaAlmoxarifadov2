@@ -17,7 +17,8 @@ import { getTodayDateString } from "../utils/formatters.js";
 /**
  * Função principal para orquestrar as renderizações dos módulos após os dados serem carregados.
  */
-export function renderUIModules() {
+// CORREÇÃO: Removido 'export' daqui para evitar duplicata
+function renderUIModules() {
     renderUnidadeControls();
     
     // Renderiza a UI da aba ativa
@@ -184,6 +185,7 @@ export function initAllListeners() {
 }
 
 // CORREÇÃO ESSENCIAL: Exporta DOM_ELEMENTS e findDOMElements para o app.js
+// E mantém a exportação ÚNICA de renderUIModules
 export { 
     renderUIModules, 
     renderUnidadeControls, 
