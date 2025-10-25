@@ -1,10 +1,10 @@
-// js/modules/agua-control.js
-import { Timestamp, addDoc, updateDoc, serverTimestamp, query, where, getDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-import { getUnidades, getAguaMovimentacoes, isEstoqueInicialDefinido, getCurrentStatusFilter, setCurrentStatusFilter, getEstoqueAgua } from "../utils/cache.js";
+// js/modules/gas-control.js
+import { Timestamp, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { getUnidades, getGasMovimentacoes, isEstoqueInicialDefinido, getCurrentStatusFilter, setCurrentStatusFilter, getEstoqueGas } from "../utils/cache.js";
 // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
-import { DOM_ELEMENTS, showAlert, switchSubTabView, handleSaldoFilterUI, openConfirmDeleteModal, filterTable } from "../utils/dom-helpers.js";
+import { DOM_ELEMENTS, showAlert, switchSubTabView, handleSaldoFilterUI, filterTable } from "../utils/dom-helpers.js";
 import { getTodayDateString, dateToTimestamp, capitalizeString, formatTimestampComTempo } from "../utils/formatters.js";
-import { isReady, getUserId } from "./auth.js";
+import { isReady } from "./auth.js";
 import { COLLECTIONS } from "../services/firestore-service.js";
 import { executeFinalMovimentacao } from "./movimentacao-modal-handler.js";
 
@@ -13,105 +13,98 @@ import { executeFinalMovimentacao } from "./movimentacao-modal-handler.js";
 // =========================================================================
 
 /**
- * Renderiza o resumo do estoque de água.
- */
-export function renderEstoqueAgua() {
+ * Renderiza o resumo do estoque de gás.
 // ... (código existente)
-    if (DOM_ELEMENTS.estoqueAguaAtualEl) DOM_ELEMENTS.estoqueAguaAtualEl.textContent = estoqueAtual;
+    if (DOM_ELEMENTS.estoqueGasAtualEl) DOM_ELEMENTS.estoqueGasAtualEl.textContent = estoqueAtual;
 }
 
 /**
  * Lança o estoque inicial.
 // ... (código existente)
- */
-export async function handleInicialEstoqueSubmit(e) {
-// ... (código existente)
-// ... (código existente)
     }
 }
 
-
-// =========================================================================
-// LÓGICA DE MOVIMENTAÇÃO (Saída/Retorno)
-// =========================================================================
-
-/**
 // ... (código existente)
- * INICIALIZAÇÃO DE LISTENERS DO DOM
+
+// =========================================================================
+// INICIALIZAÇÃO DE LISTENERS DO DOM
 // =========================================================================
 
-export function initAguaListeners() {
+export function initGasListeners() {
     // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
-    if (DOM_ELEMENTS.formAgua) {
-        DOM_ELEMENTS.formAgua.addEventListener('submit', handleAguaSubmit);
+    if (DOM_ELEMENTS.formGas) {
+        DOM_ELEMENTS.formGas.addEventListener('submit', handleGasSubmit);
     }
-    if (DOM_ELEMENTS.selectTipoAgua) {
-        DOM_ELEMENTS.selectTipoAgua.addEventListener('change', toggleAguaFormInputs);
+    if (DOM_ELEMENTS.selectTipoGas) {
+        // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
+        DOM_ELEMENTS.selectTipoGas.addEventListener('change', toggleGasFormInputs);
     }
-    if (DOM_ELEMENTS.selectUnidadeAgua) {
-         DOM_ELEMENTS.selectUnidadeAgua.addEventListener('change', checkUnidadeSaldoAlertAgua);
+    if (DOM_ELEMENTS.selectUnidadeGas) {
+         // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
+         DOM_ELEMENTS.selectUnidadeGas.addEventListener('change', checkUnidadeSaldoAlertGas);
     }
-    if (DOM_ELEMENTS.formInicialAgua) {
-        DOM_ELEMENTS.formInicialAgua.addEventListener('submit', handleInicialEstoqueSubmit);
+    if (DOM_ELEMENTS.formInicialGas) {
+        // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
+        DOM_ELEMENTS.formInicialGas.addEventListener('submit', handleInicialEstoqueSubmit);
     }
-    if (DOM_ELEMENTS.btnAbrirInicialAgua) {
-        DOM_ELEMENTS.btnAbrirInicialAgua.addEventListener('click', () => { 
-            DOM_ELEMENTS.formInicialAguaContainer?.classList.remove('hidden'); 
-            DOM_ELEMENTS.btnAbrirInicialAgua?.classList.add('hidden'); 
+    if (DOM_ELEMENTS.btnAbrirInicialGas) {
+        // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS (incluindo o uso dentro da função)
+        DOM_ELEMENTS.btnAbrirInicialGas.addEventListener('click', () => { 
+            DOM_ELEMENTS.formInicialGasContainer?.classList.remove('hidden'); 
+            DOM_ELEMENTS.btnAbrirInicialGas?.classList.add('hidden'); 
         });
     }
-    if (DOM_ELEMENTS.formEntradaAgua) {
-        DOM_ELEMENTS.formEntradaAgua.addEventListener('submit', handleEntradaEstoqueSubmit);
+    if (DOM_ELEMENTS.formEntradaGas) {
+        // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
+        DOM_ELEMENTS.formEntradaGas.addEventListener('submit', handleEntradaEstoqueSubmit);
     }
-    if (document.getElementById('filtro-status-agua')) {
-        document.getElementById('filtro-status-agua').addEventListener('input', () => filterTable(document.getElementById('filtro-status-agua'), 'table-status-agua'));
+    if (document.getElementById('filtro-status-gas')) {
+        document.getElementById('filtro-status-gas').addEventListener('input', () => filterTable(document.getElementById('filtro-status-gas'), 'table-status-gas'));
     }
-    if (document.getElementById('filtro-historico-agua')) {
-        document.getElementById('filtro-historico-agua').addEventListener('input', () => filterTable(document.getElementById('filtro-historico-agua'), 'table-historico-agua-all'));
+    if (document.getElementById('filtro-historico-gas')) {
+        document.getElementById('filtro-historico-gas').addEventListener('input', () => filterTable(document.getElementById('filtro-historico-gas'), 'table-historico-gas-all'));
     }
     // REMOVIDO: Listener de sub-navegação movido para control-helpers.js
-    // if (document.getElementById('sub-nav-agua')) {
-    //     document.getElementById('sub-nav-agua').addEventListener('click', (e) => {
+    // if (document.getElementById('sub-nav-gas')) {
+    //     document.getElementById('sub-nav-gas').addEventListener('click', (e) => {
     //         const btn = e.target.closest('.sub-nav-btn');
-    //         if (btn && btn.dataset.subview) switchSubTabView('agua', btn.dataset.subview);
+    //         if (btn && btn.dataset.subview) switchSubTabView('gas', btn.dataset.subview);
     //     });
     // }
 
     // Listener para o filtro de saldo na tabela de status
-    document.querySelectorAll('#filtro-saldo-agua-controls button').forEach(btn => btn.addEventListener('click', (e) => {
-        handleSaldoFilterUI('agua', e, renderAguaStatus);
+    document.querySelectorAll('#filtro-saldo-gas-controls button').forEach(btn => btn.addEventListener('click', (e) => {
+        handleSaldoFilterUI('gas', e, renderGasStatus);
     }));
 
     // Listener para as abas de formulário
-    document.querySelectorAll('#content-agua .form-tab-btn').forEach(btn => btn.addEventListener('click', () => {
+    document.querySelectorAll('#content-gas .form-tab-btn').forEach(btn => btn.addEventListener('click', () => {
         const formName = btn.dataset.form;
-        document.querySelectorAll('#content-agua .form-tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('#content-gas .form-tab-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
-        if (DOM_ELEMENTS.formAgua) DOM_ELEMENTS.formAgua.classList.toggle('hidden', formName !== 'saida-agua');
-        if (DOM_ELEMENTS.formEntradaAgua) DOM_ELEMENTS.formEntradaAgua.classList.toggle('hidden', formName !== 'entrada-agua');
+        if (DOM_ELEMENTS.formGas) DOM_ELEMENTS.formGas.classList.toggle('hidden', formName !== 'saida-gas');
+        if (DOM_ELEMENTS.formEntradaGas) DOM_ELEMENTS.formEntradaGas.classList.toggle('hidden', formName !== 'entrada-gas');
     }));
-
 }
 
 /**
- * Função de orquestração para a tab de Água.
+ * Função de orquestração para a tab de Gás.
  */
-export function onAguaTabChange() {
-    switchSubTabView('agua', 'movimentacao-agua');
-    toggleAguaFormInputs(); 
-    checkUnidadeSaldoAlertAgua();
-    renderEstoqueAgua();
-    renderAguaStatus();
-    renderAguaMovimentacoesHistory();
+export function onGasTabChange() {
+    switchSubTabView('gas', 'movimentacao-gas');
+    toggleGasFormInputs(); 
+    checkUnidadeSaldoAlertGas();
+    renderEstoqueGas();
+    renderGasStatus();
+    renderGasMovimentacoesHistory();
     // Garante que o input de data está em dia
     // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
-    if (DOM_ELEMENTS.inputDataAgua) DOM_ELEMENTS.inputDataAgua.value = getTodayDateString();
-    if (DOM_ELEMENTS.inputDataEntradaAgua) DOM_ELEMENTS.inputDataEntradaAgua.value = getTodayDateString();
-    
-    // CORRIGIDO: Usar verificação `if` em vez de encadeamento opcional na atribuição (linha 466)
-    const filtroStatus = document.getElementById('filtro-status-agua');
+    if (DOM_ELEMENTS.inputDataGas) DOM_ELEMENTS.inputDataGas.value = getTodayDateString();
+    if (DOM_ELEMENTS.inputDataEntradaGas) DOM_ELEMENTS.inputDataEntradaGas.value = getTodayDateString();
+    // CORRIGIDO: Usar verificação `if` em vez de encadeamento opcional na atribuição (Causa do erro 463:5)
+    const filtroStatus = document.getElementById('filtro-status-gas');
     if (filtroStatus) filtroStatus.value = '';
-    const filtroHistorico = document.getElementById('filtro-historico-agua');
+    const filtroHistorico = document.getElementById('filtro-historico-gas');
     if (filtroHistorico) filtroHistorico.value = '';
 }
