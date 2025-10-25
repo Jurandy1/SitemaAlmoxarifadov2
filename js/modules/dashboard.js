@@ -98,7 +98,8 @@ function switchDashboardView(viewName) {
     if(viewName === 'agua') renderDashboardAguaChart();
     if(viewName === 'gas') renderDashboardGasChart();
     if(viewName === 'geral') {
-        renderDashboardVisaoGeralSummary(); 
+        // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
+        if (DOM_ELEMENTS.dashboardMateriaisSeparacaoCountEl) renderDashboardMateriaisCounts(); 
     }
     if(viewName === 'materiais') renderDashboardMateriaisList();
 }
@@ -262,8 +263,9 @@ function renderDashboardMateriaisCounts() {
     
     // Atualiza os summaries da subview de lançamento de materiais
     if (DOM_ELEMENTS.summaryMateriaisRequisitado) DOM_ELEMENTS.summaryMateriaisRequisitado.textContent = requisitadoCount;
-    if (DOM_ELEMENTS.summaryMateriaisSeparacao) DOM_ELEMENTOS.summaryMateriaisSeparacao.textContent = separacaoCount;
-    if (DOM_ELEMENTS.summaryMateriaisRetirada) DOM_ELEMENTOS.summaryMateriaisRetirada.textContent = retiradaCount;
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
+    if (DOM_ELEMENTS.summaryMateriaisSeparacao) DOM_ELEMENTS.summaryMateriaisSeparacao.textContent = separacaoCount;
+    if (DOM_ELEMENTS.summaryMateriaisRetirada) DOM_ELEMENTS.summaryMateriaisRetirada.textContent = retiradaCount;
 }
 
 /**
@@ -345,11 +347,11 @@ export function renderDashboardMateriaisProntos(filterStatus = null) {
         ulDestino.innerHTML = ''; 
         colunaDiv.classList.add('hidden'); 
 
-        h4Cabecalho.textContent = COLUNAS_DOM[index];
+        if (h4Cabecalho) h4Cabecalho.textContent = COLUNAS_DOM[index];
 
         if (tipoExibido) {
             colunaDiv.classList.remove('hidden'); 
-            h4Cabecalho.textContent = tipoExibido; 
+            if (h4Cabecalho) h4Cabecalho.textContent = tipoExibido; 
 
             const materiaisDaColuna = gruposPendentes[tipoExibido] || [];
             
@@ -401,9 +403,10 @@ export function renderDashboardMateriaisProntos(filterStatus = null) {
         const primeiraColunaDiv = colunaDOMElements[0];
         if (primeiraColunaDiv) {
             const ulDestino = primeiraColunaDiv.querySelector('ul');
-            ulDestino.innerHTML = placeholder;
+            if (ulDestino) ulDestino.innerHTML = placeholder;
             primeiraColunaDiv.classList.remove('hidden');
-            primeiraColunaDiv.querySelector('h4').textContent = COLUNAS_DOM[0];
+            const h4 = primeiraColunaDiv.querySelector('h4');
+            if (h4) h4.textContent = COLUNAS_DOM[0];
         }
     }
     
