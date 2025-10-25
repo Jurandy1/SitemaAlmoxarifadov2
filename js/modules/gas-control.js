@@ -173,6 +173,7 @@ export function getUnidadeSaldoGas(unidadeId) {
  * Verifica e exibe o alerta de saldo no formulário.
  */
 export function checkUnidadeSaldoAlertGas() {
+    if (!DOM_ELEMENTS.selectUnidadeGas) return;
     const selectValue = DOM_ELEMENTS.selectUnidadeGas.value;
     const saldoAlertaEl = DOM_ELEMENTS.unidadeSaldoAlertaGas;
     
@@ -447,8 +448,8 @@ export function initGasListeners() {
         const formName = btn.dataset.form;
         document.querySelectorAll('#content-gas .form-tab-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        DOM_ELEMENTS.formGas.classList.toggle('hidden', formName !== 'saida-gas');
-        DOM_ELEMENTS.formEntradaGas.classList.toggle('hidden', formName !== 'entrada-gas');
+        if (DOM_ELEMENTS.formGas) DOM_ELEMENTS.formGas.classList.toggle('hidden', formName !== 'saida-gas');
+        if (DOM_ELEMENTS.formEntradaGas) DOM_ELEMENTS.formEntradaGas.classList.toggle('hidden', formName !== 'entrada-gas');
     }));
 }
 
