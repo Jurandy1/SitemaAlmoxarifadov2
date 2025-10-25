@@ -1,7 +1,7 @@
 // js/modules/gestao.js
 import { addDoc, updateDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { getUnidades } from "../utils/cache.js";
-// Linha 4 CORRIGIDA
+// CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
 import { DOM_ELEMENTS, showAlert, openConfirmDeleteModal } from "../utils/dom-helpers.js"; 
 import { normalizeString, capitalizeString } from "../utils/formatters.js";
 import { isReady } from "./auth.js";
@@ -15,6 +15,7 @@ import { COLLECTIONS } from "../services/firestore-service.js";
  * Renderiza a tabela de gestão de unidades com filtros.
  */
 export function renderGestaoUnidades() {
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (!DOM_ELEMENTS.tableGestaoUnidades) return;
     
     const unidades = getUnidades();
@@ -57,6 +58,7 @@ export function renderGestaoUnidades() {
                 </td>
             </tr>`;
     });
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     DOM_ELEMENTS.tableGestaoUnidades.innerHTML = html;
 
     if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); } 
@@ -189,6 +191,7 @@ async function handleSaveUnidadeClick(e) {
  * Adiciona unidades em lote.
  */
 export async function handleBulkAddUnidades() {
+     // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
      if (!isReady() || !DOM_ELEMENTS.textareaBulkUnidades) return;
      
      const text = DOM_ELEMENTS.textareaBulkUnidades.value.trim();
@@ -259,6 +262,7 @@ export async function handleBulkAddUnidades() {
 // =========================================================================
 
 export function initGestaoListeners() {
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (DOM_ELEMENTS.tableGestaoUnidades) { 
         DOM_ELEMENTS.tableGestaoUnidades.addEventListener('click', handleEditUnidadeClick);
         DOM_ELEMENTS.tableGestaoUnidades.addEventListener('click', handleCancelEditUnidadeClick);
