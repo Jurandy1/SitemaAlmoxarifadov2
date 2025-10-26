@@ -2,14 +2,15 @@
 // Este é o arquivo principal que orquestra a inicialização e os módulos.
 
 import { initializeFirebaseServices } from "./services/firestore-service.js";
-import { initAuthAndListeners } from "./modules/auth.js";
+// Adicionado signInAnonUser e signInEmailPassword para o formulário de login no DOM
+import { initAuthAndListeners, signOutUser, signInAnonUser, signInEmailPassword } from "./modules/auth.js"; 
 import { renderDashboard, startDashboardRefresh, stopDashboardRefresh, renderDashboardAguaChart, renderDashboardGasChart } from "./modules/dashboard.js";
 // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
-import { renderUIModules, renderUnidadeControls, initAllListeners, DOM_ELEMENTS, findDOMElements, updateLastUpdateTime } from "./modules/control-helpers.js";
+import { renderUIModules, renderUnidadeControls, initAllListeners, DOM_ELEMENTS, findDOMElements, updateLastUpdateTime, showAlert } from "./modules/control-helpers.js";
 import { executeDelete } from "./utils/db-utils.js";
 import { handleFinalMovimentacaoSubmit } from "./modules/movimentacao-modal-handler.js";
 import { getTodayDateString } from "./utils/formatters.js";
-import { initPrevisaoListeners } from "./modules/previsao.js"; // <-- ADICIONADO
+import { initPrevisaoListeners } from "./modules/previsao.js"; 
 
 // Variável de estado da UI local (para manter o dashboard na tela)
 let visaoAtiva = 'dashboard'; 
@@ -42,10 +43,48 @@ function setupApp() {
 
     // 6. ADICIONADO: Inicializa os listeners da Previsão (globais)
     initPrevisaoListeners();
+    
+    // 7. ADICIONADO: Listeners do Modal de Login
+    if (DOM_ELEMENTS.formLogin) {
+        DOM_ELEMENTS.formLogin.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = DOM_ELEMENTS.inputLoginEmail.value;
+            const password = DOM_ELEMENTS.inputLoginPassword.value;
+            try {
+                // Desabilita o botão enquanto tenta logar
+                const btn = document.getElementById('btn-submit-login');
+                btn.disabled = true;
+                btn.innerHTML = '<div class="loading-spinner-small mx-auto"></div>';
+                await signInEmailPassword(email, password);
+            } catch (error) {
+                // Erro tratado dentro do signInEmailPassword (apenas reabilita o botão)
+            } finally {
+                const btn = document.getElementById('btn-submit-login');
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="log-in"></i> Entrar';
+                 if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
+            }
+        });
+    }
+    
+    if (DOM_ELEMENTS.btnLoginAnonimo) {
+        DOM_ELEMENTS.btnLoginAnonimo.addEventListener('click', async () => {
+             DOM_ELEMENTS.btnLoginAnonimo.disabled = true;
+             DOM_ELEMENTS.btnLoginAnonimo.innerHTML = '<div class="loading-spinner-small mx-auto"></div>';
+             await signInAnonUser();
+             DOM_ELEMENTS.btnLoginAnonimo.disabled = false;
+             DOM_ELEMENTS.btnLoginAnonimo.innerHTML = '<i data-lucide="user-x"></i> Acesso Anônimo (Visualização)';
+             if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
+        });
+    }
+    
+    if (DOM_ELEMENTS.btnLogout) {
+         DOM_ELEMENTS.btnLogout.addEventListener('click', signOutUser);
+    }
 
     console.log("Setup inicial do DOM concluído.");
     
-    // 7. Configurar o estado inicial do dashboard (inicia o refresh ao entrar na aba)
+    // 8. Configurar o estado inicial do dashboard (inicia o refresh ao entrar na aba)
     const dashboardBtn = document.querySelector('.nav-btn[data-tab="dashboard"]');
     if (dashboardBtn) dashboardBtn.click();
 }
