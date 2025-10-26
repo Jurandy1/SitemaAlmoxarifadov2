@@ -1,7 +1,14 @@
 // js/utils/db-utils.js
 import { Timestamp, deleteDoc, doc, writeBatch, query, where, getDocs, getDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { ref, deleteObject } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
-import { db, storage, auth, COLLECTIONS } from "../services/firestore-service.js";
+
+// --- CORREÇÃO INÍCIO ---
+// 'auth' e 'storage' não são exportados por 'firestore-service.js'.
+// Eles devem ser importados de 'firebase-config.js'.
+import { db, COLLECTIONS } from "../services/firestore-service.js";
+import { storage, auth } from "../firebase-config.js";
+// --- CORREÇÃO FIM ---
+
 import { getDeleteInfo, setDeleteInfo } from "./cache.js";
 import { showAlert, DOM_ELEMENTS } from "./dom-helpers.js";
 import { deleteFile } from "../services/storage-service.js";
