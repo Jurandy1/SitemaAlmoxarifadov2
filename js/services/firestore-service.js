@@ -34,6 +34,8 @@ function initializeFirebaseServices() {
         materiais: collection(db, `${basePath}/controleMateriais`),
         estoqueAgua: collection(db, `${basePath}/estoqueAgua`),
         estoqueGas: collection(db, `${basePath}/estoqueGas`),
+        // NOVO: Coleção para armazenar os roles dos usuários
+        userRoles: collection(db, `${basePath}/userRoles`),
     };
 }
 
