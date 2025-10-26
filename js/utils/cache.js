@@ -8,6 +8,9 @@ let fb_materiais = [];
 let fb_estoque_agua = [];
 let fb_estoque_gas = [];
 
+// NOVO: Variável para armazenar o role do usuário ('anon', 'editor', 'admin', 'unauthenticated')
+let userRole = 'unauthenticated'; 
+
 let estoqueInicialDefinido = { agua: false, gas: false };
 let currentDashboardMaterialFilter = null; 
 let currentStatusFilter = { agua: 'all', gas: 'all' };
@@ -30,6 +33,8 @@ function setEstoqueInicialDefinido(type, status) { estoqueInicialDefinido[type] 
 function setCurrentDashboardMaterialFilter(filter) { currentDashboardMaterialFilter = filter; }
 function setCurrentStatusFilter(type, filter) { currentStatusFilter[type] = filter; }
 function setDeleteInfo(info) { deleteInfo = info; }
+// NOVO: Setter para o role
+function setUserRole(role) { userRole = role; }
 
 
 // Getters
@@ -43,6 +48,8 @@ function isEstoqueInicialDefinido(type) { return estoqueInicialDefinido[type]; }
 function getCurrentDashboardMaterialFilter() { return currentDashboardMaterialFilter; }
 function getCurrentStatusFilter(type) { return currentStatusFilter[type]; }
 function getDeleteInfo() { return deleteInfo; }
+// NOVO: Getter para o role
+function getUserRole() { return userRole; }
 
 
 export {
@@ -50,6 +57,7 @@ export {
     getUnidades, getAguaMovimentacoes, getGasMovimentacoes, getMateriais, getEstoqueAgua, getEstoqueGas, isEstoqueInicialDefinido,
     setCurrentDashboardMaterialFilter, getCurrentDashboardMaterialFilter, setCurrentStatusFilter, getCurrentStatusFilter,
     setDeleteInfo, getDeleteInfo,
+    setUserRole, getUserRole, // NOVO
     // Outros estados globais necessários:
     listaExclusoes, modoPrevisao, graficoPrevisao, tipoSelecionadoPrevisao, initialMaterialFilter
 };
