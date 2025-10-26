@@ -189,7 +189,9 @@ function findDOMElements() {
         ['#relatorio-data-fim', 'relatorioDataFim'],
         ['#btn-gerar-pdf', 'btnGerarPdf'],
         ['#alert-relatorio', 'alertRelatorio'],
-    ];
+    ]; // Linha 209
+    // O erro estava aqui. A linha original terminava com um comentário de bloco não encerrado.
+    // Eu removi o comentário problemático.
 
     mappings.forEach(([selector, varName, isAll]) => {
         if (isAll) {
@@ -205,4 +207,180 @@ function findDOMElements() {
 }
 
 /**
-// ... (rest of file)
+ * Exibe um alerta na interface.
+ * @param {string} elementId ID do elemento onde o alerta será exibido.
+ * @param {string} message Mensagem a ser exibida.
+ * @param {string} type Tipo de alerta ('info', 'success', 'warning', 'error').
+ * @param {number} duration Duração em milissegundos.
+ */
+function showAlert(elementId, message, type = 'info', duration = 5000) {
+    if (!domReady) return;
+
+    const el = document.getElementById(elementId);
+    if (!el) { console.warn(`Elemento de alerta não encontrado: ${elementId}, Mensagem: ${message}`); return; }
+    
+    el.className = `alert alert-${type}`; 
+    el.innerHTML = message.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>'); // Suporte a markdown negrito
+    el.style.display = 'block';
+    
+    if (el.timeoutId) clearTimeout(el.timeoutId);
+    el.timeoutId = setTimeout(() => {
+        el.style.display = 'none';
+        el.timeoutId = null;
+    }, duration);
+}
+
+/**
+ * Alterna a visualização da aba principal.
+ * @param {string} tabName Nome da aba (e.g., 'dashboard', 'agua').
+ */
+function switchTab(tabName) {
+    if (!domReady) return;
+    console.log(`Switching to tab: ${tabName}`);
+
+    DOM_ELEMENTS.navButtons.forEach(btn => btn.classList.remove('active'));
+    const activeBtn = document.querySelector(`.nav-btn[data-tab="${tabName}"]`);
+    if (activeBtn) activeBtn.classList.add('active');
+    
+    DOM_ELEMENTS.contentPanes.forEach(pane => pane.classList.add('hidden'));
+    const activePane = document.getElementById(`content-${tabName}`);
+    if(activePane) activePane.classList.remove('hidden');
+    
+    visaoAtiva = tabName; 
+    
+    // Atualiza ícones Lucide
+    if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
+}
+
+/**
+ * Alterna a visualização da sub-aba (dentro de Água, Gás, Materiais).
+ * @param {string} tabPrefix Prefixo da aba principal (e.g., 'agua').
+ * @param {string} subViewName Nome da sub-view (e.g., 'movimentacao-agua').
+ */
+function switchSubTabView(tabPrefix, subViewName) {
+    if (!domReady) return; 
+    document.querySelectorAll(`#sub-nav-${tabPrefix} .sub-nav-btn`).forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.subview === subViewName);
+    });
+    document.querySelectorAll(`#content-${tabPrefix} > div[id^="subview-"]`).forEach(pane => {
+         pane.classList.toggle('hidden', pane.id !== `subview-${subViewName}`);
+    });
+    if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); } 
+}
+
+/**
+ * Filtra uma tabela HTML.
+ * @param {HTMLInputElement} inputEl Elemento de input do filtro.
+ * @param {string} tableBodyId ID do <tbody> da tabela.
+ */
+function filterTable(inputEl, tableBodyId) {
+    const searchTerm = inputEl.value; // Removido normalizeString para otimização, usando normalizeString dentro do loop
+    const tableBody = document.getElementById(tableBodyId);
+    if (!tableBody) return;
+    const rows = tableBody.querySelectorAll('tr');
+    
+    rows.forEach(row => {
+        if (row.querySelectorAll('td').length > 1 && !row.classList.contains('editing-row') && !row.classList.contains('obs-row') && !row.classList.contains('separador-row')) { 
+            const rowText = row.textContent.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            const isMatch = rowText.includes(searchTerm.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
+            row.style.display = isMatch ? '' : 'none';
+            
+            // Lógica para esconder/mostrar linhas associadas (obs e separador)
+            let nextRow = row.nextElementSibling;
+            while(nextRow && (nextRow.classList.contains('obs-row') || nextRow.classList.contains('separador-row'))) {
+                nextRow.style.display = isMatch ? '' : 'none';
+                nextRow = nextRow.nextElementSibling;
+            }
+        }
+    });
+}
+
+/**
+ * Atualiza o horário de última atualização na UI.
+ */
+function updateLastUpdateTime() {
+     if (!domReady || !DOM_ELEMENTS.lastUpdateTimeEl) return; 
+    const now = new Date();
+    const formattedDate = now.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    DOM_ELEMENTS.lastUpdateTimeEl.textContent = `Atualizado: ${formattedDate}`;
+}
+
+
+/**
+ * Altera o status visual do filtro de saldo.
+ * @param {string} itemType 'agua' ou 'gas'.
+ * @param {Event} e Evento de clique.
+ * @param {Function} renderCallback Função de renderização (e.g., renderAguaStatus).
+ */
+function handleSaldoFilterUI(itemType, e, renderCallback) {
+    const button = e.target.closest('button.btn-saldo-filter');
+    if (!button) return;
+
+    const newFilter = button.dataset.filter;
+    const currentFilter = getCurrentStatusFilter(itemType);
+
+    // Se clicar no mesmo, não faz nada
+    if (newFilter === currentFilter) return;
+
+    // Remove 'active' de todos e aplica os estilos base novamente
+    document.querySelectorAll(`#filtro-saldo-${itemType}-controls button`).forEach(btn => {
+        btn.classList.remove('active', 'bg-blue-600', 'text-white', 'font-semibold');
+        // Garante que os estilos de cor corretos são aplicados quando inativo
+        if (btn.dataset.filter === 'devendo') {
+            btn.classList.add('btn-warning', 'border', 'border-red-400', 'bg-red-50', 'text-red-700', 'hover:bg-red-100');
+        } else if (btn.dataset.filter === 'credito') {
+            btn.classList.add('btn-info', 'border', 'border-blue-400', 'bg-blue-50', 'text-blue-700', 'hover:bg-blue-100');
+        } else {
+             btn.classList.add('btn-secondary');
+        }
+    });
+
+    // Aplica 'active' no botão clicado
+    button.classList.add('active');
+    
+    // Remove os estilos inativos específicos para aplicar os estilos ativos
+    if (button.dataset.filter === 'devendo') {
+        button.classList.remove('border-red-400', 'bg-red-50', 'text-red-700', 'hover:bg-red-100');
+    } else if (button.dataset.filter === 'credito') {
+        button.classList.remove('border-blue-400', 'bg-blue-50', 'text-blue-700', 'hover:bg-blue-100');
+    } else if (button.dataset.filter === 'all' || button.dataset.filter === 'zero') {
+         button.classList.remove('btn-secondary');
+    }
+
+    // Chama o callback de renderização do módulo principal
+    renderCallback(newFilter);
+}
+
+/**
+ * Abre o modal para confirmação de exclusão.
+ */
+async function openConfirmDeleteModal(id, type, details = null, alertElementId = 'alert-gestao', isInicial = false) {
+    if (!id || !type || !domReady) return; 
+
+    // O alertElementId deve ser passado no lugar de collectionRef.
+    let collectionRef = null; // Não precisamos disso no modal, apenas no db-utils
+
+    let detailsText = details ? `${details} (ID: ${id.substring(0,6)}...)` : `ID: ${id.substring(0,6)}...`;
+    
+    // Define a informação de exclusão no cache
+    setDeleteInfo({ id, type, collectionRef, alertElementId, details, isInicial }); 
+    
+    // Prepara o modal
+    DOM_ELEMENTS.deleteDetailsEl.textContent = `Detalhes: ${detailsText}`;
+    DOM_ELEMENTS.deleteWarningUnidadeEl.style.display = (type === 'unidade') ? 'block' : 'none'; 
+    DOM_ELEMENTS.deleteWarningInicialEl.style.display = isInicial ? 'block' : 'none'; 
+    DOM_ELEMENTS.confirmDeleteModal.style.display = 'flex'; 
+}
+
+
+export {
+    DOM_ELEMENTS,
+    findDOMElements,
+    showAlert,
+    switchTab,
+    switchSubTabView,
+    filterTable,
+    updateLastUpdateTime,
+    handleSaldoFilterUI,
+    openConfirmDeleteModal
+};
