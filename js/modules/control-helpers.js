@@ -215,5 +215,5 @@ export {
     DOM_ELEMENTS, 
     findDOMElements, 
     updateLastUpdateTime, 
-    showAlert // ✅ adiciona aqui
+    showAlert // Importado de dom-helpers e re-exportado para uso no app.js
 };
