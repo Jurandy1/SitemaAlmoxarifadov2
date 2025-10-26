@@ -1,47 +1,31 @@
 // js/services/firestore-service.js
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import { getFirestore, collection, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js"; 
-import { getStorage } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
-import { getAuth } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { firebaseConfig, APP_ID } from "../firebase-config.js";
+// ============================================================
+// Serviço central do Firestore - Define todas as coleções
+// ============================================================
 
-// Instâncias do Firebase
-let app, db, auth, storage;
+import { db } from "../firebase-config.js";
+import { collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-// Referências de Coleções (configuradas após a inicialização)
-let COLLECTIONS = {};
+// ------------------------------------------------------------
+// Definição das coleções principais do sistema SEMCAS
+// ------------------------------------------------------------
+export const COLLECTIONS = {
+    // Controle de Água
+    movimentacoesAgua: collection(db, "movimentacoes_agua"),
+    estoqueInicialAgua: collection(db, "estoque_inicial_agua"),
+    entradaAgua: collection(db, "entrada_agua"),
 
-/**
- * Inicializa as instâncias do Firebase e define as coleções.
- */
-function initializeFirebaseServices() {
-    if (app) return; // Já inicializado
-    
-    // setLogLevel('debug'); // Removido por padrão, mas útil para debug
+    // Controle de Gás
+    movimentacoesGas: collection(db, "movimentacoes_gas"),
+    estoqueInicialGas: collection(db, "estoque_inicial_gas"),
+    entradaGas: collection(db, "entrada_gas"),
 
-    app = initializeApp(firebaseConfig);
-    db = getFirestore(app);
-    auth = getAuth(app);
-    storage = getStorage(app); 
-    
-    const basePath = `artifacts/${APP_ID}/public/data`;
-    console.log("Caminho base das coleções:", basePath);
-
-    COLLECTIONS = {
-        unidades: collection(db, `${basePath}/unidades`),
-        aguaMov: collection(db, `${basePath}/controleAgua`),
-        gasMov: collection(db, `${basePath}/controleGas`),
-        materiais: collection(db, `${basePath}/controleMateriais`),
-        estoqueAgua: collection(db, `${basePath}/estoqueAgua`),
-        estoqueGas: collection(db, `${basePath}/estoqueGas`),
-    };
-}
-
-// Exports
-export { 
-    initializeFirebaseServices, 
-    db, 
-    auth, 
-    storage, 
-    COLLECTIONS 
+    // Controle de Materiais e Unidades
+    materiais: collection(db, "controle_materiais"),
+    unidades: collection(db, "unidades")
 };
+
+// ------------------------------------------------------------
+// Exportação direta do db (caso precise em outros módulos)
+// ------------------------------------------------------------
+export { db };
