@@ -1,8 +1,8 @@
 // js/modules/agua-control.js
 import { Timestamp, addDoc, updateDoc, serverTimestamp, query, where, getDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-import { getUnidades, getAguaMovimentacoes, isEstoqueInicialDefinido, getCurrentStatusFilter, setCurrentStatusFilter, getEstoqueAgua } from "../utils/cache.js";
+import { getUnidades, getAguaMovimentacoes, isEstoqueInicialDefinido, getCurrentStatusFilter, setCurrentStatusFilter, getEstoqueAgua, getUserRole } from "../utils/cache.js";
 // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
-import { DOM_ELEMENTS, showAlert, switchSubTabView, handleSaldoFilterUI, openConfirmDeleteModal, filterTable } from "../utils/dom-helpers.js";
+import { DOM_ELEMENTS, showAlert, switchSubTabView, handleSaldoFilterUI, openConfirmDeleteModal, filterTable, renderPermissionsUI } from "../utils/dom-helpers.js";
 import { getTodayDateString, dateToTimestamp, capitalizeString, formatTimestampComTempo } from "../utils/formatters.js";
 import { isReady, getUserId } from "./auth.js";
 import { COLLECTIONS } from "../services/firestore-service.js";
@@ -43,6 +43,9 @@ export function renderEstoqueAgua() {
     if (DOM_ELEMENTS.estoqueAguaEntradasEl) DOM_ELEMENTS.estoqueAguaEntradasEl.textContent = `+${totalEntradas}`;
     if (DOM_ELEMENTS.estoqueAguaSaidasEl) DOM_ELEMENTS.estoqueAguaSaidasEl.textContent = `-${totalSaidas}`;
     if (DOM_ELEMENTS.estoqueAguaAtualEl) DOM_ELEMENTS.estoqueAguaAtualEl.textContent = estoqueAtual;
+
+    // Garante que a permissão é re-aplicada no contêiner do formulário inicial se ele for exposto
+    renderPermissionsUI(); 
 }
 
 /**
@@ -50,6 +53,11 @@ export function renderEstoqueAgua() {
  */
 export async function handleInicialEstoqueSubmit(e) {
     e.preventDefault();
+    
+    const role = getUserRole(); // Obter o role
+    if (role === 'anon') { 
+        showAlert('alert-inicial-agua', "Permissão negada. Usuário Anônimo não pode alterar o estoque.", 'error'); return; 
+    }
     
     // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     const inputQtd = DOM_ELEMENTS.inputInicialQtdAgua.value;
@@ -95,6 +103,11 @@ export async function handleInicialEstoqueSubmit(e) {
 export async function handleEntradaEstoqueSubmit(e) {
     e.preventDefault();
     if (!isReady()) { showAlert('alert-agua', 'Erro: Não autenticado.', 'error'); return; } 
+    
+    const role = getUserRole(); // Obter o role
+    if (role === 'anon') { 
+        showAlert('alert-agua', "Permissão negada. Usuário Anônimo não pode lançar entradas.", 'error'); return; 
+    }
     
     // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     const inputQtd = DOM_ELEMENTS.inputQtdEntradaAgua.value;
@@ -219,6 +232,11 @@ export async function handleAguaSubmit(e) {
     e.preventDefault();
     if (!isReady()) { showAlert('alert-agua', 'Erro: Não autenticado.', 'error'); return; }
     
+    const role = getUserRole(); // Obter o role
+    if (role === 'anon') { 
+        showAlert('alert-agua', "Permissão negada. Usuário Anônimo não pode lançar movimentações.", 'error'); return; 
+    }
+
     // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     const selectValue = DOM_ELEMENTS.selectUnidadeAgua.value; 
     if (!selectValue) { showAlert('alert-agua', 'Selecione uma unidade.', 'warning'); return; }
@@ -327,7 +345,6 @@ export function renderAguaStatus(newFilter = null) {
         let lancamentoDetalhes = 'N/A';
         
         if(ultimoLancamento) {
-            const acao = ultimoLancamento.tipo === 'entrega' ? 'Entrega' : 'Retirada';
             const dataMovimentacao = formatTimestampComTempo(ultimoLancamento.data);
             const respAlmox = ultimoLancamento.respAlmox;
             const respUnidade = ultimoLancamento.respUnidade;
@@ -362,6 +379,8 @@ export function renderAguaMovimentacoesHistory() {
     if (!DOM_ELEMENTS.tableHistoricoAguaAll) return;
     
     const movimentacoes = getAguaMovimentacoes();
+    const role = getUserRole();
+    const isAdmin = role === 'admin';
 
     const historicoOrdenado = [...movimentacoes]
         .filter(m => m.tipo === 'entrega' || m.tipo === 'retorno')
@@ -386,6 +405,11 @@ export function renderAguaMovimentacoesHistory() {
         const respUnidade = m.responsavel || 'N/A';
 
         const details = `Movimentação ${m.unidadeNome} - ${tipoText} (${m.quantidade})`;
+        
+        // Renderiza o botão de remoção apenas para Admin
+        const actionHtml = isAdmin 
+            ? `<button class="btn-danger btn-remove" data-id="${m.id}" data-type="agua" data-details="${details}" title="Remover este lançamento"><i data-lucide="trash-2"></i></button>`
+            : `<span class="text-gray-400" title="Apenas Admin pode excluir"><i data-lucide="slash"></i></span>`;
 
         html += `<tr title="Lançado por: ${respAlmox}">
             <td>${m.unidadeNome || 'N/A'}</td>
@@ -395,9 +419,7 @@ export function renderAguaMovimentacoesHistory() {
             <td>${respAlmox}</td>
             <td>${respUnidade}</td>
             <td class="text-center whitespace-nowrap text-xs">${dataLancamento}</td>
-            <td class="text-center">
-                <button class="btn-danger btn-remove" data-id="${m.id}" data-type="agua" data-details="${details}" title="Remover este lançamento"><i data-lucide="trash-2"></i></button>
-            </td>
+            <td class="text-center">${actionHtml}</td>
         </tr>`;
     });
 
@@ -488,4 +510,7 @@ export function onAguaTabChange() {
     if (filtroStatus) filtroStatus.value = '';
     const filtroHistorico = document.getElementById('filtro-historico-agua');
     if (filtroHistorico) filtroHistorico.value = '';
+
+    // Aplica as permissões após a renderização
+    renderPermissionsUI();
 }
