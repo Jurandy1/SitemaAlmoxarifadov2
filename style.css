@@ -12,6 +12,26 @@ body {
 }
 
 /* ============================================= */
+/* MODAL DE AUTENTICAÇÃO (NOVO)                  */
+/* ============================================= */
+.auth-modal {
+    z-index: 10000; /* Z-index mais alto para garantir que fique por cima */
+}
+.auth-modal-content {
+    max-width: 450px;
+    padding: 0; /* Remover padding padrão do modal-content */
+}
+/* Re-aplicar fundo branco e sombra */
+.auth-modal-content .modal-header, 
+.auth-modal-content .modal-body {
+    background-color: #ffffff;
+}
+.auth-modal-content .modal-header {
+    border-bottom: none;
+}
+
+
+/* ============================================= */
 /* 3) NAVEGAÇÃO PRINCIPAL (ABAS)                 */
 /* ============================================= */
 .main-nav-container {
@@ -293,6 +313,14 @@ body {
 /* ============================================= */
 /* CLASSES DE UTILIDADE (JS)                     */
 /* ============================================= */
+
+/* Altera opacidade e cursor para elementos desabilitados por Role */
+.disabled-by-role {
+    opacity: 0.5;
+    pointer-events: none; /* Desabilita o clique */
+    user-select: none; /* Desabilita seleção de texto */
+}
+
 
 /* Animação de Fade-in */
 .fade-in {
@@ -668,6 +696,29 @@ button .loading-spinner-small {
 } 
 
 /* Botões de ação */ 
+.btn-icon { /* Usando btn-icon como classe base para todos os botões de ação na tabela */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.375rem; /* rounded-md */
+    padding: 0.5rem; /* p-2 */
+    transition: all 0.2s ease-in-out; 
+    border: 1px solid transparent; 
+} 
+.btn-icon:hover { 
+    background-color: #f3f4f6; /* hover:bg-gray-100 */
+    border-color: #d1d5db; /* border-gray-300 */
+}
+/* Estilos específicos para ícones */
+.btn-icon .lucide {
+    width: 1rem;
+    height: 1rem;
+}
+
+
+/* Botões de ação no módulo Materiais */ 
 .action-btn { 
   border-radius: 0.375rem; /* rounded-md */
   padding: 0.5rem; /* p-2 */
