@@ -1,10 +1,7 @@
 // js/services/storage-service.js
-// ============================================================
-// Serviço de upload e exclusão de arquivos no Firebase Storage
-// ============================================================
-
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
-import { storage, APP_ID } from "../firebase-config.js"; // ✅ Correção: import direto do firebase-config.js
+import { storage } from "./firestore-service.js";
+import { APP_ID } from "../firebase-config.js";
 
 /**
  * Faz o upload de um arquivo para o Firebase Storage.
@@ -21,7 +18,6 @@ async function uploadFile(file) {
     const snapshot = await uploadBytes(storageRef, file);
     const fileURL = await getDownloadURL(snapshot.ref);
     
-    console.log("📤 Arquivo enviado com sucesso:", storagePath);
     return { fileURL, storagePath };
 }
 
@@ -36,18 +32,14 @@ async function deleteFile(storagePath) {
     try {
         const fileRef = ref(storage, storagePath);
         await deleteObject(fileRef);
-        console.log("🗑️ Arquivo excluído do Storage:", storagePath);
+        console.log("Arquivo anexo excluído:", storagePath);
     } catch (error) {
         // Ignora erro se o arquivo não existir (not-found)
         if (error.code !== 'storage/object-not-found') {
-            console.warn("⚠️ Erro ao excluir arquivo:", error);
+            console.warn("Erro ao excluir arquivo anexo:", error);
             throw error;
         }
     }
 }
-
-// ============================================================
-// EXPORTS
-// ============================================================
 
 export { uploadFile, deleteFile };

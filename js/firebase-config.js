@@ -1,49 +1,24 @@
 // js/firebase-config.js
-// ============================================================
-// Configuração central do Firebase - SEMCAS
-// ============================================================
+// Este módulo contém apenas a configuração e IDs necessários para inicializar o Firebase.
+// É importado pelo firestore-service.js.
 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import { getAuth } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-import { getStorage } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
-
-// ============================================================
-// CONFIGURAÇÃO DO PROJETO FIREBASE
-// ============================================================
-
-const firebaseConfig = {
-  apiKey: "AIzaSyD7VCxaHo8veaHnM8RwY60EX_DEh3hOVHk",
-  authDomain: "controle-almoxarifado-semcas.firebaseapp.com",
-  projectId: "controle-almoxarifado-semcas",
-  storageBucket: "controle-almoxarifado-semcas.firebasestorage.app",
-  messagingSenderId: "916615427315",
-  appId: "1:916615427315:web:6823897ed065c50d413386"
+// Configuração de fallback caso as variáveis de ambiente do Canvas não estejam definidas
+const userFallbackConfig = {
+    apiKey: "AIzaSyD7VCxaHo8veaHnM8RwY60EX_DEh3hOVHk", 
+    authDomain: "controle-almoxarifado-semcas.firebaseapp.com", 
+    projectId: "controle-almoxarifado-semcas", 
+    storageBucket: "controle-almoxarifado-semcas.firebasestorage.app", 
+    messagingSenderId: "916615427315", 
+    appId: "1:916615427315:web:6823897ed065c50d413386" 
 };
 
-// ============================================================
-// INICIALIZAÇÃO DO FIREBASE
-// ============================================================
+// Variáveis globais (fornecidas pelo ambiente ou fallback)
+const firebaseConfigString = typeof __firebase_config !== 'undefined' ? __firebase_config : JSON.stringify(userFallbackConfig);
+const firebaseConfig = JSON.parse(firebaseConfigString);
 
-const app = initializeApp(firebaseConfig);
+const rawAppId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+const APP_ID = rawAppId.replace(/[\/.]/g, '-');
 
-// Instâncias principais (compartilhadas entre módulos)
-const auth = getAuth(app);
-const db = getFirestore(app);
-const storage = getStorage(app);
+const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
-// ============================================================
-// VARIÁVEIS AUXILIARES
-// ============================================================
-
-// ID de aplicação base para coleções
-const APP_ID = "default-app-id";
-
-// Token inicial (caso futuro para autenticação com token custom)
-const initialAuthToken = null;
-
-// ============================================================
-// EXPORTS
-// ============================================================
-
-export { app, auth, db, storage, firebaseConfig, APP_ID, initialAuthToken };
+export { firebaseConfig, APP_ID, initialAuthToken };

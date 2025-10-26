@@ -122,34 +122,6 @@ function findDOMElements() {
         ['#input-qtd-entrada-gas', 'inputQtdEntradaGas'],
         ['#input-nf-entrada-gas', 'inputNfEntradaGas'],
         ['#table-historico-gas-all', 'tableHistoricoGasAll'],
-        // Previsão - Água
-        ['#config-previsao-agua', 'configPrevisaoAguaEl'],
-        ['#select-previsao-unidade-agua-v2', 'selectPrevisaoUnidadeAguaEl'],
-        ['#select-previsao-tipo-agua', 'selectPrevisaoTipoAguaEl'],
-        ['#dias-previsao-agua', 'inputDiasPrevisaoAgua'],
-        ['#margem-seguranca-agua', 'inputMargemSegurancaAgua'],
-        ['#select-exclusao-agua', 'selectExclusaoAguaEl'],
-        ['#btn-adicionar-exclusao-agua', 'btnAddExclusaoAgua'],
-        ['#lista-exclusoes-agua', 'listaExclusoesAguaEl'],
-        ['#btn-calcular-previsao-agua-v2', 'btnCalcularPrevisaoAguaEl'],
-        ['#resultado-previsao-agua-v2', 'resultadoPrevisaoAguaContainer'],
-        ['#alertas-previsao-agua', 'alertasPrevisaoAguaEl'],
-        ['#resultado-content-agua', 'resultadoContentAguaEl'],
-        ['#grafico-previsao-agua', 'graficoPrevisaoAguaEl'],
-        // Previsão - Gás
-        ['#config-previsao-gas', 'configPrevisaoGasEl'],
-        ['#select-previsao-unidade-gas-v2', 'selectPrevisaoUnidadeGasEl'],
-        ['#select-previsao-tipo-gas', 'selectPrevisaoTipoGasEl'],
-        ['#dias-previsao-gas', 'inputDiasPrevisaoGas'],
-        ['#margem-seguranca-gas', 'inputMargemSegurancaGas'],
-        ['#select-exclusao-gas', 'selectExclusaoGasEl'],
-        ['#btn-adicionar-exclusao-gas', 'btnAddExclusaoGas'],
-        ['#lista-exclusoes-gas', 'listaExclusoesGasEl'],
-        ['#btn-calcular-previsao-gas-v2', 'btnCalcularPrevisaoGasEl'],
-        ['#resultado-previsao-gas-v2', 'resultadoPrevisaoGasContainer'],
-        ['#alertas-previsao-gas', 'alertasPrevisaoGasEl'],
-        ['#resultado-content-gas', 'resultadoContentGasEl'],
-        ['#grafico-previsao-gas', 'graficoPrevisaoGasEl'],
         // Materiais
         ['#form-materiais', 'formMateriais'],
         ['#select-unidade-materiais', 'selectUnidadeMateriais'],
@@ -189,9 +161,7 @@ function findDOMElements() {
         ['#relatorio-data-fim', 'relatorioDataFim'],
         ['#btn-gerar-pdf', 'btnGerarPdf'],
         ['#alert-relatorio', 'alertRelatorio'],
-    ]; // Linha 209
-    // O erro estava aqui. A linha original terminava com um comentário de bloco não encerrado.
-    // Eu removi o comentário problemático.
+    ];
 
     mappings.forEach(([selector, varName, isAll]) => {
         if (isAll) {
@@ -354,11 +324,8 @@ function handleSaldoFilterUI(itemType, e, renderCallback) {
 /**
  * Abre o modal para confirmação de exclusão.
  */
-async function openConfirmDeleteModal(id, type, details = null, alertElementId = 'alert-gestao', isInicial = false) {
+async function openConfirmDeleteModal(id, type, details = null, collectionRef, isInicial = false, alertElementId = 'alert-gestao') {
     if (!id || !type || !domReady) return; 
-
-    // O alertElementId deve ser passado no lugar de collectionRef.
-    let collectionRef = null; // Não precisamos disso no modal, apenas no db-utils
 
     let detailsText = details ? `${details} (ID: ${id.substring(0,6)}...)` : `ID: ${id.substring(0,6)}...`;
     
