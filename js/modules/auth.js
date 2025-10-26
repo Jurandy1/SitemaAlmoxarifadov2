@@ -1,10 +1,24 @@
 // js/modules/auth.js
-import { signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { onSnapshot, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js"; 
+import { 
+    signInAnonymously, 
+    signInWithCustomToken, 
+    onAuthStateChanged, 
+    signOut, 
+    signInWithEmailAndPassword, 
+    createUserWithEmailAndPassword 
+} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { 
+    onSnapshot, 
+    query, 
+    getDoc, 
+    doc, 
+    setDoc,
+    serverTimestamp 
+} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js"; 
 import { initialAuthToken } from "../firebase-config.js";
-import { auth, COLLECTIONS } from "../services/firestore-service.js";
-import { DOM_ELEMENTS, showAlert, updateLastUpdateTime, switchTab } from "../utils/dom-helpers.js";
-import { setUnidades, setAguaMovimentacoes, setGasMovimentacoes, setMateriais, setEstoqueAgua, setEstoqueGas, setEstoqueInicialDefinido } from "../utils/cache.js";
+import { auth, db, COLLECTIONS } from "../services/firestore-service.js"; 
+import { DOM_ELEMENTS, showAlert, updateLastUpdateTime, switchTab, renderPermissionsUI } from "../utils/dom-helpers.js"; 
+import { setUnidades, setAguaMovimentacoes, setGasMovimentacoes, setMateriais, setEstoqueAgua, setEstoqueGas, setEstoqueInicialDefinido, setUserRole } from "../utils/cache.js"; 
 
 // Variável de estado local para o módulo
 let isAuthReady = false;
@@ -13,11 +27,101 @@ let userId = null;
 function getUserId() { return userId; }
 function isReady() { return isAuthReady; }
 
+// =========================================================================
+// LÓGICA DE ROLES
+// =========================================================================
+
+/**
+ * Obtém o role do usuário no Firestore.
+ * Se for o primeiro login, define como 'editor' por padrão (a menos que seja anônimo).
+ * @param {string} uid User ID.
+ * @param {boolean} isAnonymous True se for login anônimo.
+ * @returns {Promise<string>} O role do usuário ('anon', 'editor', 'admin').
+ */
+async function getUserRoleFromFirestore(uid, isAnonymous) {
+    if (isAnonymous) return 'anon';
+    
+    const roleRef = doc(COLLECTIONS.userRoles, uid);
+    const roleDoc = await getDoc(roleRef);
+
+    if (roleDoc.exists()) {
+        const role = roleDoc.data().role;
+        // Garante um dos roles válidos (anon é tratado acima)
+        return ['admin', 'editor'].includes(role) ? role : 'editor'; 
+    } else {
+        // Primeiro login por email/senha. Define como 'editor' por padrão
+        const defaultRole = 'editor';
+        await setDoc(roleRef, { 
+            role: defaultRole, 
+            uid: uid, 
+            createdAt: serverTimestamp() 
+        });
+        return defaultRole;
+    }
+}
+
+// =========================================================================
+// LÓGICA DE AUTENTICAÇÃO
+// =========================================================================
+
+/**
+ * Faz o login com Email e Senha.
+ */
+export async function signInEmailPassword(email, password) {
+     if (!auth) return;
+     try {
+         const userCredential = await signInWithEmailAndPassword(auth, email, password);
+         showAlert('alert-login', `Bem-vindo(a), ${userCredential.user.email}!`, 'success');
+         
+         // Fecha o modal após sucesso (o onAuthStateChanged trata o restante)
+         if (DOM_ELEMENTS.authModal) DOM_ELEMENTS.authModal.style.display = 'none';
+         
+     } catch (error) {
+         console.error("Erro no login:", error);
+         let message = "Erro ao fazer login. Credenciais inválidas ou conta não existe.";
+         if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+             message = "E-mail ou senha incorretos.";
+         } else if (error.code === 'auth/invalid-email') {
+             message = "Formato de e-mail inválido.";
+         }
+         showAlert('alert-login', message, 'error');
+         throw error;
+     }
+}
+
+/**
+ * Tenta o login anônimo.
+ */
+export async function signInAnonUser() {
+    if (!auth) return;
+    try {
+        await signInAnonymously(auth);
+        showAlert('alert-login', `Acesso Anônimo concedido.`, 'success');
+        if (DOM_ELEMENTS.authModal) DOM_ELEMENTS.authModal.style.display = 'none';
+    } catch (error) {
+         console.error("Erro no login anônimo:", error);
+         showAlert('alert-login', `Erro ao tentar acesso anônimo: ${error.message}`, 'error');
+    }
+}
+
+/**
+ * Desloga o usuário atual.
+ */
+export async function signOutUser() {
+    if (!auth) return;
+    try {
+        await signOut(auth);
+        console.log("Usuário deslogado com sucesso.");
+        // O onAuthStateChanged cuidará da UI
+        switchTab('dashboard'); // Volta para o dashboard
+    } catch (error) {
+        console.error("Erro ao fazer logout:", error);
+    }
+}
+
+
 /**
  * Inicia os listeners de real-time do Firestore.
- * @param {Function} renderDashboardCallback Callback para renderizar o dashboard.
- * @param {Function} renderControlsCallback Callback para renderizar controles (selects, etc.).
- * @param {Function} renderUIModuleCallback Função para renderizar as UIs dos módulos (água, gás, materiais).
  */
 function initFirestoreListeners(renderDashboardCallback, renderControlsCallback, renderUIModuleCallback) {
     if (!isAuthReady) { 
@@ -33,6 +137,7 @@ function initFirestoreListeners(renderDashboardCallback, renderControlsCallback,
         console.log("Unidades recebidas:", unidades.length);
         renderControlsCallback(); 
         renderUIModuleCallback(); 
+        renderPermissionsUI(); // Reaplicar permissões ao carregar unidades
     }, (error) => { console.error("Erro no listener de unidades:", error); showAlert('alert-gestao', `Erro ao carregar unidades: ${error.message}`, 'error'); });
 
     // Listener de Movimentações de Água
@@ -98,44 +203,70 @@ async function initAuthAndListeners(renderDashboardCallback, renderControlsCallb
     if (DOM_ELEMENTS.connectionStatusEl) {
          DOM_ELEMENTS.connectionStatusEl.innerHTML = `<span class="h-3 w-3 bg-yellow-400 rounded-full animate-pulse"></span> <span>Autenticando...</span>`;
     }
+    
+    // O modal só é exibido se não houver um token customizado (Ambiente Canvas)
+    if (!initialAuthToken && DOM_ELEMENTS.authModal) {
+         DOM_ELEMENTS.authModal.style.display = 'flex';
+         if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
+    }
+
 
     onAuthStateChanged(auth, async (user) => { 
         if (user) {
             isAuthReady = true;
             userId = user.uid;
-            console.log("Autenticado com UID:", userId, "Anônimo:", user.isAnonymous);
-            if (DOM_ELEMENTS.connectionStatusEl) DOM_ELEMENTS.connectionStatusEl.innerHTML = `<span class="h-3 w-3 bg-green-500 rounded-full"></span> <span class="text-green-700">Conectado</span>`;
             
-            initFirestoreListeners(renderDashboardCallback, renderControlsCallback, renderUIModuleCallback);
+            // 1. OBTÉM O ROLE DO USUÁRIO
+            const role = await getUserRoleFromFirestore(user.uid, user.isAnonymous);
+            setUserRole(role);
+            console.log(`Autenticado com UID: ${userId}, Role: ${role}`);
+
+
+            if (DOM_ELEMENTS.connectionStatusEl) DOM_ELEMENTS.connectionStatusEl.innerHTML = `<span class="h-3 w-3 bg-green-500 rounded-full"></span> <span class="text-green-700">Conectado (${role})</span>`;
             
-            // Renderização inicial
-            updateLastUpdateTime(); 
-            switchTab('dashboard'); 
-            
+            // 2. Inicia os Listeners e Renderiza a UI (apenas se estiver realmente logado)
+            if (role !== 'unauthenticated') {
+                // Remove o wrapper hidden do conteúdo principal
+                if (DOM_ELEMENTS.appContentWrapper) DOM_ELEMENTS.appContentWrapper.classList.remove('hidden');
+
+                initFirestoreListeners(renderDashboardCallback, renderControlsCallback, renderUIModuleCallback);
+                
+                // Renderização inicial
+                updateLastUpdateTime(); 
+                switchTab('dashboard'); 
+                renderPermissionsUI(); // Aplica as permissões após definir o role
+
+            }
+
         } else {
             isAuthReady = false;
             userId = null; 
-            console.log("Usuário deslogado.");
+            setUserRole('unauthenticated'); // Limpa o role
+            console.log("Usuário deslogado. Aguardando login.");
+            
             if (DOM_ELEMENTS.connectionStatusEl) DOM_ELEMENTS.connectionStatusEl.innerHTML = `<span class="h-3 w-3 bg-red-500 rounded-full"></span> <span class="text-red-700">Desconectado</span>`;
-            // Lógica para limpar UI (a ser implementada nos módulos de controle/dom-helpers se necessário)
-            // clearAlmoxarifadoData(); 
+            
+            // Oculta o conteúdo e mostra o modal de login, se não for ambiente Canvas
+            if (DOM_ELEMENTS.appContentWrapper) DOM_ELEMENTS.appContentWrapper.classList.add('hidden');
+            if (!initialAuthToken && DOM_ELEMENTS.authModal) DOM_ELEMENTS.authModal.style.display = 'flex';
+            
+            renderPermissionsUI(); // Limpa a UI de acordo com o role 'unauthenticated'
         }
     });
 
-    // Inicia o processo de autenticação
+    // Tenta o login automático (Custom Token) se houver
     try {
         if (initialAuthToken) {
             console.log("Tentando login com Custom Token...");
             await signInWithCustomToken(auth, initialAuthToken);
-        } else {
-            console.log("Nenhum Custom Token encontrado. Tentando login anônimo...");
-            await signInAnonymously(auth);
         }
+        // Se não houver Custom Token, o onAuthStateChanged e o modal cuidam.
     } catch (error) {
-        console.error("Erro CRÍTICO ao autenticar Firebase:", error);
+        console.error("Erro CRÍTICO ao autenticar Firebase (Token):", error);
          if (DOM_ELEMENTS.connectionStatusEl) DOM_ELEMENTS.connectionStatusEl.innerHTML = `<span class="h-3 w-3 bg-red-500 rounded-full"></span> <span class="text-red-700">Erro Auth</span>`;
         showAlert('alert-agua', `Erro crítico na autenticação: ${error.message}. Recarregue a página.`, 'error', 60000);
     }
 }
 
-export { initAuthAndListeners, getUserId, isReady };
+
+export { initAuthAndListeners, getUserId, isReady, signInEmailPassword, signOutUser, signInAnonUser }; 
