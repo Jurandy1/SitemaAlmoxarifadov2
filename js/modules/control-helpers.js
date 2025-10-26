@@ -214,5 +214,6 @@ export {
     initAllListeners, 
     DOM_ELEMENTS, 
     findDOMElements, 
-    updateLastUpdateTime 
+    updateLastUpdateTime, 
+    showAlert // ✅ adiciona aqui
 };
