@@ -1,34 +1,65 @@
 // js/modules/agua-control.js
-import { Timestamp, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-import { getUnidades, getAguaMovimentacoes, isEstoqueInicialDefinido, getCurrentStatusFilter, setCurrentStatusFilter, getEstoqueAgua } from "../utils/cache.js";
+// ============================================================
+// Módulo: Controle de Água - SEMCAS
+// ============================================================
+
+import { Timestamp, addDoc, serverTimestamp, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { getCurrentStatusFilter } from "../utils/cache.js";
 import { DOM_ELEMENTS, showAlert, switchSubTabView, handleSaldoFilterUI, filterTable } from "../utils/dom-helpers.js";
-import { getTodayDateString, dateToTimestamp, capitalizeString, formatTimestampComTempo } from "../utils/formatters.js";
-import { isReady } from "./auth.js";
+import { getTodayDateString } from "../utils/formatters.js";
 import { COLLECTIONS } from "../services/firestore-service.js";
-import { executeFinalMovimentacao } from "./movimentacao-modal-handler.js";
 
-// =========================================================================
-// LÓGICA DE ESTOQUE (Movido de app.js)
-// =========================================================================
+// ============================================================
+// FUNÇÕES DE ESTOQUE
+// ============================================================
 
-function renderEstoqueAgua() {
-    const estoque = getEstoqueAgua();
-    if (!estoque) return;
+/**
+ * Carrega e renderiza o resumo do estoque de água.
+ * Exibe o spinner enquanto lê os dados.
+ */
+export async function renderEstoqueAgua() {
+    const spinner = DOM_ELEMENTS.loadingEstoqueAguaEl;
+    const resumo = DOM_ELEMENTS.resumoEstoqueAguaEl;
 
-    const { inicial, entradas, saidas, atual } = estoque;
+    try {
+        if (spinner) spinner.classList.remove("hidden");
+        if (resumo) resumo.classList.add("hidden");
 
-    if (DOM_ELEMENTS.estoqueAguaInicialEl) DOM_ELEMENTS.estoqueAguaInicialEl.textContent = inicial;
-    if (DOM_ELEMENTS.estoqueAguaEntradasEl) DOM_ELEMENTS.estoqueAguaEntradasEl.textContent = entradas;
-    if (DOM_ELEMENTS.estoqueAguaSaidasEl) DOM_ELEMENTS.estoqueAguaSaidasEl.textContent = saidas;
-    if (DOM_ELEMENTS.estoqueAguaAtualEl) DOM_ELEMENTS.estoqueAguaAtualEl.textContent = atual;
+        const snapshot = await getDocs(COLLECTIONS.estoqueInicialAgua);
+
+        if (snapshot.empty) {
+            if (DOM_ELEMENTS.estoqueAguaAtualEl) DOM_ELEMENTS.estoqueAguaAtualEl.textContent = "0";
+            console.warn("Nenhum estoque inicial de água encontrado.");
+        } else {
+            let total = 0;
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                if (data.quantidade) total += Number(data.quantidade);
+            });
+
+            if (DOM_ELEMENTS.estoqueAguaInicialEl) DOM_ELEMENTS.estoqueAguaInicialEl.textContent = total.toString();
+            if (DOM_ELEMENTS.estoqueAguaAtualEl) DOM_ELEMENTS.estoqueAguaAtualEl.textContent = total.toString();
+        }
+    } catch (err) {
+        console.error("Erro ao carregar estoque de água:", err);
+        showAlert("alert-inicial-agua", "Erro ao carregar estoque de água.", "error");
+    } finally {
+        if (spinner) spinner.classList.add("hidden");
+        if (resumo) resumo.classList.remove("hidden");
+    }
 }
 
-async function handleInicialEstoqueAguaSubmit(e) {
+/**
+ * Cadastra o estoque inicial de água no Firestore.
+ */
+export async function handleInicialEstoqueAguaSubmit(e) {
     e.preventDefault();
     try {
         showAlert("alert-inicial-agua", "Registrando estoque inicial...", "info");
+
         const qtd = parseInt(DOM_ELEMENTS.inputInicialQtdAgua.value.trim());
         const responsavel = DOM_ELEMENTS.inputInicialResponsavelAgua.value.trim();
+
         if (!qtd || !responsavel) {
             showAlert("alert-inicial-agua", "Preencha todos os campos.", "warning");
             return;
@@ -49,13 +80,17 @@ async function handleInicialEstoqueAguaSubmit(e) {
     }
 }
 
-async function handleAguaSubmit(e) {
+/**
+ * Registra uma saída de água.
+ */
+export async function handleAguaSubmit(e) {
     e.preventDefault();
     try {
         const unidade = DOM_ELEMENTS.selectUnidadeAgua.value;
         const tipo = DOM_ELEMENTS.selectTipoAgua.value;
         const qtd = parseInt(document.getElementById('input-qtd-entregue-agua').value);
         const responsavel = DOM_ELEMENTS.inputResponsavelAgua.value.trim();
+
         if (!unidade || !tipo || !qtd || !responsavel) {
             showAlert("alert-agua", "Preencha todos os campos.", "warning");
             return;
@@ -79,12 +114,16 @@ async function handleAguaSubmit(e) {
     }
 }
 
-async function handleEntradaEstoqueAguaSubmit(e) {
+/**
+ * Registra uma entrada de água (reposição).
+ */
+export async function handleEntradaEstoqueAguaSubmit(e) {
     e.preventDefault();
     try {
         const qtd = parseInt(DOM_ELEMENTS.inputQtdEntradaAgua.value.trim());
         const nf = DOM_ELEMENTS.inputNfEntradaAgua.value.trim();
         const responsavel = DOM_ELEMENTS.inputResponsavelEntradaAgua.value.trim();
+
         if (!qtd || !nf || !responsavel) {
             showAlert("alert-agua", "Preencha todos os campos.", "warning");
             return;
@@ -106,7 +145,10 @@ async function handleEntradaEstoqueAguaSubmit(e) {
     }
 }
 
-function checkUnidadeSaldoAlertAgua() {
+/**
+ * Exibe alertas de saldo da unidade.
+ */
+export function checkUnidadeSaldoAlertAgua() {
     const selectUnidade = DOM_ELEMENTS.selectUnidadeAgua;
     const alertEl = DOM_ELEMENTS.unidadeSaldoAlertaAgua;
     if (!selectUnidade || !alertEl) return;
@@ -126,19 +168,23 @@ function checkUnidadeSaldoAlertAgua() {
     alertEl.style.display = saldo ? 'block' : 'none';
 }
 
-function renderAguaStatus() {
+// ============================================================
+// RENDERIZAÇÃO DE STATUS / HISTÓRICO
+// ============================================================
+
+export function renderAguaStatus() {
     console.log("Renderizando status de Água...");
 }
 
-function renderAguaMovimentacoesHistory() {
+export function renderAguaMovimentacoesHistory() {
     console.log("Renderizando histórico de Água...");
 }
 
-// =========================================================================
-// INICIALIZAÇÃO DE LISTENERS DO DOM
-// =========================================================================
+// ============================================================
+// INICIALIZAÇÃO DE LISTENERS
+// ============================================================
 
-function initAguaListeners() {
+export function initAguaListeners() {
     if (DOM_ELEMENTS.formAgua) {
         DOM_ELEMENTS.formAgua.addEventListener('submit', handleAguaSubmit);
     }
@@ -160,31 +206,39 @@ function initAguaListeners() {
     if (DOM_ELEMENTS.formEntradaAgua) {
         DOM_ELEMENTS.formEntradaAgua.addEventListener('submit', handleEntradaEstoqueAguaSubmit);
     }
+
     if (document.getElementById('filtro-status-agua')) {
-        document.getElementById('filtro-status-agua').addEventListener('input', () => filterTable(document.getElementById('filtro-status-agua'), 'table-status-agua'));
+        document.getElementById('filtro-status-agua')
+            .addEventListener('input', () => filterTable(document.getElementById('filtro-status-agua'), 'table-status-agua'));
     }
+
     if (document.getElementById('filtro-historico-agua')) {
-        document.getElementById('filtro-historico-agua').addEventListener('input', () => filterTable(document.getElementById('filtro-historico-agua'), 'table-historico-agua-all'));
+        document.getElementById('filtro-historico-agua')
+            .addEventListener('input', () => filterTable(document.getElementById('filtro-historico-agua'), 'table-historico-agua-all'));
     }
 
-    document.querySelectorAll('#filtro-saldo-agua-controls button').forEach(btn => btn.addEventListener('click', (e) => {
-        handleSaldoFilterUI('agua', e, renderAguaStatus);
-    }));
+    // Filtros visuais
+    document.querySelectorAll('#filtro-saldo-agua-controls button')
+        .forEach(btn => btn.addEventListener('click', (e) => {
+            handleSaldoFilterUI('agua', e, renderAguaStatus);
+        }));
 
-    document.querySelectorAll('#content-agua .form-tab-btn').forEach(btn => btn.addEventListener('click', () => {
-        const formName = btn.dataset.form;
-        document.querySelectorAll('#content-agua .form-tab-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        if (DOM_ELEMENTS.formAgua) DOM_ELEMENTS.formAgua.classList.toggle('hidden', formName !== 'saida-agua');
-        if (DOM_ELEMENTS.formEntradaAgua) DOM_ELEMENTS.formEntradaAgua.classList.toggle('hidden', formName !== 'entrada-agua');
-    }));
+    // Alternância entre formulários
+    document.querySelectorAll('#content-agua .form-tab-btn')
+        .forEach(btn => btn.addEventListener('click', () => {
+            const formName = btn.dataset.form;
+            document.querySelectorAll('#content-agua .form-tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            if (DOM_ELEMENTS.formAgua) DOM_ELEMENTS.formAgua.classList.toggle('hidden', formName !== 'saida-agua');
+            if (DOM_ELEMENTS.formEntradaAgua) DOM_ELEMENTS.formEntradaAgua.classList.toggle('hidden', formName !== 'entrada-agua');
+        }));
 }
 
-// =========================================================================
+// ============================================================
 // FUNÇÃO DE ORQUESTRAÇÃO
-// =========================================================================
+// ============================================================
 
-function onAguaTabChange() {
+export function onAguaTabChange() {
     switchSubTabView('agua', 'movimentacao-agua');
     checkUnidadeSaldoAlertAgua();
     renderEstoqueAgua();
@@ -199,19 +253,3 @@ function onAguaTabChange() {
     const filtroHistorico = document.getElementById('filtro-historico-agua');
     if (filtroHistorico) filtroHistorico.value = '';
 }
-
-// =========================================================================
-// EXPORTS
-// =========================================================================
-
-export {
-    renderEstoqueAgua,
-    renderAguaStatus,
-    renderAguaMovimentacoesHistory,
-    handleAguaSubmit,
-    handleEntradaEstoqueAguaSubmit,
-    handleInicialEstoqueAguaSubmit,
-    checkUnidadeSaldoAlertAgua,
-    initAguaListeners, // ✅ agora apenas aqui
-    onAguaTabChange
-};
