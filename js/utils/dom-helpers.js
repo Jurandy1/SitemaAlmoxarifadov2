@@ -1,6 +1,7 @@
 // js/utils/dom-helpers.js
 import { formatTimestampComTempo } from "./formatters.js";
-import { getCurrentStatusFilter, setDeleteInfo } from "./cache.js";
+import { getCurrentStatusFilter, setDeleteInfo, getUserRole } from "./cache.js"; 
+import { auth } from "../services/firestore-service.js"; // Importar auth para pegar o email
 
 // Variáveis de estado da UI e referências do DOM
 let visaoAtiva = 'dashboard'; 
@@ -18,6 +19,20 @@ function findDOMElements() {
         ['#last-update-time', 'lastUpdateTimeEl'],
         ['.nav-btn', 'navButtons', true], // true para All
         ['main > div[id^="content-"]', 'contentPanes', true],
+        
+        // NOVO: Permissões/Login
+        ['#auth-modal', 'authModal'],
+        ['#btn-login-anonimo', 'btnLoginAnonimo'],
+        ['#form-login', 'formLogin'],
+        ['#form-signup', 'formSignup'],
+        ['#input-login-email', 'inputLoginEmail'],
+        ['#input-login-password', 'inputLoginPassword'],
+        ['#alert-login', 'alertLogin'],
+        ['#btn-logout', 'btnLogout'],
+        ['#user-email-display', 'userEmailDisplayEl'],
+        ['#user-role-display', 'userRoleDisplayEl'],
+        ['#app-content-wrapper', 'appContentWrapper'], // Novo wrapper do conteúdo principal
+
         // Dashboard
         ['#dashboard-nav-controls', 'dashboardNavControls'],
         ['#dashboard-materiais-prontos', 'dashboardMateriaisProntosContainer'],
@@ -139,6 +154,13 @@ function findDOMElements() {
         ['#summary-materiais-requisitado', 'summaryMateriaisRequisitado'],
         ['#summary-materiais-separacao', 'summaryMateriaisSeparacao'],
         ['#summary-materiais-retirada', 'summaryMateriaisRetirada'],
+        ['#subtab-registrar', 'subtabRegistrar'], 
+        ['.subtab-btn[data-subtab="registrar"]', 'btnSubtabRegistrar'], // Botão de registrar
+        ['#subtab-para-separar', 'subtabParaSeparar'], 
+        ['#subtab-em-separacao', 'subtabEmSeparacao'], 
+        ['#subtab-pronto', 'subtabPronto'], 
+        ['#subtab-historico', 'subtabHistorico'], 
+        ['.subtab-btn', 'subtabButtons', true], 
         // Modais de Fluxo (Água/Gás/Materiais)
         ['#almoxarifado-responsavel-modal', 'almoxarifadoResponsavelModal'],
         ['#input-almox-responsavel-nome', 'inputAlmoxResponsavelNome'],
@@ -178,10 +200,7 @@ function findDOMElements() {
 
 /**
  * Exibe um alerta na interface.
- * @param {string} elementId ID do elemento onde o alerta será exibido.
- * @param {string} message Mensagem a ser exibida.
- * @param {string} type Tipo de alerta ('info', 'success', 'warning', 'error').
- * @param {number} duration Duração em milissegundos.
+// ... (showAlert - existing logic)
  */
 function showAlert(elementId, message, type = 'info', duration = 5000) {
     if (!domReady) return;
@@ -202,7 +221,7 @@ function showAlert(elementId, message, type = 'info', duration = 5000) {
 
 /**
  * Alterna a visualização da aba principal.
- * @param {string} tabName Nome da aba (e.g., 'dashboard', 'agua').
+// ... (switchTab - existing logic)
  */
 function switchTab(tabName) {
     if (!domReady) return;
@@ -224,24 +243,27 @@ function switchTab(tabName) {
 
 /**
  * Alterna a visualização da sub-aba (dentro de Água, Gás, Materiais).
- * @param {string} tabPrefix Prefixo da aba principal (e.g., 'agua').
- * @param {string} subViewName Nome da sub-view (e.g., 'movimentacao-agua').
+// ... (switchSubTabView - existing logic)
  */
 function switchSubTabView(tabPrefix, subViewName) {
     if (!domReady) return; 
-    document.querySelectorAll(`#sub-nav-${tabPrefix} .sub-nav-btn`).forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.subview === subViewName);
-    });
-    document.querySelectorAll(`#content-${tabPrefix} > div[id^="subview-"]`).forEach(pane => {
-         pane.classList.toggle('hidden', pane.id !== `subview-${subViewName}`);
-    });
+    
+    // CORRIGIDO: Esta função agora lida apenas com as sub-views de Água/Gás
+    if (tabPrefix === 'agua' || tabPrefix === 'gas') {
+        document.querySelectorAll(`#sub-nav-${tabPrefix} .sub-nav-btn`).forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.subview === subViewName);
+        });
+        document.querySelectorAll(`#content-${tabPrefix} > div[id^="subview-"]`).forEach(pane => {
+             pane.classList.toggle('hidden', pane.id !== `subview-${subViewName}`);
+        });
+    }
+    
     if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); } 
 }
 
 /**
  * Filtra uma tabela HTML.
- * @param {HTMLInputElement} inputEl Elemento de input do filtro.
- * @param {string} tableBodyId ID do <tbody> da tabela.
+// ... (filterTable - existing logic)
  */
 function filterTable(inputEl, tableBodyId) {
     const searchTerm = inputEl.value; // Removido normalizeString para otimização, usando normalizeString dentro do loop
@@ -267,6 +289,7 @@ function filterTable(inputEl, tableBodyId) {
 
 /**
  * Atualiza o horário de última atualização na UI.
+// ... (updateLastUpdateTime - existing logic)
  */
 function updateLastUpdateTime() {
      if (!domReady || !DOM_ELEMENTS.lastUpdateTimeEl) return; 
@@ -278,9 +301,7 @@ function updateLastUpdateTime() {
 
 /**
  * Altera o status visual do filtro de saldo.
- * @param {string} itemType 'agua' ou 'gas'.
- * @param {Event} e Evento de clique.
- * @param {Function} renderCallback Função de renderização (e.g., renderAguaStatus).
+// ... (handleSaldoFilterUI - existing logic)
  */
 function handleSaldoFilterUI(itemType, e, renderCallback) {
     const button = e.target.closest('button.btn-saldo-filter');
@@ -323,9 +344,17 @@ function handleSaldoFilterUI(itemType, e, renderCallback) {
 
 /**
  * Abre o modal para confirmação de exclusão.
+// ... (openConfirmDeleteModal - existing logic)
  */
 async function openConfirmDeleteModal(id, type, details = null, collectionRef, isInicial = false, alertElementId = 'alert-gestao') {
     if (!id || !type || !domReady) return; 
+
+    // NOVO: Checagem de permissão antes de abrir o modal
+    const role = getUserRole();
+    if (role !== 'admin') {
+         showAlert(alertElementId, 'Permissão negada. Apenas Administradores podem excluir dados.', 'error');
+         return;
+    }
 
     let detailsText = details ? `${details} (ID: ${id.substring(0,6)}...)` : `ID: ${id.substring(0,6)}...`;
     
@@ -339,6 +368,108 @@ async function openConfirmDeleteModal(id, type, details = null, collectionRef, i
     DOM_ELEMENTS.confirmDeleteModal.style.display = 'flex'; 
 }
 
+/**
+ * Aplica as permissões de UI com base no role do usuário.
+ */
+function renderPermissionsUI() {
+    if (!domReady) return;
+    const role = getUserRole();
+    console.log(`Aplicando permissões para o role: ${role}`);
+
+    // Mapeamento de permissões:
+    const isAnon = role === 'anon';
+    const isEditor = role === 'editor';
+    const isAdmin = role === 'admin';
+    const isAuthenticated = isEditor || isAdmin;
+
+    // 1. Visibilidade do Conteúdo Principal (se não for ambiente Canvas, o modal de auth lida)
+    // Este wrapper garante que nada apareça enquanto não houver usuário (Anonimo/Email)
+    if (DOM_ELEMENTS.appContentWrapper) {
+         DOM_ELEMENTS.appContentWrapper.classList.toggle('hidden', role === 'unauthenticated');
+    }
+    
+    // 2. Visibilidade das Abas de Navegação
+    DOM_ELEMENTS.navButtons.forEach(btn => {
+        const tab = btn.dataset.tab;
+        let isVisible = true;
+        if (isAnon && tab !== 'dashboard') {
+            isVisible = false; // Anonimo só vê dashboard
+        }
+        btn.classList.toggle('hidden', !isVisible);
+    });
+
+    // 3. Permissões de Exclusão (Admin Only) - Botões dinâmicos
+    // O botão de confirmação do modal de exclusão é ocultado para não-admins
+    if (DOM_ELEMENTS.btnConfirmDelete) {
+        DOM_ELEMENTS.btnConfirmDelete.classList.toggle('hidden', !isAdmin);
+    }
+    // A remoção de botões ".btn-remove" nas tabelas é feita pela renderização dos módulos (materiais/agua/gas).
+
+    // 4. Permissões de Lançamento (Anonimo/Editor vs Admin)
+    
+    // 4.1. Lançamentos de Água/Gás e Estoque: Anonimo não pode.
+    const formsToDisableForAnon = [
+         DOM_ELEMENTS.formAgua, DOM_ELEMENTS.formGas, 
+         DOM_ELEMENTS.formEntradaAgua, DOM_ELEMENTS.formEntradaGas,
+         DOM_ELEMENTS.formInicialAgua, DOM_ELEMENTS.formInicialGas,
+         DOM_ELEMENTS.formInicialAguaContainer, DOM_ELEMENTS.formInicialGasContainer // E os containers para feedback visual
+    ];
+
+    formsToDisableForAnon.forEach(form => {
+        if (form) {
+            form.classList.toggle('disabled-by-role', isAnon);
+            // Desabilita todos os inputs/buttons dentro
+            form.querySelectorAll('input, select, button[type="submit"]').forEach(el => el.disabled = isAnon);
+        }
+    });
+    
+    // 4.2. Registrar Nova Requisição (Materiais) - ADMIN ONLY
+    if (DOM_ELEMENTS.subtabRegistrar) {
+        DOM_ELEMENTS.subtabRegistrar.classList.toggle('disabled-by-role', !isAdmin);
+        // Desabilita todos os inputs/buttons dentro do formulário
+        DOM_ELEMENTS.subtabRegistrar.querySelectorAll('input, select, textarea, button[type="submit"]').forEach(el => el.disabled = !isAdmin);
+    }
+    
+    // Oculta o botão 'Registrar Requisição' da sub-nav se não for Admin
+    if (DOM_ELEMENTS.btnSubtabRegistrar) {
+        DOM_ELEMENTS.btnSubtabRegistrar.classList.toggle('hidden', !isAdmin);
+    }
+
+
+    // 5. Permissões de Gestão (Unidades) - Anonimo não pode
+    const gestaoElementsToDisable = [
+        DOM_ELEMENTS.textareaBulkUnidades, DOM_ELEMENTS.btnBulkAddUnidades
+    ];
+    
+    gestaoElementsToDisable.forEach(el => {
+        if (el) {
+            el.classList.toggle('disabled-by-role', isAnon);
+            if (el.tagName === 'BUTTON') el.disabled = isAnon;
+            if (el.tagName === 'TEXTAREA') el.disabled = isAnon;
+        }
+    });
+
+    // 6. Exibir status do usuário
+    const user = auth.currentUser;
+    const email = user?.email || (user?.isAnonymous ? 'Anônimo' : 'N/A');
+    const roleText = {
+        'anon': 'Anônimo (Visualização)',
+        'editor': 'Editor (Movimentação)',
+        'admin': 'Administrador (Completo)',
+        'unauthenticated': 'Desconectado'
+    }[role];
+    
+    if (DOM_ELEMENTS.userEmailDisplayEl) DOM_ELEMENTS.userEmailDisplayEl.textContent = email;
+    if (DOM_ELEMENTS.userRoleDisplayEl) DOM_ELEMENTS.userRoleDisplayEl.textContent = roleText;
+    if (DOM_ELEMENTS.btnLogout) DOM_ELEMENTS.btnLogout.classList.toggle('hidden', role === 'unauthenticated');
+    
+    // Se estiver em uma aba que não tem permissão, força o Dashboard
+    if (isAnon && visaoAtiva !== 'dashboard') {
+        switchTab('dashboard');
+        showAlert(`alert-dashboard`, 'Acesso negado. O usuário Anônimo pode apenas visualizar o Dashboard.', 'error', 10000);
+    }
+}
+
 
 export {
     DOM_ELEMENTS,
@@ -349,5 +480,6 @@ export {
     filterTable,
     updateLastUpdateTime,
     handleSaldoFilterUI,
-    openConfirmDeleteModal
+    openConfirmDeleteModal,
+    renderPermissionsUI 
 };
