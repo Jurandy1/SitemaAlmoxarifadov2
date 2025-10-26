@@ -1,8 +1,8 @@
 // js/modules/gas-control.js
 import { Timestamp, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-import { getUnidades, getGasMovimentacoes, isEstoqueInicialDefinido, getCurrentStatusFilter, setCurrentStatusFilter, getEstoqueGas } from "../utils/cache.js";
+import { getUnidades, getGasMovimentacoes, isEstoqueInicialDefinido, getCurrentStatusFilter, setCurrentStatusFilter, getEstoqueGas, getUserRole } from "../utils/cache.js"; 
 // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
-import { DOM_ELEMENTS, showAlert, switchSubTabView, handleSaldoFilterUI, filterTable } from "../utils/dom-helpers.js";
+import { DOM_ELEMENTS, showAlert, switchSubTabView, handleSaldoFilterUI, filterTable, renderPermissionsUI } from "../utils/dom-helpers.js";
 import { getTodayDateString, dateToTimestamp, capitalizeString, formatTimestampComTempo } from "../utils/formatters.js";
 import { isReady } from "./auth.js";
 import { COLLECTIONS } from "../services/firestore-service.js";
@@ -43,6 +43,9 @@ export function renderEstoqueGas() {
     if (DOM_ELEMENTS.estoqueGasEntradasEl) DOM_ELEMENTS.estoqueGasEntradasEl.textContent = `+${totalEntradas}`;
     if (DOM_ELEMENTS.estoqueGasSaidasEl) DOM_ELEMENTS.estoqueGasSaidasEl.textContent = `-${totalSaidas}`;
     if (DOM_ELEMENTS.estoqueGasAtualEl) DOM_ELEMENTS.estoqueGasAtualEl.textContent = estoqueAtual;
+
+    // Garante que a permissão é re-aplicada no contêiner do formulário inicial se ele for exposto
+    renderPermissionsUI(); 
 }
 
 /**
@@ -50,6 +53,11 @@ export function renderEstoqueGas() {
  */
 export async function handleInicialEstoqueSubmit(e) {
     e.preventDefault();
+    
+    const role = getUserRole(); // Obter o role
+    if (role === 'anon') { 
+        showAlert('alert-inicial-gas', "Permissão negada. Usuário Anônimo não pode alterar o estoque.", 'error'); return; 
+    }
     
     // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     const inputQtd = DOM_ELEMENTS.inputInicialQtdGas.value;
@@ -96,6 +104,11 @@ export async function handleEntradaEstoqueSubmit(e) {
     e.preventDefault();
     if (!isReady()) { showAlert('alert-gas', 'Erro: Não autenticado.', 'error'); return; } 
     
+    const role = getUserRole(); // Obter o role
+    if (role === 'anon') { 
+        showAlert('alert-gas', "Permissão negada. Usuário Anônimo não pode lançar entradas.", 'error'); return; 
+    }
+
     // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     const inputQtd = DOM_ELEMENTS.inputQtdEntradaGas.value;
     const inputData = DOM_ELEMENTS.inputDataEntradaGas.value;
@@ -218,6 +231,11 @@ export async function handleGasSubmit(e) {
     e.preventDefault();
     if (!isReady()) { showAlert('alert-gas', 'Erro: Não autenticado.', 'error'); return; }
     
+    const role = getUserRole(); // Obter o role
+    if (role === 'anon') { 
+        showAlert('alert-gas', "Permissão negada. Usuário Anônimo não pode lançar movimentações.", 'error'); return; 
+    }
+
     // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     const selectValue = DOM_ELEMENTS.selectUnidadeGas.value; 
     if (!selectValue) { showAlert('alert-gas', 'Selecione uma unidade.', 'warning'); return; }
@@ -279,9 +297,9 @@ export function renderGasStatus(newFilter = null) {
         statusMap.set(u.id, { id: u.id, nome: u.nome, tipo: tipoNormalizado, entregues: 0, recebidos: 0, ultimosLancamentos: [] }); 
     });
 
-    const movsOrdenadas = [...getGasMovimentacoes()].sort((a, b) => (b.data?.toMillis() || 0) - (a.data?.toMillis() || 0));
-    
-    movsOrdenadas.forEach(m => {
+     const movsOrdenadas = [...getGasMovimentacoes()].sort((a, b) => (b.data?.toMillis() || 0) - (a.data?.toMillis() || 0));
+     
+     movsOrdenadas.forEach(m => {
          if (statusMap.has(m.unidadeId)) {
              const unidadeStatus = statusMap.get(m.unidadeId);
              if (m.tipo === 'entrega') unidadeStatus.entregues += m.quantidade;
@@ -325,7 +343,6 @@ export function renderGasStatus(newFilter = null) {
         let lancamentoDetalhes = 'N/A';
         
         if(ultimoLancamento) {
-            const acao = ultimoLancamento.tipo === 'entrega' ? 'Entrega' : 'Retirada';
             const dataMovimentacao = formatTimestampComTempo(ultimoLancamento.data);
             const respAlmox = ultimoLancamento.respAlmox;
             const respUnidade = ultimoLancamento.respUnidade;
@@ -360,6 +377,8 @@ export function renderGasMovimentacoesHistory() {
     if (!DOM_ELEMENTS.tableHistoricoGasAll) return;
     
     const movimentacoes = getGasMovimentacoes();
+    const role = getUserRole();
+    const isAdmin = role === 'admin';
 
     const historicoOrdenado = [...movimentacoes]
         .filter(m => m.tipo === 'entrega' || m.tipo === 'retorno')
@@ -385,6 +404,11 @@ export function renderGasMovimentacoesHistory() {
 
         const details = `Movimentação ${m.unidadeNome} - ${tipoText} (${m.quantidade})`;
 
+        // Renderiza o botão de remoção apenas para Admin
+        const actionHtml = isAdmin 
+            ? `<button class="btn-danger btn-remove" data-id="${m.id}" data-type="gas" data-details="${details}" title="Remover este lançamento"><i data-lucide="trash-2"></i></button>`
+            : `<span class="text-gray-400" title="Apenas Admin pode excluir"><i data-lucide="slash"></i></span>`;
+
         html += `<tr title="Lançado por: ${respAlmox}">
             <td>${m.unidadeNome || 'N/A'}</td>
             <td><span class="badge ${tipoClass}">${tipoText}</span></td>
@@ -393,9 +417,7 @@ export function renderGasMovimentacoesHistory() {
             <td>${respAlmox}</td>
             <td>${respUnidade}</td>
             <td class="text-center whitespace-nowrap text-xs">${dataLancamento}</td>
-            <td class="text-center">
-                <button class="btn-danger btn-remove" data-id="${m.id}" data-type="gas" data-details="${details}" title="Remover este lançamento"><i data-lucide="trash-2"></i></button>
-            </td>
+            <td class="text-center">${actionHtml}</td>
         </tr>`;
     });
 
@@ -484,9 +506,12 @@ export function onGasTabChange() {
     // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (DOM_ELEMENTS.inputDataGas) DOM_ELEMENTS.inputDataGas.value = getTodayDateString();
     if (DOM_ELEMENTS.inputDataEntradaGas) DOM_ELEMENTS.inputDataEntradaGas.value = getTodayDateString();
-    // CORRIGIDO: Usar verificação `if` em vez de encadeamento opcional na atribuição (Causa do erro 463:5)
+    
     const filtroStatus = document.getElementById('filtro-status-gas');
     if (filtroStatus) filtroStatus.value = '';
     const filtroHistorico = document.getElementById('filtro-historico-gas');
     if (filtroHistorico) filtroHistorico.value = '';
+
+    // Aplica as permissões após a renderização
+    renderPermissionsUI();
 }
