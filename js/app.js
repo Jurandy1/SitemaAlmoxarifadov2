@@ -9,6 +9,7 @@ import { renderUIModules, renderUnidadeControls, initAllListeners, DOM_ELEMENTS,
 import { executeDelete } from "./utils/db-utils.js";
 import { handleFinalMovimentacaoSubmit } from "./modules/movimentacao-modal-handler.js";
 import { getTodayDateString } from "./utils/formatters.js";
+import { initPrevisaoListeners } from "./modules/previsao.js"; // <-- ADICIONADO
 
 // Variável de estado da UI local (para manter o dashboard na tela)
 let visaoAtiva = 'dashboard'; 
@@ -39,9 +40,12 @@ function setupApp() {
     // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (DOM_ELEMENTS.btnSalvarMovimentacaoFinal) DOM_ELEMENTS.btnSalvarMovimentacaoFinal.addEventListener('click', handleFinalMovimentacaoSubmit);
 
+    // 6. ADICIONADO: Inicializa os listeners da Previsão (globais)
+    initPrevisaoListeners();
+
     console.log("Setup inicial do DOM concluído.");
     
-    // 6. Configurar o estado inicial do dashboard (inicia o refresh ao entrar na aba)
+    // 7. Configurar o estado inicial do dashboard (inicia o refresh ao entrar na aba)
     const dashboardBtn = document.querySelector('.nav-btn[data-tab="dashboard"]');
     if (dashboardBtn) dashboardBtn.click();
 }
