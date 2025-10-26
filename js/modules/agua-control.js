@@ -1,7 +1,6 @@
 // js/modules/agua-control.js
 import { Timestamp, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { getUnidades, getAguaMovimentacoes, isEstoqueInicialDefinido, getCurrentStatusFilter, setCurrentStatusFilter, getEstoqueAgua } from "../utils/cache.js";
-// CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
 import { DOM_ELEMENTS, showAlert, switchSubTabView, handleSaldoFilterUI, filterTable } from "../utils/dom-helpers.js";
 import { getTodayDateString, dateToTimestamp, capitalizeString, formatTimestampComTempo } from "../utils/formatters.js";
 import { isReady } from "./auth.js";
@@ -120,7 +119,7 @@ async function handleEntradaEstoqueAguaSubmit(e) {
 }
 
 /**
- * Atualiza o alerta de saldo da unidade (caso devendo ou positivo).
+ * Atualiza o alerta de saldo da unidade.
  */
 function checkUnidadeSaldoAlertAgua() {
     const selectUnidade = DOM_ELEMENTS.selectUnidadeAgua;
@@ -133,7 +132,7 @@ function checkUnidadeSaldoAlertAgua() {
         return;
     }
 
-    const saldo = getCurrentStatusFilter('agua'); // exemplo simples
+    const saldo = getCurrentStatusFilter('agua');
     alertEl.textContent = saldo === 'devendo'
         ? "⚠️ Unidade com saldo negativo."
         : saldo === 'credito'
@@ -146,7 +145,6 @@ function checkUnidadeSaldoAlertAgua() {
  * Filtra o status das movimentações de água.
  */
 function renderAguaStatus() {
-    // Aqui ficaria sua lógica de renderização (mantida do seu projeto atual)
     console.log("Renderizando status de Água...");
 }
 
@@ -166,7 +164,7 @@ export function initAguaListeners() {
         DOM_ELEMENTS.formAgua.addEventListener('submit', handleAguaSubmit);
     }
     if (DOM_ELEMENTS.selectTipoAgua) {
-        DOM_ELEMENTS.selectTipoAgua.addEventListener('change', () => checkUnidadeSaldoAlertAgua());
+        DOM_ELEMENTS.selectTipoAgua.addEventListener('change', checkUnidadeSaldoAlertAgua);
     }
     if (DOM_ELEMENTS.selectUnidadeAgua) {
         DOM_ELEMENTS.selectUnidadeAgua.addEventListener('change', checkUnidadeSaldoAlertAgua);
