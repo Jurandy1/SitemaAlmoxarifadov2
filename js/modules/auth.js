@@ -5,7 +5,7 @@ import {
     onAuthStateChanged, 
     signOut, 
     signInWithEmailAndPassword, 
-    createUserWithEmailAndPassword 
+    // createUserWithEmailAndPassword // Não usado, removido para simplificar
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 import { 
     onSnapshot, 
@@ -67,7 +67,7 @@ async function getUserRoleFromFirestore(uid, isAnonymous) {
 /**
  * Faz o login com Email e Senha.
  */
-export async function signInEmailPassword(email, password) {
+async function signInEmailPassword(email, password) {
      if (!auth) return;
      try {
          const userCredential = await signInWithEmailAndPassword(auth, email, password);
@@ -92,7 +92,7 @@ export async function signInEmailPassword(email, password) {
 /**
  * Tenta o login anônimo.
  */
-export async function signInAnonUser() {
+async function signInAnonUser() {
     if (!auth) return;
     try {
         await signInAnonymously(auth);
@@ -101,13 +101,14 @@ export async function signInAnonUser() {
     } catch (error) {
          console.error("Erro no login anônimo:", error);
          showAlert('alert-login', `Erro ao tentar acesso anônimo: ${error.message}`, 'error');
+         throw error; // Propagar erro para o app.js desabilitar o spinner
     }
 }
 
 /**
  * Desloga o usuário atual.
  */
-export async function signOutUser() {
+async function signOutUser() {
     if (!auth) return;
     try {
         await signOut(auth);
@@ -221,7 +222,10 @@ async function initAuthAndListeners(renderDashboardCallback, renderControlsCallb
             setUserRole(role);
             console.log(`Autenticado com UID: ${userId}, Role: ${role}`);
 
-
+            // Atualiza o display do e-mail e role no cabeçalho
+            const email = user?.email || (user?.isAnonymous ? 'Anônimo' : 'N/A');
+            if (DOM_ELEMENTS.userEmailDisplayEl) DOM_ELEMENTS.userEmailDisplayEl.textContent = email;
+            
             if (DOM_ELEMENTS.connectionStatusEl) DOM_ELEMENTS.connectionStatusEl.innerHTML = `<span class="h-3 w-3 bg-green-500 rounded-full"></span> <span class="text-green-700">Conectado (${role})</span>`;
             
             // 2. Inicia os Listeners e Renderiza a UI (apenas se estiver realmente logado)
@@ -269,4 +273,12 @@ async function initAuthAndListeners(renderDashboardCallback, renderControlsCallb
 }
 
 
-export { initAuthAndListeners, getUserId, isReady, signInEmailPassword, signOutUser, signInAnonUser }; 
+// EXPORTS CORRIGIDOS: Apenas exporta as funções de utilidade e as funções que precisam ser chamadas de fora.
+export { 
+    initAuthAndListeners, 
+    getUserId, 
+    isReady, 
+    signInEmailPassword, 
+    signOutUser, 
+    signInAnonUser 
+};
