@@ -1,31 +1,34 @@
 // js/services/firestore-service.js
 // ============================================================
-// Serviço central do Firestore - Define todas as coleções
+// Serviço de Firestore e Coleções - SEMCAS
 // ============================================================
 
-import { db } from "../firebase-config.js";
 import { collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { db, APP_ID } from "../firebase-config.js";
 
-// ------------------------------------------------------------
-// Definição das coleções principais do sistema SEMCAS
-// ------------------------------------------------------------
-export const COLLECTIONS = {
-    // Controle de Água
-    movimentacoesAgua: collection(db, "movimentacoes_agua"),
-    estoqueInicialAgua: collection(db, "estoque_inicial_agua"),
-    entradaAgua: collection(db, "entrada_agua"),
+// ============================================================
+// DEFINIÇÃO DAS COLEÇÕES PADRÃO
+// ============================================================
 
-    // Controle de Gás
-    movimentacoesGas: collection(db, "movimentacoes_gas"),
-    estoqueInicialGas: collection(db, "estoque_inicial_gas"),
-    entradaGas: collection(db, "entrada_gas"),
+// Caminho base das coleções (cada app isolado pelo APP_ID)
+const basePath = `artifacts/${APP_ID}/public/data`;
+console.log("📁 Caminho base Firestore:", basePath);
 
-    // Controle de Materiais e Unidades
-    materiais: collection(db, "controle_materiais"),
-    unidades: collection(db, "unidades")
+// ============================================================
+// MAPEAMENTO DAS COLEÇÕES DO SISTEMA
+// ============================================================
+
+const COLLECTIONS = {
+  unidades: collection(db, `${basePath}/unidades`),
+  aguaMov: collection(db, `${basePath}/controleAgua`),
+  gasMov: collection(db, `${basePath}/controleGas`),
+  materiais: collection(db, `${basePath}/controleMateriais`),
+  estoqueAgua: collection(db, `${basePath}/estoqueAgua`),
+  estoqueGas: collection(db, `${basePath}/estoqueGas`)
 };
 
-// ------------------------------------------------------------
-// Exportação direta do db (caso precise em outros módulos)
-// ------------------------------------------------------------
-export { db };
+// ============================================================
+// EXPORTS
+// ============================================================
+
+export { db, COLLECTIONS };
