@@ -1,4 +1,3 @@
-import { getUnidades } from "../utils/cache.js";
 import { 
     DOM_ELEMENTS, 
     switchTab, 
