@@ -11,9 +11,6 @@ import { executeFinalMovimentacao } from "./movimentacao-modal-handler.js";
 // LÓGICA DE ESTOQUE (Movido de app.js)
 // =========================================================================
 
-/**
- * Renderiza o resumo do estoque de água.
- */
 function renderEstoqueAgua() {
     const estoque = getEstoqueAgua();
     if (!estoque) return;
@@ -26,9 +23,6 @@ function renderEstoqueAgua() {
     if (DOM_ELEMENTS.estoqueAguaAtualEl) DOM_ELEMENTS.estoqueAguaAtualEl.textContent = atual;
 }
 
-/**
- * Lança o estoque inicial de água.
- */
 async function handleInicialEstoqueAguaSubmit(e) {
     e.preventDefault();
     try {
@@ -55,9 +49,6 @@ async function handleInicialEstoqueAguaSubmit(e) {
     }
 }
 
-/**
- * Submissão do formulário principal (saída de água).
- */
 async function handleAguaSubmit(e) {
     e.preventDefault();
     try {
@@ -88,9 +79,6 @@ async function handleAguaSubmit(e) {
     }
 }
 
-/**
- * Submissão do formulário de entrada de água.
- */
 async function handleEntradaEstoqueAguaSubmit(e) {
     e.preventDefault();
     try {
@@ -118,9 +106,6 @@ async function handleEntradaEstoqueAguaSubmit(e) {
     }
 }
 
-/**
- * Atualiza o alerta de saldo da unidade.
- */
 function checkUnidadeSaldoAlertAgua() {
     const selectUnidade = DOM_ELEMENTS.selectUnidadeAgua;
     const alertEl = DOM_ELEMENTS.unidadeSaldoAlertaAgua;
@@ -141,16 +126,10 @@ function checkUnidadeSaldoAlertAgua() {
     alertEl.style.display = saldo ? 'block' : 'none';
 }
 
-/**
- * Filtra o status das movimentações de água.
- */
 function renderAguaStatus() {
     console.log("Renderizando status de Água...");
 }
 
-/**
- * Renderiza o histórico de movimentações de água.
- */
 function renderAguaMovimentacoesHistory() {
     console.log("Renderizando histórico de Água...");
 }
@@ -159,7 +138,7 @@ function renderAguaMovimentacoesHistory() {
 // INICIALIZAÇÃO DE LISTENERS DO DOM
 // =========================================================================
 
-export function initAguaListeners() {
+function initAguaListeners() {
     if (DOM_ELEMENTS.formAgua) {
         DOM_ELEMENTS.formAgua.addEventListener('submit', handleAguaSubmit);
     }
@@ -188,12 +167,10 @@ export function initAguaListeners() {
         document.getElementById('filtro-historico-agua').addEventListener('input', () => filterTable(document.getElementById('filtro-historico-agua'), 'table-historico-agua-all'));
     }
 
-    // Listener para o filtro de saldo
     document.querySelectorAll('#filtro-saldo-agua-controls button').forEach(btn => btn.addEventListener('click', (e) => {
         handleSaldoFilterUI('agua', e, renderAguaStatus);
     }));
 
-    // Alternar entre formulários de entrada/saída
     document.querySelectorAll('#content-agua .form-tab-btn').forEach(btn => btn.addEventListener('click', () => {
         const formName = btn.dataset.form;
         document.querySelectorAll('#content-agua .form-tab-btn').forEach(b => b.classList.remove('active'));
@@ -207,7 +184,7 @@ export function initAguaListeners() {
 // FUNÇÃO DE ORQUESTRAÇÃO
 // =========================================================================
 
-export function onAguaTabChange() {
+function onAguaTabChange() {
     switchSubTabView('agua', 'movimentacao-agua');
     checkUnidadeSaldoAlertAgua();
     renderEstoqueAgua();
@@ -235,6 +212,6 @@ export {
     handleEntradaEstoqueAguaSubmit,
     handleInicialEstoqueAguaSubmit,
     checkUnidadeSaldoAlertAgua,
-    initAguaListeners,
+    initAguaListeners, // ✅ agora apenas aqui
     onAguaTabChange
 };
