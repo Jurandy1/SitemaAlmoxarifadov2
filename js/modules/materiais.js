@@ -133,7 +133,7 @@ export function renderMateriaisStatus() {
     // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS (Atualiza os resumos)
     if (DOM_ELEMENTS.summaryMateriaisRequisitado) DOM_ELEMENTS.summaryMateriaisRequisitado.textContent = requisitado.length;
     if (DOM_ELEMENTS.summaryMateriaisSeparacao) DOM_ELEMENTS.summaryMateriaisSeparacao.textContent = separacao.length;
-    if (DOM_ELEMENTS.summaryMateriaisRetirada) DOM_ELEMENTOS.summaryMateriaisRetirada.textContent = retirada.length;
+    if (DOM_ELEMENTS.summaryMateriaisRetirada) DOM_ELEMENTS.summaryMateriaisRetirada.textContent = retirada.length;
     
     // Renderiza tabelas individuais
     renderMaterialSubTable(DOM_ELEMENTS.tableParaSeparar, requisitado, 'requisitado');
@@ -148,12 +148,6 @@ export function renderMateriaisStatus() {
 function renderMaterialSubTable(tableBody, data, status) {
     if (!tableBody) return;
     
-    // Define o número de colunas para a mensagem de tabela vazia
-    let colspan = 5; // Padrão para as 3 primeiras subviews
-    if (status === 'entregue') {
-         colspan = 7; // Histórico tem 7 colunas
-    }
-
     // Define a mensagem padrão caso não haja dados
     let msgVazio = 'Nenhum item encontrado para este status.';
     if (status === 'requisitado') msgVazio = 'Nenhuma requisição pendente de separação.';
@@ -162,8 +156,7 @@ function renderMaterialSubTable(tableBody, data, status) {
     else if (status === 'entregue') msgVazio = 'Nenhuma entrega finalizada.';
 
     if (data.length === 0) {
-        // Usa o colspan correto
-        tableBody.innerHTML = `<tr><td colspan="${colspan}" class="text-center py-4 text-slate-500">${msgVazio}</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-slate-500">${msgVazio}</td></tr>`;
         return;
     }
 
@@ -256,9 +249,9 @@ function renderMaterialSubTable(tableBody, data, status) {
         
         // Incluir linha de observação se houver itens/obs
         if (m.itens) {
-            html += `<tr class="obs-row ${status === 'entregue' ? 'opacity-60' : ''}">` +
+            html += `<tr class="obs-row ${status === 'entregue' ? 'opacity-60' : ''} border-b border-slate-200">` +
                 // Ajusta o colspan dinamicamente baseado nas colunas da tabela
-                `<td colspan="${colspan}" class="pt-0 pb-1 px-6 text-xs text-slate-500 whitespace-pre-wrap italic">Obs: ${m.itens}</td>` +
+                `<td colspan="${status === 'entregue' ? '7' : '5'}" class="pt-0 pb-1 px-6 text-xs text-slate-500 whitespace-pre-wrap italic">Obs: ${m.itens}</td>` +
                 `</tr>`;
         }
     });
@@ -591,8 +584,8 @@ export function initMateriaisListeners() {
     }
 
     // Listener para o modal do separador
-    if (DOM_ELEMENTS.btnSalvarSeparacao) {
-        DOM_ELEMENTS.btnSalvarSeparacao.addEventListener('click', handleSalvarSeparador);
+    if (DOM_ELEMENTS.btnSalvarSeparador) {
+        DOM_ELEMENTS.btnSalvarSeparador.addEventListener('click', handleSalvarSeparador);
     }
     // Listener para o modal de finalização de entrega
     if (DOM_ELEMENTS.btnConfirmarFinalizacaoEntrega) {
