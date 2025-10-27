@@ -214,10 +214,11 @@ function renderMaterialSubTable(tableBody, data, status) {
                 `<td class="text-center space-x-2">${acoesHtml}</td>`;
             
         } else if (status === 'retirada') {
-             // FINALIZAÇÃO DE ENTREGA: Admin-Only
-            const finalizarEntregaBtn = isAdmin
+             // FINALIZAÇÃO DE ENTREGA: Agora Admin/Editor
+            const canFinalize = isAdmin || isEditor;
+            const finalizarEntregaBtn = canFinalize
                 ? `<button class="btn-icon btn-entregue text-blue-600 hover:text-blue-800" data-id="${m.id}" title="Finalizar entrega e registrar responsáveis"><i data-lucide="check-circle"></i></button>`
-                : `<span class="btn-icon text-gray-400" title="Apenas Admin pode finalizar a entrega"><i data-lucide="slash"></i></span>`;
+                : `<span class="btn-icon text-gray-400" title="Apenas Admin/Editor pode finalizar a entrega"><i data-lucide="slash"></i></span>`;
             
             acoesHtml = finalizarEntregaBtn;
             
@@ -269,7 +270,7 @@ async function handleMarcarRetirada(e) {
     
     const role = getUserRole();
     // PERMISSÃO: Editor/Admin
-    if (role === 'anon') {
+    if (role === 'anon' || role === 'unauthenticated') {
          showAlert('alert-em-separacao', "Permissão negada. Usuário Anônimo não pode alterar o status do material.", 'error');
          return;
     }
@@ -306,9 +307,9 @@ async function handleMarcarEntregue(e) {
     if (!button) return; 
     
     const role = getUserRole();
-    // PERMISSÃO: Admin-Only (Editor não pode finalizar a entrega/recebimento)
-    if (role !== 'admin') {
-         showAlert('alert-pronto-entrega', "Permissão negada. Apenas Administradores podem finalizar a entrega de material.", 'error');
+    // PERMISSÃO: Admin/Editor (Editor PODE finalizar a entrega/recebimento)
+    if (role === 'anon' || role === 'unauthenticated') { 
+         showAlert('alert-pronto-entrega', "Permissão negada. Apenas Administradores ou Editores podem finalizar a entrega de material.", 'error');
          return;
     }
     
@@ -337,9 +338,9 @@ export async function handleFinalizarEntregaSubmit() {
     if (!isReady()) return;
     
     const role = getUserRole();
-    // PERMISSÃO: Admin-Only (Editor não pode finalizar a entrega/recebimento)
-    if (role !== 'admin') {
-         showAlert('alert-finalizar-entrega', "Permissão negada. Apenas Administradores podem confirmar a finalização da entrega.", 'error');
+    // PERMISSÃO: Admin/Editor (Editor PODE confirmar a finalização da entrega/recebimento)
+    if (role === 'anon' || role === 'unauthenticated') {
+         showAlert('alert-finalizar-entrega', "Permissão negada. Apenas Administradores ou Editores podem confirmar a finalização da entrega.", 'error');
          return;
     }
     
