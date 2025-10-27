@@ -200,7 +200,6 @@ function findDOMElements() {
 
 /**
  * Exibe um alerta na interface.
-// ... (showAlert - existing logic)
  */
 function showAlert(elementId, message, type = 'info', duration = 5000) {
     if (!domReady) return;
@@ -221,7 +220,6 @@ function showAlert(elementId, message, type = 'info', duration = 5000) {
 
 /**
  * Alterna a visualização da aba principal.
-// ... (switchTab - existing logic)
  */
 function switchTab(tabName) {
     if (!domReady) return;
@@ -243,7 +241,6 @@ function switchTab(tabName) {
 
 /**
  * Alterna a visualização da sub-aba (dentro de Água, Gás, Materiais).
-// ... (switchSubTabView - existing logic)
  */
 function switchSubTabView(tabPrefix, subViewName) {
     if (!domReady) return; 
@@ -263,7 +260,6 @@ function switchSubTabView(tabPrefix, subViewName) {
 
 /**
  * Filtra uma tabela HTML.
-// ... (filterTable - existing logic)
  */
 function filterTable(inputEl, tableBodyId) {
     const searchTerm = inputEl.value; // Removido normalizeString para otimização, usando normalizeString dentro do loop
@@ -289,7 +285,6 @@ function filterTable(inputEl, tableBodyId) {
 
 /**
  * Atualiza o horário de última atualização na UI.
-// ... (updateLastUpdateTime - existing logic)
  */
 function updateLastUpdateTime() {
      if (!domReady || !DOM_ELEMENTS.lastUpdateTimeEl) return; 
@@ -301,7 +296,6 @@ function updateLastUpdateTime() {
 
 /**
  * Altera o status visual do filtro de saldo.
-// ... (handleSaldoFilterUI - existing logic)
  */
 function handleSaldoFilterUI(itemType, e, renderCallback) {
     const button = e.target.closest('button.btn-saldo-filter');
@@ -344,7 +338,6 @@ function handleSaldoFilterUI(itemType, e, renderCallback) {
 
 /**
  * Abre o modal para confirmação de exclusão.
-// ... (openConfirmDeleteModal - existing logic)
  */
 async function openConfirmDeleteModal(id, type, details = null, collectionRef, isInicial = false, alertElementId = 'alert-gestao') {
     if (!id || !type || !domReady) return; 
@@ -405,16 +398,13 @@ function renderPermissionsUI() {
     }
     // A remoção de botões ".btn-remove" nas tabelas é feita pela renderização dos módulos (materiais/agua/gas).
 
-    // 4. Permissões de Lançamento (Anonimo/Editor vs Admin)
+    // 4. Permissões de Lançamento (Anonimo não pode)
     
-    // 4.1. Lançamentos de Água/Gás e Estoque: Anonimo não pode.
+    // 4.1. Lançamentos de Água/Gás e Estoque: Anonimo não pode. Estoque é Admin-Only.
     const formsToDisableForAnon = [
-         DOM_ELEMENTS.formAgua, DOM_ELEMENTS.formGas, 
-         DOM_ELEMENTS.formEntradaAgua, DOM_ELEMENTS.formEntradaGas,
-         DOM_ELEMENTS.formInicialAgua, DOM_ELEMENTS.formInicialGas,
-         DOM_ELEMENTS.formInicialAguaContainer, DOM_ELEMENTS.formInicialGasContainer // E os containers para feedback visual
+         DOM_ELEMENTS.formAgua, DOM_ELEMENTS.formGas // Movimentação (Editor/Admin)
     ];
-
+    
     formsToDisableForAnon.forEach(form => {
         if (form) {
             form.classList.toggle('disabled-by-role', isAnon);
@@ -423,11 +413,29 @@ function renderPermissionsUI() {
         }
     });
     
-    // 4.2. Registrar Nova Requisição (Materiais) - ADMIN ONLY
+    // Estoque é Admin-Only
+    const estoqueElementsToDisable = [
+        DOM_ELEMENTS.formEntradaAgua, DOM_ELEMENTS.formEntradaGas,
+        DOM_ELEMENTS.formInicialAgua, DOM_ELEMENTS.formInicialGas,
+        DOM_ELEMENTS.formInicialAguaContainer, DOM_ELEMENTS.formInicialGasContainer
+    ];
+
+    estoqueElementsToDisable.forEach(form => {
+        if (form) {
+             const shouldDisable = !isAdmin;
+             form.classList.toggle('disabled-by-role', shouldDisable);
+             form.querySelectorAll('input, select, button[type="submit"]').forEach(el => el.disabled = shouldDisable);
+        }
+    });
+
+    
+    // 4.2. Registrar Nova Requisição (Materiais) - ADMIN-ONLY
     if (DOM_ELEMENTS.subtabRegistrar) {
-        DOM_ELEMENTS.subtabRegistrar.classList.toggle('disabled-by-role', !isAdmin);
+        // Agora: Apenas Admin pode registrar (requisição)
+        const canRegister = isAdmin; 
+        DOM_ELEMENTS.subtabRegistrar.classList.toggle('disabled-by-role', !canRegister);
         // Desabilita todos os inputs/buttons dentro do formulário
-        DOM_ELEMENTS.subtabRegistrar.querySelectorAll('input, select, textarea, button[type="submit"]').forEach(el => el.disabled = !isAdmin);
+        DOM_ELEMENTS.subtabRegistrar.querySelectorAll('input, select, textarea, button[type="submit"]').forEach(el => el.disabled = !canRegister);
     }
     
     // Oculta o botão 'Registrar Requisição' da sub-nav se não for Admin
@@ -436,18 +444,29 @@ function renderPermissionsUI() {
     }
 
 
-    // 5. Permissões de Gestão (Unidades) - Anonimo não pode
-    const gestaoElementsToDisable = [
-        DOM_ELEMENTS.textareaBulkUnidades, DOM_ELEMENTS.btnBulkAddUnidades
+    // 5. Permissões de Gestão (Unidades) - ADMIN ONLY
+    // A gestão de unidades (adição, edição, exclusão, toggles) é restrita ao Admin.
+    
+    // Elementos da tabela/filtros de edição/visualização
+    const gestaoElementsToDisableUI = [
+        DOM_ELEMENTS.tableGestaoUnidades // Tabela (para impedir toggles e edições in-line)
     ];
     
-    gestaoElementsToDisable.forEach(el => {
+    gestaoElementsToDisableUI.forEach(el => {
         if (el) {
-            el.classList.toggle('disabled-by-role', isAnon);
-            if (el.tagName === 'BUTTON') el.disabled = isAnon;
-            if (el.tagName === 'TEXTAREA') el.disabled = isAnon;
+            const shouldDisable = !isAdmin;
+            el.classList.toggle('disabled-by-role', shouldDisable);
         }
     });
+    
+    // Container da coluna "Adicionar em Lote" (Esconde para não-Admin)
+    if (DOM_ELEMENTS.textareaBulkUnidades) {
+        const bulkAddContainer = DOM_ELEMENTS.textareaBulkUnidades.closest('.lg\\:col-span-1');
+        if (bulkAddContainer) {
+            bulkAddContainer.classList.toggle('hidden', !isAdmin);
+        }
+    }
+
 
     // 6. Exibir status do usuário
     const user = auth.currentUser;
