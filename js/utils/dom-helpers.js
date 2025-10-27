@@ -391,6 +391,16 @@ function renderPermissionsUI() {
         btn.classList.toggle('hidden', !isVisible);
     });
 
+    // NOVO (Correção do Bug): Reforço de Permissão no Conteúdo Principal (Impede interações em abas restritas)
+    // Isso garante que o painel de conteúdo fique inativo e sem possibilidade de interação, 
+    // mesmo que a aba de navegação seja exibida por um bug (ex: recarregamento na página).
+    DOM_ELEMENTS.contentPanes.forEach(pane => {
+        const tabName = pane.id.replace('content-', '');
+        if (tabName !== 'dashboard') {
+             pane.classList.toggle('disabled-by-role', isAnon);
+        }
+    });
+
     // 3. Permissões de Exclusão (Admin Only) - Botões dinâmicos
     // O botão de confirmação do modal de exclusão é ocultado para não-admins
     if (DOM_ELEMENTS.btnConfirmDelete) {
