@@ -551,9 +551,12 @@ function renderPermissionsUI() {
 
     // Oculta o botão 'Registrar Requisição' da sub-nav se não for Admin
     // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
-    const btnSubtabRegistrar = navContainer.querySelector('.sub-nav-btn[data-subview="lancar-materiais"]'); // Seleciona o botão correto
-    if (btnSubtabRegistrar) {
-        btnSubtabRegistrar.classList.toggle('hidden', !isAdmin);
+    const navContainer = document.getElementById('sub-nav-materiais'); // Define navContainer
+    if (navContainer) {
+        const btnSubtabRegistrar = navContainer.querySelector('.sub-nav-btn[data-subview="lancar-materiais"]'); // Seleciona o botão correto
+        if (btnSubtabRegistrar) {
+            btnSubtabRegistrar.classList.toggle('hidden', !isAdmin);
+        }
     }
 
 
@@ -634,4 +637,3 @@ export {
     openConfirmDeleteModal,
     renderPermissionsUI
 };
-
