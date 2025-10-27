@@ -12,6 +12,27 @@ body {
 }
 
 /* ============================================= */
+/* MELHORIAS DO CABEÇALHO (NOVO)                 */
+/* ============================================= */
+
+/* ===== Faixa superior colorida SEMCAS (Corrigido para 3px) ===== */
+header .faixa-semcas {
+  height: 3px; /* Reduzido para ser mais fino */
+  /* As cores já estão no Tailwind do HTML, mas garantimos aqui a altura */
+}
+
+/* ===== Título institucional (Reforçando as cores Tailwind) ===== */
+header h1 {
+  color: #1e3a8a; /* semcas-dark-blue */
+  letter-spacing: -0.5px;
+}
+
+header p {
+  color: #334155; /* slate-700 (mais escuro que gray-600) */
+}
+
+
+/* ============================================= */
 /* MODAL DE AUTENTICAÇÃO (NOVO)                  */
 /* ============================================= */
 .auth-modal {
