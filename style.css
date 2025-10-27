@@ -728,3 +728,252 @@ button .loading-spinner-small {
 .action-btn:hover { 
   border-color: #d1d5db; /* border-gray-300 */
 }
+
+/* =================================== 
+  MELHORIAS PARA ENTREGA DE MATERIAIS   
+  Aplicar nos 4 submenus (exceto Registrar Requisição)   
+  =================================== */
+
+/* Tabelas dos submenus - Estrutura base mais forte */
+#subview-para-separar .overflow-x-auto table,
+#subview-em-separacao .overflow-x-auto table,
+#subview-pronto-entrega .overflow-x-auto table,
+#subview-historico-entregues .overflow-x-auto table {
+    border-collapse: separate;
+    border-spacing: 0;
+    border: 2px solid #cbd5e1; /* Borda externa mais forte */
+    border-radius: 0.75rem;
+    overflow: hidden;
+    width: 100%; /* Garantir que a tabela ocupe o espaço */
+}
+/* Container das tabelas - Borda e sombra externa */
+#subview-para-separar .overflow-x-auto,
+#subview-em-separacao .overflow-x-auto,
+#subview-pronto-entrega .overflow-x-auto,
+#subview-historico-entregues .overflow-x-auto {
+    border: none; /* Remove a borda do container, pois já está na tabela */
+    border-radius: 0.75rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+/* Cabeçalho da tabela - Mais destaque */
+#subview-para-separar thead,
+#subview-em-separacao thead,
+#subview-pronto-entrega thead,
+#subview-historico-entregues thead {
+    background: linear-gradient(to bottom, #f1f5f9, #e2e8f0); /* Gradiente sutil */
+    border-bottom: 3px solid #94a3b8; /* Borda inferior forte */
+}
+#subview-para-separar thead th,
+#subview-em-separacao thead th,
+#subview-pronto-entrega thead th,
+#subview-historico-entregues thead th {
+    padding: 1rem 1.25rem;
+    font-weight: 700;
+    font-size: 0.813rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #1e293b; /* Texto mais escuro */
+    border-right: 1px solid #cbd5e1;
+}
+#subview-para-separar thead th:last-child,
+#subview-em-separacao thead th:last-child,
+#subview-pronto-entrega thead th:last-child,
+#subview-historico-entregues thead th:last-child {
+    border-right: none;
+}
+
+/* Linhas do corpo da tabela - Separação clara */
+#subview-para-separar tbody tr,
+#subview-em-separacao tbody tr,
+#subview-pronto-entrega tbody tr,
+#subview-historico-entregues tbody tr {
+    border-bottom: 2px solid #e2e8f0; /* Linha de separação mais forte */
+    transition: all 0.2s ease-in-out;
+    background-color: #ffffff;
+}
+
+/* Efeito hover nas linhas */
+#subview-para-separar tbody tr:hover,
+#subview-em-separacao tbody tr:hover,
+#subview-pronto-entrega tbody tr:hover,
+#subview-historico-entregues tbody tr:hover {
+    background-color: #f8fafc;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    transform: scale(1.005);
+}
+
+/* Células do corpo - Padding e bordas verticais */
+#subview-para-separar tbody td,
+#subview-em-separacao tbody td,
+#subview-pronto-entrega tbody td,
+#subview-historico-entregues tbody td {
+    padding: 1rem 1.25rem;
+    font-size: 0.875rem;
+    color: #334155;
+    border-right: 1px solid #e2e8f0; /* Separador vertical sutil */
+    vertical-align: middle;
+}
+#subview-para-separar tbody td:last-child,
+#subview-em-separacao tbody td:last-child,
+#subview-pronto-entrega tbody td:last-child,
+#subview-historico-entregues tbody td:last-child {
+    border-right: none;
+}
+
+/* Alternância de cores (Zebra Stripes) para melhor leitura */
+#subview-para-separar tbody tr:nth-child(even):not(.obs-row),
+#subview-em-separacao tbody tr:nth-child(even):not(.obs-row),
+#subview-pronto-entrega tbody tr:nth-child(even):not(.obs-row),
+#subview-historico-entregues tbody tr:nth-child(even):not(.obs-row) {
+    background-color: #f8fafc;
+}
+
+/* Linhas de observação - Destaque diferenciado */
+#subview-para-separar .obs-row,
+#subview-em-separacao .obs-row,
+#subview-pronto-entrega .obs-row,
+#subview-historico-entregues .obs-row {
+    background-color: #fef3c7 !important; /* Amarelo suave */
+    border-bottom: 2px solid #fbbf24;
+}
+/* Garante que o hover não mude a cor de fundo da obs-row */
+#subview-para-separar .obs-row:hover,
+#subview-em-separacao .obs-row:hover,
+#subview-pronto-entrega .obs-row:hover,
+#subview-historico-entregues .obs-row:hover {
+    background-color: #fef3c7 !important;
+    transform: none;
+    box-shadow: none;
+}
+/* Garante que a linha de observação pegue a cor do fundo da linha anterior no zebra, mas isso é mais complexo. Manter cor fixa por enquanto. */
+/* Alternância de cores para linhas de observação que vêm depois de linhas pares */
+#subview-para-separar tbody tr:nth-child(even) + .obs-row,
+#subview-em-separacao tbody tr:nth-child(even) + .obs-row,
+#subview-pronto-entrega tbody tr:nth-child(even) + .obs-row,
+#subview-historico-entregues tbody tr:nth-child(even) + .obs-row {
+    background-color: #fef3c7 !important; /* Mante a cor de observação */
+}
+
+#subview-para-separar .obs-row td,
+#subview-em-separacao .obs-row td,
+#subview-pronto-entrega .obs-row td,
+#subview-historico-entregues .obs-row td {
+    padding: 0.75rem 1.25rem;
+    font-size: 0.813rem;
+    font-style: italic;
+    color: #78350f;
+    border-right: none;
+    border-bottom: none !important; /* Evita dupla borda */
+}
+/* Linhas vazias da observação devem ter padding-top/bottom */
+#subview-para-separar .obs-row td.pt-0.pb-1,
+#subview-em-separacao .obs-row td.pt-0.pb-1,
+#subview-pronto-entrega .obs-row td.pt-0.pb-1,
+#subview-historico-entregues .obs-row td.pt-0.pb-1 {
+     padding-top: 0 !important;
+     padding-bottom: 0.25rem !important;
+}
+
+
+/* Títulos das seções - Mais destaque */
+#subview-para-separar h3,
+#subview-em-separacao h3,
+#subview-pronto-entrega h3,
+#subview-historico-entregues h3 {
+    font-size: 1.375rem;
+    font-weight: 700;
+    color: #1e293b;
+    border-left: 4px solid #2563eb;
+    padding-left: 1rem;
+    margin-bottom: 1rem;
+}
+
+/* Badges de status - Mais contraste */
+#subview-para-separar .status-indicator,
+#subview-em-separacao .status-indicator,
+#subview-pronto-entrega .status-indicator,
+#subview-historico-entregues .status-indicator {
+    border-width: 2px;
+    font-weight: 700;
+    padding: 0.375rem 0.75rem;
+}
+
+/* Botões de ação - Mais visíveis */
+#subview-para-separar .btn-icon,
+#subview-em-separacao .btn-icon,
+#subview-pronto-entrega .btn-icon,
+#subview-historico-entregues .btn-icon {
+    border: 1.5px solid #cbd5e1;
+    background-color: #f8fafc;
+}
+#subview-para-separar .btn-icon:hover,
+#subview-em-separacao .btn-icon:hover,
+#subview-pronto-entrega .btn-icon:hover,
+#subview-historico-entregues .btn-icon:hover {
+    background-color: #e2e8f0;
+    border-color: #94a3b8;
+    transform: scale(1.1);
+}
+
+/* Alertas - Destaque visual */
+#alert-para-separar,
+#alert-em-separacao,
+#alert-pronto-entrega,
+#alert-historico-entregues {
+    border-width: 2px;
+    border-radius: 0.5rem;
+    font-weight: 500;
+}
+
+/* Espaçamento entre seções (para o layout da view principal, se necessário) */
+#subview-para-separar > div,
+#subview-em-separacao > div,
+#subview-pronto-entrega > div,
+#subview-historico-entregues > div {
+    margin-bottom: 1.5rem;
+}
+
+/* Estado vazio - Mensagem centralizada */
+#subview-para-separar tbody tr td[colspan],
+#subview-em-separacao tbody tr td[colspan],
+#subview-pronto-entrega tbody tr td[colspan],
+#subview-historico-entregues tbody tr td[colspan] {
+    text-align: center;
+    padding: 2.5rem;
+    color: #64748b;
+    font-size: 0.938rem;
+    font-weight: 500;
+    background-color: #f8fafc;
+    border-bottom: none !important;
+}
+/* Remove o hover para linha de mensagem vazia */
+#subview-para-separar tbody tr:hover td[colspan],
+#subview-em-separacao tbody tr:hover td[colspan],
+#subview-pronto-entrega tbody tr:hover td[colspan],
+#subview-historico-entregues tbody tr:hover td[colspan] {
+    background-color: #f8fafc !important;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Responsividade - Mobile */
+@media (max-width: 768px) {
+    #subview-para-separar tbody td,
+    #subview-em-separacao tbody td,
+    #subview-pronto-entrega tbody td,
+    #subview-historico-entregues tbody td {
+        padding: 0.75rem;
+        font-size: 0.813rem;
+    }
+        
+    #subview-para-separar thead th,
+    #subview-em-separacao thead th,
+    #subview-pronto-entrega thead th,
+    #subview-historico-entregues thead th {
+        padding: 0.75rem;
+        font-size: 0.75rem;
+    }
+}
