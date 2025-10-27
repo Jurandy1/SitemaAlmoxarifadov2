@@ -19,7 +19,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-    <!-- CSS Customizado (para classes dinâmicas) -->
+    <!-- CSS Customizado (para classes dinâmicas e refinamentos) -->
     <link rel="stylesheet" href="style.css">
 
     <!-- Configuração do Tailwind -->
@@ -92,26 +92,27 @@
     <!-- Wrapper para todo o conteúdo do aplicativo - É escondido antes da autenticação -->
     <div id="app-content-wrapper" class="hidden h-full flex flex-col">
 
-        <!-- 1) CABEÇALHO (HERO / BRAND BAR) - NOVO VISUAL -->
-        <header class="bg-white border-b border-gray-200 shadow-sm w-full">
+        <!-- 1) CABEÇALHO (HERO / BRAND BAR) - COM FIXAÇÃO E SOMBRA -->
+        <header class="bg-white w-full header-fixed-shadow"> <!-- NOVA CLASSE DE FIXAÇÃO E SOMBRA -->
             
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <!-- Removido h-24 para ajuste automático da altura -->
                 <div class="flex justify-between items-center py-3 sm:py-4"> 
                     <!-- Lado Esquerdo: Logo e Títulos -->
                     <div class="flex items-center gap-4 sm:gap-6">
-                        <!-- Logo (Aumentado para h-20/h-24) -->
                         <div class="flex-shrink-0">
                             <img src="SaoLuis.png" 
                                 alt="Logo SEMCAS São Luís" 
-                                class="h-20 sm:h-24 w-auto" 
+                                class="h-16 sm:h-20 w-auto" 
                                 loading="eager"
                                 onerror="this.src='https://placehold.co/200x80/1e40af/ffffff?text=SEMCAS'; this.onerror=null">
                         </div>
-                        <!-- Títulos (Ajustados para azul escuro institucional) -->
-                        <div class="ml-5">
-                            <h1 class="text-xl sm:text-3xl font-bold text-blue-900 tracking-tight">Controle de Almoxarifado</h1>
-                            <p class="text-xs sm:text-sm text-gray-600 font-medium">SEMCAS – Secretaria Municipal da Criança e Assistência Social</p>
+                        <!-- Títulos (Ajustado o espaço entre eles) -->
+                        <div class="ml-5 space-y-1"> <!-- Aumentar o espaço entre o título e o subtítulo -->
+                             <div class="flex items-center gap-2">
+                                <i data-lucide="package-check" class="text-semcas-dark-blue w-6 h-6 sm:w-8 sm:h-8"></i>
+                                <h1 class="text-xl sm:text-3xl font-bold text-semcas-dark-blue tracking-tight">Controle de Almoxarifado</h1>
+                             </div>
+                            <p class="text-xs sm:text-sm text-gray-500 font-medium">SEMCAS – Secretaria Municipal da Criança e Assistência Social</p>
                         </div>
                     </div>
 
@@ -120,7 +121,7 @@
                          <p id="user-email-display" class="text-gray-700 text-sm font-medium truncate max-w-[150px] sm:max-w-full">Usuário</p>
                          <div class="flex items-center gap-2 mt-1">
                              <span id="user-role-display" class="text-xs font-semibold px-2 py-0.5 rounded-full bg-yellow-300 text-yellow-900">N/A</span>
-                             <button id="btn-logout" class="text-gray-500 hover:text-gray-800 transition" title="Sair do Sistema">
+                             <button id="btn-logout" class="text-gray-500 hover:text-gray-800 transition logout-btn-hover" title="Sair do Sistema"> <!-- Nova classe de hover -->
                                  <i data-lucide="log-out" class="w-5 h-5"></i>
                              </button>
                          </div>
@@ -128,57 +129,50 @@
                 </div>
             </div>
             
-            <!-- Faixa superior colorida SEMCAS (MOVIDA PARA O FINAL DO HEADER) -->
-            <!-- Usando Tailwind para o degradê -->
+            <!-- Faixa superior colorida SEMCAS -->
             <div class="w-full h-1 bg-gradient-to-r from-orange-400 via-green-500 to-blue-600 faixa-semcas"></div>
         </header>
 
         <!-- 2) FAIXA DE SISTEMA E STATUS -->
-        <div class="bg-white border-b border-gray-200 shadow-sm hidden"> <!-- Ocultado temporariamente para simplificar o topo -->
+        <!-- Visível e atualizada para a UX -->
+        <div class="bg-white border-b border-gray-200"> 
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="flex justify-between items-center py-3 flex-wrap gap-3">
-                    <!-- Lado Esquerdo: Nome do Sistema -->
-                    <div class="flex items-center gap-3">
-                        <div class="bg-blue-50 text-blue-600 p-2 rounded-full">
-                            <i data-lucide="package" class="w-5 h-5"></i>
-                        </div>
-                        <div>
-                            <h2 class="font-semibold text-base text-gray-800">Sistema de Almoxarifado</h2>
-                            <p class="text-xs text-gray-500">v.1.4 by Jurandy Santana</p> <!-- Versão atualizada -->
-                        </div>
-                    </div>
-                    <!-- Lado Direito: Status da Conexão -->
-                    <div class="flex items-center gap-4 text-sm">
-                        <div id="connectionStatus" class="flex items-center gap-2 font-medium text-gray-600">
+                <div class="flex justify-between items-center py-2 flex-wrap gap-2">
+                     <!-- Lado Esquerdo: Mensagem de Boas-vindas -->
+                    <div class="flex items-center gap-2">
+                        <div id="connectionStatus" class="flex items-center gap-2 font-medium text-sm text-gray-600">
                             <span class="h-3 w-3 bg-yellow-400 rounded-full animate-pulse"></span>
                             <span>Autenticando...</span>
                         </div>
-                        <p id="last-update-time" class="text-gray-500 hidden md:block"></p>
+                    </div>
+                    <!-- Lado Direito: Status da Conexão e Última Atualização -->
+                    <div class="flex items-center gap-4 text-sm">
+                        <p id="last-update-time" class="text-gray-500 text-xs hidden md:block"></p>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- 3) NAVEGAÇÃO PRINCIPAL POR ABAS -->
-        <nav class="bg-white/95 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-40">
+        <nav class="bg-white/95 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-40 nav-fixed-shadow"> <!-- Adiciona sombra sutil na nav -->
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <!-- main-nav-container é usado pelo CSS para o scroll -->
                 <div class="flex space-x-2 main-nav-container py-2 overflow-x-auto">
-                    <!-- Botões usam a classe .nav-btn para o JS encontrar -->
+                    <!-- Ícones padronizados em cinza/azul e ativo em destaque -->
                     <button class="nav-btn" data-tab="dashboard">
                         <i data-lucide="layout-dashboard"></i>
                         <span>Dashboard</span>
                     </button>
                     <button class="nav-btn" data-tab="agua">
-                        <i data-lucide="droplet" class="text-sky-500"></i>
+                        <i data-lucide="droplet" class="text-gray-500"></i>
                         <span>Controle de Água</span>
                     </button>
                     <button class="nav-btn" data-tab="gas">
-                        <i data-lucide="flame" class="text-orange-500"></i>
+                        <i data-lucide="flame" class="text-gray-500"></i>
                         <span>Controle de Gás</span>
                     </button>
                     <button class="nav-btn" data-tab="materiais">
-                        <i data-lucide="truck" class="text-purple-500"></i>
+                        <i data-lucide="truck" class="text-gray-500"></i>
                         <span>Entrega de Materiais</span>
                     </button>
                     <button class="nav-btn" data-tab="gestao">
@@ -186,12 +180,12 @@
                         <span>Gestão de Unidades</span>
                     </button>
                     <button class="nav-btn" data-tab="relatorio">
-                        <i data-lucide="file-text" class="text-red-500"></i>
+                        <i data-lucide="file-text" class="text-gray-500"></i>
                         <span>Gerar Relatório</span>
                     </button>
                     <!-- BOTÃO ADICIONADO -->
                     <button class="nav-btn" data-tab="usuarios">
-                        <i data-lucide="users" class="text-teal-500"></i>
+                        <i data-lucide="users" class="text-gray-500"></i>
                         <span>Gestão de Usuários</span>
                     </button>
                 </div>
@@ -205,10 +199,10 @@
             <div id="content-dashboard" class="fade-in">
                 <!-- ... (Conteúdo do Dashboard) ... -->
                 <!-- 4) CABEÇALHO DA SEÇÃO E FILTROS LOCAIS -->
-                <div class="flex justify-between items-start mb-6 flex-wrap gap-4">
+                <div class="flex justify-between items-start mb-8 flex-wrap gap-4"> <!-- Aumentado mb-6 para mb-8 -->
                     <div>
-                       <h3 class="text-2xl font-bold text-gray-900">Visão Geral do Almoxarifado</h3>
-                       <p class="text-sm text-gray-500 mt-1">A página atualiza automaticamente a cada 2 minutos.</p>
+                       <h3 class="text-3xl font-bold text-gray-900">Visão Geral do Almoxarifado</h3> <!-- Ajustado para text-3xl -->
+                       <p class="text-base text-gray-500 mt-2">A página atualiza automaticamente a cada 2 minutos.</p> <!-- Ajustado para text-base e mt-2 -->
                     </div>
                     <!-- Filtros Locais (Pills) -->
                     <div class="flex flex-wrap gap-2" id="dashboard-nav-controls">
@@ -217,15 +211,15 @@
                             <span>Visão Geral</span>
                         </button>
                         <button class="dashboard-nav-btn" data-view="agua">
-                            <i data-lucide="droplet" class="text-sky-500"></i>
+                            <i data-lucide="droplet"></i>
                             <span>Água</span>
                         </button>
                         <button class="dashboard-nav-btn" data-view="gas">
-                            <i data-lucide="flame" class="text-orange-500"></i>
+                            <i data-lucide="flame"></i>
                             <span>Gás</span>
                         </button>
                         <button class="dashboard-nav-btn" data-view="materiais">
-                            <i data-lucide="truck" class="text-purple-500"></i>
+                            <i data-lucide="truck"></i>
                             <span>Materiais</span>
                         </button>
                     </div>
@@ -237,70 +231,78 @@
                     <!-- VISÃO GERAL (Spec 5: KPIs) -->
                     <div id="dashboard-view-geral" class="fade-in">
 
-                        <!-- 5) CARTÕES DE KPIS / INDICADORES -->
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                        <!-- 5) CARTÕES DE KPIS / INDICADORES - COM NOVO VISUAL E HOVER -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 lg:gap-8"> <!-- Ajustado gap-6 para lg:gap-8 (Responsividade) -->
 
                             <!-- Card Estoque de Água -->
-                            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col">
-                                <div class="flex items-center gap-3 mb-4">
-                                    <div class="p-2 bg-sky-100 rounded-full">
-                                        <i data-lucide="droplet" class="w-6 h-6 text-sky-600"></i>
+                            <div class="dashboard-card group"> <!-- Classe de estilo unificada e grupo para hover -->
+                                <div class="flex items-start justify-between gap-3 mb-4">
+                                    <h3 class="card-kpi-subtitle">Estoque de Água</h3> <!-- Microtítulo -->
+                                    <div class="p-2 bg-sky-100 rounded-full group-hover:bg-sky-200 transition">
+                                        <i data-lucide="droplet" class="w-6 h-6 text-sky-600"></i> <!-- Ícone no topo -->
                                     </div>
-                                    <h3 class="font-semibold text-gray-800">Estoque de Água</h3>
                                 </div>
-                                <p id="dashboard-estoque-agua" class="text-5xl font-extrabold text-sky-600 mt-auto">0</p>
-                                <p class="text-sm text-gray-500 mt-1">Galões Disponíveis</p>
+                                <!-- Valor em destaque -->
+                                <p id="dashboard-estoque-agua" class="card-kpi-value text-sky-600">0</p>
+                                <p class="card-kpi-label mt-1">Galões Disponíveis</p>
                             </div>
 
                             <!-- Card Estoque de Gás -->
-                            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col">
-                                <div class="flex items-center gap-3 mb-4">
-                                    <div class="p-2 bg-emerald-100 rounded-full">
+                            <div class="dashboard-card group">
+                                <div class="flex items-start justify-between gap-3 mb-4">
+                                    <h3 class="card-kpi-subtitle">Estoque de Gás</h3>
+                                    <div class="p-2 bg-emerald-100 rounded-full group-hover:bg-emerald-200 transition">
                                         <i data-lucide="flame" class="w-6 h-6 text-emerald-600"></i>
                                     </div>
-                                    <h3 class="font-semibold text-gray-800">Estoque de Gás</h3>
                                 </div>
-                                <p id="dashboard-estoque-gas" class="text-5xl font-extrabold text-emerald-600 mt-auto">0</p>
-                                <p class="text-sm text-gray-500 mt-1">Botijões Disponíveis</p>
+                                <p id="dashboard-estoque-gas" class="card-kpi-value text-emerald-600">0</p>
+                                <p class="card-kpi-label mt-1">Botijões Disponíveis</p>
                             </div>
 
-                            <!-- Card Em Separação (Agora soma Requisitado + Em Separação) -->
-                            <div id="dashboard-card-separacao" class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col cursor-pointer transition-all hover:shadow-md hover:border-amber-300">
-                                <div class="flex items-center gap-3 mb-4">
-                                    <div class="p-2 bg-amber-100 rounded-full">
+                            <!-- Card Em Separação (Agora soma Requisitado + Em Separação) - Clicável -->
+                            <div id="dashboard-card-separacao" class="dashboard-card group clickable-card"> <!-- Classe de estilo unificada e clicável -->
+                                <div class="flex items-start justify-between gap-3 mb-4">
+                                    <h3 class="card-kpi-subtitle">Em Preparação</h3>
+                                    <div class="p-2 bg-amber-100 rounded-full group-hover:bg-amber-200 transition">
                                         <i data-lucide="archive" class="w-6 h-6 text-amber-600"></i>
                                     </div>
-                                    <h3 class="font-semibold text-gray-800">Em Preparação</h3>
                                 </div>
-                                <p id="dashboard-materiais-separacao-count" class="text-5xl font-extrabold text-amber-600 mt-auto">0</p>
-                                <p class="text-sm text-gray-500 mt-1">Requisições a serem separadas</p>
+                                <p id="dashboard-materiais-separacao-count" class="card-kpi-value text-amber-600">0</p>
+                                <p class="card-kpi-label mt-1">Requisições a serem separadas</p>
                             </div>
 
-                            <!-- Card Disponível p/ Retirada -->
-                            <div id="dashboard-card-retirada" class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col cursor-pointer transition-all hover:shadow-md hover:border-green-300">
-                                <div class="flex items-center gap-3 mb-4">
-                                    <div class="p-2 bg-green-100 rounded-full">
+                            <!-- Card Disponível p/ Retirada - Clicável -->
+                            <div id="dashboard-card-retirada" class="dashboard-card group clickable-card">
+                                <div class="flex items-start justify-between gap-3 mb-4">
+                                    <h3 class="card-kpi-subtitle">Disponível p/ Retirada</h3>
+                                    <div class="p-2 bg-green-100 rounded-full group-hover:bg-green-200 transition">
                                         <i data-lucide="check-square" class="w-6 h-6 text-green-600"></i>
                                     </div>
-                                    <h3 class="font-semibold text-gray-800">Disponível p/ Retirada</h3>
                                 </div>
-                                <p id="dashboard-materiais-retirada-count" class="text-5xl font-extrabold text-green-600 mt-auto">0</p>
-                                <p class="text-sm text-gray-500 mt-1">Registros prontos</p>
+                                <p id="dashboard-materiais-retirada-count" class="card-kpi-value text-green-600">0</p>
+                                <p class="card-kpi-label mt-1">Registros prontos</p>
                             </div>
                         </div>
 
                         <!-- 6) SEÇÃO "MATERIAIS DO ALMOXARIFADO" -->
                         <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-                            <div class="flex justify-between items-center mb-4 flex-wrap gap-3">
+                            <div class="flex justify-between items-center mb-6 flex-wrap gap-3"> <!-- Aumentado mb-4 para mb-6 -->
                                 <h3 id="dashboard-materiais-title" class="text-xl font-semibold text-gray-900">Materiais do Almoxarifado</h3>
                                 <button id="btn-clear-dashboard-filter" class="hidden text-sm font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1">
                                     <i data-lucide="x" class="w-4 h-4"></i>
                                     Limpar Filtro
                                 </button>
                             </div>
+                            
+                            <!-- Legenda de Status (NOVO) -->
+                            <div class="flex flex-wrap gap-4 text-xs font-medium text-gray-600 mb-6">
+                                <span class="flex items-center gap-1"><span class="w-3 h-3 bg-indigo-500 rounded-full"></span> Requisitado</span>
+                                <span class="flex items-center gap-1"><span class="w-3 h-3 bg-yellow-500 rounded-full"></span> Em Separação</span>
+                                <span class="flex items-center gap-1"><span class="w-3 h-3 bg-green-500 rounded-full"></span> Pronto</span>
+                            </div>
 
                             <!-- Container para o grid dinâmico de materiais -->
-                            <div id="dashboard-materiais-prontos" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
+                            <div id="dashboard-materiais-prontos" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 lg:gap-8">
 
                                 <!-- Coluna CT -->
                                 <div class="materiais-prontos-col">
@@ -351,20 +353,20 @@
                     <!-- VISÃO ÁGUA -->
                     <div id="dashboard-view-agua" class="hidden fade-in">
                         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 text-center">
-                                <h3 class="font-semibold text-gray-800 mb-2">Total Pendente (Saldo)</h3>
-                                <p id="summary-agua-pendente" class="text-5xl font-extrabold text-red-600">0</p>
-                                <p class="text-sm text-gray-500 mt-1">Galões com as unidades</p>
+                            <div class="dashboard-card">
+                                <h3 class="card-kpi-subtitle mb-2">Total Pendente (Saldo)</h3>
+                                <p id="summary-agua-pendente" class="card-kpi-value text-red-600">0</p>
+                                <p class="card-kpi-label mt-1">Galões com as unidades</p>
                             </div>
-                            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 text-center">
-                                <h3 class="font-semibold text-gray-800 mb-2">Entregues (Últimos 30 dias)</h3>
-                                <p id="summary-agua-entregue" class="text-5xl font-extrabold text-blue-600">0</p>
-                                <p class="text-sm text-gray-500 mt-1">Galões cheios</p>
+                            <div class="dashboard-card">
+                                <h3 class="card-kpi-subtitle mb-2">Entregues (Últimos 30 dias)</h3>
+                                <p id="summary-agua-entregue" class="card-kpi-value text-blue-600">0</p>
+                                <p class="card-kpi-label mt-1">Galões cheios</p>
                             </div>
-                             <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 text-center">
-                                <h3 class="font-semibold text-gray-800 mb-2">Recebidos (Últimos 30 dias)</h3>
-                                <p id="summary-agua-recebido" class="text-5xl font-extrabold text-green-600">0</p>
-                                <p class="text-sm text-gray-500 mt-1">Galões vazios</p>
+                             <div class="dashboard-card">
+                                <h3 class="card-kpi-subtitle mb-2">Recebidos (Últimos 30 dias)</h3>
+                                <p id="summary-agua-recebido" class="card-kpi-value text-green-600">0</p>
+                                <p class="card-kpi-label mt-1">Galões vazios</p>
                             </div>
                         </div>
                         <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 mt-6">
@@ -378,20 +380,20 @@
                     <!-- VISÃO GÁS -->
                     <div id="dashboard-view-gas" class="hidden fade-in">
                          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 text-center">
-                                <h3 class="font-semibold text-gray-800 mb-2">Total Pendente (Saldo)</h3>
-                                <p id="summary-gas-pendente" class="text-5xl font-extrabold text-red-600">0</p>
-                                <p class="text-sm text-gray-500 mt-1">Botijões com as unidades</p>
+                            <div class="dashboard-card">
+                                <h3 class="card-kpi-subtitle mb-2">Total Pendente (Saldo)</h3>
+                                <p id="summary-gas-pendente" class="card-kpi-value text-red-600">0</p>
+                                <p class="card-kpi-label mt-1">Botijões com as unidades</p>
                             </div>
-                            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 text-center">
-                                <h3 class="font-semibold text-gray-800 mb-2">Entregues (Últimos 30 dias)</h3>
-                                <p id="summary-gas-entregue" class="text-5xl font-extrabold text-orange-600">0</p>
-                                <p class="text-sm text-gray-500 mt-1">Botijões cheios</p>
+                            <div class="dashboard-card">
+                                <h3 class="card-kpi-subtitle mb-2">Entregues (Últimos 30 dias)</h3>
+                                <p id="summary-gas-entregue" class="card-kpi-value text-orange-600">0</p>
+                                <p class="card-kpi-label mt-1">Botijões cheios</p>
                             </div>
-                             <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 text-center">
-                                <h3 class="font-semibold text-gray-800 mb-2">Recebidos (Últimos 30 dias)</h3>
-                                <p id="summary-gas-recebido" class="text-5xl font-extrabold text-green-600">0</p>
-                                <p class="text-sm text-gray-500 mt-1">Botijões vazios</p>
+                             <div class="dashboard-card">
+                                <h3 class="card-kpi-subtitle mb-2">Recebidos (Últimos 30 dias)</h3>
+                                <p id="summary-gas-recebido" class="card-kpi-value text-green-600">0</p>
+                                <p class="card-kpi-label mt-1">Botijões vazios</p>
                             </div>
                         </div>
                         <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 mt-6">
@@ -1480,9 +1482,9 @@
 
         </main>
 
-        <!-- Rodapé (opcional) -->
-        <footer class="text-center py-4 text-xs text-gray-400">
-            &copy; 2024 SEMCAS - Secretaria Municipal da Criança e Assistência Social. Todos os direitos reservados.
+        <!-- Rodapé institucional -->
+        <footer class="bg-white border-t border-gray-200 py-4 text-center text-sm text-gray-500">
+            © 2025 SEMCAS – Secretaria Municipal da Criança e Assistência Social. Todos os direitos reservados.
         </footer>
 
     </div> <!-- Fim do #app-content-wrapper -->
