@@ -94,20 +94,17 @@
 
         <!-- 1) CABEÇALHO (HERO / BRAND BAR) - NOVO VISUAL -->
         <header class="bg-white border-b border-gray-200 shadow-sm w-full">
-            <!-- Faixa superior colorida SEMCAS -->
-            <!-- Usando Tailwind para o degradê conforme instrução opcional (para garantir compatibilidade) -->
-            <div class="w-full h-1 bg-gradient-to-r from-orange-400 via-green-500 to-blue-600 faixa-semcas"></div>
-
+            
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <!-- Removido h-24 para ajuste automático da altura -->
                 <div class="flex justify-between items-center py-3 sm:py-4"> 
                     <!-- Lado Esquerdo: Logo e Títulos -->
                     <div class="flex items-center gap-4 sm:gap-6">
-                        <!-- Logo -->
+                        <!-- Logo (Aumentado para h-20/h-24) -->
                         <div class="flex-shrink-0">
                             <img src="SaoLuis.png" 
                                 alt="Logo SEMCAS São Luís" 
-                                class="h-16 sm:h-20 w-auto" 
+                                class="h-20 sm:h-24 w-auto" 
                                 loading="eager"
                                 onerror="this.src='https://placehold.co/200x80/1e40af/ffffff?text=SEMCAS'; this.onerror=null">
                         </div>
@@ -130,6 +127,10 @@
                     </div>
                 </div>
             </div>
+            
+            <!-- Faixa superior colorida SEMCAS (MOVIDA PARA O FINAL DO HEADER) -->
+            <!-- Usando Tailwind para o degradê -->
+            <div class="w-full h-1 bg-gradient-to-r from-orange-400 via-green-500 to-blue-600 faixa-semcas"></div>
         </header>
 
         <!-- 2) FAIXA DE SISTEMA E STATUS -->
@@ -1458,23 +1459,23 @@
                         <input type="text" id="filtro-usuarios" class="form-input" placeholder="Digite o e-mail do usuário...">
                     </div>
 
-                    <div class="overflow-x-auto border border-gray-200 rounded-lg">
-                        <table class="table w-full text-sm">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th>E-mail</th>
-                                    <th>UID</th>
-                                    <th>Permissão</th>
-                                    <th class="text-center">Ação</th>
-                                </tr>
-                            </thead >
-                            <tbody id="table-usuarios" class="divide-y divide-gray-100">
-                                <tr><td colspan="4" class="text-center py-10"><div class="loading-spinner-small mx-auto"></div></td></tr>
-                            </tbody>
-                        </table>
+                        <div class="overflow-x-auto border border-gray-200 rounded-lg">
+                            <table class="table w-full text-sm">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th>E-mail</th>
+                                        <th>UID</th>
+                                        <th>Permissão</th>
+                                        <th class="text-center">Ação</th>
+                                    </tr>
+                                </thead >
+                                <tbody id="table-usuarios" class="divide-y divide-gray-100">
+                                    <tr><td colspan="4" class="text-center py-10"><div class="loading-spinner-small mx-auto"></div></td></tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
-            </div>
 
 
         </main>
