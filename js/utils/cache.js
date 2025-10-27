@@ -142,7 +142,7 @@ export {
     getUserRole, setUserRole,
 
     // Previsão (CORRIGIDO: Exportando as variáveis em si para o previsao.js)
-    getModoPrevisao, setModoPrevisao,
+    modoPrevisao, getModoPrevisao, setModoPrevisao, // Exportando a variável e os acessores
     listaExclusoes, getListaExclusoes, setListaExclusoes, // Exportando a variável e os acessores
     graficoPrevisao, getGraficoPrevisao, setGraficoPrevisao, // Exportando a variável e os acessores
 
