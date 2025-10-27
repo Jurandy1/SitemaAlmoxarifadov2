@@ -12,48 +12,41 @@ body {
 }
 
 /* ============================================= */
-/* MELHORIAS DO CABEÇALHO (NOVO)                 */
+/* 1) MELHORIAS DO CABEÇALHO (Spec 1)            */
 /* ============================================= */
 
-/* ===== Faixa superior colorida SEMCAS (Corrigido para 3px) ===== */
-header .faixa-semcas {
-  height: 3px; /* Reduzido para ser mais fino */
-  /* As cores já estão no Tailwind do HTML, mas garantimos aqui a altura */
+/* Cabeçalho Fixo com Sombra */
+.header-fixed-shadow {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08); /* Sombra mais leve */
 }
 
-/* ===== Título institucional (Reforçando as cores Tailwind) ===== */
+/* Faixa superior colorida SEMCAS */
+header .faixa-semcas {
+  height: 3px;
+}
+
+/* Título e Subtítulo */
 header h1 {
   color: #1e3a8a; /* semcas-dark-blue */
   letter-spacing: -0.5px;
 }
 
 header p {
-  color: #334155; /* slate-700 (mais escuro que gray-600) */
+  color: #64748b; /* slate-500 */
+}
+
+/* Hover no botão de logout */
+.logout-btn-hover:hover {
+    color: #3b82f6; /* Azul leve */
+    opacity: 0.8;
 }
 
 
 /* ============================================= */
-/* MODAL DE AUTENTICAÇÃO (NOVO)                  */
-/* ============================================= */
-.auth-modal {
-    z-index: 10000; /* Z-index mais alto para garantir que fique por cima */
-}
-.auth-modal-content {
-    max-width: 450px;
-    padding: 0; /* Remover padding padrão do modal-content */
-}
-/* Re-aplicar fundo branco e sombra */
-.auth-modal-content .modal-header, 
-.auth-modal-content .modal-body {
-    background-color: #ffffff;
-}
-.auth-modal-content .modal-header {
-    border-bottom: none;
-}
-
-
-/* ============================================= */
-/* 3) NAVEGAÇÃO PRINCIPAL (ABAS)                 */
+/* 2) NAVEGAÇÃO PRINCIPAL (ABAS) - Spec 2        */
 /* ============================================= */
 .main-nav-container {
     -ms-overflow-style: none;  /* IE and Edge */
@@ -64,94 +57,127 @@ header p {
 }
 
 .nav-btn {
-    /* Estilo Inativo (Spec 3) */
+    /* Estilo Inativo (Spec 2) */
     display: inline-flex;
     align-items: center;
-    gap: 0.5rem; /* gap-2 */
-    padding: 0.5rem 1rem; /* px-4 py-2 */
-    font-size: 0.875rem; /* text-sm */
-    font-weight: 500; /* font-medium */
-    border-radius: 9999px; /* rounded-full */
-    background-color: #f3f4f6; /* bg-gray-100 */
-    color: #374151; /* text-gray-700 */
+    gap: 0.5rem; 
+    padding: 0.5rem 1rem; 
+    font-size: 0.875rem; 
+    font-weight: 500; 
+    border-radius: 9999px; 
+    /* Estilo do Spec 2: cor uniforme, borda sutil */
+    background-color: #f9fafb; /* bg-gray-50 */
+    color: #475569; /* slate-600 (azul-cinza) */
+    border: 1px solid #e5e7eb; /* border-gray-200 */
     white-space: nowrap;
-    transition: all 0.2s ease-in-out;
-    border: 2px solid transparent;
+    transition: all 0.25s ease; /* Microanimação suave */
 }
 .nav-btn:hover {
-    background-color: #e5e7eb; /* hover:bg-gray-200 */
+    background-color: #f1f5f9; /* hover:bg-slate-100 */
+    color: #1e293b; /* hover:text-slate-800 */
+    transform: scale(1.02);
 }
 .nav-btn.active {
-    /* Estilo Ativo (Spec 3) */
-    background-color: #2563eb; /* bg-blue-600 */
-    color: #ffffff; /* text-white */
+    /* Estilo Ativo (Spec 2) */
+    background: linear-gradient(to right, #2563eb, #1e40af); /* Gradiente azul forte */
+    color: #ffffff; 
     font-weight: 600;
+    border-color: #2563eb;
+    box-shadow: 0 2px 6px rgba(37,99,235,0.25); /* Sombra azul */
+    transform: translateY(-1px); /* Microanimação suave */
 }
 /* Ajusta a cor do ícone quando inativo */
 .nav-btn .lucide {
-    width: 1rem; /* w-4 */
-    height: 1rem; /* h-4 */
+    width: 1rem; 
+    height: 1rem; 
+    color: #475569; /* slate-600 */
+    transition: all 0.25s ease;
 }
 .nav-btn.active .lucide {
-    color: #ffffff !important; /* Força o ícone a ser branco */
+    color: #ffffff !important; /* Força o ícone a ser branco no ativo */
+}
+
+/* Sombra leve na navegação secundária */
+.nav-fixed-shadow {
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
 
 /* ============================================= */
-/* 4) FILTROS DO DASHBOARD (PILLS)               */
+/* 3) CARDS DO DASHBOARD (KPIS) - Spec 3 & 5     */
 /* ============================================= */
-.dashboard-nav-btn {
-    /* Estilo Inativo (Spec 4) */
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1rem;
-    font-size: 0.875rem;
-    font-weight: 500;
-    border-radius: 9999px;
-    background-color: #f3f4f6; /* bg-gray-100 */
-    color: #374151; /* text-gray-700 */
+
+.dashboard-card {
+    /* Estilo base (Spec 3) */
+    background-color: #ffffff;
     border: 1px solid #e5e7eb; /* border-gray-200 */
-    transition: all 0.2s ease-in-out;
-}
-.dashboard-nav-btn:hover {
-    background-color: #e5e7eb; /* hover:bg-gray-200 */
-}
-.dashboard-nav-btn.active {
-    /* Estilo Ativo (Spec 4) */
-    background-color: #2563eb; /* bg-blue-600 */
-    color: #ffffff; /* text-white */
-    border-color: #2563eb;
-    font-weight: 600;
-}
-.dashboard-nav-btn .lucide {
-    width: 1rem;
-    height: 1rem;
-}
-.dashboard-nav-btn.active .lucide {
-    color: #ffffff !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04); /* Sombra mais leve */
+    border-radius: 12px; /* Cantos mais arredondados */
+    padding: 1.5rem; /* p-6 */
+    display: flex;
+    flex-direction: column;
+    transition: all 0.25s ease;
 }
 
+/* Efeito Hover Sutil (Spec 3) */
+.dashboard-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+/* Estilo para Cards Clicáveis */
+.clickable-card {
+    cursor: pointer;
+}
+.clickable-card:hover {
+    border-color: #bfdbfe; /* Sutil azul ao focar */
+}
+
+/* Microtítulo (Spec 3 - Ponto Forte/Fraco) */
+.card-kpi-subtitle {
+    font-size: 0.875rem; /* text-sm */
+    font-weight: 500;
+    color: #94a3b8; /* slate-400 (cinza claro) */
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Valor em Destaque (Spec 5) */
+.card-kpi-value {
+    font-size: 3.5rem; /* text-5xl (maior) */
+    font-weight: 800; /* font-extrabold */
+    line-height: 1;
+    margin-top: auto;
+}
+
+/* Label do Valor */
+.card-kpi-label {
+    font-size: 0.875rem; /* text-sm */
+    color: #64748b; /* slate-500 */
+    font-weight: 500;
+}
+
+
 /* ============================================= */
-/* 6) SEÇÃO MATERIAIS DO ALMOXARIFADO (DINÂMICO) */
+/* 4) BLOCO MATERIAIS DO ALMOXARIFADO - Spec 4   */
 /* ============================================= */
 
 /* Cabeçalho da Coluna (CT, SEDE, CRAS...) */
 .materiais-prontos-col h4 {
-    font-size: 0.875rem; /* text-sm */
-    font-weight: 700; /* font-bold */
-    color: #1e3a8a; /* text-blue-900 */
-    border-bottom: 2px solid #93c5fd; /* border-blue-300 */
-    padding-bottom: 0.5rem; /* pb-2 */
-    margin-bottom: 0.75rem; /* mb-3 */
+    font-size: 0.875rem; 
+    font-weight: 700; 
+    color: #1e3a8a; 
+    border-bottom: 2px solid #93c5fd; 
+    padding-bottom: 0.5rem; 
+    margin-bottom: 0.75rem; 
     text-transform: uppercase;
 }
 
-/* Card da Unidade (Item da Lista) */
+/* Card da Unidade (Item da Lista) - Aplicando cores mais suaves (Spec 4) */
 .materiais-prontos-col li {
     list-style-type: none;
-    border-radius: 0.5rem; /* rounded-lg */
-    padding: 0.75rem 1rem; /* p-3/p-4 */
+    border-radius: 0.5rem; 
+    padding: 0.75rem 1rem; 
     border: 1px solid;
     transition: all 0.2s ease;
 }
@@ -161,72 +187,86 @@ header p {
 }
 
 .materiais-prontos-col li strong {
-    font-weight: 600; /* Título forte */
-    color: #1f2937; /* text-gray-800 */
+    font-weight: 600; 
+    color: #1f2937; 
     display: block;
 }
-.materiais-prontos-col li span {
-    font-size: 0.875rem; /* text-sm */
-    color: #6b7280; /* text-gray-500 */
-}
 
-/* Estado: Requisitado (Spec 6) */
+/* Estado: Requisitado (Spec 4: Roxo discreto) */
 .materiais-prontos-col li.item-requisitado {
-    background-color: #eef2ff; /* bg-indigo-50 ou blue-50 */
-    border-color: #c7d2fe; /* border-indigo-200 ou blue-200 */
+    background-color: #f5f3ff; /* Spec: f5f3ff */
+    border-color: #ddd6fe; /* Spec: ddd6fe */
 }
 
-/* Estado: Em Separação (implícito, app.js não põe classe) */
-/* Vamos usar um padrão para o 'li' que não é nem requisitado nem retirada */
+/* Estado: Em Separação (implícito: Amarelo suave) */
 .materiais-prontos-col li:not(.item-requisitado):not(.item-retirada) {
-    background-color: #fffbeb; /* bg-yellow-50 */
-    border-color: #fde68a; /* border-yellow-200 */
+    background-color: #fff7ed; /* Spec: fff7ed */
+    border-color: #fed7aa; /* Spec: fed7aa */
 }
 
-/* Estado: Pronto (Spec 6) */
+/* Estado: Pronto para Retirada (Spec 4: Verde suave) */
 .materiais-prontos-col li.item-retirada {
-    background-color: #f0fdf4; /* bg-green-50 */
-    border-color: #bbf7d0; /* border-green-200 */
+    background-color: #f0fdf4; /* Spec: f0fdf4 */
+    border-color: #bbf7d0; /* Spec: bbf7d0 */
 }
 
-
-/* Badge de Status (Dentro do Card da Unidade) */
+/* Badge de Status (Dentro do Card da Unidade) - Spec 4 - Ícones Lucide */
 .status-indicator {
     display: inline-flex;
     align-items: center;
     gap: 0.375rem;
-    font-size: 0.75rem; /* text-xs */
-    font-weight: 600; /* font-semibold */
-    padding: 0.25rem 0.625rem; /* py-1 px-2.5 */
-    border-radius: 9999px; /* rounded-full */
-    margin-top: 0.5rem; /* mt-2 */
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.25rem 0.625rem; 
+    border-radius: 9999px; 
+    margin-top: 0.5rem; 
     border-width: 1px;
 }
-
-/* Estado: Requisitado (Spec 6 - Roxo/Violeta) */
-.status-indicator.requisitado { /* app.js não gera, mas Spec 6 pede */
-    background-color: #f5f3ff; /* bg-purple-100 */
-    color: #7c3aed; /* text-purple-700 */
-    border-color: #ddd6fe; /* border-purple-200 */
+.status-indicator .lucide {
+    width: 0.85rem;
+    height: 0.85rem;
 }
 
-/* Estado: Separando... (Spec 6 - Amarelo) */
+/* Estado: Requisitado (Spec 4 - Roxo) */
+.status-indicator.requisitado { 
+    background-color: #f5f3ff; 
+    color: #7c3aed; 
+    border-color: #ddd6fe; 
+}
+
+/* Estado: Separando... (Spec 4 - Laranja/Amarelo) */
 .status-indicator.separando {
-    background-color: #fef9c3; /* bg-yellow-100 */
-    color: #a16207; /* text-yellow-700 */
-    border-color: #fde68a; /* border-yellow-200 */
+    background-color: #fff7ed; 
+    color: #c2410c; /* Laranja mais escuro */
+    border-color: #fed7aa; 
 }
 
-/* Estado: Pronto (Spec 6 - Verde) */
+/* Estado: Pronto (Spec 4 - Verde) */
 .status-indicator.pronto {
-    background-color: #dcfce7; /* bg-green-100 */
-    color: #166534; /* text-green-700 */
-    border-color: #bbf7d0; /* border-green-200 */
+    background-color: #f0fdf4; 
+    color: #16a34a; /* Verde mais escuro */
+    border-color: #bbf7d0; 
+}
+
+/* Responsividade de Tela Grande (Spec 6) */
+@media (min-width: 1600px) {
+    main {
+         /* max-w-7xl mx-auto já existe no HTML, garantindo a largura controlada */
+    }
+    .grid { 
+        gap: 2rem !important; /* Aumenta o gap dos cards/colunas */
+    }
+    .dashboard-tv-view h3, main h3 { 
+        font-size: 2rem; /* Títulos maiores */
+    }
+    .card-kpi-value {
+        font-size: 4rem; /* Números ainda maiores */
+    }
 }
 
 
 /* ============================================= */
-/* ESTILOS DE COMPONENTES DINÂMICOS (JS)         */
+/* ESTILOS DE COMPONENTES DINÂMICOS (Geral)      */
 /* ============================================= */
 
 /* Abas de Sub-Navegação (Ex: Lançamentos / Previsão) */
@@ -236,22 +276,24 @@ header p {
     font-weight: 500;
     color: #475569; /* slate-600 */
     background-color: #f1f5f9; /* slate-100 */
-    border-radius: 0.375rem; /* rounded-md */
-    border: 1px solid #e2e8f0; /* slate-200 */
+    border-radius: 0.375rem; 
+    border: 1px solid #e2e8f0; 
     transition: all 0.2s ease-in-out;
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
 }
 .sub-nav-btn:hover {
-    background-color: #e2e8f0; /* slate-200 */
-    color: #1e293b; /* slate-800 */
+    background-color: #e2e8f0; 
+    color: #1e293b; 
 }
 .sub-nav-btn.active {
-    background-color: #1e40af; /* semcas-blue */
+    background-color: #1e40af; 
     color: #ffffff;
     font-weight: 600;
     border-color: #1e40af;
+    transform: translateY(-1px); /* Adiciona micro-movimento */
+    box-shadow: 0 1px 4px rgba(30,64,175,0.2);
 }
 .sub-nav-btn .lucide {
     width: 1rem;
@@ -263,8 +305,8 @@ header p {
     flex: 1;
     padding: 0.75rem 1rem;
     font-weight: 500;
-    color: #475569; /* slate-600 */
-    background-color: #f8fafc; /* slate-50 */
+    color: #475569; 
+    background-color: #f8fafc; 
     border: none;
     border-bottom: 3px solid transparent;
     transition: all 0.2s ease-in-out;
@@ -277,11 +319,11 @@ header p {
     gap: 0.5rem;
 }
 .form-tab-btn:hover {
-    background-color: #f1f5f9; /* slate-100 */
-    color: #1e293b; /* slate-800 */
+    background-color: #f1f5f9; 
+    color: #1e293b; 
 }
 .form-tab-btn.active {
-    color: #1e40af; /* semcas-blue */
+    color: #1e40af; 
     border-bottom-color: #1e40af;
     font-weight: 600;
     background-color: #ffffff;
@@ -289,38 +331,38 @@ header p {
 
 /* Card de Opção de Previsão (Dinâmico) */
 .previsao-option-card {
-    background-color: #f8fafc; /* bg-slate-50 */
-    border: 2px solid #e2e8f0; /* border-slate-200 */
-    border-radius: 0.5rem; /* rounded-lg */
-    padding: 1.5rem; /* p-6 */
+    background-color: #f8fafc; 
+    border: 2px solid #e2e8f0; 
+    border-radius: 0.5rem; 
+    padding: 1.5rem; 
     cursor: pointer;
     transition: all 0.2s ease-in-out;
 }
 .previsao-option-card:hover {
     background-color: #ffffff;
-    border-color: #93c5fd; /* border-blue-300 */
+    border-color: #93c5fd; 
     transform: translateY(-2px);
     box-shadow: 0 4px 10px rgba(0,0,0,0.05);
 }
 .previsao-option-card.selected {
-    background-color: #eff6ff; /* bg-blue-50 */
-    border-color: #2563eb; /* border-blue-600 */
-    box-shadow: 0 0 0 2px #bfdbfe; /* ring-2 ring-blue-200 */
+    background-color: #eff6ff; 
+    border-color: #2563eb; 
+    box-shadow: 0 0 0 2px #bfdbfe; 
 }
 .previsao-card {
-    background-color: #1e3a8a; /* bg-blue-900 */
-    color: #e0f2fe; /* text-blue-100 */
-    border-radius: 0.5rem; /* rounded-lg */
-    padding: 1.5rem; /* p-6 */
+    background-color: #1e3a8a; 
+    color: #e0f2fe; 
+    border-radius: 0.5rem; 
+    padding: 1.5rem; 
 }
 .exclusao-item {
     display: inline-flex;
     align-items: center;
-    background-color: #fef2f2; /* red-50 */
-    color: #991b1b; /* red-800 */
-    border: 1px solid #fecaca; /* red-200 */
-    border-radius: 0.25rem; /* rounded */
-    padding: 0.25rem 0.5rem; /* py-1 px-2 */
+    background-color: #fef2f2; 
+    color: #991b1b; 
+    border: 1px solid #fecaca; 
+    border-radius: 0.25rem; 
+    padding: 0.25rem 0.5rem; 
     font-size: 0.8125rem;
     font-weight: 500;
 }
@@ -338,8 +380,8 @@ header p {
 /* Altera opacidade e cursor para elementos desabilitados por Role */
 .disabled-by-role {
     opacity: 0.5;
-    pointer-events: none; /* Desabilita o clique */
-    user-select: none; /* Desabilita seleção de texto */
+    pointer-events: none; 
+    user-select: none; 
 }
 
 
@@ -354,8 +396,8 @@ header p {
 
 /* Spinners de Carregamento */
 .loading-spinner {
-    border: 4px solid #e2e8f0; /* slate-200 */
-    border-top: 4px solid #1e40af; /* semcas-blue */
+    border: 4px solid #e2e8f0; 
+    border-top: 4px solid #1e40af; 
     border-radius: 50%;
     width: 32px;
     height: 32px;
@@ -363,8 +405,8 @@ header p {
     margin: 1rem auto;
 }
 .loading-spinner-small {
-    border: 3px solid #e2e8f0; /* slate-200 */
-    border-top: 3px solid #1e40af; /* semcas-blue */
+    border: 3px solid #e2e8f0; 
+    border-top: 3px solid #1e40af; 
     border-radius: 50%;
     width: 20px;
     height: 20px;
@@ -389,7 +431,7 @@ button .loading-spinner-small {
 /* MODAIS (Estilo Base para JS)                  */
 /* ============================================= */
 .modal {
-    display: none; /* Escondido por padrão */
+    display: none; 
     position: fixed;
     z-index: 1000;
     left: 0;
@@ -397,12 +439,11 @@ button .loading-spinner-small {
     width: 100%;
     height: 100%;
     overflow: auto;
-    background-color: rgba(0,0,0,0.5); /* Fundo escuro */
-    /* Usado pelo JS para centralizar */
+    background-color: rgba(0,0,0,0.5); 
     align-items: center; 
     justify-content: center; 
 }
-/* Força o 'flex' quando o JS usa .style.display = 'block' */
+
 .modal[style*="display: block"] {
     display: flex;
 }
@@ -411,31 +452,31 @@ button .loading-spinner-small {
     background-color: #ffffff;
     margin: auto;
     padding: 0;
-    border: 1px solid #e5e7eb; /* border-gray-200 */
+    border: 1px solid #e5e7eb; 
     width: 90%;
     max-width: 500px;
-    border-radius: 0.75rem; /* rounded-xl */
-    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05); /* shadow-lg */
+    border-radius: 0.75rem; 
+    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05); 
     overflow: hidden;
-    animation: fadeIn 0.2s ease-out; /* Adiciona animação */
+    animation: fadeIn 0.2s ease-out; 
 }
 
 .modal-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1rem 1.5rem; /* p-4 sm:p-6 */
-    border-bottom: 1px solid #e5e7eb; /* border-gray-200 */
+    padding: 1rem 1.5rem; 
+    border-bottom: 1px solid #e5e7eb; 
 }
 
 .modal-title {
-    font-size: 1.125rem; /* text-lg */
+    font-size: 1.125rem; 
     font-weight: 600;
-    color: #1f2937; /* text-gray-800 */
+    color: #1f2937; 
 }
 
 .modal-close {
-    color: #9ca3af; /* text-gray-400 */
+    color: #9ca3af; 
     font-size: 1.75rem;
     font-weight: bold;
     cursor: pointer;
@@ -447,42 +488,42 @@ button .loading-spinner-small {
 .modal-close:hover { color: #1f2937; }
 
 .modal-body {
-    padding: 1.5rem; /* p-6 */
+    padding: 1.5rem; 
     line-height: 1.6;
-    color: #4b5563; /* text-gray-600 */
+    color: #4b5563; 
 }
 .modal-body .form-label {
     font-size: 0.875rem;
-    color: #374151; /* text-gray-700 */
+    color: #374151; 
     margin-bottom: 0.25rem;
 }
 
 .modal-footer {
     display: flex;
     justify-content: flex-end;
-    gap: 0.75rem; /* space-x-3 */
-    padding: 1rem 1.5rem; /* p-4 sm:p-6 */
-    border-top: 1px solid #e5e7eb; /* border-gray-200 */
-    background-color: #f9fafb; /* bg-gray-50 */
+    gap: 0.75rem; 
+    padding: 1rem 1.5rem; 
+    border-top: 1px solid #e5e7eb; 
+    background-color: #f9fafb; 
 }
 
 /* Botões customizados para o modal (Tailwind não alcança aqui) */
 .modal-footer .btn-secondary {
     background-color: #ffffff;
-    color: #374151; /* text-gray-700 */
-    border: 1px solid #d1d5db; /* border-gray-300 */
+    color: #374151; 
+    border: 1px solid #d1d5db; 
     padding: 0.5rem 1rem;
     font-size: 0.875rem;
     font-weight: 500;
-    border-radius: 0.375rem; /* rounded-md */
+    border-radius: 0.375rem; 
     transition: all 0.2s ease;
 }
 .modal-footer .btn-secondary:hover {
-    background-color: #f9fafb; /* bg-gray-50 */
+    background-color: #f9fafb; 
 }
 
 .modal-footer .btn-danger {
-    background-color: #dc2626; /* bg-red-600 */
+    background-color: #dc2626; 
     color: #ffffff;
     border: 1px solid #dc2626;
     padding: 0.5rem 1rem;
@@ -492,11 +533,11 @@ button .loading-spinner-small {
     transition: all 0.2s ease;
 }
 .modal-footer .btn-danger:hover {
-    background-color: #b91c1c; /* bg-red-700 */
+    background-color: #b91c1c; 
 }
 
 .modal-footer .btn-primary {
-    background-color: #2563eb; /* bg-blue-600 */
+    background-color: #2563eb; 
     color: #ffffff;
     border: 1px solid #2563eb;
     padding: 0.5rem 1rem;
@@ -506,7 +547,7 @@ button .loading-spinner-small {
     transition: all 0.2s ease;
 }
 .modal-footer .btn-primary:hover {
-    background-color: #1d4ed8; /* bg-blue-700 */
+    background-color: #1d4ed8; 
 }
 
 /* Botões genéricos que o JS pode precisar */
@@ -545,15 +586,15 @@ button .loading-spinner-small {
     line-height: 1.5;
     color: #334155;
     background-color: #ffffff;
-    border: 1px solid #cbd5e1; /* border-gray-300 */
-    border-radius: 0.375rem; /* rounded-md */
-    box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05); /* shadow-sm */
+    border: 1px solid #cbd5e1; 
+    border-radius: 0.375rem; 
+    box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05); 
     transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
 }
 .form-input:focus, .form-select:focus, .form-textarea:focus {
-    border-color: #2563eb; /* focus:border-blue-500 */
+    border-color: #2563eb; 
     outline: 0;
-    box-shadow: 0 0 0 2px #bfdbfe; /* focus:ring-blue-200 */
+    box-shadow: 0 0 0 2px #bfdbfe; 
 }
 .form-select {
     -webkit-appearance: none; -moz-appearance: none; appearance: none;
@@ -567,7 +608,7 @@ button .loading-spinner-small {
     display: block;
     font-size: 0.875rem;
     font-weight: 500;
-    color: #374151; /* text-gray-700 */
+    color: #374151; 
     margin-bottom: 0.5rem;
 }
 .form-textarea { min-height: 6rem; }
@@ -588,17 +629,17 @@ button .loading-spinner-small {
     width: 100%;
 }
 .table thead th {
-    background-color: #f9fafb; /* bg-gray-50 */
-    padding: 0.75rem 1rem; /* py-3 px-4 */
+    background-color: #f9fafb; 
+    padding: 0.75rem 1rem; 
     text-align: left;
-    font-size: 0.75rem; /* text-xs */
+    font-size: 0.75rem; 
     font-weight: 600;
     text-transform: uppercase;
-    color: #6b7280; /* text-gray-500 */
+    color: #6b7280; 
 }
 .table tbody td {
     padding: 0.75rem 1rem;
-    color: #374151; /* text-gray-700 */
+    color: #374151; 
     vertical-align: middle;
 }
 /* Linhas de Observação e Separador */
@@ -620,9 +661,9 @@ button .loading-spinner-small {
 /* NOVO: Estilos para os botões de filtro de saldo ativos */
 /* Devendo (Vermelho) */
 .btn-warning.active {
-    background-color: #b91c1c !important; /* bg-red-700 */
+    background-color: #b91c1c !important; 
     color: #ffffff !important;
-    border-color: #991b1c !important; /* border-red-800 */
+    border-color: #991b1c !important; 
 }
 .btn-warning.active:hover {
     background-color: #991b1b !important;
@@ -630,12 +671,12 @@ button .loading-spinner-small {
 
 /* Crédito (Azul - Primário) */
 .btn-info.active {
-    background-color: #1e40af !important; /* semcas-blue (bg-blue-800) */
+    background-color: #1e40af !important; 
     color: #ffffff !important;
     border-color: #1e40af !important;
 }
 .btn-info.active:hover {
-    background-color: #1d3674 !important; /* dark blue hover */
+    background-color: #1d3674 !important; 
 }
 
 
@@ -643,28 +684,28 @@ button .loading-spinner-small {
 .subtab-btn { 
     
   background-color: #ffffff;
-  border: 1px solid #e5e7eb; /* border-gray-200 */
-  border-radius: 0.5rem; /* rounded-lg */
-  padding: 0.5rem 1rem; /* px-4 py-2 */
-  font-size: 0.875rem; /* text-sm */
-  font-weight: 500; /* font-medium */
+  border: 1px solid #e5e7eb; 
+  border-radius: 0.5rem; 
+  padding: 0.5rem 1rem; 
+  font-size: 0.875rem; 
+  font-weight: 500; 
   display: inline-flex;
   align-items: center;
-  color: #4b5563; /* text-gray-700 */
+  color: #4b5563; 
   transition: all 0.2s ease-in-out; 
 } 
 
 .subtab-btn:hover {
-    background-color: #eff6ff; /* hover:bg-blue-50 */ 
-    border-color: #93c5fd; /* hover:border-blue-300 */ 
+    background-color: #eff6ff; 
+    border-color: #93c5fd; 
     color: #1e40af;
 }
 
 .subtab-btn.active { 
-  background-color: #2563eb; /* bg-blue-600 */ 
+  background-color: #2563eb; 
   color: #ffffff; 
   border-color: #2563eb; 
-  box-shadow: 0 1px 3px 0 rgba(0,0,0,0.1), 0 1px 2px 0 rgba(0,0,0,0.06); /* shadow */
+  box-shadow: 0 1px 3px 0 rgba(0,0,0,0.1), 0 1px 2px 0 rgba(0,0,0,0.06); 
 } 
 
 .subtab-content { 
@@ -717,20 +758,20 @@ button .loading-spinner-small {
 } 
 
 /* Botões de ação */ 
-.btn-icon { /* Usando btn-icon como classe base para todos os botões de ação na tabela */
+.btn-icon { 
     display: inline-flex;
     align-items: center;
     justify-content: center;
     width: 2rem;
     height: 2rem;
-    border-radius: 0.375rem; /* rounded-md */
-    padding: 0.5rem; /* p-2 */
+    border-radius: 0.375rem; 
+    padding: 0.5rem; 
     transition: all 0.2s ease-in-out; 
     border: 1px solid transparent; 
 } 
 .btn-icon:hover { 
-    background-color: #f3f4f6; /* hover:bg-gray-100 */
-    border-color: #d1d5db; /* border-gray-300 */
+    background-color: #f3f4f6; 
+    border-color: #d1d5db; 
 }
 /* Estilos específicos para ícones */
 .btn-icon .lucide {
@@ -741,13 +782,13 @@ button .loading-spinner-small {
 
 /* Botões de ação no módulo Materiais */ 
 .action-btn { 
-  border-radius: 0.375rem; /* rounded-md */
-  padding: 0.5rem; /* p-2 */
+  border-radius: 0.375rem; 
+  padding: 0.5rem; 
   transition: all 0.2s ease-in-out; 
   border: 1px solid transparent; 
 } 
 .action-btn:hover { 
-  border-color: #d1d5db; /* border-gray-300 */
+  border-color: #d1d5db; 
 }
 
 /* =================================== 
@@ -762,17 +803,17 @@ button .loading-spinner-small {
 #subview-historico-entregues .overflow-x-auto table {
     border-collapse: separate;
     border-spacing: 0;
-    border: 2px solid #cbd5e1; /* Borda externa mais forte */
+    border: 2px solid #cbd5e1; 
     border-radius: 0.75rem;
     overflow: hidden;
-    width: 100%; /* Garantir que a tabela ocupe o espaço */
+    width: 100%; 
 }
 /* Container das tabelas - Borda e sombra externa */
 #subview-para-separar .overflow-x-auto,
 #subview-em-separacao .overflow-x-auto,
 #subview-pronto-entrega .overflow-x-auto,
 #subview-historico-entregues .overflow-x-auto {
-    border: none; /* Remove a borda do container, pois já está na tabela */
+    border: none; 
     border-radius: 0.75rem;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     overflow-x: auto;
@@ -784,8 +825,8 @@ button .loading-spinner-small {
 #subview-em-separacao thead,
 #subview-pronto-entrega thead,
 #subview-historico-entregues thead {
-    background: linear-gradient(to bottom, #f1f5f9, #e2e8f0); /* Gradiente sutil */
-    border-bottom: 3px solid #94a3b8; /* Borda inferior forte */
+    background: linear-gradient(to bottom, #f1f5f9, #e2e8f0); 
+    border-bottom: 3px solid #94a3b8; 
 }
 #subview-para-separar thead th,
 #subview-em-separacao thead th,
@@ -796,7 +837,7 @@ button .loading-spinner-small {
     font-size: 0.813rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: #1e293b; /* Texto mais escuro */
+    color: #1e293b; 
     border-right: 1px solid #cbd5e1;
 }
 #subview-para-separar thead th:last-child,
@@ -811,7 +852,7 @@ button .loading-spinner-small {
 #subview-em-separacao tbody tr,
 #subview-pronto-entrega tbody tr,
 #subview-historico-entregues tbody tr {
-    border-bottom: 2px solid #e2e8f0; /* Linha de separação mais forte */
+    border-bottom: 2px solid #e2e8f0; 
     transition: all 0.2s ease-in-out;
     background-color: #ffffff;
 }
@@ -834,7 +875,7 @@ button .loading-spinner-small {
     padding: 1rem 1.25rem;
     font-size: 0.875rem;
     color: #334155;
-    border-right: 1px solid #e2e8f0; /* Separador vertical sutil */
+    border-right: 1px solid #e2e8f0; 
     vertical-align: middle;
 }
 #subview-para-separar tbody td:last-child,
@@ -857,7 +898,7 @@ button .loading-spinner-small {
 #subview-em-separacao .obs-row,
 #subview-pronto-entrega .obs-row,
 #subview-historico-entregues .obs-row {
-    background-color: #fef3c7 !important; /* Amarelo suave */
+    background-color: #fef3c7 !important; 
     border-bottom: 2px solid #fbbf24;
 }
 /* Garante que o hover não mude a cor de fundo da obs-row */
@@ -869,14 +910,6 @@ button .loading-spinner-small {
     transform: none;
     box-shadow: none;
 }
-/* Garante que a linha de observação pegue a cor do fundo da linha anterior no zebra, mas isso é mais complexo. Manter cor fixa por enquanto. */
-/* Alternância de cores para linhas de observação que vêm depois de linhas pares */
-#subview-para-separar tbody tr:nth-child(even) + .obs-row,
-#subview-em-separacao tbody tr:nth-child(even) + .obs-row,
-#subview-pronto-entrega tbody tr:nth-child(even) + .obs-row,
-#subview-historico-entregues tbody tr:nth-child(even) + .obs-row {
-    background-color: #fef3c7 !important; /* Mante a cor de observação */
-}
 
 #subview-para-separar .obs-row td,
 #subview-em-separacao .obs-row td,
@@ -887,7 +920,7 @@ button .loading-spinner-small {
     font-style: italic;
     color: #78350f;
     border-right: none;
-    border-bottom: none !important; /* Evita dupla borda */
+    border-bottom: none !important; 
 }
 /* Linhas vazias da observação devem ter padding-top/bottom */
 #subview-para-separar .obs-row td.pt-0.pb-1,
