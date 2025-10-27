@@ -232,10 +232,9 @@ export {
     renderUIModules,
     renderUnidadeControls,
     initAllListeners,
-    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS (não precisa exportar, é usado internamente nos módulos)
-    // DOM_ELEMENTS,
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS (agora re-exportado para app.js)
+    DOM_ELEMENTS,
     findDOMElements, // Necessário para app.js
     updateLastUpdateTime, // Necessário para app.js
     showAlert // Importado de dom-helpers e re-exportado para uso no app.js
 };
-
