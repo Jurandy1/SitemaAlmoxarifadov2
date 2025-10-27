@@ -239,7 +239,7 @@ function renderDashboardMateriaisList() {
             <div class="p-3 ${bgColor} rounded-lg border ${borderColor}"> 
                 <div class="flex justify-between items-center gap-2"> 
                     <span class="font-medium text-slate-700 text-sm truncate" title="${m.unidadeNome || ''}">${m.unidadeNome || 'Unidade Desc.'}</span> 
-                    <span class="badge ${badgeClass} flex-shrink-0">${badgeText} (${formatTimestamp(m.dataSeparacao)})</span> 
+                    <span class="badge ${badgeClass} flex-shrink-0">${badgeText} (${formatTimestamp(m.dataSeparacao || m.registradoEm)})</span> 
                 </div> 
                 <p class="text-xs text-slate-600 capitalize mt-1">${m.tipoMaterial || 'N/D'}</p> 
                 ${m.itens ? `<p class="text-xs text-gray-500 mt-1 truncate" title="${m.itens}">Obs: ${m.itens}</p>` : ''} 
@@ -262,11 +262,14 @@ function renderDashboardMateriaisCounts() {
     const separacaoCount = materiais.filter(m => m.status === 'separacao').length;
     const retiradaCount = materiais.filter(m => m.status === 'retirada').length;
     
+    // CORREÇÃO SOLICITADA 1: O card "Em Separação" deve somar requisitado e separacao.
+    const emSeparacaoDashboard = requisitadoCount + separacaoCount;
+
     // Atualiza os cards do Dashboard (topo)
-    if (DOM_ELEMENTS.dashboardMateriaisSeparacaoCountEl) DOM_ELEMENTS.dashboardMateriaisSeparacaoCountEl.textContent = requisitadoCount + separacaoCount;
+    if (DOM_ELEMENTS.dashboardMateriaisSeparacaoCountEl) DOM_ELEMENTS.dashboardMateriaisSeparacaoCountEl.textContent = emSeparacaoDashboard;
     if (DOM_ELEMENTS.dashboardMateriaisRetiradaCountEl) DOM_ELEMENTS.dashboardMateriaisRetiradaCountEl.textContent = retiradaCount;
     
-    // Atualiza os summaries da subview de lançamento de materiais
+    // Atualiza os summaries da subview de lançamento de materiais (estes devem ser separados)
     if (DOM_ELEMENTS.summaryMateriaisRequisitado) DOM_ELEMENTS.summaryMateriaisRequisitado.textContent = requisitadoCount;
     // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (DOM_ELEMENTS.summaryMateriaisSeparacao) DOM_ELEMENTS.summaryMateriaisSeparacao.textContent = separacaoCount;
@@ -292,6 +295,7 @@ export function renderDashboardMateriaisProntos(filterStatus = null) {
     // --- Lógica de filtragem ---
     let pendentes = materiais.filter(m => m.status === 'requisitado' || m.status === 'separacao' || m.status === 'retirada');
     
+    // Se o filtro for 'separacao', inclui 'requisitado' e 'separacao' (Como no Card KPI)
     if (filterStatus === 'separacao') {
          pendentes = pendentes.filter(m => m.status === 'separacao' || m.status === 'requisitado');
     } else if (filterStatus) {
@@ -487,6 +491,7 @@ export function initDashboardListeners() {
     const cardSeparacao = document.getElementById('dashboard-card-separacao');
     const cardRetirada = document.getElementById('dashboard-card-retirada');
 
-    if (cardSeparacao) cardSeparacao.addEventListener('click', () => filterDashboardMateriais('separacao'));
+    // MANTIDO: O card "Em Separação" aciona o filtro 'separacao', que agora inclui 'requisitado' e 'separacao'
+    if (cardSeparacao) cardSeparacao.addEventListener('click', () => filterDashboardMateriais('separacao')); 
     if (cardRetirada) cardRetirada.addEventListener('click', () => filterDashboardMateriais('retirada'));
 }
