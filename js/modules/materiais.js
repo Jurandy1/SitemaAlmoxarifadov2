@@ -1,6 +1,6 @@
 // js/modules/materiais.js
 import { Timestamp, addDoc, updateDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-import { getMateriais } from "../utils/cache.js";
+import { getMateriais, getUserRole } from "../utils/cache.js"; // Adicionado getUserRole
 // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
 import { DOM_ELEMENTS, showAlert, filterTable, switchSubTabView } from "../utils/dom-helpers.js";
 import { getTodayDateString, dateToTimestamp, capitalizeString, formatTimestamp, formatTimestampComTempo } from "../utils/formatters.js";
@@ -18,6 +18,12 @@ import { uploadFile, deleteFile } from "../services/storage-service.js";
 export async function handleMateriaisSubmit(e) {
     e.preventDefault();
     if (!isReady()) { showAlert('alert-materiais', 'Erro: Não autenticado.', 'error'); return; }
+    
+    const role = getUserRole();
+    // PERMISSÃO: Admin-Only (Editor não pode fazer requisição)
+    if (role !== 'admin') {
+         showAlert('alert-materiais', "Permissão negada. Apenas Administradores podem registrar novas requisições.", 'error'); return;
+    }
     
     // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     const selectValue = DOM_ELEMENTS.selectUnidadeMateriais.value; 
@@ -155,6 +161,9 @@ function renderMaterialSubTable(tableBody, data, status) {
     }
 
     let html = '';
+    const role = getUserRole();
+    const isAdmin = role === 'admin';
+    const isEditor = role === 'editor';
     
     data.forEach(m => {
         let acoesHtml = '';
@@ -168,12 +177,21 @@ function renderMaterialSubTable(tableBody, data, status) {
         const downloadBtn = hasFile 
             ? `<button class="btn-icon btn-download-pedido text-blue-600 hover:text-blue-800" data-id="${m.id}" data-url="${m.fileURL}" title="Baixar Pedido"><i data-lucide="download-cloud"></i></button>`
             : '<span class="btn-icon text-gray-400" title="Sem anexo"><i data-lucide="file-x"></i></span>';
-        const removeBtn = `<button class="btn-icon btn-remove text-red-600 hover:text-red-800" data-id="${m.id}" data-type="materiais" data-details="${m.unidadeNome} - ${status}" title="Remover Requisição"><i data-lucide="trash-2"></i></button>`;
+        
+        // Botão de remoção é Admin-Only
+        const removeBtn = isAdmin
+            ? `<button class="btn-icon btn-remove text-red-600 hover:text-red-800" data-id="${m.id}" data-type="materiais" data-details="${m.unidadeNome} - ${status}" title="Remover Requisição"><i data-lucide="trash-2"></i></button>`
+            : `<span class="btn-icon text-gray-400" title="Apenas Admin pode excluir"><i data-lucide="slash"></i></span>`;
+        
+        // Determina se os botões de ação do fluxo devem ser visíveis/ativos
+        const canEditFlow = isAdmin || isEditor;
         
         if (status === 'requisitado') {
-            acoesHtml = downloadBtn + 
-                ` <button class="btn-icon btn-start-separacao text-green-600 hover:text-green-800" data-id="${m.id}" title="Informar Separador e Iniciar"><i data-lucide="play-circle"></i></button>` +
-                removeBtn;
+            const startSeparacaoBtn = canEditFlow
+                ? `<button class="btn-icon btn-start-separacao text-green-600 hover:text-green-800" data-id="${m.id}" title="Informar Separador e Iniciar"><i data-lucide="play-circle"></i></button>`
+                : `<span class="btn-icon text-gray-400" title="Apenas Admin/Editor pode iniciar"><i data-lucide="slash"></i></span>`;
+
+            acoesHtml = downloadBtn + startSeparacaoBtn + removeBtn;
             
             rowContent = `<td>${m.unidadeNome}</td>` +
                 `<td class="capitalize">${m.tipoMaterial}</td>` +
@@ -182,11 +200,13 @@ function renderMaterialSubTable(tableBody, data, status) {
                 `<td class="text-center space-x-2">${acoesHtml}</td>`;
             
         } else if (status === 'separacao') {
-             // ***** CORRIGIDO: Usa btn-icon para "Pronto p/ Entrega" *****
-            acoesHtml = downloadBtn + 
-                ` <button class="btn-icon btn-retirada text-teal-600 hover:text-teal-800" data-id="${m.id}" title="Marcar como pronto para entrega"><i data-lucide="package-check"></i></button>`;
-                // ***** FIM DA CORREÇÃO *****
-            
+             // Editor PODE marcar como pronto para entrega
+            const prontaRetiradaBtn = canEditFlow
+                ? `<button class="btn-icon btn-retirada text-teal-600 hover:text-teal-800" data-id="${m.id}" title="Marcar como pronto para entrega"><i data-lucide="package-check"></i></button>`
+                : `<span class="btn-icon text-gray-400" title="Apenas Admin/Editor pode marcar como pronto"><i data-lucide="slash"></i></span>`;
+
+            acoesHtml = downloadBtn + prontaRetiradaBtn;
+                
             rowContent = `<td>${m.unidadeNome}</td>` +
                 `<td class="capitalize">${m.tipoMaterial}</td>` +
                 `<td>${separador}</td>` +
@@ -194,9 +214,12 @@ function renderMaterialSubTable(tableBody, data, status) {
                 `<td class="text-center space-x-2">${acoesHtml}</td>`;
             
         } else if (status === 'retirada') {
-             // ***** CORRIGIDO: Usa btn-icon para "Entregue" *****
-            acoesHtml = `<button class="btn-icon btn-entregue text-blue-600 hover:text-blue-800" data-id="${m.id}" title="Finalizar entrega e registrar responsáveis"><i data-lucide="check-circle"></i></button>`;
-             // ***** FIM DA CORREÇÃO *****
+             // FINALIZAÇÃO DE ENTREGA: Admin-Only
+            const finalizarEntregaBtn = isAdmin
+                ? `<button class="btn-icon btn-entregue text-blue-600 hover:text-blue-800" data-id="${m.id}" title="Finalizar entrega e registrar responsáveis"><i data-lucide="check-circle"></i></button>`
+                : `<span class="btn-icon text-gray-400" title="Apenas Admin pode finalizar a entrega"><i data-lucide="slash"></i></span>`;
+            
+            acoesHtml = finalizarEntregaBtn;
             
             rowContent = `<td>${m.unidadeNome}</td>` +
                 `<td class="capitalize">${m.tipoMaterial}</td>` +
@@ -216,11 +239,11 @@ function renderMaterialSubTable(tableBody, data, status) {
                 `<td>${respUnidade}</td>` +
                 `<td>${respAlmox}</td>` +
                 `<td class="text-center text-xs">${dataLancamentoFormatada}</td>` +
-                `<td class="text-center">${removeBtn}</td>`;
+                `<td class="text-center">${removeBtn}</td>`; // Exclusão de histórico é Admin-Only
         }
         
         // Linha principal
-        html += `<tr>${rowContent}</tr>`;
+        html += `<tr class="${!canEditFlow && (status === 'requisitado' || status === 'separacao') ? 'disabled-by-role' : ''}">${rowContent}</tr>`;
         
         // Incluir linha de observação se houver itens/obs
         if (m.itens) {
@@ -243,6 +266,13 @@ function renderMaterialSubTable(tableBody, data, status) {
 async function handleMarcarRetirada(e) {
     const button = e.target.closest('button.btn-retirada[data-id]');
     if (!button) return; 
+    
+    const role = getUserRole();
+    // PERMISSÃO: Editor/Admin
+    if (role === 'anon') {
+         showAlert('alert-em-separacao', "Permissão negada. Usuário Anônimo não pode alterar o status do material.", 'error');
+         return;
+    }
     
     const materialId = button.dataset.id;
     if (!isReady() || !materialId) return;
@@ -275,6 +305,13 @@ async function handleMarcarEntregue(e) {
     const button = e.target.closest('button.btn-entregue[data-id]');
     if (!button) return; 
     
+    const role = getUserRole();
+    // PERMISSÃO: Admin-Only (Editor não pode finalizar a entrega/recebimento)
+    if (role !== 'admin') {
+         showAlert('alert-pronto-entrega', "Permissão negada. Apenas Administradores podem finalizar a entrega de material.", 'error');
+         return;
+    }
+    
     const materialId = button.dataset.id;
     if (!isReady() || !materialId) return;
     
@@ -298,6 +335,13 @@ async function handleMarcarEntregue(e) {
  */
 export async function handleFinalizarEntregaSubmit() {
     if (!isReady()) return;
+    
+    const role = getUserRole();
+    // PERMISSÃO: Admin-Only (Editor não pode finalizar a entrega/recebimento)
+    if (role !== 'admin') {
+         showAlert('alert-finalizar-entrega', "Permissão negada. Apenas Administradores podem confirmar a finalização da entrega.", 'error');
+         return;
+    }
     
     // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     const materialId = DOM_ELEMENTS.finalizarEntregaMaterialIdEl.value;
@@ -355,6 +399,13 @@ export async function handleFinalizarEntregaSubmit() {
  * Abre o modal para informar o nome do separador.
  */
 function openSeparadorModal(materialId) {
+    const role = getUserRole();
+    // PERMISSÃO: Editor/Admin (Anon bloqueado)
+    if (role === 'anon') {
+         showAlert('alert-para-separar', "Permissão negada. Usuário Anônimo não pode iniciar a separação.", 'error');
+         return;
+    }
+    
     // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (!DOM_ELEMENTS.separadorModal) return;
     console.log("Abrindo modal para material ID:", materialId);
@@ -374,6 +425,13 @@ function openSeparadorModal(materialId) {
 export async function handleSalvarSeparador() {
     // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (!isReady() || !DOM_ELEMENTS.inputSeparadorNome) return;
+    
+    const role = getUserRole();
+    // PERMISSÃO: Editor/Admin (Anon bloqueado)
+    if (role === 'anon') {
+         showAlert('alert-separador', "Permissão negada. Usuário Anônimo não pode iniciar a separação.", 'error');
+         return;
+    }
 
     const nomeSeparador = capitalizeString(DOM_ELEMENTS.inputSeparadorNome.value.trim());
     const materialId = DOM_ELEMENTS.separadorMaterialIdEl.value;
@@ -559,4 +617,3 @@ export function onMateriaisTabChange() {
     // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (DOM_ELEMENTS.inputDataSeparacao) DOM_ELEMENTS.inputDataSeparacao.value = getTodayDateString();
 }
-
