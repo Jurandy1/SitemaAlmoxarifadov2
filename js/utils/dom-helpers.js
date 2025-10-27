@@ -205,6 +205,10 @@ function findDOMElements() {
             } else {
                 DOM_ELEMENTS[varName] = document.querySelector(selector);
             }
+            // Log para debug, comentar em produção
+            // if (!DOM_ELEMENTS[varName] || (isAll && DOM_ELEMENTS[varName].length === 0)) {
+            //     console.warn(`DOM Element not found or empty for selector: ${selector} (var: ${varName})`);
+            // }
         } catch (e) {
             console.error(`Error finding DOM element for selector: ${selector}`, e);
         }
@@ -232,21 +236,20 @@ function showAlert(elementId, message, type = 'info', duration = 5000) {
     el.style.display = 'block';
 
     if (el.timeoutId) clearTimeout(el.timeoutId);
-    
+    // Não esconder alertas de erro automaticamente
     if (type !== 'error') {
         el.timeoutId = setTimeout(() => {
             el.style.display = 'none';
             el.timeoutId = null;
         }, duration);
     } else {
-        if (!el.querySelector('.close-alert-btn')) {
-            const closeButton = document.createElement('button');
-            closeButton.innerHTML = '&times;';
-            closeButton.className = 'close-alert-btn';
-            closeButton.style.cssText = 'float: right; font-size: 1.2rem; line-height: 1; border: none; background: none; cursor: pointer; margin-left: 10px;';
-            closeButton.onclick = () => { el.style.display = 'none'; };
-            el.insertBefore(closeButton, el.firstChild);
-        }
+        // Adiciona um botão de fechar para erros
+        const closeButton = document.createElement('button');
+        closeButton.innerHTML = '&times;';
+        closeButton.style.cssText = 'float: right; font-size: 1.2rem; line-height: 1; border: none; background: none; cursor: pointer; margin-left: 10px;';
+        closeButton.onclick = () => { el.style.display = 'none'; };
+        // Insere o botão no início do alerta
+        el.insertBefore(closeButton, el.firstChild);
     }
 }
 
@@ -257,17 +260,21 @@ function switchTab(tabName) {
     if (!domReady) return;
     console.log(`Switching to tab: ${tabName}`);
 
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     DOM_ELEMENTS.navButtons.forEach(btn => btn.classList.remove('active'));
     const activeBtn = document.querySelector(`.nav-btn[data-tab="${tabName}"]`);
     if (activeBtn) activeBtn.classList.add('active');
 
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     DOM_ELEMENTS.contentPanes.forEach(pane => pane.classList.add('hidden'));
     const activePane = document.getElementById(`content-${tabName}`);
     if(activePane) activePane.classList.remove('hidden');
 
     visaoAtiva = tabName;
 
+    // Atualiza ícones Lucide
     if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') {
+        // Delay para garantir que o DOM oculto esteja visível
         setTimeout(() => lucide.createIcons(), 50);
     }
 }
@@ -286,15 +293,18 @@ function switchSubTabView(tabPrefix, subViewName) {
         return;
     }
 
+    // Atualiza botões da sub-navegação
     navContainer.querySelectorAll('.sub-nav-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.subview === subViewName);
     });
 
+    // Mostra/Esconde painéis de conteúdo da sub-view
     contentContainer.querySelectorAll(`div[id^="subview-"]`).forEach(pane => {
          pane.classList.toggle('hidden', pane.id !== `subview-${subViewName}`);
     });
 
     if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') {
+         // Delay para garantir que o DOM oculto esteja visível
          setTimeout(() => lucide.createIcons(), 50);
     }
 }
@@ -303,23 +313,26 @@ function switchSubTabView(tabPrefix, subViewName) {
  * Filtra uma tabela HTML.
  */
 function filterTable(inputEl, tableBodyId) {
-    const searchTerm = inputEl.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const searchTerm = inputEl.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""); // Normaliza o termo de busca uma vez
     const tableBody = document.getElementById(tableBodyId);
     if (!tableBody) return;
     const rows = tableBody.querySelectorAll('tr');
 
     rows.forEach(row => {
+        // Ignora linhas de cabeçalho, linhas em edição, de observação ou separador
         if (row.querySelectorAll('td').length > 1 && !row.classList.contains('editing-row') && !row.classList.contains('obs-row') && !row.classList.contains('separador-row')) {
             const rowText = row.textContent.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
             const isMatch = rowText.includes(searchTerm);
             row.style.display = isMatch ? '' : 'none';
 
+            // Lógica para esconder/mostrar linhas associadas (obs e separador)
             let nextRow = row.nextElementSibling;
             while(nextRow && (nextRow.classList.contains('obs-row') || nextRow.classList.contains('separador-row'))) {
                 nextRow.style.display = isMatch ? '' : 'none';
                 nextRow = nextRow.nextElementSibling;
             }
         } else if (row.querySelectorAll('th').length > 0) {
+            // Garante que o header da tabela nunca seja ocultado
              row.style.display = '';
         }
     });
@@ -329,10 +342,12 @@ function filterTable(inputEl, tableBodyId) {
  * Atualiza o horário de última atualização na UI.
  */
 function updateLastUpdateTime() {
+     // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
      if (!domReady || !DOM_ELEMENTS.lastUpdateTimeEl) return;
     const now = new Date();
     const formattedDate = now.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
     DOM_ELEMENTS.lastUpdateTimeEl.textContent = `Atualizado: ${formattedDate}`;
+    // Mostra o elemento se estiver oculto
     DOM_ELEMENTS.lastUpdateTimeEl.classList.remove('hidden');
 }
 
@@ -347,10 +362,13 @@ function handleSaldoFilterUI(itemType, e, renderCallback) {
     const newFilter = button.dataset.filter;
     const currentFilter = getCurrentStatusFilter(itemType);
 
+    // Se clicar no mesmo, não faz nada
     if (newFilter === currentFilter) return;
 
+    // Remove 'active' de todos e aplica os estilos base novamente
     document.querySelectorAll(`#filtro-saldo-${itemType}-controls button`).forEach(btn => {
-        btn.classList.remove('active', 'bg-blue-600', 'text-white', 'font-semibold', 'bg-red-700', 'border-red-800', 'bg-blue-800', 'border-blue-800');
+        btn.classList.remove('active', 'bg-blue-600', 'text-white', 'font-semibold', 'bg-red-700', 'border-red-800', 'bg-blue-800', 'border-blue-800'); // Limpa estilos ativos
+        // Garante que os estilos de cor corretos são aplicados quando inativo
         if (btn.dataset.filter === 'devendo') {
             btn.className = 'btn-warning btn-saldo-filter border border-red-400 bg-red-50 text-red-700 hover:bg-red-100';
         } else if (btn.dataset.filter === 'credito') {
@@ -360,16 +378,20 @@ function handleSaldoFilterUI(itemType, e, renderCallback) {
         }
     });
 
+    // Aplica 'active' no botão clicado
     button.classList.add('active');
 
+    // Define estilos ativos específicos
     if (button.dataset.filter === 'devendo') {
-        button.className = 'btn-warning btn-saldo-filter active bg-red-700 text-white border-red-800';
+        button.className = 'btn-warning btn-saldo-filter active bg-red-700 text-white border-red-800'; // Vermelho forte ativo
     } else if (button.dataset.filter === 'credito') {
-        button.className = 'btn-info btn-saldo-filter active bg-blue-800 text-white border-blue-800';
-    } else {
-        button.className = 'btn-secondary btn-saldo-filter active bg-gray-600 text-white border-gray-600';
+        button.className = 'btn-info btn-saldo-filter active bg-blue-800 text-white border-blue-800'; // Azul forte ativo
+    } else { // 'all' ou 'zero'
+        button.className = 'btn-secondary btn-saldo-filter active bg-gray-600 text-white border-gray-600'; // Cinza escuro ativo
     }
 
+
+    // Chama o callback de renderização do módulo principal
     renderCallback(newFilter);
 }
 
@@ -377,33 +399,44 @@ function handleSaldoFilterUI(itemType, e, renderCallback) {
  * Abre o modal para confirmação de exclusão.
  */
 async function openConfirmDeleteModal(id, type, details = null, alertElementId = 'alert-gestao') {
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS (verificação movida para depois da checagem de permissão)
     if (!id || !type) return;
 
+    // NOVO: Checagem de permissão antes de abrir o modal
     const role = getUserRole();
     if (role !== 'admin') {
          showAlert(alertElementId || 'alert-gestao', 'Permissão negada. Apenas Administradores podem excluir dados.', 'error');
          return;
     }
 
+    // Verifica se os elementos do modal existem
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (!domReady || !DOM_ELEMENTS.confirmDeleteModal || !DOM_ELEMENTS.deleteDetailsEl || !DOM_ELEMENTS.deleteWarningUnidadeEl || !DOM_ELEMENTS.deleteWarningInicialEl) {
         console.error("Elementos do modal de exclusão não encontrados no DOM.");
         showAlert(alertElementId || 'alert-gestao', 'Erro interno: Modal de exclusão não encontrado.', 'error');
         return;
     }
 
-    let detailsText = details ? `${details} (ID: ${id.substring(0,6)}...)` : `ID: ${id.substring(0,6)}...`;
-    const isInicial = details && details.toLowerCase().includes('inicial');
 
+    let detailsText = details ? `${details} (ID: ${id.substring(0,6)}...)` : `ID: ${id.substring(0,6)}...`;
+    const isInicial = details && details.toLowerCase().includes('inicial'); // Heurística para detectar estoque inicial
+
+    // Define a informação de exclusão no cache
     setDeleteInfo({ id, type, alertElementId, details, isInicial });
 
+    // Prepara o modal
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     DOM_ELEMENTS.deleteDetailsEl.textContent = `Detalhes: ${detailsText}`;
     DOM_ELEMENTS.deleteWarningUnidadeEl.style.display = (type === 'unidade') ? 'block' : 'none';
     DOM_ELEMENTS.deleteWarningInicialEl.style.display = isInicial ? 'block' : 'none';
     DOM_ELEMENTS.confirmDeleteModal.style.display = 'flex';
-
+    // Reativa os botões caso tenham sido desativados por um erro anterior
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (DOM_ELEMENTS.btnConfirmDelete) DOM_ELEMENTS.btnConfirmDelete.disabled = false;
     if (DOM_ELEMENTS.btnCancelDelete) DOM_ELEMENTS.btnCancelDelete.disabled = false;
 
+    // Foca o botão de confirmação
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if(DOM_ELEMENTS.btnConfirmDelete) DOM_ELEMENTS.btnConfirmDelete.focus();
 }
 
@@ -415,96 +448,127 @@ function renderPermissionsUI() {
     const role = getUserRole();
     console.log(`Applying permissions for role: ${role}`);
 
+    // Mapeamento de permissões:
     const isAnon = role === 'anon';
     const isEditor = role === 'editor';
     const isAdmin = role === 'admin';
+    const isAuthenticated = isEditor || isAdmin; // Usuário logado com email/senha ou token
 
+    // 1. Visibilidade do Conteúdo Principal (se não for ambiente Canvas, o modal de auth lida)
+    // Este wrapper garante que nada apareça enquanto não houver usuário (Anonimo/Email)
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (DOM_ELEMENTS.appContentWrapper) {
          DOM_ELEMENTS.appContentWrapper.classList.toggle('hidden', role === 'unauthenticated');
     }
 
+    // 2. Visibilidade das Abas de Navegação
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     DOM_ELEMENTS.navButtons.forEach(btn => {
         const tab = btn.dataset.tab;
         let isVisible = true;
         if (isAnon && tab !== 'dashboard') {
-            isVisible = false;
+            isVisible = false; // Anonimo só vê dashboard
         }
+        // MODIFICADO: Agrupado 'gestao' e 'usuarios'
         if ((isAnon || isEditor) && (tab === 'gestao' || tab === 'usuarios')) {
-            isVisible = false;
+            isVisible = false; // Apenas Admin vê Gestão de Unidades e Usuários
         }
         btn.classList.toggle('hidden', !isVisible);
     });
 
+    // NOVO (Correção do Bug): Reforço de Permissão no Conteúdo Principal (Impede interações em abas restritas)
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     DOM_ELEMENTS.contentPanes.forEach(pane => {
         const tabName = pane.id.replace('content-', '');
         let isDisabled = false;
         if (isAnon && tabName !== 'dashboard') {
-             isDisabled = true;
+             isDisabled = true; // Anon desabilita tudo menos dashboard
         }
         if (!isAdmin && (tabName === 'gestao' || tabName === 'usuarios')) {
-             isDisabled = true;
+             isDisabled = true; // Não-admin desabilita gestão e usuários
         }
          pane.classList.toggle('disabled-by-role', isDisabled);
     });
 
+    // 3. Permissões de Exclusão (Admin Only) - Botões dinâmicos
+    // O botão de confirmação do modal de exclusão é ocultado para não-admins
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (DOM_ELEMENTS.btnConfirmDelete) {
         DOM_ELEMENTS.btnConfirmDelete.classList.toggle('hidden', !isAdmin);
     }
+    // A remoção de botões ".btn-remove" nas tabelas é feita pela renderização dos módulos.
 
+    // 4. Permissões de Lançamento
+    // 4.1. Lançamentos de Água/Gás e Estoque: Anonimo não pode. Estoque é Admin-Only.
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     const formsToDisableForAnon = [
-         DOM_ELEMENTS.formAgua, DOM_ELEMENTS.formGas
+         DOM_ELEMENTS.formAgua, DOM_ELEMENTS.formGas // Movimentação (Editor/Admin)
     ];
 
     formsToDisableForAnon.forEach(form => {
         if (form) {
             form.classList.toggle('disabled-by-role', isAnon);
+            // Desabilita todos os inputs/buttons dentro
             form.querySelectorAll('input, select, button[type="submit"]').forEach(el => el.disabled = isAnon);
         }
     });
 
+    // Estoque é Admin-Only
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     const estoqueElementsToDisable = [
         DOM_ELEMENTS.formEntradaAgua, DOM_ELEMENTS.formEntradaGas,
         DOM_ELEMENTS.formInicialAgua, DOM_ELEMENTS.formInicialGas,
         DOM_ELEMENTS.formInicialAguaContainer, DOM_ELEMENTS.formInicialGasContainer,
+        // Adiciona botões de abrir estoque inicial
         DOM_ELEMENTS.btnAbrirInicialAgua, DOM_ELEMENTS.btnAbrirInicialGas
     ];
 
-    estoqueElementsToDisable.forEach(el => {
+    estoqueElementsToDisable.forEach(el => { // Agora itera sobre 'el'
         if (el) {
              const shouldDisable = !isAdmin;
+             // Se for container, aplica a classe, senão, desabilita diretamente
              if (el.tagName === 'DIV' || el.tagName === 'FORM') {
                  el.classList.toggle('disabled-by-role', shouldDisable);
-             } else {
+             } else { // Assume que é input/button/select
                  el.disabled = shouldDisable;
              }
+             // Desabilita filhos se for container/form
              if (el.tagName === 'DIV' || el.tagName === 'FORM') {
                 el.querySelectorAll('input, select, button').forEach(child => child.disabled = shouldDisable);
              }
         }
     });
 
-    const lancarMateriaisView = DOM_ELEMENTS.subviewLancarMateriais;
+    // 4.2. Registrar Nova Requisição (Materiais) - ADMIN-ONLY
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
+    const lancarMateriaisView = DOM_ELEMENTS.subviewLancarMateriais; // Usando a subview correta
     if (lancarMateriaisView) {
         const canRegister = isAdmin;
         lancarMateriaisView.classList.toggle('disabled-by-role', !canRegister);
+        // Desabilita todos os inputs/buttons dentro do formulário
         lancarMateriaisView.querySelectorAll('input, select, textarea, button[type="submit"]').forEach(el => el.disabled = !canRegister);
     }
-    
-    // ** A CORREÇÃO ESTÁ AQUI **
-    // Define a variável 'navContainer' e verifica se ela existe antes de usá-la.
-    const navContainer = DOM_ELEMENTS.subNavMateriais; 
+
+    // Oculta o botão 'Registrar Requisição' da sub-nav se não for Admin
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
+    const navContainer = document.getElementById('sub-nav-materiais'); // Define navContainer
     if (navContainer) {
-        const btnSubtabRegistrar = navContainer.querySelector('.sub-nav-btn[data-subview="lancar-materiais"]');
+        const btnSubtabRegistrar = navContainer.querySelector('.sub-nav-btn[data-subview="lancar-materiais"]'); // Seleciona o botão correto
         if (btnSubtabRegistrar) {
             btnSubtabRegistrar.classList.toggle('hidden', !isAdmin);
         }
     }
 
+
+    // 5. Permissões de Gestão (Unidades) - ADMIN ONLY
+    // A gestão de unidades (adição, edição, exclusão, toggles) é restrita ao Admin.
     const gestaoPane = document.getElementById('content-gestao');
     if (gestaoPane) {
         gestaoPane.classList.toggle('disabled-by-role', !isAdmin);
     }
 
+    // Container da coluna "Adicionar em Lote" (Esconde para não-Admin)
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (DOM_ELEMENTS.textareaBulkUnidades) {
         const bulkAddContainer = DOM_ELEMENTS.textareaBulkUnidades.closest('.lg\\:col-span-1');
         if (bulkAddContainer) {
@@ -512,11 +576,15 @@ function renderPermissionsUI() {
         }
     }
 
+
+    // 6. ADICIONADO: Permissões de Gestão (Usuários) - ADMIN ONLY
     const usuariosPane = document.getElementById('content-usuarios');
     if (usuariosPane) {
+        // Desabilita todo o painel se não for admin
         usuariosPane.classList.toggle('disabled-by-role', !isAdmin);
     }
 
+    // 7. RE-NUMERADO: Exibir status do usuário
     const user = auth.currentUser;
     const email = user?.email || (user?.isAnonymous ? 'Anônimo' : 'N/A');
     const roleText = {
@@ -526,13 +594,18 @@ function renderPermissionsUI() {
         'unauthenticated': 'Desconectado'
     }[role] || 'Desconhecido';
 
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (DOM_ELEMENTS.userEmailDisplayEl) DOM_ELEMENTS.userEmailDisplayEl.textContent = email;
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (DOM_ELEMENTS.userRoleDisplayEl) {
         DOM_ELEMENTS.userRoleDisplayEl.textContent = roleText;
+        // Atualiza a classe de cor do badge
         DOM_ELEMENTS.userRoleDisplayEl.className = `user-role-display text-xs font-semibold px-2 py-0.5 rounded-full ${role === 'admin' ? 'bg-red-200 text-red-800' : (role === 'editor' ? 'bg-blue-200 text-blue-800' : 'bg-gray-200 text-gray-800')}`;
     }
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (DOM_ELEMENTS.btnLogout) DOM_ELEMENTS.btnLogout.classList.toggle('hidden', role === 'unauthenticated');
 
+    // Se estiver em uma aba que não tem permissão, força o Dashboard
     const currentTab = document.querySelector('.nav-btn.active')?.dataset.tab;
     if (currentTab) {
         let shouldRedirect = false;
@@ -541,14 +614,16 @@ function renderPermissionsUI() {
 
         if (shouldRedirect) {
             switchTab('dashboard');
-            showAlert('connectionStatus', 'Acesso negado para esta seção.', 'warning', 10000);
+            showAlert('connectionStatus', 'Acesso negado para esta seção.', 'warning', 10000); // Alerta no header
         }
     }
 
+    // Garante que ícones sejam renderizados após aplicar permissões
      if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') {
         setTimeout(() => lucide.createIcons(), 50);
      }
 }
+
 
 export {
     DOM_ELEMENTS,
