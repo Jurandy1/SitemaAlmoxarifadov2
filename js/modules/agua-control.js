@@ -55,8 +55,9 @@ export async function handleInicialEstoqueSubmit(e) {
     e.preventDefault();
     
     const role = getUserRole(); // Obter o role
-    if (role === 'anon') { 
-        showAlert('alert-inicial-agua', "Permissão negada. Usuário Anônimo não pode alterar o estoque.", 'error'); return; 
+    // CORRIGIDO: Estoque inicial é Admin-only.
+    if (role !== 'admin') { 
+        showAlert('alert-inicial-agua', "Permissão negada. Apenas Administradores podem definir o estoque inicial.", 'error'); return; 
     }
     
     // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
@@ -105,8 +106,9 @@ export async function handleEntradaEstoqueSubmit(e) {
     if (!isReady()) { showAlert('alert-agua', 'Erro: Não autenticado.', 'error'); return; } 
     
     const role = getUserRole(); // Obter o role
-    if (role === 'anon') { 
-        showAlert('alert-agua', "Permissão negada. Usuário Anônimo não pode lançar entradas.", 'error'); return; 
+    // CORRIGIDO: Entrada de estoque é Admin-only.
+    if (role !== 'admin') { 
+        showAlert('alert-agua', "Permissão negada. Apenas Administradores podem lançar entradas no estoque.", 'error'); return; 
     }
     
     // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
@@ -233,6 +235,7 @@ export async function handleAguaSubmit(e) {
     if (!isReady()) { showAlert('alert-agua', 'Erro: Não autenticado.', 'error'); return; }
     
     const role = getUserRole(); // Obter o role
+    // PERMISSÃO: Editor/Admin (Anon bloqueado na UI)
     if (role === 'anon') { 
         showAlert('alert-agua', "Permissão negada. Usuário Anônimo não pode lançar movimentações.", 'error'); return; 
     }
