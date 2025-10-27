@@ -215,6 +215,7 @@ function renderDashboardMateriaisList() {
     }
     
     const html = pendentes.map(m => {
+        const isRequisitado = m.status === 'requisitado';
         const isSeparacao = m.status === 'separacao';
         const isRetirada = m.status === 'retirada';
         
@@ -222,31 +223,39 @@ function renderDashboardMateriaisList() {
         let badgeText = 'Requisitado';
         let bgColor = 'bg-purple-50'; 
         let borderColor = 'border-purple-300';
+        let lucideIcon = 'clipboard-list';
         
         if (isSeparacao) {
             badgeClass = 'badge-yellow';
             badgeText = 'Em Separação';
             bgColor = 'bg-yellow-50';
             borderColor = 'border-yellow-300';
+            lucideIcon = 'package'; // Novo ícone
         } else if (isRetirada) {
             badgeClass = 'badge-green';
             badgeText = 'Disponível';
             bgColor = 'bg-green-50';
             borderColor = 'border-green-300';
+            lucideIcon = 'check-square'; // Novo ícone
         }
 
+        // Aplicando as novas classes de estilo com micro-ícones Lucide (Spec 4)
         return ` 
-            <div class="p-3 ${bgColor} rounded-lg border ${borderColor}"> 
-                <div class="flex justify-between items-center gap-2"> 
-                    <span class="font-medium text-slate-700 text-sm truncate" title="${m.unidadeNome || ''}">${m.unidadeNome || 'Unidade Desc.'}</span> 
-                    <span class="badge ${badgeClass} flex-shrink-0">${badgeText} (${formatTimestamp(m.dataSeparacao || m.registradoEm)})</span> 
+            <div class="p-4 ${bgColor} rounded-xl border ${borderColor} shadow-sm"> 
+                <div class="flex justify-between items-center gap-2 mb-2"> 
+                    <span class="font-bold text-slate-800 text-base truncate" title="${m.unidadeNome || ''}">${m.unidadeNome || 'Unidade Desc.'}</span> 
+                    <span class="badge ${badgeClass} flex-shrink-0 flex items-center gap-1">
+                        <i data-lucide="${lucideIcon}" class="w-3 h-3 -mt-0.5"></i>
+                        <span>${badgeText}</span>
+                    </span> 
                 </div> 
-                <p class="text-xs text-slate-600 capitalize mt-1">${m.tipoMaterial || 'N/D'}</p> 
-                ${m.itens ? `<p class="text-xs text-gray-500 mt-1 truncate" title="${m.itens}">Obs: ${m.itens}</p>` : ''} 
+                <p class="text-xs text-gray-500 capitalize">${m.tipoMaterial || 'N/D'}</p> 
+                ${m.itens ? `<p class="text-xs text-gray-600 mt-1 italic truncate" title="${m.itens}">Obs: ${m.itens}</p>` : ''} 
             </div> `
     }).join('');
 
     DOM_ELEMENTS.dashboardMateriaisListContainer.innerHTML = html;
+    if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
 }
 
 /**
@@ -378,19 +387,23 @@ export function renderDashboardMateriaisProntos(filterStatus = null) {
                     
                     let liClass = '';
                     let spanClass = 'status-indicator';
+                    let lucideIcon = ''; // Usar Lucide Icon
                     let spanText = '';
 
                     if (m.status === 'requisitado') {
                         liClass = 'item-requisitado';
                         spanClass += ' requisitado'; 
-                        spanText = '📝 Requisitado';
+                        lucideIcon = 'clipboard-list';
+                        spanText = 'Requisitado';
                     } else if (m.status === 'separacao') {
                         spanClass += ' separando'; 
-                        spanText = '⏳ Separando...';
+                        lucideIcon = 'package'; // Ícone Em Separação
+                        spanText = 'Separando...';
                     } else if (m.status === 'retirada') {
                         liClass = 'item-retirada';
                         spanClass += ' pronto'; 
-                        spanText = '✅ Pronto';
+                        lucideIcon = 'check-square'; // Ícone Pronto
+                        spanText = 'Pronto';
                     }
 
                     const li = document.createElement('li');
@@ -398,7 +411,12 @@ export function renderDashboardMateriaisProntos(filterStatus = null) {
                     li.innerHTML = `
                         <strong class="text-sm text-gray-800">${m.unidadeNome}</strong>
                         <p class="text-xs text-gray-500 capitalize">(${tiposMateriais})</p>
-                        <div><span class="${spanClass}">${spanText}</span></div>
+                        <div>
+                             <span class="${spanClass}">
+                                <i data-lucide="${lucideIcon}" class="w-3 h-3 -mt-0.5"></i>
+                                ${spanText}
+                             </span>
+                        </div>
                     `;
                     ulDestino.appendChild(li);
                  });
