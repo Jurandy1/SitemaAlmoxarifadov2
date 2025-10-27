@@ -1367,4 +1367,218 @@
                     <div class="lg:col-span-1 bg-white rounded-xl border border-gray-200 shadow-sm p-6">
                         <h3 class="text-xl font-bold text-gray-800 mb-2">Adicionar em Lote</h3>
                         <p class="text-sm text-gray-500 mb-4">Cole do Excel (duas colunas: TIPO [TAB] NOME). Unidades duplicadas serão ignoradas.</p>
-                        <textarea id="textarea-bulk-unidades" class="form-textarea h-48" placeholder="CRAS	Unidade 1&#10;CREAS
+                        <textarea id="textarea-bulk-unidades" class="form-textarea h-48" placeholder="CRAS	Unidade 1&#10;CREAS	Unidade 2&#10;SEDE	Sede Administrativa"></textarea>
+                        <button id="btn-bulk-add-unidades" class="btn-primary w-full mt-4">
+                            <i data-lucide="plus-circle"></i> Adicionar Unidades
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PAINEL RELATÓRIO (ID: content-relatorio) -->
+            <div id="content-relatorio" class="fade-in hidden">
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 max-w-2xl mx-auto">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">Gerar Relatório de Entregas</h2>
+                    <p class="text-sm text-gray-600 mb-6">Selecione o tipo de item e o período para gerar um PDF com o resumo das entregas por unidade e por responsável.</p>
+
+                    <div class="space-y-4">
+                        <div>
+                            <label for="relatorio-tipo" class="form-label">Tipo de Item</label>
+                            <select id="relatorio-tipo" class="form-select">
+                                <option value="agua">Água</option>
+                                <option value="gas">Gás</option>
+                            </select>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label for="relatorio-data-inicio" class="form-label">Data de Início</label>
+                                <input type="date" id="relatorio-data-inicio" class="form-input" required>
+                            </div>
+                            <div>
+                                <label for="relatorio-data-fim" class="form-label">Data de Fim</label>
+                                <input type="date" id="relatorio-data-fim" class="form-input" required>
+                            </div>
+                        </div>
+                        <button id="btn-gerar-pdf" class="btn-primary w-full !mt-6">
+                            <i data-lucide="file-text"></i> Gerar Relatório PDF
+                        </button>
+                        <div id="alert-relatorio" class="alert mt-4"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PAINEL GESTÃO DE USUÁRIOS (ID: content-usuarios) - ADICIONADO -->
+            <div id="content-usuarios" class="fade-in hidden">
+                 <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">Gestão de Usuários</h2>
+                    <p class="text-sm text-gray-600 mb-6">Administre as permissões de acesso dos usuários ao sistema. Apenas usuários com e-mail podem ter permissões alteradas.</p>
+                    <div id="alert-usuarios" class="alert mb-4"></div>
+
+                    <div class="mb-4">
+                        <label for="filtro-usuarios" class="form-label text-xs">Buscar por E-mail:</label>
+                        <input type="text" id="filtro-usuarios" class="form-input" placeholder="Digite o e-mail do usuário...">
+                    </div>
+
+                    <div class="overflow-x-auto border border-gray-200 rounded-lg">
+                        <table class="table w-full text-sm">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th>E-mail</th>
+                                    <th>UID</th>
+                                    <th>Permissão</th>
+                                    <th class="text-center">Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-usuarios" class="divide-y divide-gray-100">
+                                <tr><td colspan="4" class="text-center py-10"><div class="loading-spinner-small mx-auto"></div></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+
+        </main>
+
+        <!-- Rodapé (opcional) -->
+        <footer class="text-center py-4 text-xs text-gray-400">
+            &copy; 2024 SEMCAS - Secretaria Municipal da Criança e Assistência Social. Todos os direitos reservados.
+        </footer>
+
+    </div> <!-- Fim do #app-content-wrapper -->
+
+
+    <!-- ============================================= -->
+    <!-- MODAIS DE CONFIRMAÇÃO E FLUXO                 -->
+    <!-- ============================================= -->
+
+    <!-- Modal de Confirmação de Exclusão -->
+    <div id="confirm-delete-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header bg-red-50 border-red-200">
+                <h3 class="modal-title text-red-800"><i data-lucide="alert-triangle" class="inline-block -mt-1 mr-2"></i> Confirmar Exclusão</h3>
+                <button class="modal-close" onclick="document.getElementById('confirm-delete-modal').style.display='none'">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Tem certeza que deseja excluir o item selecionado?</p>
+                <p id="delete-details" class="text-sm text-gray-500 mt-2"></p>
+                <p id="delete-warning-unidade" class="text-sm font-semibold text-red-600 mt-3" style="display: none;">
+                    ⚠️ Atenção: Excluir uma unidade removerá **todo** o histórico de movimentações (Água, Gás, Materiais) associado a ela. Esta ação não pode ser desfeita.
+                </p>
+                <p id="delete-warning-inicial" class="text-sm font-semibold text-red-600 mt-3" style="display: none;">
+                    ⚠️ Atenção: Excluir o lançamento inicial de estoque pode afetar o cálculo do estoque atual.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button id="btn-cancel-delete" class="btn-secondary">Cancelar</button>
+                <button id="btn-confirm-delete" class="btn-danger">Confirmar Exclusão</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Nome do Responsável Almoxarifado (Água/Gás) -->
+    <div id="almoxarifado-responsavel-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title"><i data-lucide="user-check" class="inline-block -mt-1 mr-2"></i> Confirmar Responsável</h3>
+                 <button class="modal-close" onclick="document.getElementById('almoxarifado-responsavel-modal').style.display='none'">&times;</button>
+            </div>
+            <div class="modal-body">
+                 <p class="text-sm text-gray-600 mb-4">Informe seu nome (Responsável do Almoxarifado) para registrar quem está realizando esta movimentação.</p>
+                 <div>
+                     <label for="input-almox-responsavel-nome" class="form-label">Seu Nome (Almoxarifado):</label>
+                     <input type="text" id="input-almox-responsavel-nome" class="form-input" placeholder="Digite seu nome completo" required>
+                 </div>
+                 <div id="alert-almox-responsavel" class="alert mt-3"></div>
+                 <!-- ** CAMPOS OCULTOS ADICIONADOS ** -->
+                 <input type="hidden" id="almox-temp-unidadeId">
+                 <input type="hidden" id="almox-temp-unidadeNome">
+                 <input type="hidden" id="almox-temp-tipoUnidadeRaw">
+                 <input type="hidden" id="almox-temp-tipoMovimentacao">
+                 <input type="hidden" id="almox-temp-qtdEntregue">
+                 <input type="hidden" id="almox-temp-qtdRetorno">
+                 <input type="hidden" id="almox-temp-data">
+                 <input type="hidden" id="almox-temp-responsavelUnidade">
+                 <input type="hidden" id="almox-temp-itemType">
+                 <!-- ** FIM DOS CAMPOS OCULTOS ** -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="document.getElementById('almoxarifado-responsavel-modal').style.display='none'">Cancelar</button>
+                <button id="btn-salvar-movimentacao-final" class="btn-primary">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Modal para Nome do Separador (Materiais) -->
+    <div id="separador-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title"><i data-lucide="user-plus" class="inline-block -mt-1 mr-2"></i> Informar Separador</h3>
+                <button class="modal-close" onclick="document.getElementById('separador-modal').style.display='none'">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="text-sm text-gray-600 mb-4">Informe o nome do responsável pela separação deste material.</p>
+                <div>
+                    <label for="input-separador-nome" class="form-label">Nome do Separador:</label>
+                    <input type="text" id="input-separador-nome" class="form-input" placeholder="Digite o nome completo" required>
+                </div>
+                <input type="hidden" id="separador-material-id">
+                <div id="alert-separador" class="alert mt-3"></div>
+            </div>
+            <div class="modal-footer">
+                 <button class="btn-secondary" onclick="document.getElementById('separador-modal').style.display='none'">Cancelar</button>
+                <button id="btn-salvar-separador" class="btn-primary">Salvar Nome e Liberar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Finalizar Entrega (Materiais) -->
+    <div id="finalizar-entrega-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                 <h3 class="modal-title"><i data-lucide="truck" class="inline-block -mt-1 mr-2"></i> Finalizar Entrega de Material</h3>
+                 <button class="modal-close" onclick="document.getElementById('finalizar-entrega-modal').style.display='none'">&times;</button>
+            </div>
+            <div class="modal-body space-y-4">
+                 <p class="text-sm text-gray-600">Confirme quem entregou (Almoxarifado) e quem recebeu (Unidade) o material.</p>
+                 <div>
+                     <label for="input-entrega-responsavel-almox" class="form-label">Quem Entregou (Almoxarifado):</label>
+                     <input type="text" id="input-entrega-responsavel-almox" class="form-input" placeholder="Nome do entregador" required>
+                 </div>
+                 <div>
+                     <label for="input-entrega-responsavel-unidade" class="form-label">Quem Recebeu (Unidade):</label>
+                     <input type="text" id="input-entrega-responsavel-unidade" class="form-input" placeholder="Nome do recebedor na unidade" required>
+                 </div>
+                 <input type="hidden" id="finalizar-entrega-material-id">
+                 <div id="alert-finalizar-entrega" class="alert"></div>
+            </div>
+            <div class="modal-footer">
+                 <button class="btn-secondary" onclick="document.getElementById('finalizar-entrega-modal').style.display='none'">Cancelar</button>
+                 <button id="btn-confirmar-finalizacao-entrega" class="btn-primary">
+                    <i data-lucide="check-circle"></i> Confirmar Finalização
+                 </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Inicializa os ícones Lucide após o carregamento da página
+        document.addEventListener('DOMContentLoaded', () => {
+            if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') {
+                lucide.createIcons();
+            }
+             // Toggle do painel de instruções de Materiais
+            const toggleBtn = document.getElementById('toggleInstructions');
+            const content = document.getElementById('instructionContent');
+            if (toggleBtn && content) {
+                toggleBtn.addEventListener('click', () => {
+                    const isHidden = content.style.display === 'none';
+                    content.style.display = isHidden ? 'block' : 'none';
+                    toggleBtn.textContent = isHidden ? 'Ocultar' : 'Mostrar Instruções';
+                });
+            }
+        });
+    </script>
+</body>
+</html>
