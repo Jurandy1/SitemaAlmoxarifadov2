@@ -1,3 +1,4 @@
+// js/utils/cache.js
 // ======================================================================
 // IMPORTAÇÕES
 // ======================================================================
@@ -64,9 +65,10 @@ let __userRole = 'unauthenticated'; // 'anon', 'editor', 'admin', 'unauthenticat
 // Essas variáveis são usadas nos gráficos e cálculos de previsão
 let modoPrevisao = { agua: null, gas: null };
 
-// ✅ Exportação direta para eliminar o erro de importação no previsao.js
-export const listaExclusoes = { agua: [], gas: [] };
+// VARIÁVEL CORRIGIDA: Removida a exportação direta e definida como let, para ser exportada no bloco final.
+let listaExclusoes = { agua: [], gas: [] };
 
+// VARIÁVEL CORRIGIDA: Incluída para ser exportada no bloco final.
 let graficoPrevisao = { agua: null, gas: null };
 
 
@@ -139,10 +141,10 @@ export {
     getDeleteInfo, setDeleteInfo,
     getUserRole, setUserRole,
 
-    // Previsão
+    // Previsão (CORRIGIDO: Exportando as variáveis em si para o previsao.js)
     getModoPrevisao, setModoPrevisao,
-    getListaExclusoes, setListaExclusoes,
-    getGraficoPrevisao, setGraficoPrevisao,
+    listaExclusoes, getListaExclusoes, setListaExclusoes, // Exportando a variável e os acessores
+    graficoPrevisao, getGraficoPrevisao, setGraficoPrevisao, // Exportando a variável e os acessores
 
     // Utilitários DOM necessários para o app.js
     DOM_ELEMENTS, 
