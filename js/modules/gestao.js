@@ -1,6 +1,6 @@
 // js/modules/gestao.js
 import { addDoc, updateDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-import { getUnidades } from "../utils/cache.js";
+import { getUnidades, getUserRole } from "../utils/cache.js"; // Adicionado getUserRole
 // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
 import { DOM_ELEMENTS, showAlert, openConfirmDeleteModal } from "../utils/dom-helpers.js"; 
 import { normalizeString, capitalizeString } from "../utils/formatters.js";
@@ -21,6 +21,8 @@ export function renderGestaoUnidades() {
     const unidades = getUnidades();
     const filtroNome = normalizeString(DOM_ELEMENTS.filtroUnidadeNome?.value || '');
     const filtroTipo = normalizeString(DOM_ELEMENTS.filtroUnidadeTipo?.value || '');
+    const role = getUserRole(); // Obter o role para renderização condicional
+    const isAdmin = role === 'admin';
     
     const unidadesFiltradas = unidades.filter(unidade => {
         const nomeNormalizado = normalizeString(unidade.nome);
@@ -44,17 +46,26 @@ export function renderGestaoUnidades() {
          
          const details = `${unidade.nome} (${tipoDisplay})`;
 
+         // DESABILITA/OCULTA os botões/inputs de ação para não-Admin
+         const toggleDisabled = isAdmin ? '' : 'disabled';
+         const actionHtml = isAdmin 
+            ? `<button class="btn-danger btn-remove" data-id="${unidade.id}" data-type="unidade" data-details="${details}" title="Remover esta unidade e seu histórico"><i data-lucide="trash-2"></i></button>`
+            : `<span class="text-gray-400" title="Apenas Admin pode excluir"><i data-lucide="slash"></i></span>`;
+         const editButtonHtml = isAdmin 
+            ? `<button class="btn-icon btn-edit-unidade ml-1" title="Editar nome"><i data-lucide="pencil"></i></button>`
+            : '';
+
          html += `<tr data-unidade-id="${unidade.id}">
                 <td class="font-medium">
                     <span class="unidade-nome-display">${unidade.nome}</span>
-                    <button class="btn-icon btn-edit-unidade ml-1" title="Editar nome"><i data-lucide="pencil"></i></button>
+                    ${editButtonHtml}
                 </td>
                 <td>${tipoDisplay}</td>
-                <td class="text-center"><input type="checkbox" class="form-toggle gestao-toggle" data-field="atendeAgua" ${(unidade.atendeAgua ?? true) ? 'checked' : ''}></td>
-                <td class="text-center"><input type="checkbox" class="form-toggle gestao-toggle" data-field="atendeGas" ${(unidade.atendeGas ?? true) ? 'checked' : ''}></td>
-                <td class="text-center"><input type="checkbox" class="form-toggle gestao-toggle" data-field="atendeMateriais" ${(unidade.atendeMateriais ?? true) ? 'checked' : ''}></td>
+                <td class="text-center"><input type="checkbox" class="form-toggle gestao-toggle" data-field="atendeAgua" ${toggleDisabled} ${(unidade.atendeAgua ?? true) ? 'checked' : ''}></td>
+                <td class="text-center"><input type="checkbox" class="form-toggle gestao-toggle" data-field="atendeGas" ${toggleDisabled} ${(unidade.atendeGas ?? true) ? 'checked' : ''}></td>
+                <td class="text-center"><input type="checkbox" class="form-toggle gestao-toggle" data-field="atendeMateriais" ${toggleDisabled} ${(unidade.atendeMateriais ?? true) ? 'checked' : ''}></td>
                 <td class="text-center">
-                    <button class="btn-danger btn-remove" data-id="${unidade.id}" data-type="unidade" data-details="${details}" title="Remover esta unidade e seu histórico"><i data-lucide="trash-2"></i></button>
+                    ${actionHtml}
                 </td>
             </tr>`;
     });
@@ -72,6 +83,16 @@ export function renderGestaoUnidades() {
  * Lida com a mudança dos toggles de serviço.
  */
 async function handleGestaoToggle(e) {
+    const role = getUserRole();
+    // PERMISSÃO: Admin-Only
+    if (role !== 'admin') {
+        showAlert('alert-gestao', "Permissão negada. Apenas Administradores podem alterar unidades.", 'error');
+        // Reverter o estado do checkbox na UI se for Editor
+        const checkbox = e.target.closest('.gestao-toggle');
+        if (checkbox) checkbox.checked = !checkbox.checked;
+        return;
+    }
+
     const checkbox = e.target.closest('.gestao-toggle'); 
     if (!checkbox) return; 
     
@@ -91,7 +112,7 @@ async function handleGestaoToggle(e) {
     } catch (error) { 
         console.error("Erro atualizar unidade:", error); 
         showAlert('alert-gestao', `Erro: ${error.message}`, 'error'); 
-        checkbox.checked = !value;
+        checkbox.checked = !value; // Reverte na UI em caso de erro no DB
     } finally { 
         checkbox.disabled = false; 
     }
@@ -104,13 +125,20 @@ function handleEditUnidadeClick(e) {
     const button = e.target.closest('.btn-edit-unidade');
     if (!button) return;
     
+    const role = getUserRole();
+    // PERMISSÃO: Admin-Only
+    if (role !== 'admin') {
+        showAlert('alert-gestao', "Permissão negada. Apenas Administradores podem editar unidades.", 'error');
+        return;
+    }
+
     const td = button.closest('td');
     const row = button.closest('tr');
     const nomeSpan = td.querySelector('.unidade-nome-display');
     const currentName = nomeSpan.textContent;
 
     td.innerHTML = `
-        <input type="text" value="${currentName}" class="edit-input w-full" placeholder="Novo nome da unidade">
+        <input type="text" value="${currentName}" class="edit-input form-input w-full" placeholder="Novo nome da unidade">
         <div class="mt-1 space-x-1">
             <button class="btn-icon btn-save-unidade text-green-600 hover:text-green-800" title="Salvar"><i data-lucide="save"></i></button>
             <button class="btn-icon btn-cancel-edit-unidade text-red-600 hover:text-red-800" title="Cancelar"><i data-lucide="x-circle"></i></button>
@@ -128,6 +156,9 @@ function handleCancelEditUnidadeClick(e) {
     const button = e.target.closest('.btn-cancel-edit-unidade');
     if (!button) return;
     
+    const role = getUserRole();
+    if (role !== 'admin') { return; } // Checagem para evitar que Editor "cancele" uma edição que não deveria ter iniciado
+
     const td = button.closest('td');
     const row = button.closest('tr');
     const unidadeId = row.dataset.unidadeId;
@@ -147,6 +178,13 @@ function handleCancelEditUnidadeClick(e) {
 async function handleSaveUnidadeClick(e) {
     const button = e.target.closest('.btn-save-unidade');
     if (!button) return;
+
+    const role = getUserRole();
+    // PERMISSÃO: Admin-Only
+    if (role !== 'admin') {
+        showAlert('alert-gestao', "Permissão negada. Apenas Administradores podem salvar edições de unidades.", 'error');
+        return;
+    }
     
     const td = button.closest('td');
     const row = button.closest('tr');
@@ -191,6 +229,13 @@ async function handleSaveUnidadeClick(e) {
  * Adiciona unidades em lote.
  */
 export async function handleBulkAddUnidades() {
+     const role = getUserRole();
+     // PERMISSÃO: Admin-Only
+     if (role !== 'admin') {
+         showAlert('alert-gestao', "Permissão negada. Apenas Administradores podem adicionar unidades.", 'error');
+         return;
+     }
+
      // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
      if (!isReady() || !DOM_ELEMENTS.textareaBulkUnidades) return;
      
