@@ -253,16 +253,16 @@
                                 <p class="text-sm text-gray-500 mt-1">Botijões Disponíveis</p>
                             </div>
 
-                            <!-- Card Em Separação -->
+                            <!-- Card Em Separação (Agora soma Requisitado + Em Separação) -->
                             <div id="dashboard-card-separacao" class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col cursor-pointer transition-all hover:shadow-md hover:border-amber-300">
                                 <div class="flex items-center gap-3 mb-4">
                                     <div class="p-2 bg-amber-100 rounded-full">
                                         <i data-lucide="archive" class="w-6 h-6 text-amber-600"></i>
                                     </div>
-                                    <h3 class="font-semibold text-gray-800">Em Separação</h3>
+                                    <h3 class="font-semibold text-gray-800">Em Preparação</h3>
                                 </div>
                                 <p id="dashboard-materiais-separacao-count" class="text-5xl font-extrabold text-amber-600 mt-auto">0</p>
-                                <p class="text-sm text-gray-500 mt-1">Registros pendentes</p>
+                                <p class="text-sm text-gray-500 mt-1">Requisições a serem separadas</p>
                             </div>
 
                             <!-- Card Disponível p/ Retirada -->
@@ -974,7 +974,7 @@
                     <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 max-w-6xl mx-auto">
                         <h2 class="text-2xl font-bold text-gray-800 mb-2">
                             <i data-lucide="bar-chart-3" class="inline-block -mt-1"></i> Previsão Inteligente de Consumo - Gás
-                        </h2>
+                        </h2 >
                         <p class="text-sm text-gray-500 mb-6">
                             Calcule previsões precisas baseadas no histórico de consumo para planejar compras.
                         </p>
@@ -1222,7 +1222,8 @@
                                     <tr>
                                         <th>Unidade</th>
                                         <th>Tipo</th>
-                                        <th>Data Requisição</th>
+                                        <!-- CORREÇÃO SOLICITADA 2: Inclusão do horário -->
+                                        <th>Lançado Em (Data e Hora)</th>
                                         <th>Lançado por</th>
                                         <th class="text-center">Ações</th>
                                     </tr>
@@ -1355,7 +1356,7 @@
                                         <th class="text-center">Atende Materiais</th>
                                         <th class="text-center">Ação</th>
                                     </tr>
-                                </thead>
+                                </thead >
                                 <tbody id="table-gestao-unidades" class="divide-y divide-gray-100">
                                     <tr><td colspan="6" class="text-center py-10"><div class="loading-spinner-small mx-auto"></div></td></tr>
                                 </tbody>
