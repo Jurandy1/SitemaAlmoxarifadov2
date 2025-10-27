@@ -37,6 +37,7 @@ import { getTodayDateString } from "../utils/formatters.js";
 // VARIÁVEIS DE CACHE E ESTADO GLOBAL
 // ======================================================================
 
+// Dados e cache principais
 let __unidades = [];
 let __aguaMovimentacoes = [];
 let __gasMovimentacoes = [];
@@ -56,9 +57,16 @@ let __deleteInfo = {
 };
 let __userRole = 'unauthenticated'; // 'anon', 'editor', 'admin', 'unauthenticated'
 
-// Variáveis específicas de Previsão
+// ======================================================================
+// VARIÁVEIS DE PREVISÃO
+// ======================================================================
+
+// Essas variáveis são usadas nos gráficos e cálculos de previsão
 let modoPrevisao = { agua: null, gas: null };
-let listaExclusoes = { agua: [], gas: [] };
+
+// ✅ Exportação direta para eliminar o erro de importação no previsao.js
+export const listaExclusoes = { agua: [], gas: [] };
+
 let graficoPrevisao = { agua: null, gas: null };
 
 
@@ -106,7 +114,7 @@ function setGraficoPrevisao(tipo, chartInstance) { graficoPrevisao[tipo] = chart
 // FUNÇÕES AUXILIARES
 // ======================================================================
 
-// Função simples para retornar o filtro inicial de materiais
+// Retorna o filtro inicial dos materiais do dashboard
 function initialMaterialFilter() {
     return __dashboardMaterialFilter;
 }
@@ -115,10 +123,6 @@ function initialMaterialFilter() {
 // ======================================================================
 // EXPORTAÇÕES
 // ======================================================================
-
-// Exporta todas as funções e variáveis necessárias para outros módulos.
-// Inclui agora a exportação direta de 'listaExclusoes' para eliminar o erro
-// "doesn't provide an export named 'listaExclusoes'" no previsao.js.
 
 export { 
     // Getters e Setters principais
@@ -140,10 +144,7 @@ export {
     getListaExclusoes, setListaExclusoes,
     getGraficoPrevisao, setGraficoPrevisao,
 
-    // Exportação direta para compatibilidade
-    listaExclusoes,
-
-    // Utilitários DOM que precisam continuar disponíveis para o app.js
+    // Utilitários DOM necessários para o app.js
     DOM_ELEMENTS, 
     findDOMElements, 
     updateLastUpdateTime
