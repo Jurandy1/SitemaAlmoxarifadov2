@@ -168,7 +168,8 @@ function renderMaterialSubTable(tableBody, data, status) {
     data.forEach(m => {
         let acoesHtml = '';
         let rowContent = '';
-        const dataRequisicaoFormatada = formatTimestamp(m.dataRequisicao || m.registradoEm); // Usa dataRequisicao ou registradoEm
+        // CORREÇÃO SOLICITADA 2: Usar formatTimestampComTempo para a data de registro/requisição
+        const dataRequisicaoFormatada = formatTimestampComTempo(m.registradoEm || m.dataRequisicao); 
         const responsavelLancamento = m.responsavelLancamento || 'N/A';
         const separador = m.responsavelSeparador || 'N/A';
         const dataInicioSeparacaoFormatada = formatTimestampComTempo(m.dataInicioSeparacao);
@@ -195,7 +196,7 @@ function renderMaterialSubTable(tableBody, data, status) {
             
             rowContent = `<td>${m.unidadeNome}</td>` +
                 `<td class="capitalize">${m.tipoMaterial}</td>` +
-                `<td>${dataRequisicaoFormatada}</td>` + // Coluna Data Requisição
+                `<td class="whitespace-nowrap">${dataRequisicaoFormatada}</td>` + // Coluna Data Requisição com TEMPO (CORREÇÃO 2)
                 `<td>${responsavelLancamento}</td>` +
                 `<td class="text-center space-x-2">${acoesHtml}</td>`;
             
