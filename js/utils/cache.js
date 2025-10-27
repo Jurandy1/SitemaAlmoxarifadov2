@@ -1,3 +1,6 @@
+// ======================================================================
+// IMPORTAÇÕES
+// ======================================================================
 import { 
     DOM_ELEMENTS, 
     switchTab, 
@@ -8,25 +11,30 @@ import {
     handleSaldoFilterUI, 
     openConfirmDeleteModal 
 } from "../utils/dom-helpers.js";
-// NOTA DE CORREÇÃO: Removido 'showAlert' da importação acima, pois não é definido em dom-helpers.js
-// ou o app.js deveria importá-lo diretamente. Mantenha a exportação no final para
-// não quebrar a importação em app.js, se showAlert for definida neste arquivo.
+
+// NOTA DE CORREÇÃO:
+// 'showAlert' foi removido da importação acima, pois não está definido em dom-helpers.js.
+// Caso o app.js precise dessa função, importe-a diretamente do módulo correto ou
+// defina-a no próprio app.js.
 
 import { onAguaTabChange, initAguaListeners } from "../modules/agua-control.js";
 import { onGasTabChange, initGasListeners } from "../modules/gas-control.js";
 import { onMateriaisTabChange, initMateriaisListeners } from "../modules/materiais.js";
 import { onGestaoTabChange, initGestaoListeners } from "../modules/gestao.js";
 import { onRelatorioTabChange, initRelatoriosListeners } from "../modules/relatorios.js";
+
 import { 
     initDashboardListeners, 
     renderDashboard, 
     startDashboardRefresh, 
     stopDashboardRefresh 
 } from "../modules/dashboard.js";
+
 import { getTodayDateString } from "../utils/formatters.js";
 
+
 // ======================================================================
-// Variáveis de Cache e Estado Global
+// VARIÁVEIS DE CACHE E ESTADO GLOBAL
 // ======================================================================
 
 let __unidades = [];
@@ -37,19 +45,21 @@ let __estoqueAgua = [];
 let __estoqueGas = [];
 let __estoqueInicialDefinido = { agua: false, gas: false };
 let __currentStatusFilter = { agua: 'all', gas: 'all' };
-let __dashboardMaterialFilter = null; // 'separacao', 'retirada' ou null (todos pendentes)
-let __deleteInfo = { id: null, type: null, collectionRef: null, alertElementId: null, details: null, isInicial: false };
+let __dashboardMaterialFilter = null; // 'separacao', 'retirada' ou null
+let __deleteInfo = { 
+    id: null, 
+    type: null, 
+    collectionRef: null, 
+    alertElementId: null, 
+    details: null, 
+    isInicial: false 
+};
 let __userRole = 'unauthenticated'; // 'anon', 'editor', 'admin', 'unauthenticated'
 
-// Variáveis de estado para Previsão
+// Variáveis específicas de Previsão
 let modoPrevisao = { agua: null, gas: null };
 let listaExclusoes = { agua: [], gas: [] };
 let graficoPrevisao = { agua: null, gas: null };
-
-// Função para obter o filtro inicial
-function initialMaterialFilter() {
-    return __dashboardMaterialFilter;
-}
 
 
 // ======================================================================
@@ -71,6 +81,7 @@ function getModoPrevisao(tipo) { return modoPrevisao[tipo]; }
 function getListaExclusoes(tipo) { return listaExclusoes[tipo]; }
 function getGraficoPrevisao(tipo) { return graficoPrevisao[tipo]; }
 
+
 // ======================================================================
 // SETTERS
 // ======================================================================
@@ -90,46 +101,50 @@ function setModoPrevisao(tipo, modo) { modoPrevisao[tipo] = modo; }
 function setListaExclusoes(tipo, lista) { listaExclusoes[tipo] = lista; }
 function setGraficoPrevisao(tipo, chartInstance) { graficoPrevisao[tipo] = chartInstance; }
 
-// ================================================================
-// EXPORTAÇÕES CORRETAS
-// ================================================================
+
+// ======================================================================
+// FUNÇÕES AUXILIARES
+// ======================================================================
+
+// Função simples para retornar o filtro inicial de materiais
+function initialMaterialFilter() {
+    return __dashboardMaterialFilter;
+}
+
+
+// ======================================================================
+// EXPORTAÇÕES
+// ======================================================================
+
+// Exporta todas as funções e variáveis necessárias para outros módulos.
+// Inclui agora a exportação direta de 'listaExclusoes' para eliminar o erro
+// "doesn't provide an export named 'listaExclusoes'" no previsao.js.
+
 export { 
-    getUnidades, 
-    setUnidades, 
-    getAguaMovimentacoes, 
-    setAguaMovimentacoes, 
-    getGasMovimentacoes, 
-    setGasMovimentacoes, 
-    getMateriais, 
-    setMateriais, 
-    getEstoqueAgua, 
-    setEstoqueAgua, 
-    getEstoqueGas, 
-    setEstoqueGas,
-    isEstoqueInicialDefinido,
-    setEstoqueInicialDefinido,
-    getCurrentStatusFilter,
-    setCurrentStatusFilter,
-    getCurrentDashboardMaterialFilter,
-    setCurrentDashboardMaterialFilter,
+    // Getters e Setters principais
+    getUnidades, setUnidades,
+    getAguaMovimentacoes, setAguaMovimentacoes,
+    getGasMovimentacoes, setGasMovimentacoes,
+    getMateriais, setMateriais,
+    getEstoqueAgua, setEstoqueAgua,
+    getEstoqueGas, setEstoqueGas,
+    isEstoqueInicialDefinido, setEstoqueInicialDefinido,
+    getCurrentStatusFilter, setCurrentStatusFilter,
+    getCurrentDashboardMaterialFilter, setCurrentDashboardMaterialFilter,
     initialMaterialFilter,
-    setDeleteInfo,
-    getDeleteInfo,
-    getUserRole,
-    setUserRole,
-    // Exports para Previsão
-    getModoPrevisao,
-    setModoPrevisao,
-    getListaExclusoes,
-    setListaExclusoes,
-    getGraficoPrevisao,
-    setGraficoPrevisao,
-    
-    // Exports de Controle Geral (que estavam duplicados)
-    // Essas funções NÃO ESTÃO DEFINIDAS AQUI, mas o código duplicado as exportava.
-    // O app.js deve importar estas funções de 'control-helpers.js'.
-    // Mantendo a exportação dos getters/setters do cache.
+    getDeleteInfo, setDeleteInfo,
+    getUserRole, setUserRole,
+
+    // Previsão
+    getModoPrevisao, setModoPrevisao,
+    getListaExclusoes, setListaExclusoes,
+    getGraficoPrevisao, setGraficoPrevisao,
+
+    // Exportação direta para compatibilidade
+    listaExclusoes,
+
+    // Utilitários DOM que precisam continuar disponíveis para o app.js
     DOM_ELEMENTS, 
     findDOMElements, 
-    updateLastUpdateTime 
+    updateLastUpdateTime
 };
