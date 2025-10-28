@@ -149,15 +149,23 @@ function findDOMElements() {
         ['#filtro-historico-estoque-gas', 'filtroHistoricoEstoqueGas'],
         ['#alert-historico-estoque-gas', 'alertHistoricoEstoqueGas'],
 
-        // NOVO PONTO 2: Análise de Consumo - Água
-        ['#analise-periodo-agua', 'analisePeriodoAgua'],
-        ['#analise-agrupamento-agua', 'analiseAgrupamentoAgua'],
+        // CORRIGIDO/ADICIONADO: Análise de Consumo - Água
+        ['#select-modo-agrupamento-agua', 'selectModoAgrupamentoAgua'],
+        ['#analise-agrupamento-tipo-container-agua', 'analiseAgrupamentoTipoContainerAgua'],
+        ['#analise-agrupamento-unidade-container-agua', 'analiseAgrupamentoUnidadeContainerAgua'],
+        ['#analise-agrupamento-tipo-agua', 'analiseAgrupamentoTipoAgua'],
+        ['#analise-agrupamento-unidade-agua', 'analiseAgrupamentoUnidadeAgua'],
+        ['#analise-granularidade-agua', 'analiseGranularidadeAgua'],
         ['#btn-analisar-consumo-agua', 'btnAnalisarConsumoAgua'],
         ['#alert-analise-consumo-agua', 'alertAnaliseConsumoAgua'],
         
-        // NOVO PONTO 2: Análise de Consumo - Gás
-        ['#analise-periodo-gas', 'analisePeriodoGas'],
-        ['#analise-agrupamento-gas', 'analiseAgrupamentoGas'],
+        // CORRIGIDO/ADICIONADO: Análise de Consumo - Gás
+        ['#select-modo-agrupamento-gas', 'selectModoAgrupamentoGas'],
+        ['#analise-agrupamento-tipo-container-gas', 'analiseAgrupamentoTipoContainerGas'],
+        ['#analise-agrupamento-unidade-container-gas', 'analiseAgrupamentoUnidadeContainerGas'],
+        ['#analise-agrupamento-tipo-gas', 'analiseAgrupamentoTipoGas'],
+        ['#analise-agrupamento-unidade-gas', 'analiseAgrupamentoUnidadeGas'],
+        ['#analise-granularidade-gas', 'analiseGranularidadeGas'],
         ['#btn-analisar-consumo-gas', 'btnAnalisarConsumoGas'],
         ['#alert-analise-consumo-gas', 'alertAnaliseConsumoGas'],
         
@@ -542,13 +550,6 @@ function renderPermissionsUI() {
     const gestaoPane = document.getElementById('content-gestao');
     if (gestaoPane) {
         gestaoPane.classList.toggle('disabled-by-role', !isAdmin);
-    }
-
-    if (DOM_ELEMENTS.textareaBulkUnidades) {
-        const bulkAddContainer = DOM_ELEMENTS.textareaBulkUnidades.closest('.lg\\:col-span-1');
-        if (bulkAddContainer) {
-            bulkAddContainer.classList.toggle('hidden', !isAdmin);
-        }
     }
 
     const usuariosPane = document.getElementById('content-usuarios');
