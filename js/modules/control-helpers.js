@@ -19,6 +19,7 @@ import { onMateriaisTabChange, initMateriaisListeners } from "./materiais.js";
 import { onGestaoTabChange, initGestaoListeners } from "./gestao.js";
 import { onRelatorioTabChange, initRelatoriosListeners } from "./relatorios.js";
 import { onUsuariosTabChange, initUsuariosListeners } from "./usuarios.js"; // ADICIONADO
+import { setupAnaliseUnidadeControls } from "./previsao.js"; // IMPORTADO
 import {
     initDashboardListeners,
     renderDashboard,
@@ -36,6 +37,10 @@ import { getTodayDateString } from "../utils/formatters.js";
  */
 function renderUIModules() {
     renderUnidadeControls();
+    
+    // Configura o filtro de análise de consumo (Novo)
+    setupAnaliseUnidadeControls('agua');
+    setupAnaliseUnidadeControls('gas');
 
     // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (DOM_ELEMENTS.contentPanes) {
@@ -86,6 +91,8 @@ function renderUnidadeControls() {
         { el: document.getElementById("select-previsao-unidade-gas-v2"), service: "atendeGas", useIdAsValue: true },
         { el: document.getElementById("select-exclusao-agua"), service: "atendeAgua", useIdAsValue: true },
         { el: document.getElementById("select-exclusao-gas"), service: "atendeGas", useIdAsValue: true },
+        
+        // Novos selects de filtro por tipo/unidade para Previsão (agora populados por setupAnaliseUnidadeControls)
     ];
 
     selectsToPopulate.forEach(({ el, service, includeAll, includeSelecione, filterType, useIdAsValue }) => {
@@ -126,6 +133,7 @@ function renderUnidadeControls() {
         el.innerHTML = html;
     });
 
+    // População para os selects de TIPO na Previsão (Mantida, mas a nova lógica de análise usa uma função diferente)
     const selectTipoAgua = document.getElementById("select-previsao-tipo-agua");
     const selectTipoGas = document.getElementById("select-previsao-tipo-gas");
 
