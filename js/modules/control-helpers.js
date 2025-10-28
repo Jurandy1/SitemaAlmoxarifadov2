@@ -18,8 +18,7 @@ import { onGasTabChange, initGasListeners } from "./gas-control.js";
 import { onMateriaisTabChange, initMateriaisListeners } from "./materiais.js";
 import { onGestaoTabChange, initGestaoListeners } from "./gestao.js";
 import { onRelatorioTabChange, initRelatoriosListeners } from "./relatorios.js";
-// ADICIONADO
-import { onUsuariosTabChange, initUsuariosListeners } from "./usuarios.js";
+import { onUsuariosTabChange, initUsuariosListeners } from "./usuarios.js"; // ADICIONADO
 import {
     initDashboardListeners,
     renderDashboard,
@@ -32,24 +31,28 @@ import { getTodayDateString } from "../utils/formatters.js";
 // FUNÇÕES DE CONTROLE GERAL
 // ======================================================================
 
+/**
+ * Renderiza todos os módulos da UI que estão ativos.
+ */
 function renderUIModules() {
     renderUnidadeControls();
 
     // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (DOM_ELEMENTS.contentPanes) {
         DOM_ELEMENTS.contentPanes.forEach(pane => {
+            // Verifica se o painel não está 'hidden', pois só precisa renderizar o que está visível
             if (!pane.classList.contains("hidden")) {
                 const tabName = pane.id.replace("content-", "");
-                console.log(`renderUIModules calling for tab: ${tabName}`); // Log added
+                console.log(`renderUIModules calling for tab: ${tabName}`);
                 switch (tabName) {
                     case "dashboard":
                         renderDashboard();
                         break;
                     case "agua":
-                        onAguaTabChange();
+                        onAguaTabChange(); // Chama a orquestração da tab Água
                         break;
                     case "gas":
-                        onGasTabChange();
+                        onGasTabChange(); // Chama a orquestração da tab Gás
                         break;
                     case "materiais":
                         onMateriaisTabChange();
@@ -60,7 +63,6 @@ function renderUIModules() {
                     case "relatorio":
                         onRelatorioTabChange();
                         break;
-                    // ADICIONADO
                     case "usuarios":
                         onUsuariosTabChange();
                         break;
@@ -70,6 +72,9 @@ function renderUIModules() {
     }
 }
 
+/**
+ * Renderiza os controles de unidade (selects) em todas as abas.
+ */
 function renderUnidadeControls() {
     const unidades = getUnidades();
     const selectsToPopulate = [
@@ -140,59 +145,66 @@ function renderUnidadeControls() {
     }
 }
 
+/**
+ * Inicializa todos os listeners de navegação e de módulo.
+ */
 function initAllListeners() {
     // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     DOM_ELEMENTS.navButtons.forEach(button => button.addEventListener("click", () => {
         stopDashboardRefresh();
         switchTab(button.dataset.tab); // This logs "Switching to tab: ..."
 
+        // Chama a função de orquestração correta ao trocar de aba
         switch (button.dataset.tab) {
             case "dashboard":
-                console.log("Calling initDashboardListeners, startDashboardRefresh, renderDashboard..."); // Add log
-                // Não precisa iniciar listeners aqui, eles são iniciados uma vez abaixo
+                console.log("Calling initDashboardListeners, startDashboardRefresh, renderDashboard...");
                 startDashboardRefresh();
                 renderDashboard();
                 break;
             case "agua":
-                console.log("Calling onAguaTabChange..."); // Add log
+                console.log("Calling onAguaTabChange...");
                 onAguaTabChange();
                 break;
             case "gas":
-                console.log("Calling onGasTabChange..."); // Add log
+                console.log("Calling onGasTabChange...");
                 onGasTabChange();
                 break;
             case "materiais":
-                console.log("Calling onMateriaisTabChange..."); // Add log
+                console.log("Calling onMateriaisTabChange...");
                 onMateriaisTabChange();
                 break;
             case "gestao":
-                console.log("Calling onGestaoTabChange..."); // Add log
+                console.log("Calling onGestaoTabChange...");
                 onGestaoTabChange();
                 break;
             case "relatorio":
-                console.log("Calling onRelatorioTabChange..."); // Add log
+                console.log("Calling onRelatorioTabChange...");
                 onRelatorioTabChange();
                 break;
-            // ADICIONADO
             case "usuarios":
-                console.log("Calling onUsuariosTabChange..."); // Add log
+                console.log("Calling onUsuariosTabChange...");
                 onUsuariosTabChange();
                 break;
         }
     }));
 
+    // Listener delegado para remoção em todas as abas
     document.querySelector("main").addEventListener("click", (e) => {
         const removeBtn = e.target.closest("button.btn-remove[data-id]");
         if (removeBtn) {
              // Determina o alertId com base no tipo
              let alertId = 'alert-gestao'; // Default para gestão
              const type = removeBtn.dataset.type;
-             if (type === 'agua') alertId = 'alert-agua-lista'; // Alerta na lista de histórico/status
-             else if (type === 'gas') alertId = 'alert-gas-lista'; // Alerta na lista de histórico/status
-             else if (type === 'materiais') alertId = `alert-${removeBtn.closest('[id^="subview-"]').id.split('-')[1]}`; // Tenta pegar da subview (para-separar, etc.)
-             else if (type === 'unidade') alertId = 'alert-gestao'; // Mantém gestão
-             else if (type === 'entrada-agua') alertId = 'alert-agua'; // Alerta na aba principal
-             else if (type === 'entrada-gas') alertId = 'alert-gas'; // Alerta na aba principal
+             // Lógica de alerta para movimentações de unidade
+             if (type === 'agua') alertId = 'alert-historico-agua'; 
+             else if (type === 'gas') alertId = 'alert-historico-gas'; 
+             // Lógica de alerta para entradas de estoque (NOVO PONTO 1)
+             else if (type === 'entrada-agua') alertId = 'alert-historico-estoque-agua'; 
+             else if (type === 'entrada-gas') alertId = 'alert-historico-estoque-gas'; 
+             // Lógica de alerta para materiais (usa o ID da subview)
+             else if (type === 'materiais') alertId = `alert-${removeBtn.closest('[id^="subview-"]').id.split('-')[1]}`; 
+             // Lógica de alerta para unidade
+             else if (type === 'unidade') alertId = 'alert-gestao'; 
 
              console.log(`openConfirmDeleteModal called with type: ${type}, alertId: ${alertId}`);
 
@@ -201,7 +213,6 @@ function initAllListeners() {
                 type,
                 removeBtn.dataset.details,
                 alertId // Passa o ID do alerta correto
-                // 'collectionRef' e 'isInicial' serão tratados dentro de openConfirmDeleteModal/getDeleteInfo
              );
         }
     });
@@ -213,28 +224,27 @@ function initAllListeners() {
              if(DOM_ELEMENTS.confirmDeleteModal) DOM_ELEMENTS.confirmDeleteModal.style.display = "none";
          });
 
-    // Initial listeners setup for all modules regardless of the starting tab
-    console.log("Initializing listeners for all modules..."); // Add log
+    // Inicialização de listeners específicos de módulo (executados apenas uma vez)
+    console.log("Initializing listeners for all modules...");
     initDashboardListeners();
     initAguaListeners();
     initGasListeners();
     initMateriaisListeners();
     initGestaoListeners();
     initRelatoriosListeners();
-    // ADICIONADO
-    initUsuariosListeners();
+    initUsuariosListeners(); // Inicializa listeners de Usuários
 }
 
 // ================================================================
-// EXPORTAÇÕES CORRETAS
+// EXPORTAÇÕES
 // ================================================================
 export {
     renderUIModules,
     renderUnidadeControls,
     initAllListeners,
-    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS (agora re-exportado para app.js)
+    // Exportações de utilidades do DOM usadas pelo app.js
     DOM_ELEMENTS,
-    findDOMElements, // Necessário para app.js
-    updateLastUpdateTime, // Necessário para app.js
-    showAlert // Importado de dom-helpers e re-exportado para uso no app.js
+    findDOMElements,
+    updateLastUpdateTime,
+    showAlert 
 };
