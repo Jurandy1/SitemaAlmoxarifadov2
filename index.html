@@ -426,20 +426,24 @@
                  <div class="flex flex-wrap gap-2 mb-6" id="sub-nav-agua">
                      <button class="sub-nav-btn active" data-subview="movimentacao-agua">
                         <i data-lucide="edit-3"></i>
-                        <span>Lançamento</span>
+                        <span>Lançamento (Unidades / Estoque)</span>
                      </button>
+                     <button class="sub-nav-btn" data-subview="historico-estoque-agua">
+                        <i data-lucide="package-open"></i>
+                        <span>Histórico de Entradas (Estoque)</span>
+                     </button> <!-- NOVO SUBMENU 1 -->
                      <button class="sub-nav-btn" data-subview="status-agua">
                         <i data-lucide="droplets"></i>
                         <span>Status de Galões (Saldo nas Unidades)</span>
                      </button>
                      <button class="sub-nav-btn" data-subview="historico-agua">
                         <i data-lucide="archive"></i>
-                        <span>Histórico Geral de Movimentações</span>
+                        <span>Histórico Geral de Movimentações (Unidades)</span>
                      </button>
-                     <button class="sub-nav-btn" data-subview="previsao-agua">
+                     <button class="sub-nav-btn" data-subview="analise-previsao-agua">
                         <i data-lucide="bar-chart-3"></i>
-                        <span>Previsão</span>
-                     </button>
+                        <span>Análise de Consumo e Previsão</span>
+                     </button> <!-- NOME DO SUBMENU 2 ATUALIZADO -->
                  </div>
 
                 <!-- Sub-view: Movimentação (Lançamento) -->
@@ -576,6 +580,39 @@
                     </div>
                 </div>
 
+                <!-- Sub-view: Histórico de Entradas (Estoque) - ÁGUA -->
+                <div id="subview-historico-estoque-agua" class="hidden"> <!-- NOVO DIV -->
+                     <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                        <h2 class="text-xl font-bold text-gray-800 mb-4"><i data-lucide="package-open" class="inline-block -mt-1 mr-2"></i> Histórico de Entradas de Estoque (Água)</h2>
+                        <p class="text-sm text-gray-600 mb-4">Registro do estoque inicial e de todas as compras/reposições. Use o botão de exclusão para corrigir erros de lançamento.</p>
+                        <div id="alert-historico-estoque-agua" class="alert mb-4"></div>
+
+                        <div class="mb-4">
+                            <label for="filtro-historico-estoque-agua" class="form-label text-xs">Buscar no Histórico:</label>
+                            <input type="text" id="filtro-historico-estoque-agua" data-table="table-historico-estoque-agua" class="form-input" placeholder="Buscar por responsável, nota fiscal...">
+                        </div>
+
+                        <div class="overflow-x-auto border border-gray-200 rounded-lg max-h-96">
+                            <table class="table w-full text-sm">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th>Tipo</th>
+                                        <th>Qtd.</th>
+                                        <th>Data Movimentação</th>
+                                        <th>Nota Fiscal</th>
+                                        <th>Resp. Estoque</th>
+                                        <th class="text-center">Lançado Em</th>
+                                        <th class="text-center">Ação</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="table-historico-estoque-agua" class="divide-y divide-gray-100">
+                                    <tr><td colspan="7" class="text-center py-10"><div class="loading-spinner-small mx-auto"></div></td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Sub-view: Status de Galões (Saldo nas Unidades) -->
                 <div id="subview-status-agua" class="hidden">
                      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
@@ -650,22 +687,57 @@
                     </div>
                  </div>
 
-                <!-- Sub-view: Previsão (Água) -->
-                <div id="subview-previsao-agua" class="hidden">
+                <!-- Sub-view: Análise de Consumo e Previsão (Água) -->
+                <div id="subview-analise-previsao-agua" class="hidden">
                     <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 max-w-6xl mx-auto">
                         <h2 class="text-2xl font-bold text-gray-800 mb-2">
-                            <i data-lucide="bar-chart-3" class="inline-block -mt-1"></i> Previsão Inteligente de Consumo - Água
+                            <i data-lucide="bar-chart-3" class="inline-block -mt-1"></i> Análise de Consumo e Previsão - Água
                         </h2>
                         <p class="text-sm text-gray-500 mb-6">
-                            Calcule previsões precisas baseadas no histórico de consumo para planejar compras.
+                            Visualize o consumo detalhado por período e calcule previsões precisas.
                         </p>
 
-                        <!-- Etapa 1 -->
-                        <div class="mb-6">
-                            <h3 class="font-semibold text-gray-700 mb-3 text-lg">1. Selecione o modo de previsão:</h3>
-                            <!-- ID ADICIONADO AO CONTAINER -->
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="previsao-modo-container-agua">
-                                <!-- REMOVIDO onclick="..." -->
+                        <!-- NOVO PAINEL: Análise de Consumo -->
+                        <div class="mb-8 p-4 bg-gray-50 rounded-lg border">
+                             <h3 class="font-semibold text-gray-700 mb-4 text-lg border-b pb-2">1. Análise de Consumo por Período</h3>
+                             <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                                 <div>
+                                     <label for="analise-periodo-agua" class="form-label">Agrupamento</label>
+                                     <select id="analise-periodo-agua" class="form-select">
+                                         <option value="diario">Diário</option>
+                                         <option value="semanal" selected>Semanal</option>
+                                         <option value="mensal">Mensal</option>
+                                     </select>
+                                 </div>
+                                 <div class="md:col-span-2">
+                                     <label for="analise-agrupamento-agua" class="form-label">Agrupar por</label>
+                                     <select id="analise-agrupamento-agua" class="form-select">
+                                         <option value="unidade">Unidade</option>
+                                         <option value="tipo">Tipo de Unidade</option>
+                                     </select>
+                                 </div>
+                                 <div>
+                                     <label class="form-label text-transparent hidden md:block">.</label>
+                                     <button id="btn-analisar-consumo-agua" class="btn-secondary w-full">
+                                         <i data-lucide="bar-chart-2"></i> Analisar Consumo
+                                     </button>
+                                 </div>
+                             </div>
+                             <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                                 <h4 class="font-semibold text-gray-700 mb-3">Gráfico de Consumo</h4>
+                                 <div class="chart-container-lg">
+                                     <canvas id="grafico-analise-consumo-agua"></canvas>
+                                 </div>
+                                 <div id="alert-analise-consumo-agua" class="alert mt-4"></div>
+                             </div>
+                         </div>
+                        <!-- FIM DO NOVO PAINEL -->
+
+                        <!-- Etapa 1 da Previsão (agora 2) -->
+                        <div class="mb-6 border-t pt-6">
+                            <h3 class="font-semibold text-gray-700 mb-3 text-lg">2. Configure a Previsão de Compra:</h3>
+                            
+                            <div id="previsao-modo-container-agua" class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div class="previsao-option-card" data-modo="unidade-especifica">
                                     <div class="flex items-center gap-3 mb-2">
                                         <div class="bg-blue-100 p-2 rounded-full"><i data-lucide="building" class="text-blue-600"></i></div>
@@ -673,7 +745,6 @@
                                     </div>
                                     <p class="text-sm text-gray-600">Previsão detalhada para uma unidade individual</p>
                                 </div>
-                                <!-- REMOVIDO onclick="..." -->
                                 <div class="previsao-option-card" data-modo="por-tipo">
                                     <div class="flex items-center gap-3 mb-2">
                                         <div class="bg-green-100 p-2 rounded-full"><i data-lucide="layers" class="text-green-600"></i></div>
@@ -681,7 +752,6 @@
                                     </div>
                                     <p class="text-sm text-gray-600">Previsão para todas as unidades de um tipo</p>
                                 </div>
-                                <!-- REMOVIDO onclick="..." -->
                                 <div class="previsao-option-card" data-modo="completo">
                                     <div class="flex items-center gap-3 mb-2">
                                         <div class="bg-purple-100 p-2 rounded-full"><i data-lucide="globe" class="text-purple-600"></i></div>
@@ -692,9 +762,9 @@
                             </div>
                         </div>
 
-                        <!-- Etapa 2 -->
+                        <!-- Etapa 2 da Previsão (agora 3) -->
                         <div id="config-previsao-agua" class="hidden mb-6 p-4 bg-gray-50 rounded-lg border">
-                            <h3 class="font-semibold text-gray-700 mb-3 text-lg">2. Configure sua previsão:</h3>
+                            <h3 class="font-semibold text-gray-700 mb-3 text-lg">3. Configure os parâmetros da previsão:</h3>
                             <div id="select-unidade-container-agua" class="hidden mb-4">
                                 <label for="select-previsao-unidade-agua-v2" class="form-label">Selecione a Unidade:</label>
                                 <select id="select-previsao-unidade-agua-v2" class="form-select"></select>
@@ -717,7 +787,6 @@
                                 <label class="form-label">Excluir Unidades do Cálculo (opcional)</label>
                                 <div class="flex gap-2">
                                     <select id="select-exclusao-agua" class="form-select flex-1"></select>
-                                    <!-- REMOVIDO onclick="..." e ADICIONADO ID -->
                                     <button type="button" id="btn-add-exclusao-agua" class="btn-secondary flex-shrink-0">
                                         + Adicionar
                                     </button>
@@ -726,16 +795,15 @@
                             </div>
                         </div>
 
-                        <!-- Etapa 3 -->
+                        <!-- Etapa 3 da Previsão (agora 4) -->
                         <div class="text-center mb-6">
-                            <!-- REMOVIDO onclick="..." -->
                             <button id="btn-calcular-previsao-agua-v2" class="btn-primary btn-lg px-8">
                                 <i data-lucide="calculator"></i>
                                 Calcular Previsão
                             </button>
                         </div>
 
-                        <!-- Etapa 4: Resultados -->
+                        <!-- Etapa 4: Resultados da Previsão (agora 5) -->
                         <div id="resultado-previsao-agua-v2" class="hidden space-y-6">
                             <div id="alertas-previsao-agua"></div>
                             <div class="previsao-card">
@@ -743,7 +811,7 @@
                                 <div id="resultado-content-agua"></div>
                             </div>
                             <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-                                <h4 class="font-semibold text-gray-700 mb-3">📈 Tendência de Consumo</h4>
+                                <h4 class="font-semibold text-gray-700 mb-3">📈 Tendência de Consumo para Próxima Compra</h4>
                                 <div class="chart-container">
                                     <canvas id="grafico-previsao-agua"></canvas>
                                 </div>
@@ -761,20 +829,24 @@
                 <div class="flex flex-wrap gap-2 mb-6" id="sub-nav-gas">
                     <button class="sub-nav-btn active" data-subview="movimentacao-gas">
                        <i data-lucide="edit-3"></i>
-                       <span>Lançamento</span>
+                       <span>Lançamento (Unidades / Estoque)</span>
                     </button>
+                     <button class="sub-nav-btn" data-subview="historico-estoque-gas">
+                        <i data-lucide="package-open"></i>
+                        <span>Histórico de Entradas (Estoque)</span>
+                     </button> <!-- NOVO SUBMENU 1 -->
                     <button class="sub-nav-btn" data-subview="status-gas">
                        <i data-lucide="flame"></i>
                        <span>Status de Botijões (Saldo nas Unidades)</span>
                     </button>
                     <button class="sub-nav-btn" data-subview="historico-gas">
                        <i data-lucide="archive"></i>
-                       <span>Histórico Geral de Movimentações</span>
+                       <span>Histórico Geral de Movimentações (Unidades)</span>
                     </button>
-                    <button class="sub-nav-btn" data-subview="previsao-gas">
+                    <button class="sub-nav-btn" data-subview="analise-previsao-gas">
                        <i data-lucide="bar-chart-3"></i>
-                       <span>Previsão</span>
-                    </button>
+                       <span>Análise de Consumo e Previsão</span>
+                    </button> <!-- NOME DO SUBMENU 2 ATUALIZADO -->
                 </div>
 
                 <!-- Sub-view: Movimentação (Lançamento) -->
@@ -905,6 +977,39 @@
                        </div>
                    </div>
                 </div>
+                
+                <!-- Sub-view: Histórico de Entradas (Estoque) - GÁS -->
+                <div id="subview-historico-estoque-gas" class="hidden"> <!-- NOVO DIV -->
+                     <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                        <h2 class="text-xl font-bold text-gray-800 mb-4"><i data-lucide="package-open" class="inline-block -mt-1 mr-2"></i> Histórico de Entradas de Estoque (Gás)</h2>
+                        <p class="text-sm text-gray-600 mb-4">Registro do estoque inicial e de todas as compras/reposições. Use o botão de exclusão para corrigir erros de lançamento.</p>
+                        <div id="alert-historico-estoque-gas" class="alert mb-4"></div>
+
+                        <div class="mb-4">
+                            <label for="filtro-historico-estoque-gas" class="form-label text-xs">Buscar no Histórico:</label>
+                            <input type="text" id="filtro-historico-estoque-gas" data-table="table-historico-estoque-gas" class="form-input" placeholder="Buscar por responsável, nota fiscal...">
+                        </div>
+
+                        <div class="overflow-x-auto border border-gray-200 rounded-lg max-h-96">
+                            <table class="table w-full text-sm">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th>Tipo</th>
+                                        <th>Qtd.</th>
+                                        <th>Data Movimentação</th>
+                                        <th>Nota Fiscal</th>
+                                        <th>Resp. Estoque</th>
+                                        <th class="text-center">Lançado Em</th>
+                                        <th class="text-center">Ação</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="table-historico-estoque-gas" class="divide-y divide-gray-100">
+                                    <tr><td colspan="7" class="text-center py-10"><div class="loading-spinner-small mx-auto"></div></td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- Sub-view: Status de Botijões (Saldo nas Unidades) -->
                 <div id="subview-status-gas" class="hidden">
@@ -980,22 +1085,57 @@
                     </div>
                 </div>
 
-                <!-- Sub-view: Previsão (Gás) -->
-                <div id="subview-previsao-gas" class="hidden">
+                <!-- Sub-view: Análise de Consumo e Previsão (Gás) -->
+                <div id="subview-analise-previsao-gas" class="hidden">
                     <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 max-w-6xl mx-auto">
                         <h2 class="text-2xl font-bold text-gray-800 mb-2">
-                            <i data-lucide="bar-chart-3" class="inline-block -mt-1"></i> Previsão Inteligente de Consumo - Gás
+                            <i data-lucide="bar-chart-3" class="inline-block -mt-1"></i> Análise de Consumo e Previsão - Gás
                         </h2 >
                         <p class="text-sm text-gray-500 mb-6">
-                            Calcule previsões precisas baseadas no histórico de consumo para planejar compras.
+                            Visualize o consumo detalhado por período e calcule previsões precisas.
                         </p>
 
-                        <!-- Etapa 1 -->
-                        <div class="mb-6">
-                            <h3 class="font-semibold text-gray-700 mb-3 text-lg">1. Selecione o modo de previsão:</h3>
-                            <!-- ID ADICIONADO AO CONTAINER -->
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="previsao-modo-container-gas">
-                                <!-- REMOVIDO onclick="..." -->
+                        <!-- NOVO PAINEL: Análise de Consumo -->
+                        <div class="mb-8 p-4 bg-gray-50 rounded-lg border">
+                             <h3 class="font-semibold text-gray-700 mb-4 text-lg border-b pb-2">1. Análise de Consumo por Período</h3>
+                             <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                                 <div>
+                                     <label for="analise-periodo-gas" class="form-label">Agrupamento</label>
+                                     <select id="analise-periodo-gas" class="form-select">
+                                         <option value="diario">Diário</option>
+                                         <option value="semanal" selected>Semanal</option>
+                                         <option value="mensal">Mensal</option>
+                                     </select>
+                                 </div>
+                                 <div class="md:col-span-2">
+                                     <label for="analise-agrupamento-gas" class="form-label">Agrupar por</label>
+                                     <select id="analise-agrupamento-gas" class="form-select">
+                                         <option value="unidade">Unidade</option>
+                                         <option value="tipo">Tipo de Unidade</option>
+                                     </select>
+                                 </div>
+                                 <div>
+                                     <label class="form-label text-transparent hidden md:block">.</label>
+                                     <button id="btn-analisar-consumo-gas" class="btn-secondary w-full">
+                                         <i data-lucide="bar-chart-2"></i> Analisar Consumo
+                                     </button>
+                                 </div>
+                             </div>
+                             <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                                 <h4 class="font-semibold text-gray-700 mb-3">Gráfico de Consumo</h4>
+                                 <div class="chart-container-lg">
+                                     <canvas id="grafico-analise-consumo-gas"></canvas>
+                                 </div>
+                                 <div id="alert-analise-consumo-gas" class="alert mt-4"></div>
+                             </div>
+                         </div>
+                        <!-- FIM DO NOVO PAINEL -->
+
+                        <!-- Etapa 1 da Previsão (agora 2) -->
+                        <div class="mb-6 border-t pt-6">
+                             <h3 class="font-semibold text-gray-700 mb-3 text-lg">2. Configure a Previsão de Compra:</h3>
+                            
+                            <div id="previsao-modo-container-gas" class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div class="previsao-option-card" data-modo="unidade-especifica">
                                     <div class="flex items-center gap-3 mb-2">
                                         <div class="bg-blue-100 p-2 rounded-full"><i data-lucide="building" class="text-blue-600"></i></div>
@@ -1003,7 +1143,6 @@
                                     </div>
                                     <p class="text-sm text-gray-600">Previsão detalhada para uma unidade individual</p>
                                 </div>
-                                <!-- REMOVIDO onclick="..." -->
                                 <div class="previsao-option-card" data-modo="por-tipo">
                                     <div class="flex items-center gap-3 mb-2">
                                         <div class="bg-green-100 p-2 rounded-full"><i data-lucide="layers" class="text-green-600"></i></div>
@@ -1011,7 +1150,6 @@
                                     </div>
                                     <p class="text-sm text-gray-600">Previsão para todas as unidades de um tipo</p>
                                 </div>
-                                <!-- REMOVIDO onclick="..." -->
                                 <div class="previsao-option-card" data-modo="completo">
                                     <div class="flex items-center gap-3 mb-2">
                                         <div class="bg-purple-100 p-2 rounded-full"><i data-lucide="globe" class="text-purple-600"></i></div>
@@ -1022,9 +1160,9 @@
                             </div>
                         </div>
 
-                        <!-- Etapa 2 -->
+                        <!-- Etapa 2 da Previsão (agora 3) -->
                         <div id="config-previsao-gas" class="hidden mb-6 p-4 bg-gray-50 rounded-lg border">
-                            <h3 class="font-semibold text-gray-700 mb-3 text-lg">2. Configure sua previsão:</h3>
+                             <h3 class="font-semibold text-gray-700 mb-3 text-lg">3. Configure os parâmetros da previsão:</h3>
                             <div id="select-unidade-container-gas" class="hidden mb-4">
                                 <label for="select-previsao-unidade-gas-v2" class="form-label">Selecione a Unidade:</label>
                                 <select id="select-previsao-unidade-gas-v2" class="form-select"></select>
@@ -1047,7 +1185,6 @@
                                 <label class="form-label">Excluir Unidades do Cálculo (opcional)</label>
                                 <div class="flex gap-2">
                                     <select id="select-exclusao-gas" class="form-select flex-1"></select>
-                                    <!-- REMOVIDO onclick="..." e ADICIONADO ID -->
                                     <button type="button" id="btn-add-exclusao-gas" class="btn-secondary flex-shrink-0">
                                         + Adicionar
                                     </button>
@@ -1056,16 +1193,15 @@
                             </div>
                         </div>
 
-                        <!-- Etapa 3 -->
+                        <!-- Etapa 3 da Previsão (agora 4) -->
                         <div class="text-center mb-6">
-                            <!-- REMOVIDO onclick="..." -->
                             <button id="btn-calcular-previsao-gas-v2" class="btn-primary btn-lg px-8">
                                 <i data-lucide="calculator"></i>
                                 Calcular Previsão
                             </button>
                         </div>
 
-                        <!-- Etapa 4: Resultados -->
+                        <!-- Etapa 4: Resultados da Previsão (agora 5) -->
                         <div id="resultado-previsao-gas-v2" class="hidden space-y-6">
                             <div id="alertas-previsao-gas"></div>
                             <div class="previsao-card">
@@ -1073,7 +1209,7 @@
                                 <div id="resultado-content-gas"></div>
                             </div>
                             <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-                                <h4 class="font-semibold text-gray-700 mb-3">📈 Tendência de Consumo</h4>
+                                <h4 class="font-semibold text-gray-700 mb-3">📈 Tendência de Consumo para Próxima Compra</h4>
                                 <div class="chart-container">
                                     <canvas id="grafico-previsao-gas"></canvas>
                                 </div>
