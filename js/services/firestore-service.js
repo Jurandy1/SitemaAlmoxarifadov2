@@ -13,6 +13,7 @@ let COLLECTIONS = {};
 
 /**
  * Inicializa as instâncias do Firebase e define as coleções.
+ * (Esta função será chamada imediatamente para garantir que as instâncias estejam prontas)
  */
 function initializeFirebaseServices() {
     if (app) return; // Já inicializado
@@ -39,9 +40,12 @@ function initializeFirebaseServices() {
     };
 }
 
+// ** CHAMADA DA FUNÇÃO DE INICIALIZAÇÃO IMEDIATAMENTE NA CARGA DO MÓDULO **
+initializeFirebaseServices();
+
 // Exports
 export { 
-    initializeFirebaseServices, 
+    initializeFirebaseServices, // Mantida para compatibilidade, mas agora redundante
     db, 
     auth, 
     storage, 
