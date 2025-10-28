@@ -12,6 +12,9 @@ import { deleteFile } from "../services/storage-service.js";
 import { db, COLLECTIONS, auth } from "../services/firestore-service.js";
 import { getDeleteInfo, setDeleteInfo } from "./cache.js";
 import { showAlert, DOM_ELEMENTS } from "./dom-helpers.js";
+// Importa as funções de re-renderização dos módulos
+import { onAguaTabChange } from "../modules/agua-control.js";
+import { onGasTabChange } from "../modules/gas-control.js";
 
 function getCollectionRef(type) {
   switch (type) {
@@ -47,6 +50,8 @@ async function executeDelete() {
 
   DOM_ELEMENTS.btnConfirmDelete.disabled = true;
   DOM_ELEMENTS.btnConfirmDelete.innerHTML = '<div class="loading-spinner-small mx-auto"></div>';
+  
+  const alertId = info.alertElementId || "alert-gestao";
 
   try {
     if (info.type === "materiais") {
@@ -60,18 +65,28 @@ async function executeDelete() {
 
     if (info.type === "unidade") {
       await deleteUnitHistory(info.id);
-      showAlert("alert-gestao", "Unidade e histórico removidos.", "success");
+      showAlert(alertId, "Unidade e histórico removidos.", "success");
     } else {
-      showAlert("alert-gestao", "Item removido com sucesso.", "success");
+      showAlert(alertId, "Item removido com sucesso.", "success");
+      
+      // Chamada de re-renderização específica para Estoque
+      if (info.type === 'entrada-agua') {
+          // Chama a orquestração completa da aba Água para re-renderizar o histórico e o resumo de estoque
+          onAguaTabChange(); 
+      } else if (info.type === 'entrada-gas') {
+          // Chama a orquestração completa da aba Gás para re-renderizar o histórico e o resumo de estoque
+          onGasTabChange(); 
+      }
     }
   } catch (err) {
     console.error(`Erro ao remover ${info.type}:`, err);
-    showAlert("alert-gestao", `Erro ao remover: ${err.message}`, "error");
+    showAlert(alertId, `Erro ao remover: ${err.message}`, "error");
   } finally {
     DOM_ELEMENTS.btnConfirmDelete.disabled = false;
     DOM_ELEMENTS.btnConfirmDelete.textContent = "Confirmar Exclusão";
     DOM_ELEMENTS.confirmDeleteModal.style.display = "none";
     setDeleteInfo({});
+    if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
   }
 }
 
