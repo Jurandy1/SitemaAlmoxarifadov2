@@ -335,6 +335,53 @@ header p {
 /* CLASSES DE UTILIDADE (JS)                     */
 /* ============================================= */
 
+/* Estilos para o Ranking de Unidades (NOVO) */
+.ranking-item {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+    background-color: #f9fafb; /* bg-gray-50 */
+    border: 1px solid #e5e7eb;
+    transition: all 0.2s;
+}
+.ranking-item:nth-child(1) { /* Ouro */
+    background-color: #fff9e6; /* yellow-50 */
+    border-color: #fde68a; /* yellow-300 */
+}
+.ranking-item:nth-child(2) { /* Prata */
+    background-color: #f1f5f9; /* slate-100 */
+    border-color: #cbd5e1; /* slate-300 */
+}
+.ranking-item:nth-child(3) { /* Bronze */
+    background-color: #fef2f2; /* red-50 */
+    border-color: #fecaca; /* red-300 */
+}
+.rank-number {
+    font-size: 1.125rem; /* text-lg */
+    font-weight: 800;
+    color: #1e40af; /* semcas-blue */
+    width: 2.5rem;
+    text-align: center;
+}
+.rank-name {
+    font-size: 0.875rem;
+    font-weight: 600;
+    flex-grow: 1;
+    color: #334155;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+.rank-consumption {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #166534; /* green-700 */
+    flex-shrink: 0;
+    margin-left: 0.5rem;
+}
+
+
 /* Altera opacidade e cursor para elementos desabilitados por Role */
 .disabled-by-role {
     opacity: 0.5;
@@ -680,7 +727,7 @@ button .loading-spinner-small {
 
 @keyframes fadeIn { 
   from { opacity: 0; transform: translateY(4px); } 
-  to { opacity: 1; transform: translateY(0); } 
+  to { opacity: 1; transform: translateY(0); }
 } 
 
 /* Painel de instruções */ 
