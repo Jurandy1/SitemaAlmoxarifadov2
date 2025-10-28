@@ -153,7 +153,6 @@ export async function handleEntradaEstoqueSubmit(e) {
     }
 }
 
-
 // =========================================================================
 // LÓGICA DE MOVIMENTAÇÃO (Saída/Retorno)
 // =========================================================================
@@ -374,6 +373,64 @@ export function renderAguaStatus(newFilter = null) {
     }
 }
 
+// NOVO PONTO 1: Renderiza Histórico de Entradas (Estoque)
+export function renderAguaEstoqueHistory() {
+    if (!DOM_ELEMENTS.tableHistoricoEstoqueAgua) return;
+    
+    const estoque = getEstoqueAgua();
+    const role = getUserRole();
+    const isAdmin = role === 'admin';
+    const itemType = 'água';
+
+    // Ordena pelo momento do registro (registradoEm)
+    const historicoOrdenado = [...estoque]
+        .sort((a, b) => (b.registradoEm?.toMillis() || 0) - (a.registradoEm?.toMillis() || 0));
+
+    if (historicoOrdenado.length === 0) {
+        DOM_ELEMENTS.tableHistoricoEstoqueAgua.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-slate-500">Nenhuma entrada de estoque registrada.</td></tr>`;
+        return;
+    }
+    
+    let html = '';
+    
+    historicoOrdenado.forEach(m => {
+        const isInicial = m.tipo === 'inicial';
+        const tipoClass = isInicial ? 'badge-blue' : 'badge-green';
+        const tipoText = isInicial ? 'Inicial' : 'Entrada';
+        
+        const dataMov = formatTimestampComTempo(m.data);
+        const dataLancamento = formatTimestampComTempo(m.registradoEm);
+        const notaFiscal = m.notaFiscal || 'N/A';
+        const responsavel = m.responsavel || 'N/A';
+
+        const details = isInicial 
+            ? `Estoque Inicial (${itemType}): ${m.quantidade} unidades.`
+            : `Entrada de Estoque (${itemType}): ${m.quantidade} unidades, NF: ${notaFiscal}.`;
+        
+        // Renderiza o botão de remoção apenas para Admin
+        const actionHtml = isAdmin 
+            ? `<button class="btn-danger btn-remove btn-icon" data-id="${m.id}" data-type="entrada-agua" data-details="${details}" title="Remover este lançamento"><i data-lucide="trash-2"></i></button>`
+            : `<span class="text-gray-400 btn-icon" title="Apenas Admin pode excluir"><i data-lucide="slash"></i></span>`;
+
+        html += `<tr title="Lançado em: ${dataLancamento}">
+            <td><span class="badge ${tipoClass}">${tipoText}</span></td>
+            <td class="text-center font-medium">${m.quantidade}</td>
+            <td class="whitespace-nowrap">${dataMov}</td>
+            <td>${notaFiscal}</td>
+            <td>${responsavel}</td>
+            <td class="text-center whitespace-nowrap text-xs">${dataLancamento}</td>
+            <td class="text-center">${actionHtml}</td>
+        </tr>`;
+    });
+
+    DOM_ELEMENTS.tableHistoricoEstoqueAgua.innerHTML = html;
+    if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
+
+    const filtroEl = DOM_ELEMENTS.filtroHistoricoEstoqueAgua;
+    if (filtroEl && filtroEl.value) { filterTable(filtroEl, DOM_ELEMENTS.tableHistoricoEstoqueAgua.id); }
+}
+
+
 /**
  * Renderiza a tabela de histórico geral de movimentações.
  */
@@ -411,8 +468,8 @@ export function renderAguaMovimentacoesHistory() {
         
         // Renderiza o botão de remoção apenas para Admin
         const actionHtml = isAdmin 
-            ? `<button class="btn-danger btn-remove" data-id="${m.id}" data-type="agua" data-details="${details}" title="Remover este lançamento"><i data-lucide="trash-2"></i></button>`
-            : `<span class="text-gray-400" title="Apenas Admin pode excluir"><i data-lucide="slash"></i></span>`;
+            ? `<button class="btn-danger btn-remove btn-icon" data-id="${m.id}" data-type="agua" data-details="${details}" title="Remover este lançamento"><i data-lucide="trash-2"></i></button>`
+            : `<span class="text-gray-400 btn-icon" title="Apenas Admin pode excluir"><i data-lucide="slash"></i></span>`;
 
         html += `<tr title="Lançado por: ${respAlmox}">
             <td>${m.unidadeNome || 'N/A'}</td>
@@ -469,6 +526,11 @@ export function initAguaListeners() {
     if (document.getElementById('filtro-historico-agua')) {
         document.getElementById('filtro-historico-agua').addEventListener('input', () => filterTable(document.getElementById('filtro-historico-agua'), 'table-historico-agua-all'));
     }
+    // NOVO PONTO 1: Listener para o filtro de Histórico de Estoque
+    if (DOM_ELEMENTS.filtroHistoricoEstoqueAgua) {
+        DOM_ELEMENTS.filtroHistoricoEstoqueAgua.addEventListener('input', () => filterTable(DOM_ELEMENTS.filtroHistoricoEstoqueAgua, DOM_ELEMENTS.tableHistoricoEstoqueAgua.id));
+    }
+    
     if (document.getElementById('sub-nav-agua')) {
         document.getElementById('sub-nav-agua').addEventListener('click', (e) => {
             const btn = e.target.closest('.sub-nav-btn');
@@ -497,10 +559,16 @@ export function initAguaListeners() {
  * Função de orquestração para a tab de Água.
  */
 export function onAguaTabChange() {
-    switchSubTabView('agua', 'movimentacao-agua');
+    // Ao trocar a aba, forçamos a subview de movimentação como default
+    const currentSubView = document.querySelector('#sub-nav-agua .sub-nav-btn.active')?.dataset.subview || 'movimentacao-agua';
+    
+    // Atualiza a UI para a subview correta (ou movimentaço como fallback)
+    switchSubTabView('agua', currentSubView);
+    
     toggleAguaFormInputs(); 
     checkUnidadeSaldoAlertAgua();
     renderEstoqueAgua();
+    renderAguaEstoqueHistory(); // NOVO PONTO 1: Adicionado para carregar o histórico
     renderAguaStatus();
     renderAguaMovimentacoesHistory();
     // Garante que o input de data está em dia
