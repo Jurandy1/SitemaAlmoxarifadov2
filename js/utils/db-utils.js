@@ -10,12 +10,17 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { deleteFile } from "../services/storage-service.js";
 import { db, COLLECTIONS, auth } from "../services/firestore-service.js";
-import { getDeleteInfo, setDeleteInfo } from "./cache.js";
-import { showAlert, DOM_ELEMENTS } from "./dom-helpers.js";
+import { getDeleteInfo, setDeleteInfo } from "../utils/cache.js";
+import { showAlert, DOM_ELEMENTS } from "../utils/dom-helpers.js";
 // Importa as funções de re-renderização dos módulos
 import { onAguaTabChange } from "../modules/agua-control.js";
 import { onGasTabChange } from "../modules/gas-control.js";
 
+/**
+ * Retorna a referência de coleção com base no tipo.
+ * @param {string} type Tipo do item a ser excluído ('agua', 'gas', 'materiais', 'unidade', 'entrada-agua', 'entrada-gas').
+ * @returns {import("firebase/firestore").CollectionReference | null} Referência da coleção.
+ */
 function getCollectionRef(type) {
   switch (type) {
     case "agua":
@@ -35,6 +40,9 @@ function getCollectionRef(type) {
   }
 }
 
+/**
+ * Executa a exclusão de um documento do Firestore.
+ */
 async function executeDelete() {
   const info = getDeleteInfo();
   if (!auth.currentUser || !info.id || !info.type) {
@@ -54,6 +62,7 @@ async function executeDelete() {
   const alertId = info.alertElementId || "alert-gestao";
 
   try {
+    // Lógica para exclusão de anexo de materiais
     if (info.type === "materiais") {
       const matDoc = await getDoc(doc(ref, info.id));
       if (matDoc.exists() && matDoc.data().storagePath) {
@@ -64,16 +73,17 @@ async function executeDelete() {
     await deleteDoc(doc(ref, info.id));
 
     if (info.type === "unidade") {
+      // Se for unidade, exclui também todo o histórico relacionado
       await deleteUnitHistory(info.id);
       showAlert(alertId, "Unidade e histórico removidos.", "success");
     } else {
       showAlert(alertId, "Item removido com sucesso.", "success");
       
-      // Chamada de re-renderização específica para Estoque
-      if (info.type === 'entrada-agua') {
+      // Re-renderização específica para Estoque e Movimentações
+      if (info.type === 'entrada-agua' || info.type === 'agua') {
           // Chama a orquestração completa da aba Água para re-renderizar o histórico e o resumo de estoque
           onAguaTabChange(); 
-      } else if (info.type === 'entrada-gas') {
+      } else if (info.type === 'entrada-gas' || info.type === 'gas') {
           // Chama a orquestração completa da aba Gás para re-renderizar o histórico e o resumo de estoque
           onGasTabChange(); 
       }
@@ -90,15 +100,22 @@ async function executeDelete() {
   }
 }
 
+/**
+ * Exclui todo o histórico de movimentações (Água, Gás, Materiais) para uma unidade.
+ * @param {string} uid ID da unidade a ser excluída.
+ */
 async function deleteUnitHistory(uid) {
   const batch = writeBatch(db);
   const collections = [
     COLLECTIONS.aguaMov,
     COLLECTIONS.gasMov,
     COLLECTIONS.materiais,
+    COLLECTIONS.estoqueAgua,
+    COLLECTIONS.estoqueGas
   ];
 
   for (const col of collections) {
+    // Filtra todas as movimentações/entradas que contêm o ID da unidade
     const q = query(col, where("unidadeId", "==", uid));
     const snap = await getDocs(q);
     snap.forEach((d) => batch.delete(d.ref));
