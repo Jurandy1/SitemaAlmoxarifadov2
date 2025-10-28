@@ -81,6 +81,10 @@ function findDOMElements() {
         ['#input-inicial-responsavel-agua', 'inputInicialResponsavelAgua'],
         ['#btn-submit-inicial-agua', 'btnSubmitInicialAgua'],
         ['#alert-inicial-agua', 'alertInicialAgua'],
+        // NOVO PONTO 1 (ÁGUA)
+        ['#table-historico-estoque-agua', 'tableHistoricoEstoqueAgua'],
+        ['#filtro-historico-estoque-agua', 'filtroHistoricoEstoqueAgua'],
+
         ['#estoque-gas-inicial', 'estoqueGasInicialEl'],
         ['#estoque-gas-entradas', 'estoqueGasEntradasEl'],
         ['#estoque-gas-saidas', 'estoqueGasSaidasEl'],
@@ -94,6 +98,10 @@ function findDOMElements() {
         ['#input-inicial-responsavel-gas', 'inputInicialResponsavelGas'],
         ['#btn-submit-inicial-gas', 'btnSubmitInicialGas'],
         ['#alert-inicial-gas', 'alertInicialGas'],
+        // NOVO PONTO 1 (GÁS)
+        ['#table-historico-estoque-gas', 'tableHistoricoEstoqueGas'],
+        ['#filtro-historico-estoque-gas', 'filtroHistoricoEstoqueGas'],
+
         // Água/Gás - Movimentação
         ['#form-agua', 'formAgua'],
         ['#select-unidade-agua', 'selectUnidadeAgua'],
@@ -203,6 +211,19 @@ function findDOMElements() {
         ['#select-add-user-role', 'selectAddUserRole'],
         ['#btn-submit-add-user', 'btnSubmitAddUser'],
         ['#alert-add-user', 'alertAddUser'],
+
+        // NOVO PONTO 2 (ANÁLISE DE CONSUMO)
+        ['#analise-periodo-agua', 'analisePeriodoAgua'],
+        ['#analise-agrupamento-agua', 'analiseAgrupamentoAgua'],
+        ['#btn-analisar-consumo-agua', 'btnAnalisarConsumoAgua'],
+        ['#grafico-analise-consumo-agua', 'graficoAnaliseConsumoAgua'],
+        ['#alert-analise-consumo-agua', 'alertAnaliseConsumoAgua'],
+
+        ['#analise-periodo-gas', 'analisePeriodoGas'],
+        ['#analise-agrupamento-gas', 'analiseAgrupamentoGas'],
+        ['#btn-analisar-consumo-gas', 'btnAnalisarConsumoGas'],
+        ['#grafico-analise-consumo-gas', 'graficoAnaliseConsumoGas'],
+        ['#alert-analise-consumo-gas', 'alertAnaliseConsumoGas'],
     ];
 
     mappings.forEach(([selector, varName, isAll]) => {
@@ -399,13 +420,20 @@ async function openConfirmDeleteModal(id, type, details = null, alertElementId =
     }
 
     let detailsText = details ? `${details} (ID: ${id.substring(0,6)}...)` : `ID: ${id.substring(0,6)}...`;
+    
+    // Verifica se é estoque inicial/entrada
     const isInicial = details && details.toLowerCase().includes('inicial');
+    // Verifica se é uma entrada de estoque (inicial ou compra/reposição)
+    const isEstoqueEntry = (type === 'entrada-agua' || type === 'entrada-gas');
 
     setDeleteInfo({ id, type, alertElementId, details, isInicial });
 
     DOM_ELEMENTS.deleteDetailsEl.textContent = `Detalhes: ${detailsText}`;
     DOM_ELEMENTS.deleteWarningUnidadeEl.style.display = (type === 'unidade') ? 'block' : 'none';
-    DOM_ELEMENTS.deleteWarningInicialEl.style.display = isInicial ? 'block' : 'none';
+    
+    // Mostra o alerta de inicial APENAS se for uma entrada de estoque E for a inicial
+    DOM_ELEMENTS.deleteWarningInicialEl.style.display = (isEstoqueEntry && isInicial) ? 'block' : 'none';
+    
     DOM_ELEMENTS.confirmDeleteModal.style.display = 'flex';
 
     if (DOM_ELEMENTS.btnConfirmDelete) DOM_ELEMENTS.btnConfirmDelete.disabled = false;
