@@ -9,11 +9,12 @@ import { showAlert } from "./dom-helpers.js";
 
 /**
  * Deleta um documento com checagem de permissões.
- * @param {string} collectionPath - Caminho da coleção Firestore.
+ * Aceita tanto string quanto referência de coleção.
+ * @param {string|object} collectionPath - Caminho da coleção Firestore ou objeto de referência.
  * @param {string} docId - ID do documento a ser deletado.
- * @param {string} alertId - ID do elemento de alerta para feedback.
+ * @param {string} alertId - ID do elemento de alerta (padrão: 'alert-global').
  */
-export async function executeDelete(collectionPath, docId, alertId) {
+export async function executeDelete(collectionPath, docId, alertId = "alert-global") {
     try {
         const role = getUserRole();
         if (!['admin', 'editor'].includes(role)) {
@@ -21,7 +22,12 @@ export async function executeDelete(collectionPath, docId, alertId) {
             return;
         }
 
-        await deleteDoc(doc(db, collectionPath, docId));
+        // Corrige automaticamente o tipo de referência
+        const docRef = typeof collectionPath === "string"
+            ? doc(db, collectionPath, docId)
+            : doc(collectionPath, docId);
+
+        await deleteDoc(docRef);
         showAlert(alertId, "Item removido com sucesso.", "success");
     } catch (err) {
         console.error("Erro ao remover documento:", err);
