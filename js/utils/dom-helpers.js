@@ -24,15 +24,14 @@ function findDOMElements() {
         ['#auth-modal', 'authModal'],
         ['#btn-login-anonimo', 'btnLoginAnonimo'],
         ['#form-login', 'formLogin'],
-        // ['#form-signup', 'formSignup'], // Removido signup
         ['#input-login-email', 'inputLoginEmail'],
         ['#input-login-password', 'inputLoginPassword'],
         ['#alert-login', 'alertLogin'],
-        ['#btn-submit-login', 'btnSubmitLogin'], // Adicionado botão de submit login
+        ['#btn-submit-login', 'btnSubmitLogin'], 
         ['#btn-logout', 'btnLogout'],
         ['#user-email-display', 'userEmailDisplayEl'],
         ['#user-role-display', 'userRoleDisplayEl'],
-        ['#app-content-wrapper', 'appContentWrapper'], // Novo wrapper do conteúdo principal
+        ['#app-content-wrapper', 'appContentWrapper'], 
 
         // Dashboard
         ['#dashboard-nav-controls', 'dashboardNavControls'],
@@ -81,10 +80,6 @@ function findDOMElements() {
         ['#input-inicial-responsavel-agua', 'inputInicialResponsavelAgua'],
         ['#btn-submit-inicial-agua', 'btnSubmitInicialAgua'],
         ['#alert-inicial-agua', 'alertInicialAgua'],
-        // NOVO PONTO 1 (ÁGUA)
-        ['#table-historico-estoque-agua', 'tableHistoricoEstoqueAgua'],
-        ['#filtro-historico-estoque-agua', 'filtroHistoricoEstoqueAgua'],
-
         ['#estoque-gas-inicial', 'estoqueGasInicialEl'],
         ['#estoque-gas-entradas', 'estoqueGasEntradasEl'],
         ['#estoque-gas-saidas', 'estoqueGasSaidasEl'],
@@ -98,10 +93,6 @@ function findDOMElements() {
         ['#input-inicial-responsavel-gas', 'inputInicialResponsavelGas'],
         ['#btn-submit-inicial-gas', 'btnSubmitInicialGas'],
         ['#alert-inicial-gas', 'alertInicialGas'],
-        // NOVO PONTO 1 (GÁS)
-        ['#table-historico-estoque-gas', 'tableHistoricoEstoqueGas'],
-        ['#filtro-historico-estoque-gas', 'filtroHistoricoEstoqueGas'],
-
         // Água/Gás - Movimentação
         ['#form-agua', 'formAgua'],
         ['#select-unidade-agua', 'selectUnidadeAgua'],
@@ -124,6 +115,12 @@ function findDOMElements() {
         ['#input-qtd-entrada-agua', 'inputQtdEntradaAgua'],
         ['#input-nf-entrada-agua', 'inputNfEntradaAgua'],
         ['#table-historico-agua-all', 'tableHistoricoAguaAll'],
+        // NOVO PONTO 1: Histórico de Entradas
+        ['#subview-historico-estoque-agua', 'subviewHistoricoEstoqueAgua'],
+        ['#table-historico-estoque-agua', 'tableHistoricoEstoqueAgua'],
+        ['#filtro-historico-estoque-agua', 'filtroHistoricoEstoqueAgua'],
+        ['#alert-historico-estoque-agua', 'alertHistoricoEstoqueAgua'],
+        
         // Gás - Movimentação
         ['#form-gas', 'formGas'],
         ['#select-unidade-gas', 'selectUnidadeGas'],
@@ -146,6 +143,24 @@ function findDOMElements() {
         ['#input-qtd-entrada-gas', 'inputQtdEntradaGas'],
         ['#input-nf-entrada-gas', 'inputNfEntradaGas'],
         ['#table-historico-gas-all', 'tableHistoricoGasAll'],
+        // NOVO PONTO 1: Histórico de Entradas
+        ['#subview-historico-estoque-gas', 'subviewHistoricoEstoqueGas'],
+        ['#table-historico-estoque-gas', 'tableHistoricoEstoqueGas'],
+        ['#filtro-historico-estoque-gas', 'filtroHistoricoEstoqueGas'],
+        ['#alert-historico-estoque-gas', 'alertHistoricoEstoqueGas'],
+
+        // NOVO PONTO 2: Análise de Consumo - Água
+        ['#analise-periodo-agua', 'analisePeriodoAgua'],
+        ['#analise-agrupamento-agua', 'analiseAgrupamentoAgua'],
+        ['#btn-analisar-consumo-agua', 'btnAnalisarConsumoAgua'],
+        ['#alert-analise-consumo-agua', 'alertAnaliseConsumoAgua'],
+        
+        // NOVO PONTO 2: Análise de Consumo - Gás
+        ['#analise-periodo-gas', 'analisePeriodoGas'],
+        ['#analise-agrupamento-gas', 'analiseAgrupamentoGas'],
+        ['#btn-analisar-consumo-gas', 'btnAnalisarConsumoGas'],
+        ['#alert-analise-consumo-gas', 'alertAnaliseConsumoGas'],
+        
         // Materiais
         ['#form-materiais', 'formMateriais'],
         ['#select-unidade-materiais', 'selectUnidadeMateriais'],
@@ -155,7 +170,7 @@ function findDOMElements() {
         ['#input-responsavel-materiais', 'inputResponsavelMateriais'],
         ['#input-arquivo-materiais', 'inputArquivoMateriais'],
         ['#btn-submit-materiais', 'btnSubmitMateriais'],
-        ['#alert-materiais', 'alertMateriais'], // Alerta do form de lançamento
+        ['#alert-materiais', 'alertMateriais'], 
         // Alertas das subviews
         ['#alert-para-separar', 'alertParaSeparar'],
         ['#alert-em-separacao', 'alertEmSeparacao'],
@@ -211,19 +226,6 @@ function findDOMElements() {
         ['#select-add-user-role', 'selectAddUserRole'],
         ['#btn-submit-add-user', 'btnSubmitAddUser'],
         ['#alert-add-user', 'alertAddUser'],
-
-        // NOVO PONTO 2 (ANÁLISE DE CONSUMO)
-        ['#analise-periodo-agua', 'analisePeriodoAgua'],
-        ['#analise-agrupamento-agua', 'analiseAgrupamentoAgua'],
-        ['#btn-analisar-consumo-agua', 'btnAnalisarConsumoAgua'],
-        ['#grafico-analise-consumo-agua', 'graficoAnaliseConsumoAgua'],
-        ['#alert-analise-consumo-agua', 'alertAnaliseConsumoAgua'],
-
-        ['#analise-periodo-gas', 'analisePeriodoGas'],
-        ['#analise-agrupamento-gas', 'analiseAgrupamentoGas'],
-        ['#btn-analisar-consumo-gas', 'btnAnalisarConsumoGas'],
-        ['#grafico-analise-consumo-gas', 'graficoAnaliseConsumoGas'],
-        ['#alert-analise-consumo-gas', 'alertAnaliseConsumoGas'],
     ];
 
     mappings.forEach(([selector, varName, isAll]) => {
@@ -420,19 +422,16 @@ async function openConfirmDeleteModal(id, type, details = null, alertElementId =
     }
 
     let detailsText = details ? `${details} (ID: ${id.substring(0,6)}...)` : `ID: ${id.substring(0,6)}...`;
-    
-    // Verifica se é estoque inicial/entrada
-    const isInicial = details && details.toLowerCase().includes('inicial');
-    // Verifica se é uma entrada de estoque (inicial ou compra/reposição)
-    const isEstoqueEntry = (type === 'entrada-agua' || type === 'entrada-gas');
+    // Determina se é um lançamento de estoque inicial
+    const isInicial = details && (details.toLowerCase().includes('inicial') || details.toLowerCase().includes('estoque inicial'));
 
     setDeleteInfo({ id, type, alertElementId, details, isInicial });
 
     DOM_ELEMENTS.deleteDetailsEl.textContent = `Detalhes: ${detailsText}`;
+    // Mostra o alerta de unidade apenas para exclusão de unidade
     DOM_ELEMENTS.deleteWarningUnidadeEl.style.display = (type === 'unidade') ? 'block' : 'none';
-    
-    // Mostra o alerta de inicial APENAS se for uma entrada de estoque E for a inicial
-    DOM_ELEMENTS.deleteWarningInicialEl.style.display = (isEstoqueEntry && isInicial) ? 'block' : 'none';
+    // Mostra o alerta de inicial apenas se for um lançamento inicial de estoque
+    DOM_ELEMENTS.deleteWarningInicialEl.style.display = isInicial ? 'block' : 'none';
     
     DOM_ELEMENTS.confirmDeleteModal.style.display = 'flex';
 
@@ -525,7 +524,6 @@ function renderPermissionsUI() {
         lancarMateriaisView.querySelectorAll('input, select, textarea, button[type="submit"]').forEach(el => el.disabled = !canRegister);
     }
     
-    // ** A CORREÇÃO ESTÁ AQUI **
     // Define a variável 'navContainer' e verifica se ela existe antes de usá-la.
     const navContainer = DOM_ELEMENTS.subNavMateriais; 
     if (navContainer) {
