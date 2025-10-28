@@ -79,7 +79,7 @@ function analisarConsumoPorPeriodo(itemType) {
     const { chartLabels, chartDataSets } = formatDataForChart(consumoPorPeriodo, agrupamento);
 
     // 6. Renderização
-    renderGraficoAnalise(itemType, chartLabels, chartDataSets, agrupamento);
+    renderGraficoAnalise(itemType, chartLabels, chartDataSets, agrupamento, agruparPor);
     showAlert(alertId, `Análise concluída. Período: ${formatTimestamp(dataInicial)} a ${formatTimestamp(dataFinal)} (${totalDias} dias).`, 'success', 5000);
 }
 
@@ -105,10 +105,11 @@ function getPeriodKey(date, agrupamento) {
     // Semanal: Calcula o número da semana (ISO 8601 simplificado)
     const d = new Date(date);
     d.setHours(0, 0, 0, 0);
-    d.setDate(d.getDate() + 4 - (d.getDay() || 7)); // Quinta-feira desta semana
+    // Ajusta para ser a quinta-feira da semana para cálculo ISO
+    d.setDate(d.getDate() + 4 - (d.getDay() || 7)); 
     const yearStart = new Date(d.getFullYear(), 0, 1);
     const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
-    return `${year}-W${String(weekNo).padStart(2, '0')}`; // Ex: 2024-W44
+    return `${d.getFullYear()}-W${String(weekNo).padStart(2, '0')}`; // Ex: 2024-W44
 }
 
 /**
@@ -149,7 +150,7 @@ function formatDataForChart(consumoPorPeriodo, agrupamento) {
     const allCategories = Array.from(allCategoriesSet).sort();
 
     // Mapeamento de cor fixa para consistência
-    const colors = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#64748b'];
+    const colors = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#64748b', '#06b6d4', '#e879f9'];
     const colorMap = new Map();
     allCategories.forEach((cat, index) => {
         colorMap.set(cat, colors[index % colors.length]);
@@ -167,7 +168,8 @@ function formatDataForChart(consumoPorPeriodo, agrupamento) {
         }
         // Semanal
         const [year, week] = key.split('-W');
-        return `Sem. ${parseInt(week)} (${year})`;
+        // Garante que o ano seja o do período
+        return `Sem. ${parseInt(week)} (${year})`; 
     });
 
     // Cria os conjuntos de dados (DataSets)
@@ -193,8 +195,9 @@ function formatDataForChart(consumoPorPeriodo, agrupamento) {
  * @param {Array<string>} labels Rótulos do eixo X.
  * @param {Array<Object>} datasets Dados do gráfico.
  * @param {string} agrupamento Tipo de agrupamento.
+ * @param {string} agruparPor Agrupado por 'unidade' ou 'tipo'.
  */
-function renderGraficoAnalise(itemType, labels, datasets, agrupamento) {
+function renderGraficoAnalise(itemType, labels, datasets, agrupamento, agruparPor) {
     const canvasId = `grafico-analise-consumo-${itemType}`;
     const ctx = document.getElementById(canvasId)?.getContext('2d');
     if (!ctx) return;
@@ -204,7 +207,8 @@ function renderGraficoAnalise(itemType, labels, datasets, agrupamento) {
         graficoAnaliseConsumo[itemType].destroy();
     }
 
-    const titleText = `Consumo por ${agrupamento} (${datasets.length > 1 ? 'Múltiplas Categorias' : datasets[0]?.label || 'Total'})`;
+    const agrupadoLabel = agruparPor === 'unidade' ? 'Unidade' : 'Tipo de Unidade';
+    const titleText = `Consumo por ${agrupamento} - Agrupado por ${agrupadoLabel}`;
 
     graficoAnaliseConsumo[itemType] = new Chart(ctx, {
         type: 'bar',
@@ -221,7 +225,7 @@ function renderGraficoAnalise(itemType, labels, datasets, agrupamento) {
                     title: { display: true, text: agrupamento.toUpperCase() }
                 },
                 y: {
-                    stacked: true,
+                    stacked: true, // Importante para ver o consumo total do período
                     beginAtZero: true,
                     title: { display: true, text: `Quantidade de ${itemType === 'agua' ? 'Galões' : 'Botijões'}` },
                     ticks: { precision: 0 }
@@ -234,6 +238,21 @@ function renderGraficoAnalise(itemType, labels, datasets, agrupamento) {
                 },
                 legend: {
                     position: 'bottom',
+                },
+                 tooltip: {
+                    callbacks: {
+                        // Garante que o tooltip mostre valores inteiros
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            if (context.parsed.y !== null) {
+                                label += context.parsed.y.toFixed(0) + ' un.';
+                            }
+                            return label;
+                        }
+                    }
                 }
             }
         }
@@ -248,7 +267,6 @@ function renderGraficoAnalise(itemType, labels, datasets, agrupamento) {
 /**
  * Seleciona o modo de previsão (unidade, tipo, completo) e atualiza a UI.
  * @param {string} itemType 'agua' ou 'gas'.
- * @param {string} modo 'unidade-especifica', 'por-tipo', 'completo'.
  */
 function selecionarModoPrevisao(itemType, modo) {
     modoPrevisao[itemType] = modo;
@@ -448,7 +466,8 @@ function calcularPrevisaoInteligente(itemType) {
 
     // Limpa alertas anteriores
     if (alertEl) {
-        alertEl.innerHTML = '';
+        // Remove alertas anteriores de cálculo (mas mantém o de análise de consumo se houver)
+        alertEl.querySelectorAll('.alert-info, .alert-warning, .alert-error').forEach(el => el.remove()); 
         alertEl.style.display = 'none';
     }
 
