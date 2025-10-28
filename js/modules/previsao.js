@@ -10,7 +10,240 @@ import {
     graficoPrevisao
     // Removido tipoSelecionadoPrevisao se não for usado globalmente
 } from "../utils/cache.js";
-import { showAlert } from "../utils/dom-helpers.js";
+import { showAlert, DOM_ELEMENTS } from "../utils/dom-helpers.js";
+import { formatTimestamp, formatTimestampComTempo } from "../utils/formatters.js";
+
+// Variável local para a instância do Chart.js de Análise de Consumo
+let graficoAnaliseConsumo = { agua: null, gas: null };
+
+// =========================================================================
+// PONTO 2: FUNÇÕES DE ANÁLISE DE CONSUMO POR PERÍODO
+// =========================================================================
+
+/**
+ * Agrupa as movimentações de entrega (consumo) por Unidade ou Tipo de Unidade em períodos (Diário, Semanal, Mensal).
+ * @param {string} itemType 'agua' ou 'gas'.
+ */
+function analisarConsumoPorPeriodo(itemType) {
+    const alertId = `alert-analise-consumo-${itemType}`;
+    // Coleta as movimentações (apenas entregas, que representam consumo)
+    const movimentacoes = (itemType === 'agua' ? getAguaMovimentacoes() : getGasMovimentacoes());
+    const movsEntrega = movimentacoes
+        .filter(m => m.tipo === 'entrega' && m.data && typeof m.data.toDate === 'function')
+        .sort((a, b) => a.data.toMillis() - b.data.toMillis());
+    const unidades = getUnidades();
+    
+    // 1. Coletar os parâmetros
+    const agrupamento = DOM_ELEMENTS[`analisePeriodo${itemType === 'agua' ? 'Agua' : 'Gas'}`].value; // 'diario', 'semanal', 'mensal'
+    const agruparPor = DOM_ELEMENTS[`analiseAgrupamento${itemType === 'agua' ? 'Agua' : 'Gas'}`].value; // 'unidade' ou 'tipo'
+    
+    if (movsEntrega.length === 0) {
+        showAlert(alertId, 'Nenhum dado de consumo (entrega) encontrado para gerar o gráfico.', 'info');
+        if (graficoAnaliseConsumo[itemType]) graficoAnaliseConsumo[itemType].destroy();
+        return;
+    }
+
+    const { dataInicial, dataFinal, totalDias } = getPeriodoAnalise(movsEntrega);
+
+    // 2. Mapeamento de Unidades e Tipos (para consulta rápida)
+    const unidadeMap = new Map(unidades.map(u => [u.id, { 
+        nome: u.nome, 
+        tipo: (u.tipo || 'OUTROS').toUpperCase() === 'SEMCAS' ? 'SEDE' : (u.tipo || 'OUTROS').toUpperCase() 
+    }]));
+
+    // 3. Estrutura para acúmulo dos dados
+    // Key: Label do Período (ex: 2024-W40, 2024-10, 2024-10-28)
+    // Value: Map<string, number> (Key: Nome da Unidade/Tipo, Value: Consumo Total)
+    const consumoPorPeriodo = new Map();
+    
+    // 4. Processamento dos dados
+    movsEntrega.forEach(mov => {
+        const data = mov.data.toDate();
+        const unidadeInfo = unidadeMap.get(mov.unidadeId);
+        
+        if (!unidadeInfo) return; // Ignora se a unidade não for encontrada
+        
+        const keyGroup = agruparPor === 'unidade' ? unidadeInfo.nome : unidadeInfo.tipo;
+        const periodKey = getPeriodKey(data, agrupamento);
+
+        if (!consumoPorPeriodo.has(periodKey)) {
+            consumoPorPeriodo.set(periodKey, new Map());
+        }
+        
+        const periodData = consumoPorPeriodo.get(periodKey);
+        const consumoAtual = periodData.get(keyGroup) || 0;
+        periodData.set(keyGroup, consumoAtual + mov.quantidade);
+    });
+
+    // 5. Preparação dos dados para o Chart.js
+    const { chartLabels, chartDataSets } = formatDataForChart(consumoPorPeriodo, agrupamento);
+
+    // 6. Renderização
+    renderGraficoAnalise(itemType, chartLabels, chartDataSets, agrupamento);
+    showAlert(alertId, `Análise concluída. Período: ${formatTimestamp(dataInicial)} a ${formatTimestamp(dataFinal)} (${totalDias} dias).`, 'success', 5000);
+}
+
+/**
+ * Determina a chave de agrupamento temporal (Diário, Semanal, Mensal).
+ * @param {Date} date Objeto Date da movimentação.
+ * @param {string} agrupamento Tipo de agrupamento ('diario', 'semanal', 'mensal').
+ * @returns {string} Chave formatada.
+ */
+function getPeriodKey(date, agrupamento) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+
+    if (agrupamento === 'mensal') {
+        return `${year}-${month}`; // Ex: 2024-10
+    }
+    
+    if (agrupamento === 'diario') {
+        return `${year}-${month}-${day}`; // Ex: 2024-10-28
+    }
+
+    // Semanal: Calcula o número da semana (ISO 8601 simplificado)
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + 4 - (d.getDay() || 7)); // Quinta-feira desta semana
+    const yearStart = new Date(d.getFullYear(), 0, 1);
+    const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+    return `${year}-W${String(weekNo).padStart(2, '0')}`; // Ex: 2024-W44
+}
+
+/**
+ * Obtém as datas inicial e final do período analisado.
+ * @param {Array<Object>} movsEntrega Movimentações de entrega.
+ * @returns {Object} { dataInicial, dataFinal, totalDias }.
+ */
+function getPeriodoAnalise(movsEntrega) {
+    if (movsEntrega.length === 0) return { dataInicial: null, dataFinal: null, totalDias: 0 };
+    
+    const primeiraMov = movsEntrega[0].data.toDate();
+    const ultimaMov = movsEntrega[movsEntrega.length - 1].data.toDate();
+
+    const dataInicial = Timestamp.fromDate(primeiraMov);
+    const dataFinal = Timestamp.fromDate(ultimaMov);
+
+    const totalDias = Math.ceil((ultimaMov.getTime() - primeiraMov.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    
+    return { dataInicial, dataFinal, totalDias };
+}
+
+
+/**
+ * Formata os dados acumulados para a estrutura do Chart.js.
+ * @param {Map<string, Map<string, number>>} consumoPorPeriodo Dados acumulados.
+ * @param {string} agrupamento Tipo de agrupamento ('diario', 'semanal', 'mensal').
+ * @returns {Object} { chartLabels, chartDataSets }.
+ */
+function formatDataForChart(consumoPorPeriodo, agrupamento) {
+    // Ordena as chaves de período
+    const sortedPeriodKeys = Array.from(consumoPorPeriodo.keys()).sort();
+    
+    // Obtém todas as categorias (unidades ou tipos) únicas
+    const allCategoriesSet = new Set();
+    consumoPorPeriodo.forEach(periodData => {
+        periodData.forEach((_, category) => allCategoriesSet.add(category));
+    });
+    const allCategories = Array.from(allCategoriesSet).sort();
+
+    // Mapeamento de cor fixa para consistência
+    const colors = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#64748b'];
+    const colorMap = new Map();
+    allCategories.forEach((cat, index) => {
+        colorMap.set(cat, colors[index % colors.length]);
+    });
+    
+    // Cria os rótulos de período formatados (Labels do Eixo X)
+    const chartLabels = sortedPeriodKeys.map(key => {
+        if (agrupamento === 'mensal') {
+            const [year, month] = key.split('-');
+            return `${month}/${year}`;
+        }
+        if (agrupamento === 'diario') {
+            const [year, month, day] = key.split('-');
+            return `${day}/${month}`;
+        }
+        // Semanal
+        const [year, week] = key.split('-W');
+        return `Sem. ${parseInt(week)} (${year})`;
+    });
+
+    // Cria os conjuntos de dados (DataSets)
+    const chartDataSets = allCategories.map(category => {
+        const data = sortedPeriodKeys.map(periodKey => {
+            const periodData = consumoPorPeriodo.get(periodKey);
+            return periodData.get(category) || 0; // Se não houver consumo, é zero
+        });
+
+        return {
+            label: category,
+            data: data,
+            backgroundColor: colorMap.get(category)
+        };
+    });
+    
+    return { chartLabels, chartDataSets };
+}
+
+/**
+ * Renderiza o gráfico de barras da Análise de Consumo.
+ * @param {string} itemType 'agua' ou 'gas'.
+ * @param {Array<string>} labels Rótulos do eixo X.
+ * @param {Array<Object>} datasets Dados do gráfico.
+ * @param {string} agrupamento Tipo de agrupamento.
+ */
+function renderGraficoAnalise(itemType, labels, datasets, agrupamento) {
+    const canvasId = `grafico-analise-consumo-${itemType}`;
+    const ctx = document.getElementById(canvasId)?.getContext('2d');
+    if (!ctx) return;
+    
+    // Destrói instância anterior
+    if (graficoAnaliseConsumo[itemType]) {
+        graficoAnaliseConsumo[itemType].destroy();
+    }
+
+    const titleText = `Consumo por ${agrupamento} (${datasets.length > 1 ? 'Múltiplas Categorias' : datasets[0]?.label || 'Total'})`;
+
+    graficoAnaliseConsumo[itemType] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: datasets
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    stacked: true,
+                    title: { display: true, text: agrupamento.toUpperCase() }
+                },
+                y: {
+                    stacked: true,
+                    beginAtZero: true,
+                    title: { display: true, text: `Quantidade de ${itemType === 'agua' ? 'Galões' : 'Botijões'}` },
+                    ticks: { precision: 0 }
+                }
+            },
+            plugins: {
+                title: {
+                    display: true,
+                    text: titleText
+                },
+                legend: {
+                    position: 'bottom',
+                }
+            }
+        }
+    });
+}
+
+
+// =========================================================================
+// FUNÇÕES DE PREVISÃO INTELIGENTE (EXISTENTES)
+// =========================================================================
 
 /**
  * Seleciona o modo de previsão (unidade, tipo, completo) e atualiza a UI.
@@ -19,7 +252,7 @@ import { showAlert } from "../utils/dom-helpers.js";
  */
 function selecionarModoPrevisao(itemType, modo) {
     modoPrevisao[itemType] = modo;
-    console.log(`[Previsão ${itemType}] Modo selecionado: ${modo}`); // Log Adicionado
+    console.log(`[Previsão ${itemType}] Modo selecionado: ${modo}`);
 
     const configEl = document.getElementById(`config-previsao-${itemType}`);
     const unidadeContainer = document.getElementById(`select-unidade-container-${itemType}`);
@@ -34,11 +267,11 @@ function selecionarModoPrevisao(itemType, modo) {
     if (exclusaoContainer) exclusaoContainer.classList.toggle('hidden', modo === 'unidade-especifica');
 
     // Resetar cards
-    document.querySelectorAll(`#subview-previsao-${itemType} .previsao-option-card`).forEach(card => {
+    document.querySelectorAll(`#subview-analise-previsao-${itemType} .previsao-option-card`).forEach(card => {
         card.classList.remove('selected'); // Usando a classe 'selected' agora
     });
     // Marcar card selecionado
-    const selectedCard = document.querySelector(`#subview-previsao-${itemType} .previsao-option-card[data-modo="${modo}"]`);
+    const selectedCard = document.querySelector(`#subview-analise-previsao-${itemType} .previsao-option-card[data-modo="${modo}"]`);
     if (selectedCard) selectedCard.classList.add('selected');
 
     // Configurar UI para o modo
@@ -69,7 +302,7 @@ function renderListaExclusoes(itemType) {
 
     const unidades = getUnidades(); // Pega a lista atualizada de unidades
 
-    console.log(`[Previsão ${itemType}] Renderizando lista de exclusões:`, listaExclusoes[itemType]); // Log Adicionado
+    console.log(`[Previsão ${itemType}] Renderizando lista de exclusões:`, listaExclusoes[itemType]);
 
     if (listaExclusoes[itemType].length === 0) {
         listaEl.innerHTML = ''; // Limpa se vazio
@@ -104,7 +337,7 @@ function adicionarExclusao(itemType) {
     }
 
     const unidadeId = selectEl.value;
-    console.log(`[Previsão ${itemType}] Tentando adicionar exclusão: ${unidadeId}`); // Log Adicionado
+    console.log(`[Previsão ${itemType}] Tentando adicionar exclusão: ${unidadeId}`);
     if (!unidadeId) {
         showAlert(alertId, 'Selecione uma unidade para adicionar à lista de exclusão.', 'warning');
         return;
@@ -125,7 +358,7 @@ function adicionarExclusao(itemType) {
  * @param {string} unidadeId ID da unidade a remover.
  */
 function removerExclusao(itemType, unidadeId) {
-    console.log(`[Previsão ${itemType}] Removendo exclusão: ${unidadeId}`); // Log Adicionado
+    console.log(`[Previsão ${itemType}] Removendo exclusão: ${unidadeId}`);
     listaExclusoes[itemType] = listaExclusoes[itemType].filter(id => id !== unidadeId);
     renderListaExclusoes(itemType);
 }
@@ -143,7 +376,7 @@ function renderGraficoPrevisao(itemType, data) {
         return;
     }
 
-     console.log(`[Previsão ${itemType}] Renderizando gráfico.`); // Log Adicionado
+     console.log(`[Previsão ${itemType}] Renderizando gráfico.`);
 
     // Destruir gráfico antigo, se existir
     if (graficoPrevisao[itemType]) {
@@ -205,13 +438,13 @@ function renderGraficoPrevisao(itemType, data) {
  * @param {string} itemType 'agua' ou 'gas'.
  */
 function calcularPrevisaoInteligente(itemType) {
-    console.log(`[Previsão ${itemType}] Iniciando cálculo...`); // Log Adicionado
+    console.log(`[Previsão ${itemType}] Iniciando cálculo...`);
 
     const alertId = `alertas-previsao-${itemType}`;
     const resultadoContainer = document.getElementById(`resultado-previsao-${itemType}-v2`);
     const resultadoContentEl = document.getElementById(`resultado-content-${itemType}`);
     const btn = document.getElementById(`btn-calcular-previsao-${itemType}-v2`);
-    const alertEl = document.getElementById(alertId); // Pega o elemento do alerta
+    const alertEl = document.getElementById(alertId); 
 
     // Limpa alertas anteriores
     if (alertEl) {
@@ -248,7 +481,7 @@ function calcularPrevisaoInteligente(itemType) {
         showAlert(alertId, 'Selecione um modo de previsão (Unidade, Tipo ou Completo) antes de calcular.', 'warning');
         return;
     }
-    console.log(`[Previsão ${itemType}] Inputs coletados: Dias=${diasPrevisao}, Margem=${margemSeguranca}, Modo=${modo}`); // Log Adicionado
+    console.log(`[Previsão ${itemType}] Inputs coletados: Dias=${diasPrevisao}, Margem=${margemSeguranca}, Modo=${modo}`);
 
 
     // Desabilitar botão
@@ -260,7 +493,7 @@ function calcularPrevisaoInteligente(itemType) {
     // Usando setTimeout para dar tempo da UI atualizar (spinner)
     setTimeout(() => {
         try {
-            console.log(`[Previsão ${itemType}] Coletando e filtrando dados...`); // Log Adicionado
+            console.log(`[Previsão ${itemType}] Coletando e filtrando dados...`);
             // 2. Coletar Dados
             const movimentacoes = (itemType === 'agua') ? getAguaMovimentacoes() : getGasMovimentacoes();
             const unidades = getUnidades();
@@ -272,19 +505,19 @@ function calcularPrevisaoInteligente(itemType) {
 
             let movsFiltradas = [];
             let tituloPrevisao = "";
-            let unidadesConsideradas = []; // Para log e UI
+            let unidadesConsideradas = []; 
 
             // 3. Filtrar Movimentações
             const exclusoes = listaExclusoes[itemType];
 
             if (modo === 'unidade-especifica') {
-                const unidadeId = document.getElementById(`select-previsao-unidade-${itemType}-v2`)?.value; // Adicionado ? para segurança
+                const unidadeId = document.getElementById(`select-previsao-unidade-${itemType}-v2`)?.value; 
                 if (!unidadeId) {
                     showAlert(alertId, 'Selecione uma unidade específica.', 'warning');
                     throw new Error("Unidade não selecionada.");
                 }
                 const unidade = unidades.find(u => u.id === unidadeId);
-                if (!unidade) { // Verifica se a unidade foi encontrada
+                if (!unidade) { 
                      showAlert(alertId, `Erro: Unidade com ID ${unidadeId} não encontrada.`, 'error');
                      throw new Error("Unidade não encontrada.");
                 }
@@ -293,7 +526,7 @@ function calcularPrevisaoInteligente(itemType) {
                 unidadesConsideradas.push(unidade.nome);
 
             } else if (modo === 'por-tipo') {
-                const tipo = document.getElementById(`select-previsao-tipo-${itemType}`)?.value; // Adicionado ? para segurança
+                const tipo = document.getElementById(`select-previsao-tipo-${itemType}`)?.value; 
                 if (!tipo) {
                     showAlert(alertId, 'Selecione um tipo de unidade.', 'warning');
                     throw new Error("Tipo não selecionado.");
@@ -316,7 +549,7 @@ function calcularPrevisaoInteligente(itemType) {
                 const idsUnidadesConsideradas = unidadesConsideradasObjs.map(u => u.id);
                 movsFiltradas = movsEntrega.filter(m => idsUnidadesConsideradas.includes(m.unidadeId));
             }
-             console.log(`[Previsão ${itemType}] Modo: ${modo}. Movimentações filtradas: ${movsFiltradas.length}`); // Log Adicionado
+             console.log(`[Previsão ${itemType}] Modo: ${modo}. Movimentações filtradas: ${movsFiltradas.length}`);
 
 
             // Validação de dados suficientes APÓS o filtro
@@ -325,7 +558,7 @@ function calcularPrevisaoInteligente(itemType) {
                 throw new Error("Dados insuficientes.");
             }
 
-            console.log(`[Previsão ${itemType}] Calculando média diária...`); // Log Adicionado
+            console.log(`[Previsão ${itemType}] Calculando média diária...`);
             // 4. Calcular Média Diária
             const primeiraMov = movsFiltradas[0].data.toMillis();
             const ultimaMov = movsFiltradas[movsFiltradas.length - 1].data.toMillis();
@@ -336,7 +569,7 @@ function calcularPrevisaoInteligente(itemType) {
 
             const totalConsumido = movsFiltradas.reduce((sum, m) => sum + m.quantidade, 0);
             const mediaDiaria = totalConsumido / totalDiasHistorico;
-             console.log(`[Previsão ${itemType}] Média diária calculada: ${mediaDiaria}`); // Log Adicionado
+             console.log(`[Previsão ${itemType}] Média diária calculada: ${mediaDiaria}`);
 
 
             if (totalDiasHistorico < 30) {
@@ -350,18 +583,18 @@ function calcularPrevisaoInteligente(itemType) {
                  }
             }
 
-            console.log(`[Previsão ${itemType}] Calculando previsão final...`); // Log Adicionado
+            console.log(`[Previsão ${itemType}] Calculando previsão final...`);
             // 5. Calcular Previsão
             const previsaoBase = mediaDiaria * diasPrevisao;
             const valorMargem = previsaoBase * (margemSeguranca / 100);
             const previsaoFinal = previsaoBase + valorMargem;
-             console.log(`[Previsão ${itemType}] Previsão final: ${previsaoFinal}`); // Log Adicionado
+             console.log(`[Previsão ${itemType}] Previsão final: ${previsaoFinal}`);
 
 
             // 6. Renderizar Resultados
             const unidadesExcluidasNomes = exclusoes
                 .map(id => unidades.find(u => u.id === id)?.nome || `ID:${id.substring(0,4)}...`)
-                .filter(Boolean) // Remove undefined se unidade não for encontrada
+                .filter(Boolean) 
                 .sort();
 
             resultadoContentEl.innerHTML = `
@@ -412,7 +645,7 @@ function calcularPrevisaoInteligente(itemType) {
             `;
             resultadoContainer.classList.remove('hidden');
 
-            console.log(`[Previsão ${itemType}] Preparando dados do gráfico...`); // Log Adicionado
+            console.log(`[Previsão ${itemType}] Preparando dados do gráfico...`);
             // 7. Renderizar Gráfico
             const chartData = {
                 // Usa Math.ceil no valor previsto para o gráfico ficar mais claro
@@ -429,14 +662,14 @@ function calcularPrevisaoInteligente(itemType) {
                         'rgba(59, 130, 246, 1)'   // Azul
                     ],
                     borderWidth: 1
-                }] // <-- VÍRGULA REMOVIDA DAQUI
+                }] 
             };
             renderGraficoPrevisao(itemType, chartData);
-             console.log(`[Previsão ${itemType}] Cálculo concluído com sucesso.`); // Log Adicionado
+             console.log(`[Previsão ${itemType}] Cálculo concluído com sucesso.`);
 
 
         } catch (error) {
-             console.error(`[Previsão ${itemType}] Erro durante o cálculo:`, error); // Log Adicionado
+             console.error(`[Previsão ${itemType}] Erro durante o cálculo:`, error);
             // Mostrar alerta apenas se não for um erro esperado (já tratado com showAlert antes)
             if (!error.message.includes("insuficientes") && !error.message.includes("selecionad") && !error.message.includes("encontrada")) {
                  showAlert(alertId, `Erro inesperado durante o cálculo: ${error.message}`, 'error');
@@ -454,18 +687,22 @@ function calcularPrevisaoInteligente(itemType) {
             if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') {
                 lucide.createIcons();
             }
-            console.log(`[Previsão ${itemType}] Botão reabilitado.`); // Log Adicionado
+            console.log(`[Previsão ${itemType}] Botão reabilitado.`);
         }
     }, 50); // Pequeno delay para UI
 }
 
 
 /**
- * Adiciona os event listeners corretos para a UI de previsão.
+ * Adiciona os event listeners corretos para a UI de previsão e Análise de Consumo.
  */
 export function initPrevisaoListeners() {
 
-    // --- Listeners para ÁGUA ---
+    // --- Listeners para Análise de Consumo (NOVO PONTO 2) ---
+    DOM_ELEMENTS.btnAnalisarConsumoAgua?.addEventListener('click', () => analisarConsumoPorPeriodo('agua'));
+    DOM_ELEMENTS.btnAnalisarConsumoGas?.addEventListener('click', () => analisarConsumoPorPeriodo('gas'));
+    
+    // --- Listeners para ÁGUA (Previsão) ---
     const containerAgua = document.getElementById('previsao-modo-container-agua');
     if (containerAgua) {
         containerAgua.addEventListener('click', (e) => {
@@ -497,7 +734,7 @@ export function initPrevisaoListeners() {
         });
     }
 
-    // --- Listeners para GÁS ---
+    // --- Listeners para GÁS (Previsão) ---
     const containerGas = document.getElementById('previsao-modo-container-gas');
     if (containerGas) {
         containerGas.addEventListener('click', (e) => {
@@ -529,6 +766,5 @@ export function initPrevisaoListeners() {
         });
     }
 
-    console.log("[Previsão] Listeners inicializados."); // Log Adicionado
+    console.log("[Previsão] Listeners inicializados.");
 }
-
