@@ -384,6 +384,13 @@ button .loading-spinner-small {
     height: 250px;
     width: 100%;
 }
+/* NOVO: Gráfico maior para a análise de consumo */
+.chart-container-lg {
+    position: relative;
+    height: 400px; /* Altura maior para gráficos de barras com mais categorias */
+    width: 100%;
+}
+
 
 /* ============================================= */
 /* MODAIS (Estilo Base para JS)                  */
