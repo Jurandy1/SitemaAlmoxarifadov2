@@ -697,43 +697,114 @@
                             Visualize o consumo detalhado por período e calcule previsões precisas.
                         </p>
 
-                        <!-- NOVO PAINEL: Análise de Consumo (Ponto 2) -->
-                        <div class="mb-8 p-4 bg-gray-50 rounded-lg border">
-                             <h3 class="font-semibold text-gray-700 mb-4 text-lg border-b pb-2">1. Análise de Consumo por Período</h3>
-                             <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                        <!-- PAINEL REFORMULADO: Análise de Consumo (PROFISSIONAL) -->
+                        <div class="mb-8 p-4 bg-gray-50 rounded-xl border border-gray-200 shadow-inner">
+                            <h3 class="font-semibold text-gray-700 mb-4 text-lg border-b pb-2 flex items-center gap-2">
+                                <i data-lucide="pie-chart" class="w-5 h-5 text-blue-600"></i>
+                                Relatório de Análise de Consumo
+                            </h3>
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                                <!-- FILTRO DE PERÍODO (Expandido) -->
+                                <div>
+                                    <label for="analise-periodo-agua" class="form-label">Período Base</label>
+                                    <select id="analise-periodo-agua" class="form-select">
+                                        <option value="mensal">Últimos 12 Meses</option>
+                                        <option value="anual">Últimos Anos</option>
+                                        <option value="personalizado">Personalizado</option>
+                                        <!-- Semanal e Diário serão removidos ou movidos para granularidade -->
+                                    </select>
+                                </div>
+                                <!-- DATAS PERSONALIZADAS (Ocultas por padrão) -->
+                                <div id="analise-datas-agua-container" class="hidden col-span-2 grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label for="analise-data-inicio-agua" class="form-label">Data Início</label>
+                                        <input type="date" id="analise-data-inicio-agua" class="form-input">
+                                    </div>
+                                    <div>
+                                        <label for="analise-data-fim-agua" class="form-label">Data Fim</label>
+                                        <input type="date" id="analise-data-fim-agua" class="form-input">
+                                    </div>
+                                </div>
+                                <!-- AGUPAR POR TIPO -->
+                                <div>
+                                    <label for="analise-agrupamento-tipo-agua" class="form-label">Agrupar por Tipo</label>
+                                    <select id="analise-agrupamento-tipo-agua" class="form-select"></select>
+                                </div>
+                            </div>
+                            
+                            <!-- FILTRO DE UNIDADE DENTRO DO TIPO (Novo) -->
+                             <div class="grid grid-cols-4 gap-4 mb-4">
                                  <div>
-                                     <label for="analise-periodo-agua" class="form-label">Agrupamento</label>
-                                     <select id="analise-periodo-agua" class="form-select">
-                                         <option value="diario">Diário</option>
-                                         <option value="semanal" selected>Semanal</option>
+                                    <label for="analise-agrupamento-unidade-agua" class="form-label">Unidade (Filtro Fino)</label>
+                                     <select id="analise-agrupamento-unidade-agua" class="form-select">
+                                         <option value="todas">Todas as Unidades</option>
+                                     </select>
+                                 </div>
+                                 <div>
+                                     <label for="analise-granularidade-agua" class="form-label">Granularidade</label>
+                                     <select id="analise-granularidade-agua" class="form-select">
                                          <option value="mensal">Mensal</option>
+                                         <option value="semanal">Semanal</option>
+                                         <option value="diario">Diário</option>
                                      </select>
                                  </div>
-                                 <div class="md:col-span-2">
-                                     <label for="analise-agrupamento-agua" class="form-label">Agrupar por</label>
-                                     <select id="analise-agrupamento-agua" class="form-select">
-                                         <option value="unidade">Unidade</option>
-                                         <option value="tipo">Tipo de Unidade</option>
-                                     </select>
-                                 </div>
-                                 <div>
-                                     <label class="form-label text-transparent hidden md:block">.</label>
-                                     <button id="btn-analisar-consumo-agua" class="btn-secondary w-full">
-                                         <i data-lucide="bar-chart-2"></i> Analisar Consumo
-                                     </button>
+                                 <div class="col-span-2 flex items-end justify-end">
+                                    <button id="btn-analisar-consumo-agua" class="btn-primary flex-shrink-0">
+                                         <i data-lucide="bar-chart-2"></i> Gerar Relatório
+                                    </button>
                                  </div>
                              </div>
-                             <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-                                 <h4 class="font-semibold text-gray-700 mb-3">Gráfico de Consumo</h4>
-                                 <div class="chart-container-lg">
-                                     <canvas id="grafico-analise-consumo-agua"></canvas>
-                                 </div>
-                                 <div id="alert-analise-consumo-agua" class="alert mt-4"></div>
-                             </div>
-                         </div>
-                        <!-- FIM DO NOVO PAINEL -->
 
-                        <!-- Etapa 1 da Previsão (agora 2) -->
+                             <div id="alert-analise-consumo-agua" class="alert mt-4"></div>
+                        </div>
+
+                        <!-- RESULTADOS DA ANÁLISE (Oculto até a execução) -->
+                        <div id="analise-resultado-container-agua" class="hidden space-y-8">
+                            
+                            <!-- Resumo Textual e Ranking de Unidades -->
+                            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                
+                                <!-- Coluna 1: Relatório Textual de Destaques -->
+                                <div class="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-lg p-6">
+                                    <h3 class="font-semibold text-gray-800 mb-4 text-xl flex items-center gap-2">
+                                        <i data-lucide="clipboard-list" class="w-5 h-5 text-green-600"></i>
+                                        Relatório Textual de Consumo
+                                    </h3>
+                                    <div id="analise-relatorio-textual-agua" class="text-sm text-gray-700 space-y-3">
+                                        <!-- O JS preenche o relatório detalhado aqui -->
+                                        <p class="text-gray-500 italic">Gere o relatório para visualizar os destaques.</p>
+                                    </div>
+                                </div>
+
+                                <!-- Coluna 2: Ranking de Consumo -->
+                                <div class="lg:col-span-1 bg-white rounded-xl border border-gray-200 shadow-lg p-6">
+                                     <h3 class="font-semibold text-gray-800 mb-4 text-xl flex items-center gap-2">
+                                        <i data-lucide="trending-up" class="w-5 h-5 text-red-600"></i>
+                                        Ranking de Consumo
+                                    </h3>
+                                    <div id="analise-ranking-agua" class="space-y-3">
+                                        <!-- O JS preenche o ranking de unidades aqui -->
+                                        <p class="text-gray-500 italic text-sm">Gere o relatório para visualizar o ranking.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Gráfico de Consumo por Período -->
+                            <div class="bg-white rounded-xl border border-gray-200 shadow-lg p-6">
+                                <h4 class="font-semibold text-gray-700 mb-3 text-lg">
+                                    <i data-lucide="bar-chart" class="w-5 h-5 text-blue-600 inline-block -mt-1"></i>
+                                    Gráfico de Consumo ao Longo do Tempo
+                                </h4>
+                                <div class="chart-container-lg">
+                                    <canvas id="grafico-analise-consumo-agua"></canvas>
+                                </div>
+                            </div>
+
+                        </div>
+                        <!-- FIM DOS RESULTADOS DA ANÁLISE -->
+
+
+                        <!-- Etapa 2: Previsão de Compra (existente) -->
                         <div class="mb-6 border-t pt-6">
                             <h3 class="font-semibold text-gray-700 mb-3 text-lg">2. Configure a Previsão de Compra:</h3>
                             
@@ -762,7 +833,7 @@
                             </div>
                         </div>
 
-                        <!-- Etapa 2 da Previsão (agora 3) -->
+                        <!-- Etapa 3 da Previsão (existente) -->
                         <div id="config-previsao-agua" class="hidden mb-6 p-4 bg-gray-50 rounded-lg border">
                             <h3 class="font-semibold text-gray-700 mb-3 text-lg">3. Configure os parâmetros da previsão:</h3>
                             <div id="select-unidade-container-agua" class="hidden mb-4">
@@ -795,7 +866,7 @@
                             </div>
                         </div>
 
-                        <!-- Etapa 3 da Previsão (agora 4) -->
+                        <!-- Etapa 4 da Previsão (existente) -->
                         <div class="text-center mb-6">
                             <button id="btn-calcular-previsao-agua-v2" class="btn-primary btn-lg px-8">
                                 <i data-lucide="calculator"></i>
@@ -803,7 +874,7 @@
                             </button>
                         </div>
 
-                        <!-- Etapa 4: Resultados da Previsão (agora 5) -->
+                        <!-- Etapa 5: Resultados da Previsão (existente) -->
                         <div id="resultado-previsao-agua-v2" class="hidden space-y-6">
                             <div id="alertas-previsao-agua"></div>
                             <div class="previsao-card">
@@ -1095,43 +1166,112 @@
                             Visualize o consumo detalhado por período e calcule previsões precisas.
                         </p>
 
-                        <!-- NOVO PAINEL: Análise de Consumo (Ponto 2) -->
-                        <div class="mb-8 p-4 bg-gray-50 rounded-lg border">
-                             <h3 class="font-semibold text-gray-700 mb-4 text-lg border-b pb-2">1. Análise de Consumo por Período</h3>
-                             <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                        <!-- PAINEL REFORMULADO: Análise de Consumo (PROFISSIONAL) -->
+                        <div class="mb-8 p-4 bg-gray-50 rounded-xl border border-gray-200 shadow-inner">
+                            <h3 class="font-semibold text-gray-700 mb-4 text-lg border-b pb-2 flex items-center gap-2">
+                                <i data-lucide="pie-chart" class="w-5 h-5 text-blue-600"></i>
+                                Relatório de Análise de Consumo
+                            </h3>
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                                <!-- FILTRO DE PERÍODO (Expandido) -->
+                                <div>
+                                    <label for="analise-periodo-gas" class="form-label">Período Base</label>
+                                    <select id="analise-periodo-gas" class="form-select">
+                                        <option value="mensal">Últimos 12 Meses</option>
+                                        <option value="anual">Últimos Anos</option>
+                                        <option value="personalizado">Personalizado</option>
+                                    </select>
+                                </div>
+                                <!-- DATAS PERSONALIZADAS (Ocultas por padrão) -->
+                                <div id="analise-datas-gas-container" class="hidden col-span-2 grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label for="analise-data-inicio-gas" class="form-label">Data Início</label>
+                                        <input type="date" id="analise-data-inicio-gas" class="form-input">
+                                    </div>
+                                    <div>
+                                        <label for="analise-data-fim-gas" class="form-label">Data Fim</label>
+                                        <input type="date" id="analise-data-fim-gas" class="form-input">
+                                    </div>
+                                </div>
+                                <!-- AGUPAR POR TIPO -->
+                                <div>
+                                    <label for="analise-agrupamento-tipo-gas" class="form-label">Agrupar por Tipo</label>
+                                    <select id="analise-agrupamento-tipo-gas" class="form-select"></select>
+                                </div>
+                            </div>
+                            
+                             <!-- FILTRO DE UNIDADE DENTRO DO TIPO (Novo) -->
+                             <div class="grid grid-cols-4 gap-4 mb-4">
                                  <div>
-                                     <label for="analise-periodo-gas" class="form-label">Agrupamento</label>
-                                     <select id="analise-periodo-gas" class="form-select">
-                                         <option value="diario">Diário</option>
-                                         <option value="semanal" selected>Semanal</option>
+                                    <label for="analise-agrupamento-unidade-gas" class="form-label">Unidade (Filtro Fino)</label>
+                                     <select id="analise-agrupamento-unidade-gas" class="form-select">
+                                         <option value="todas">Todas as Unidades</option>
+                                     </select>
+                                 </div>
+                                 <div>
+                                     <label for="analise-granularidade-gas" class="form-label">Granularidade</label>
+                                     <select id="analise-granularidade-gas" class="form-select">
                                          <option value="mensal">Mensal</option>
+                                         <option value="semanal">Semanal</option>
+                                         <option value="diario">Diário</option>
                                      </select>
                                  </div>
-                                 <div class="md:col-span-2">
-                                     <label for="analise-agrupamento-gas" class="form-label">Agrupar por</label>
-                                     <select id="analise-agrupamento-gas" class="form-select">
-                                         <option value="unidade">Unidade</option>
-                                         <option value="tipo">Tipo de Unidade</option>
-                                     </select>
-                                 </div>
-                                 <div>
-                                     <label class="form-label text-transparent hidden md:block">.</label>
-                                     <button id="btn-analisar-consumo-gas" class="btn-secondary w-full">
-                                         <i data-lucide="bar-chart-2"></i> Analisar Consumo
-                                     </button>
+                                 <div class="col-span-2 flex items-end justify-end">
+                                    <button id="btn-analisar-consumo-gas" class="btn-primary flex-shrink-0">
+                                         <i data-lucide="bar-chart-2"></i> Gerar Relatório
+                                    </button>
                                  </div>
                              </div>
-                             <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-                                 <h4 class="font-semibold text-gray-700 mb-3">Gráfico de Consumo</h4>
-                                 <div class="chart-container-lg">
-                                     <canvas id="grafico-analise-consumo-gas"></canvas>
-                                 </div>
-                                 <div id="alert-analise-consumo-gas" class="alert mt-4"></div>
-                             </div>
-                         </div>
-                        <!-- FIM DO NOVO PAINEL -->
 
-                        <!-- Etapa 1 da Previsão (agora 2) -->
+                             <div id="alert-analise-consumo-gas" class="alert mt-4"></div>
+                        </div>
+
+                        <!-- RESULTADOS DA ANÁLISE (Oculto até a execução) -->
+                        <div id="analise-resultado-container-gas" class="hidden space-y-8">
+                            
+                            <!-- Resumo Textual e Ranking de Unidades -->
+                            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                
+                                <!-- Coluna 1: Relatório Textual de Destaques -->
+                                <div class="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-lg p-6">
+                                    <h3 class="font-semibold text-gray-800 mb-4 text-xl flex items-center gap-2">
+                                        <i data-lucide="clipboard-list" class="w-5 h-5 text-green-600"></i>
+                                        Relatório Textual de Consumo
+                                    </h3>
+                                    <div id="analise-relatorio-textual-gas" class="text-sm text-gray-700 space-y-3">
+                                        <!-- O JS preenche o relatório detalhado aqui -->
+                                        <p class="text-gray-500 italic">Gere o relatório para visualizar os destaques.</p>
+                                    </div>
+                                </div>
+
+                                <!-- Coluna 2: Ranking de Consumo -->
+                                <div class="lg:col-span-1 bg-white rounded-xl border border-gray-200 shadow-lg p-6">
+                                     <h3 class="font-semibold text-gray-800 mb-4 text-xl flex items-center gap-2">
+                                        <i data-lucide="trending-up" class="w-5 h-5 text-red-600"></i>
+                                        Ranking de Consumo
+                                    </h3>
+                                    <div id="analise-ranking-gas" class="space-y-3">
+                                        <!-- O JS preenche o ranking de unidades aqui -->
+                                        <p class="text-gray-500 italic text-sm">Gere o relatório para visualizar o ranking.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Gráfico de Consumo por Período -->
+                            <div class="bg-white rounded-xl border border-gray-200 shadow-lg p-6">
+                                <h4 class="font-semibold text-gray-700 mb-3 text-lg">
+                                    <i data-lucide="bar-chart" class="w-5 h-5 text-blue-600 inline-block -mt-1"></i>
+                                    Gráfico de Consumo ao Longo do Tempo
+                                </h4>
+                                <div class="chart-container-lg">
+                                    <canvas id="grafico-analise-consumo-gas"></canvas>
+                                </div>
+                            </div>
+
+                        </div>
+                        <!-- FIM DOS RESULTADOS DA ANÁLISE -->
+                        
+                        <!-- Etapa 2: Previsão de Compra (existente) -->
                         <div class="mb-6 border-t pt-6">
                              <h3 class="font-semibold text-gray-700 mb-3 text-lg">2. Configure a Previsão de Compra:</h3>
                             
@@ -1160,7 +1300,7 @@
                             </div>
                         </div>
 
-                        <!-- Etapa 2 da Previsão (agora 3) -->
+                        <!-- Etapa 3 da Previsão (existente) -->
                         <div id="config-previsao-gas" class="hidden mb-6 p-4 bg-gray-50 rounded-lg border">
                              <h3 class="font-semibold text-gray-700 mb-3 text-lg">3. Configure os parâmetros da previsão:</h3>
                             <div id="select-unidade-container-gas" class="hidden mb-4">
@@ -1193,7 +1333,7 @@
                             </div>
                         </div>
 
-                        <!-- Etapa 3 da Previsão (agora 4) -->
+                        <!-- Etapa 4 da Previsão (existente) -->
                         <div class="text-center mb-6">
                             <button id="btn-calcular-previsao-gas-v2" class="btn-primary btn-lg px-8">
                                 <i data-lucide="calculator"></i>
@@ -1201,7 +1341,7 @@
                             </button>
                         </div>
 
-                        <!-- Etapa 4: Resultados da Previsão (agora 5) -->
+                        <!-- Etapa 5: Resultados da Previsão (existente) -->
                         <div id="resultado-previsao-gas-v2" class="hidden space-y-6">
                             <div id="alertas-previsao-gas"></div>
                             <div class="previsao-card">
