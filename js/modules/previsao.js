@@ -1,0 +1,534 @@
+// js/modules/previsao.js
+// Este novo arquivo contém toda a lógica para a funcionalidade de Previsão Inteligente.
+import { Timestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import {
+    getAguaMovimentacoes,
+    getGasMovimentacoes,
+    getUnidades,
+    modoPrevisao,
+    listaExclusoes,
+    graficoPrevisao
+    // Removido tipoSelecionadoPrevisao se não for usado globalmente
+} from "../utils/cache.js";
+import { showAlert } from "../utils/dom-helpers.js";
+
+/**
+ * Seleciona o modo de previsão (unidade, tipo, completo) e atualiza a UI.
+ * @param {string} itemType 'agua' ou 'gas'.
+ * @param {string} modo 'unidade-especifica', 'por-tipo', 'completo'.
+ */
+function selecionarModoPrevisao(itemType, modo) {
+    modoPrevisao[itemType] = modo;
+    console.log(`[Previsão ${itemType}] Modo selecionado: ${modo}`); // Log Adicionado
+
+    const configEl = document.getElementById(`config-previsao-${itemType}`);
+    const unidadeContainer = document.getElementById(`select-unidade-container-${itemType}`);
+    const tipoContainer = document.getElementById(`select-tipo-container-${itemType}`);
+    const exclusaoContainer = document.getElementById(`exclusao-container-${itemType}`);
+
+    // Resetar UI
+    if (configEl) configEl.classList.remove('hidden');
+    if (unidadeContainer) unidadeContainer.classList.add('hidden');
+    if (tipoContainer) tipoContainer.classList.add('hidden');
+    // A exclusão agora é sempre visível se não for unidade específica
+    if (exclusaoContainer) exclusaoContainer.classList.toggle('hidden', modo === 'unidade-especifica');
+
+    // Resetar cards
+    document.querySelectorAll(`#subview-previsao-${itemType} .previsao-option-card`).forEach(card => {
+        card.classList.remove('selected'); // Usando a classe 'selected' agora
+    });
+    // Marcar card selecionado
+    const selectedCard = document.querySelector(`#subview-previsao-${itemType} .previsao-option-card[data-modo="${modo}"]`);
+    if (selectedCard) selectedCard.classList.add('selected');
+
+    // Configurar UI para o modo
+    if (modo === 'unidade-especifica') {
+        if (unidadeContainer) unidadeContainer.classList.remove('hidden');
+    } else if (modo === 'por-tipo') {
+        if (tipoContainer) tipoContainer.classList.remove('hidden');
+    }
+    // Não precisa de else if (modo === 'completo'), pois só a exclusão fica visível (já tratado)
+
+    // Limpar resultados anteriores
+    const resultadoEl = document.getElementById(`resultado-previsao-${itemType}-v2`);
+    if (resultadoEl) resultadoEl.classList.add('hidden');
+    if (graficoPrevisao[itemType]) {
+        graficoPrevisao[itemType].destroy();
+        graficoPrevisao[itemType] = null;
+    }
+}
+
+
+/**
+ * Renderiza a lista de unidades excluídas na UI.
+ * @param {string} itemType 'agua' ou 'gas'.
+ */
+function renderListaExclusoes(itemType) {
+    const listaEl = document.getElementById(`lista-exclusoes-${itemType}`);
+    if (!listaEl) return;
+
+    const unidades = getUnidades(); // Pega a lista atualizada de unidades
+
+    console.log(`[Previsão ${itemType}] Renderizando lista de exclusões:`, listaExclusoes[itemType]); // Log Adicionado
+
+    if (listaExclusoes[itemType].length === 0) {
+        listaEl.innerHTML = ''; // Limpa se vazio
+        return;
+    }
+
+    let html = '';
+    listaExclusoes[itemType].forEach(unidadeId => {
+        const unidade = unidades.find(u => u.id === unidadeId);
+        const nome = unidade ? unidade.nome : `ID: ${unidadeId.substring(0, 6)}...`;
+        html += `
+            <span class="exclusao-item">
+                ${nome}
+                <!-- Botão com data-attributes para event listener -->
+                <button type="button" class="btn-remove-exclusao" data-item-type="${itemType}" data-unidade-id="${unidadeId}" title="Remover">&times;</button>
+            </span>
+        `;
+    });
+    listaEl.innerHTML = html;
+}
+
+/**
+ * Adiciona uma unidade à lista de exclusão.
+ * @param {string} itemType 'agua' ou 'gas'.
+ */
+function adicionarExclusao(itemType) {
+    const selectEl = document.getElementById(`select-exclusao-${itemType}`);
+    const alertId = `alertas-previsao-${itemType}`; // ID do alerta dentro da subview de previsão
+    if (!selectEl) {
+         showAlert(alertId, 'Erro interno: select de exclusão não encontrado.', 'error');
+         return;
+    }
+
+    const unidadeId = selectEl.value;
+    console.log(`[Previsão ${itemType}] Tentando adicionar exclusão: ${unidadeId}`); // Log Adicionado
+    if (!unidadeId) {
+        showAlert(alertId, 'Selecione uma unidade para adicionar à lista de exclusão.', 'warning');
+        return;
+    }
+
+    if (!listaExclusoes[itemType].includes(unidadeId)) {
+        listaExclusoes[itemType].push(unidadeId);
+        renderListaExclusoes(itemType);
+        selectEl.value = ''; // Limpa o select após adicionar
+    } else {
+        showAlert(alertId, 'Essa unidade já está na lista de exclusão.', 'info');
+    }
+}
+
+/**
+ * Remove uma unidade da lista de exclusão.
+ * @param {string} itemType 'agua' ou 'gas'.
+ * @param {string} unidadeId ID da unidade a remover.
+ */
+function removerExclusao(itemType, unidadeId) {
+    console.log(`[Previsão ${itemType}] Removendo exclusão: ${unidadeId}`); // Log Adicionado
+    listaExclusoes[itemType] = listaExclusoes[itemType].filter(id => id !== unidadeId);
+    renderListaExclusoes(itemType);
+}
+
+/**
+ * Renderiza o gráfico de previsão.
+ * @param {string} itemType 'agua' ou 'gas'.
+ * @param {object} data Dados do Chart.js.
+ */
+function renderGraficoPrevisao(itemType, data) {
+    const canvasId = `grafico-previsao-${itemType}`;
+    const ctx = document.getElementById(canvasId)?.getContext('2d');
+    if (!ctx) {
+        console.warn(`Canvas com ID "${canvasId}" não encontrado.`);
+        return;
+    }
+
+     console.log(`[Previsão ${itemType}] Renderizando gráfico.`); // Log Adicionado
+
+    // Destruir gráfico antigo, se existir
+    if (graficoPrevisao[itemType]) {
+        graficoPrevisao[itemType].destroy();
+        graficoPrevisao[itemType] = null;
+    }
+
+    // Criar novo gráfico
+    try {
+        graficoPrevisao[itemType] = new Chart(ctx, {
+            type: 'bar',
+            data: data,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: `Consumo (Unidades de ${itemType === 'agua' ? 'Água' : 'Gás'})`
+                        },
+                         ticks: { // Garante ticks inteiros se possível
+                            precision: 0
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed.y !== null) {
+                                    // Formata para 2 casas decimais, mas remove .00 se for inteiro
+                                    label += parseFloat(context.parsed.y.toFixed(2));
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    } catch (error) {
+        console.error("Erro ao criar o gráfico:", error);
+        showAlert(`alertas-previsao-${itemType}`, 'Erro ao renderizar o gráfico.', 'error');
+    }
+}
+
+
+/**
+ * Função principal que calcula a previsão inteligente.
+ * @param {string} itemType 'agua' ou 'gas'.
+ */
+function calcularPrevisaoInteligente(itemType) {
+    console.log(`[Previsão ${itemType}] Iniciando cálculo...`); // Log Adicionado
+
+    const alertId = `alertas-previsao-${itemType}`;
+    const resultadoContainer = document.getElementById(`resultado-previsao-${itemType}-v2`);
+    const resultadoContentEl = document.getElementById(`resultado-content-${itemType}`);
+    const btn = document.getElementById(`btn-calcular-previsao-${itemType}-v2`);
+    const alertEl = document.getElementById(alertId); // Pega o elemento do alerta
+
+    // Limpa alertas anteriores
+    if (alertEl) {
+        alertEl.innerHTML = '';
+        alertEl.style.display = 'none';
+    }
+
+
+    // 1. Coletar Inputs
+    const diasPrevisaoInput = document.getElementById(`dias-previsao-${itemType}`);
+    const margemSegurancaInput = document.getElementById(`margem-seguranca-${itemType}`);
+
+    if (!resultadoContainer || !resultadoContentEl || !diasPrevisaoInput || !margemSegurancaInput || !btn) {
+        console.error("Elementos DOM essenciais da previsão não encontrados.");
+        showAlert(alertId, 'Erro interno: Elementos da página não encontrados. Recarregue.', 'error');
+        return;
+    }
+
+    const diasPrevisao = parseInt(diasPrevisaoInput.value, 10);
+    const margemSeguranca = parseInt(margemSegurancaInput.value, 10);
+    const modo = modoPrevisao[itemType];
+
+    // Validações básicas
+     if (isNaN(diasPrevisao) || diasPrevisao <= 0) {
+        showAlert(alertId, 'Por favor, insira um número válido de dias para a previsão (maior que zero).', 'warning');
+        return;
+    }
+     if (isNaN(margemSeguranca) || margemSeguranca < 0 || margemSeguranca > 100) {
+        showAlert(alertId, 'Por favor, insira uma margem de segurança válida (0 a 100%).', 'warning');
+        return;
+    }
+
+    if (!modo) {
+        showAlert(alertId, 'Selecione um modo de previsão (Unidade, Tipo ou Completo) antes de calcular.', 'warning');
+        return;
+    }
+    console.log(`[Previsão ${itemType}] Inputs coletados: Dias=${diasPrevisao}, Margem=${margemSeguranca}, Modo=${modo}`); // Log Adicionado
+
+
+    // Desabilitar botão
+    btn.disabled = true;
+    btn.innerHTML = '<div class="loading-spinner-small mx-auto"></div>';
+    // Esconde resultado antigo enquanto calcula
+    resultadoContainer.classList.add('hidden');
+
+    // Usando setTimeout para dar tempo da UI atualizar (spinner)
+    setTimeout(() => {
+        try {
+            console.log(`[Previsão ${itemType}] Coletando e filtrando dados...`); // Log Adicionado
+            // 2. Coletar Dados
+            const movimentacoes = (itemType === 'agua') ? getAguaMovimentacoes() : getGasMovimentacoes();
+            const unidades = getUnidades();
+
+            // Filtra apenas entregas VÁLIDAS (com data) e ordena
+            const movsEntrega = movimentacoes
+                .filter(m => m.tipo === 'entrega' && m.data && typeof m.data.toDate === 'function')
+                .sort((a, b) => a.data.toMillis() - b.data.toMillis());
+
+            let movsFiltradas = [];
+            let tituloPrevisao = "";
+            let unidadesConsideradas = []; // Para log e UI
+
+            // 3. Filtrar Movimentações
+            const exclusoes = listaExclusoes[itemType];
+
+            if (modo === 'unidade-especifica') {
+                const unidadeId = document.getElementById(`select-previsao-unidade-${itemType}-v2`)?.value; // Adicionado ? para segurança
+                if (!unidadeId) {
+                    showAlert(alertId, 'Selecione uma unidade específica.', 'warning');
+                    throw new Error("Unidade não selecionada.");
+                }
+                const unidade = unidades.find(u => u.id === unidadeId);
+                if (!unidade) { // Verifica se a unidade foi encontrada
+                     showAlert(alertId, `Erro: Unidade com ID ${unidadeId} não encontrada.`, 'error');
+                     throw new Error("Unidade não encontrada.");
+                }
+                tituloPrevisao = `Previsão para: ${unidade.nome}`;
+                movsFiltradas = movsEntrega.filter(m => m.unidadeId === unidadeId);
+                unidadesConsideradas.push(unidade.nome);
+
+            } else if (modo === 'por-tipo') {
+                const tipo = document.getElementById(`select-previsao-tipo-${itemType}`)?.value; // Adicionado ? para segurança
+                if (!tipo) {
+                    showAlert(alertId, 'Selecione um tipo de unidade.', 'warning');
+                    throw new Error("Tipo não selecionado.");
+                }
+                tituloPrevisao = `Previsão para Tipo: ${tipo}`;
+                const unidadesDoTipo = unidades.filter(u => {
+                    let uTipo = (u.tipo || "").toUpperCase();
+                    if (uTipo === "SEMCAS") uTipo = "SEDE";
+                    return uTipo === tipo && !exclusoes.includes(u.id);
+                });
+
+                const idsUnidadesDoTipo = unidadesDoTipo.map(u => u.id);
+                unidadesConsideradas = unidadesDoTipo.map(u => u.nome).sort();
+                movsFiltradas = movsEntrega.filter(m => idsUnidadesDoTipo.includes(m.unidadeId));
+
+            } else if (modo === 'completo') {
+                tituloPrevisao = `Previsão Geral (Todas Unidades)`;
+                const unidadesConsideradasObjs = unidades.filter(u => !exclusoes.includes(u.id));
+                unidadesConsideradas = unidadesConsideradasObjs.map(u => u.nome).sort();
+                const idsUnidadesConsideradas = unidadesConsideradasObjs.map(u => u.id);
+                movsFiltradas = movsEntrega.filter(m => idsUnidadesConsideradas.includes(m.unidadeId));
+            }
+             console.log(`[Previsão ${itemType}] Modo: ${modo}. Movimentações filtradas: ${movsFiltradas.length}`); // Log Adicionado
+
+
+            // Validação de dados suficientes APÓS o filtro
+            if (movsFiltradas.length < 2) {
+                 showAlert(alertId, `Dados insuficientes para calcular a previsão (${tituloPrevisao}). É necessário pelo menos 2 registros de entrega válidos no período.`, 'info');
+                throw new Error("Dados insuficientes.");
+            }
+
+            console.log(`[Previsão ${itemType}] Calculando média diária...`); // Log Adicionado
+            // 4. Calcular Média Diária
+            const primeiraMov = movsFiltradas[0].data.toMillis();
+            const ultimaMov = movsFiltradas[movsFiltradas.length - 1].data.toMillis();
+
+            // Calcula dias entre a primeira e última entrega. +1 para incluir ambos os dias.
+            let totalDiasHistorico = ((ultimaMov - primeiraMov) / (1000 * 60 * 60 * 24)) + 1;
+            if (totalDiasHistorico < 1) totalDiasHistorico = 1; // Mínimo de 1 dia
+
+            const totalConsumido = movsFiltradas.reduce((sum, m) => sum + m.quantidade, 0);
+            const mediaDiaria = totalConsumido / totalDiasHistorico;
+             console.log(`[Previsão ${itemType}] Média diária calculada: ${mediaDiaria}`); // Log Adicionado
+
+
+            if (totalDiasHistorico < 30) {
+                 // Usa appendChild para adicionar múltiplos alertas se necessário
+                 const warningEl = document.createElement('div');
+                 warningEl.className = 'alert alert-info mt-2'; // Reutiliza estilo de alerta
+                 warningEl.textContent = `Aviso: O histórico de dados considerado é de apenas ${totalDiasHistorico.toFixed(0)} dias (${movsFiltradas.length} entregas). A previsão pode ser menos precisa.`;
+                 if (alertEl) {
+                     alertEl.appendChild(warningEl);
+                     alertEl.style.display = 'block';
+                 }
+            }
+
+            console.log(`[Previsão ${itemType}] Calculando previsão final...`); // Log Adicionado
+            // 5. Calcular Previsão
+            const previsaoBase = mediaDiaria * diasPrevisao;
+            const valorMargem = previsaoBase * (margemSeguranca / 100);
+            const previsaoFinal = previsaoBase + valorMargem;
+             console.log(`[Previsão ${itemType}] Previsão final: ${previsaoFinal}`); // Log Adicionado
+
+
+            // 6. Renderizar Resultados
+            const unidadesExcluidasNomes = exclusoes
+                .map(id => unidades.find(u => u.id === id)?.nome || `ID:${id.substring(0,4)}...`)
+                .filter(Boolean) // Remove undefined se unidade não for encontrada
+                .sort();
+
+            resultadoContentEl.innerHTML = `
+                <h4 class="text-lg font-bold text-white mb-4">${tituloPrevisao}</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-center">
+                    <div class="bg-white/10 p-4 rounded-lg">
+                        <span class="block text-sm text-white/80 uppercase">Período Analisado</span>
+                        <span class="block text-2xl font-bold">${totalDiasHistorico.toFixed(0)} dias</span>
+                        <span class="block text-xs text-white/60">(${movsFiltradas.length} entregas)</span>
+                    </div>
+                    <div class="bg-white/10 p-4 rounded-lg">
+                        <span class="block text-sm text-white/80 uppercase">Total Consumido</span>
+                        <span class="block text-2xl font-bold">${totalConsumido} un.</span>
+                    </div>
+                </div>
+                <div class="bg-white/20 p-4 rounded-lg mt-4">
+                    <span class="block text-center text-sm text-white/80 uppercase">Consumo Médio Diário</span>
+                    <span class="block text-center text-4xl font-bold">${mediaDiaria.toFixed(2)} un./dia</span>
+                </div>
+                <hr class="border-white/20 my-4">
+                <h4 class="text-lg font-bold text-white mb-2">Previsão para ${diasPrevisao} dias:</h4>
+                <div class="grid grid-cols-3 gap-2 text-center text-sm">
+                    <div class="bg-white/10 p-3 rounded-lg">
+                        <span class="block text-white/80">Base</span>
+                        <span class="block font-bold text-lg">${previsaoBase.toFixed(1)} un.</span>
+                    </div>
+                    <div class="bg-white/10 p-3 rounded-lg">
+                        <span class="block text-white/80">+ Margem (${margemSeguranca}%)</span>
+                        <span class="block font-bold text-lg">${valorMargem.toFixed(1)} un.</span>
+                    </div>
+                    <div class="bg-white/90 text-blue-900 p-3 rounded-lg">
+                        <span class="block font-bold">Total Recomendado</span>
+                        <span class="block font-bold text-xl">${Math.ceil(previsaoFinal)} un.</span>
+                    </div>
+                </div>
+                ${ (modo === 'por-tipo' || modo === 'completo') ? `
+                <details class="mt-4 text-xs text-white/70">
+                    <summary class="cursor-pointer hover:text-white">Unidades consideradas (${unidadesConsideradas.length})</summary>
+                    <p class="mt-1 bg-black/20 p-2 rounded">${unidadesConsideradas.join(', ')}</p>
+                </details>
+                ` : ''}
+                ${ exclusoes.length > 0 ? `
+                <details class="mt-2 text-xs text-white/70">
+                     <summary class="cursor-pointer hover:text-white">Unidades excluídas (${unidadesExcluidasNomes.length})</summary>
+                     <p class="mt-1 bg-black/20 p-2 rounded">${unidadesExcluidasNomes.join(', ')}</p>
+                 </details>
+                ` : ''}
+            `;
+            resultadoContainer.classList.remove('hidden');
+
+            console.log(`[Previsão ${itemType}] Preparando dados do gráfico...`); // Log Adicionado
+            // 7. Renderizar Gráfico
+            const chartData = {
+                // Usa Math.ceil no valor previsto para o gráfico ficar mais claro
+                labels: ['Média Diária (Histórico)', `Previsão Diária (Próximos ${diasPrevisao} dias)`],
+                datasets: [{
+                    label: `Consumo Diário (${itemType === 'agua' ? 'Água' : 'Gás'})`,
+                    data: [mediaDiaria, Math.ceil(previsaoFinal) / diasPrevisao], // Média prevista
+                    backgroundColor: [
+                        'rgba(255, 255, 255, 0.6)', // Branco semi-transparente para histórico
+                        'rgba(191, 219, 254, 0.8)'  // Azul claro para previsão
+                    ],
+                    borderColor: [
+                        'rgba(229, 231, 235, 1)', // Cinza claro
+                        'rgba(59, 130, 246, 1)'   // Azul
+                    ],
+                    borderWidth: 1
+                }] // <-- VÍRGULA REMOVIDA DAQUI
+            };
+            renderGraficoPrevisao(itemType, chartData);
+             console.log(`[Previsão ${itemType}] Cálculo concluído com sucesso.`); // Log Adicionado
+
+
+        } catch (error) {
+             console.error(`[Previsão ${itemType}] Erro durante o cálculo:`, error); // Log Adicionado
+            // Mostrar alerta apenas se não for um erro esperado (já tratado com showAlert antes)
+            if (!error.message.includes("insuficientes") && !error.message.includes("selecionad") && !error.message.includes("encontrada")) {
+                 showAlert(alertId, `Erro inesperado durante o cálculo: ${error.message}`, 'error');
+            }
+            resultadoContainer.classList.add('hidden'); // Esconde resultados se erro
+            // Destruir gráfico se existir
+            if (graficoPrevisao[itemType]) {
+                graficoPrevisao[itemType].destroy();
+                graficoPrevisao[itemType] = null;
+            }
+        } finally {
+            // Reabilitar botão
+            btn.disabled = false;
+            btn.innerHTML = '<i data-lucide="calculator"></i> Calcular Previsão';
+            if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') {
+                lucide.createIcons();
+            }
+            console.log(`[Previsão ${itemType}] Botão reabilitado.`); // Log Adicionado
+        }
+    }, 50); // Pequeno delay para UI
+}
+
+
+/**
+ * Adiciona os event listeners corretos para a UI de previsão.
+ */
+export function initPrevisaoListeners() {
+
+    // --- Listeners para ÁGUA ---
+    const containerAgua = document.getElementById('previsao-modo-container-agua');
+    if (containerAgua) {
+        containerAgua.addEventListener('click', (e) => {
+            const card = e.target.closest('.previsao-option-card[data-modo]');
+            if (card) {
+                selecionarModoPrevisao('agua', card.dataset.modo);
+            }
+        });
+    }
+
+    const btnAddExclusaoAgua = document.getElementById('btn-add-exclusao-agua');
+    if (btnAddExclusaoAgua) {
+        btnAddExclusaoAgua.addEventListener('click', () => adicionarExclusao('agua'));
+    }
+
+    const btnCalcAgua = document.getElementById('btn-calcular-previsao-agua-v2');
+    if (btnCalcAgua) {
+        btnCalcAgua.addEventListener('click', () => calcularPrevisaoInteligente('agua'));
+    }
+
+    // Listener para remover exclusão (delegação de evento)
+    const listaExclusaoAgua = document.getElementById('lista-exclusoes-agua');
+    if (listaExclusaoAgua) {
+        listaExclusaoAgua.addEventListener('click', (e) => {
+            const btn = e.target.closest('.btn-remove-exclusao[data-item-type="agua"]');
+            if (btn) {
+                removerExclusao('agua', btn.dataset.unidadeId);
+            }
+        });
+    }
+
+    // --- Listeners para GÁS ---
+    const containerGas = document.getElementById('previsao-modo-container-gas');
+    if (containerGas) {
+        containerGas.addEventListener('click', (e) => {
+            const card = e.target.closest('.previsao-option-card[data-modo]');
+            if (card) {
+                selecionarModoPrevisao('gas', card.dataset.modo);
+            }
+        });
+    }
+
+    const btnAddExclusaoGas = document.getElementById('btn-add-exclusao-gas');
+    if (btnAddExclusaoGas) {
+        btnAddExclusaoGas.addEventListener('click', () => adicionarExclusao('gas'));
+    }
+
+    const btnCalcGas = document.getElementById('btn-calcular-previsao-gas-v2');
+    if (btnCalcGas) {
+        btnCalcGas.addEventListener('click', () => calcularPrevisaoInteligente('gas'));
+    }
+
+    // Listener para remover exclusão (delegação de evento)
+    const listaExclusaoGas = document.getElementById('lista-exclusoes-gas');
+    if (listaExclusaoGas) {
+        listaExclusaoGas.addEventListener('click', (e) => {
+            const btn = e.target.closest('.btn-remove-exclusao[data-item-type="gas"]');
+            if (btn) {
+                removerExclusao('gas', btn.dataset.unidadeId);
+            }
+        });
+    }
+
+    console.log("[Previsão] Listeners inicializados."); // Log Adicionado
+}
+
