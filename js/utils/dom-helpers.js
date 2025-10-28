@@ -422,8 +422,8 @@ async function openConfirmDeleteModal(id, type, details = null, alertElementId =
     }
 
     let detailsText = details ? `${details} (ID: ${id.substring(0,6)}...)` : `ID: ${id.substring(0,6)}...`;
-    // Determina se é um lançamento de estoque inicial
-    const isInicial = details && (details.toLowerCase().includes('inicial') || details.toLowerCase().includes('estoque inicial'));
+    // Determina se é um lançamento de estoque inicial (se for tipo entrada-agua/gas E o detalhe incluir 'inicial')
+    const isInicial = (type === 'entrada-agua' || type === 'entrada-gas') && details && details.toLowerCase().includes('inicial');
 
     setDeleteInfo({ id, type, alertElementId, details, isInicial });
 
