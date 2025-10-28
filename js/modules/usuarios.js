@@ -4,17 +4,21 @@ import {
   onSnapshot,
   doc,
   updateDoc,
-  setDoc,
-  serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-import { createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+// Removido: importação direta de createUserWithEmailAndPassword
+
+// ADICIONADO: Firebase Functions para chamar a função de criação de usuário do backend
+import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-functions.js";
+
 import { DOM_ELEMENTS, showAlert } from "../utils/dom-helpers.js";
 import { getUserRole } from "../utils/cache.js";
-import { db, COLLECTIONS, auth } from "../services/firestore-service.js";
+import { COLLECTIONS, auth } from "../services/firestore-service.js";
 import { isReady } from "./auth.js";
 
 let allUsers = [];
 let unsubscribeUserRoles = null;
+// Instância do Firebase Functions (Inicializada se a função estiver disponível)
+const functions = typeof getFunctions !== 'undefined' ? getFunctions() : null;
 
 /* ===============================================================
    RENDERIZAÇÃO DA TABELA DE USUÁRIOS
@@ -114,7 +118,7 @@ async function handleSaveRole(e) {
 }
 
 /* ===============================================================
-   CRIAR NOVO USUÁRIO (Auth + Firestore)
+   CRIAR NOVO USUÁRIO (Via Cloud Function)
 ================================================================= */
 async function handleCreateUser(e) {
   e.preventDefault();
@@ -122,6 +126,12 @@ async function handleCreateUser(e) {
   if (getUserRole() !== "admin") {
     showAlert("alert-add-user", "Apenas administradores podem adicionar usuários.", "error");
     return;
+  }
+  
+  // Verifica se o módulo functions está carregado
+  if (!functions) {
+      showAlert("alert-add-user", "Erro interno: Firebase Functions não está carregado. Recarregue a página.", "error");
+      return;
   }
 
   const email = DOM_ELEMENTS.inputAddUserEmail?.value.trim().toLowerCase();
@@ -138,24 +148,28 @@ async function handleCreateUser(e) {
   btn.innerHTML = '<div class="loading-spinner-small mx-auto"></div>';
 
   try {
-    const cred = await createUserWithEmailAndPassword(auth, email, password);
-    const uid = cred.user.uid;
+    // CORREÇÃO APLICADA: Chama a Cloud Function 'createUserWithRole'
+    const createUser = httpsCallable(functions, "createUserWithRole");
+    const result = await createUser({ email, password, role });
 
-    await setDoc(doc(COLLECTIONS.userRoles, uid), {
-      uid,
-      email,
-      role,
-      createdAt: serverTimestamp(),
-    });
-
-    showAlert("alert-add-user", `Usuário '${email}' criado como '${role}'.`, "success");
+    showAlert("alert-add-user", `✅ Usuário criado (${result.data.role}): ${result.data.email}`, "success");
     DOM_ELEMENTS.formAddUser.reset();
   } catch (err) {
+    // Tenta extrair a mensagem do HttpsError
+    let errorMessage = "Erro desconhecido ao chamar Cloud Function.";
+    if (err.message && err.message.includes("HttpsError")) {
+         // Tenta extrair a mensagem do erro
+         errorMessage = err.message.split('message: "')[1]?.split('"')[0] || "Erro de permissão ou autenticação.";
+    } else {
+         errorMessage = err.message || errorMessage;
+    }
+    
     console.error("Erro ao criar usuário:", err);
-    showAlert("alert-add-user", `Erro: ${err.message}`, "error");
+    showAlert("alert-add-user", `Erro: ${errorMessage}`, "error");
   } finally {
     btn.disabled = false;
     btn.innerHTML = '<i data-lucide="user-plus"></i> Adicionar Usuário';
+    if (lucide?.createIcons) lucide.createIcons();
   }
 }
 
