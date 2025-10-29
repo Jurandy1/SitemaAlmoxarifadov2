@@ -19,6 +19,7 @@ import { onMateriaisTabChange, initMateriaisListeners } from "./materiais.js";
 import { onGestaoTabChange, initGestaoListeners } from "./gestao.js";
 import { onRelatorioTabChange, initRelatoriosListeners } from "./relatorios.js";
 import { onUsuariosTabChange, initUsuariosListeners } from "./usuarios.js"; // ADICIONADO
+import { onSocialTabChange, initSocialListeners } from "./social-control.js"; // NOVO MÓDULO
 import { setupAnaliseUnidadeControls } from "./previsao.js"; // IMPORTADO
 import {
     initDashboardListeners,
@@ -61,6 +62,9 @@ function renderUIModules() {
                         break;
                     case "materiais":
                         onMateriaisTabChange();
+                        break;
+                    case "social": // NOVO MÓDULO SOCIAL
+                        onSocialTabChange();
                         break;
                     case "gestao":
                         onGestaoTabChange();
@@ -181,6 +185,10 @@ function initAllListeners() {
                 console.log("Calling onMateriaisTabChange...");
                 onMateriaisTabChange();
                 break;
+            case "social": // NOVO MÓDULO
+                console.log("Calling onSocialTabChange...");
+                onSocialTabChange();
+                break;
             case "gestao":
                 console.log("Calling onGestaoTabChange...");
                 onGestaoTabChange();
@@ -213,6 +221,8 @@ function initAllListeners() {
              else if (type === 'materiais') alertId = `alert-${removeBtn.closest('[id^="subview-"]').id.split('-')[1]}`; 
              // Lógica de alerta para unidade
              else if (type === 'unidade') alertId = 'alert-gestao'; 
+             // Lógica de alerta para Social (Cesta/Enxoval)
+             else if (type === 'cesta' || type === 'enxoval') alertId = `${type}-relatorio`; 
 
              console.log(`openConfirmDeleteModal called with type: ${type}, alertId: ${alertId}`);
 
@@ -241,6 +251,7 @@ function initAllListeners() {
     initGestaoListeners();
     initRelatoriosListeners();
     initUsuariosListeners(); // Inicializa listeners de Usuários
+    initSocialListeners(); // NOVO: Inicializa listeners de Assistência Social
 }
 
 // ================================================================
