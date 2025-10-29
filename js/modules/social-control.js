@@ -12,6 +12,23 @@ import { isReady } from "./auth.js";
 import { COLLECTIONS, db } from "../services/firestore-service.js";
 
 // =========================================================================
+// FUNÇÕES DE UTILIDADE E CÁLCULO DE ESTOQUE
+// =========================================================================
+
+/**
+ * Calcula o estoque atual (Entradas - Saídas) para um item específico.
+ * @param {Array<Object>} estoqueEntries Entradas de estoque (tipo 'entrada' ou 'inicial').
+ * @param {Array<Object>} movimentacoes Movimentações (tipo 'saida').
+ * @returns {number} Quantidade total em estoque.
+ */
+function calculateCurrentStock(estoqueEntries, movimentacoes) {
+    const totalEntradas = estoqueEntries.reduce((sum, e) => sum + (e.quantidade || 0), 0);
+    const totalSaidas = movimentacoes.filter(m => m.tipo === 'saida').reduce((sum, m) => sum + (m.quantidade || 0), 0);
+    return totalEntradas - totalSaidas;
+}
+
+
+// =========================================================================
 // LÓGICA DE CONTROLE DE UI (Módulos Principal e Secundários)
 // =========================================================================
 
@@ -30,12 +47,12 @@ function switchMainSubModule(mainSubView) {
     document.getElementById('social-submodule-enxoval')?.classList.toggle('hidden', mainSubView !== 'enxoval');
     document.getElementById('social-submodule-importar-dados')?.classList.toggle('hidden', mainSubView !== 'importar-dados');
 
-    // Ao mudar o módulo, garante que a sub-view interna seja a primeira ('lancamento')
+    // Ao mudar o módulo, garante que a sub-view interna seja a padrão
     if (mainSubView === 'cesta-basica') {
-        switchSubTabView('cesta', 'cesta-lancamento');
+        switchInternalSubView('cesta', 'lancamento');
         renderCestaEstoqueSummary();
     } else if (mainSubView === 'enxoval') {
-        switchSubTabView('enxoval', 'enxoval-lancamento');
+        switchInternalSubView('enxoval', 'lancamento');
         renderEnxovalEstoqueSummary();
     }
 }
@@ -59,7 +76,101 @@ function switchInternalSubView(itemType, subViewName) {
             pane.classList.toggle('hidden', view !== subViewName);
         }
     });
+
+    // Chama a renderização correta ao trocar para o histórico ou estoque
+    if (subViewName === 'estoque') {
+        if (itemType === 'cesta') renderCestaEstoqueSummary();
+        if (itemType === 'enxoval') renderEnxovalEstoqueSummary();
+    }
+    if (subViewName === 'relatorio') {
+        if (itemType === 'cesta') renderCestaMovimentacoesHistoryTable();
+        if (itemType === 'enxoval') renderEnxovalMovimentacoesHistoryTable();
+    }
 }
+
+
+// =========================================================================
+// LÓGICA DE ENTRADA DE ESTOQUE (Entrada)
+// =========================================================================
+
+/**
+ * Lida com a submissão do formulário de entrada (reposição/compra) de estoque.
+ */
+async function handleEstoqueEntrySubmit(e, itemType) {
+    e.preventDefault();
+    if (!isReady()) { showAlert(`alert-${itemType}-estoque`, 'Erro: Não autenticado.', 'error'); return; }
+    
+    const role = getUserRole();
+    if (role !== 'admin' && role !== 'editor') { 
+        showAlert(`alert-${itemType}-estoque`, "Permissão negada. Apenas Administradores/Editores podem lançar entradas.", 'error'); return; 
+    }
+
+    // Mapeamento de DOM Elements para Cesta ou Enxoval
+    const DOM_MAP = {
+        'cesta': {
+            form: DOM_ELEMENTS.formCestaEntrada,
+            qtd: DOM_ELEMENTS.cestaEntradaQuantidade,
+            data: DOM_ELEMENTS.cestaEntradaData,
+            resp: DOM_ELEMENTS.cestaEntradaResponsavel,
+            nf: DOM_ELEMENTS.cestaEntradaNf,
+            btn: DOM_ELEMENTS.btnSubmitCestaEntrada,
+            alert: 'alert-cesta-estoque',
+            collection: COLLECTIONS.cestaEstoque,
+            itemLabel: 'Cesta(s) Básica(s)'
+        },
+        'enxoval': {
+            form: DOM_ELEMENTS.formEnxovalEntrada,
+            qtd: DOM_ELEMENTS.enxovalEntradaQuantidade,
+            data: DOM_ELEMENTS.enxovalEntradaData,
+            resp: DOM_ELEMENTS.enxovalEntradaResponsavel,
+            nf: DOM_ELEMENTS.enxovalEntradaNf,
+            btn: DOM_ELEMENTS.btnSubmitEnxovalEntrada,
+            alert: 'alert-enxoval-estoque',
+            collection: COLLECTIONS.enxovalEstoque,
+            itemLabel: 'Enxoval(is)'
+        }
+    };
+
+    const map = DOM_MAP[itemType];
+    if (!map) return;
+
+    const quantidade = parseInt(map.qtd.value, 10);
+    const data = dateToTimestamp(map.data.value);
+    const responsavel = capitalizeString(map.resp.value.trim());
+    const notaFiscal = map.nf.value.trim() || 'N/A';
+
+    if (!quantidade || quantidade <= 0 || !data || !responsavel) { 
+        showAlert(map.alert, 'Dados inválidos. Verifique quantidade, data e responsável.', 'warning'); return; 
+    }
+
+    map.btn.disabled = true; 
+    map.btn.innerHTML = '<div class="loading-spinner-small mx-auto"></div>';
+    
+    try {
+        await addDoc(map.collection, { 
+            tipo: 'entrada', 
+            quantidade: quantidade, 
+            data: data,
+            responsavel: responsavel, 
+            notaFiscal: notaFiscal, 
+            registradoEm: serverTimestamp()
+        });
+        showAlert(map.alert, `Entrada de ${quantidade} ${map.itemLabel} no estoque salva!`, 'success');
+        map.form.reset(); 
+        map.data.value = getTodayDateString(); 
+    } catch (error) {
+        console.error(`Erro ao salvar entrada de estoque ${itemType}:`, error); 
+        showAlert(map.alert, `Erro ao salvar: ${error.message}`, 'error');
+    } finally { 
+        map.btn.disabled = false; 
+        map.btn.innerHTML = '<i data-lucide="plus-circle"></i> Registrar Entrada'; 
+        if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
+    }
+}
+
+export const handleCestaEstoqueEntrySubmit = (e) => handleEstoqueEntrySubmit(e, 'cesta');
+export const handleEnxovalEstoqueEntrySubmit = (e) => handleEstoqueEntrySubmit(e, 'enxoval');
+
 
 // =========================================================================
 // LÓGICA DE CESTAS BÁSICAS (Lancamento e Estoque)
@@ -69,22 +180,124 @@ function switchInternalSubView(itemType, subViewName) {
  * Renderiza o resumo de estoque de cestas.
  */
 export function renderCestaEstoqueSummary() {
-    // TODO: Implementar lógica de cálculo de estoque (Entradas - Saídas)
-    
-    // Por enquanto, apenas atualiza a UI para a subview padrão
+    const estoqueEntries = getCestaEstoque();
+    const movimentacoes = getCestaMovimentacoes();
+    const estoqueAtual = calculateCurrentStock(estoqueEntries, movimentacoes);
+    const totalEntradas = estoqueEntries.reduce((sum, e) => sum + (e.quantidade || 0), 0);
+    const totalSaidas = movimentacoes.filter(m => m.tipo === 'saida').reduce((sum, m) => sum + (m.quantidade || 0), 0);
+
     const resumoEl = DOM_ELEMENTS.cestaEstoqueResumo;
     if (resumoEl) {
         resumoEl.innerHTML = `
-            <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                <span class="text-sm text-blue-700">Total em Estoque:</span>
-                <strong class="text-3xl font-bold text-blue-900 block">0</strong>
-                <span class="text-xs text-gray-500">unidades (Aguardando implementação do cálculo de estoque)</span>
+            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex flex-col items-start">
+                <span class="text-sm text-gray-700">Total em Estoque:</span>
+                <strong class="text-3xl font-extrabold text-pink-600 block">${estoqueAtual}</strong>
+                <span class="text-xs text-gray-500 mt-1">unidades de cesta disponíveis</span>
             </div>
-            <!-- Outros cards de resumo/alertas de baixo estoque -->
+            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex flex-col items-start">
+                <span class="text-sm text-gray-700">Total Entradas:</span>
+                <strong class="text-3xl font-extrabold text-green-600 block">+${totalEntradas}</strong>
+                <span class="text-xs text-gray-500 mt-1">registradas</span>
+            </div>
+            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex flex-col items-start">
+                <span class="text-sm text-gray-700">Total Saídas:</span>
+                <strong class="text-3xl font-extrabold text-red-600 block">-${totalSaidas}</strong>
+                <span class="text-xs text-gray-500 mt-1">registradas</span>
+            </div>
         `;
     }
 
-    // TODO: Implementar renderização da tabela de estoque e formulário de entrada
+    renderCestaEstoqueHistoryTable();
+}
+
+/**
+ * Renderiza a tabela de histórico de entradas de estoque (Cesta).
+ */
+export function renderCestaEstoqueHistoryTable() {
+    const estoque = getCestaEstoque();
+    const tableBody = DOM_ELEMENTS.tableCestaEstoqueHistory;
+    if (!tableBody) return;
+
+    const historicoOrdenado = [...estoque]
+        .filter(e => e.tipo === 'entrada') 
+        .sort((a, b) => (b.registradoEm?.toMillis() || 0) - (a.registradoEm?.toMillis() || 0));
+
+    if (historicoOrdenado.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-slate-500">Nenhuma entrada de estoque registrada.</td></tr>`;
+        return;
+    }
+    
+    let html = '';
+    const isAdmin = getUserRole() === 'admin';
+
+    historicoOrdenado.forEach(e => {
+        const dataMov = formatTimestamp(e.data);
+        const dataLancamento = formatTimestamp(e.registradoEm);
+        const notaFiscal = e.notaFiscal || 'N/A';
+        const responsavel = e.responsavel || 'N/A';
+
+        const details = `Entrada de Estoque Cesta: ${e.quantidade} un., NF: ${notaFiscal}.`;
+        
+        const actionHtml = isAdmin 
+            ? `<button class="btn-danger btn-remove btn-icon" data-id="${e.id}" data-type="estoque-cesta" data-details="${details}" title="Remover este lançamento"><i data-lucide="trash-2"></i></button>`
+            : `<span class="text-gray-400 btn-icon" title="Apenas Admin pode excluir"><i data-lucide="slash"></i></span>`;
+
+        html += `<tr title="Lançado em: ${dataLancamento}">
+            <td class="text-center font-medium">${e.quantidade}</td>
+            <td class="whitespace-nowrap">${dataMov}</td>
+            <td>${notaFiscal}</td>
+            <td>${responsavel}</td>
+            <td class="text-center">${actionHtml}</td>
+        </tr>`;
+    });
+
+    tableBody.innerHTML = html;
+    if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
+}
+
+/**
+ * Renderiza a tabela de histórico de saídas (Cesta).
+ */
+export function renderCestaMovimentacoesHistoryTable() {
+    const movimentacoes = getCestaMovimentacoes();
+    const tableBody = DOM_ELEMENTS.tableCestaHistorico; 
+    if (!tableBody) return;
+
+    const historicoOrdenado = [...movimentacoes]
+        .filter(m => m.tipo === 'saida') 
+        .sort((a, b) => (b.data?.toMillis() || 0) - (a.data?.toMillis() || 0));
+
+    if (historicoOrdenado.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-slate-500">Nenhuma saída de estoque registrada.</td></tr>`;
+        return;
+    }
+    
+    let html = '';
+    const isAdmin = getUserRole() === 'admin';
+
+    historicoOrdenado.forEach(m => {
+        const dataMov = formatTimestamp(m.data);
+        const statusClass = m.status === 'Entregue' ? 'badge-green' : 'badge-gray';
+
+        const details = `Saída Cesta: ${m.quantidade} un. p/ ${m.destinatario}.`;
+        
+        const actionHtml = isAdmin 
+            ? `<button class="btn-danger btn-remove btn-icon" data-id="${m.id}" data-type="mov-cesta" data-details="${details}" title="Remover este lançamento"><i data-lucide="trash-2"></i></button>`
+            : `<span class="text-gray-400 btn-icon" title="Apenas Admin pode excluir"><i data-lucide="slash"></i></span>`;
+
+        html += `<tr>
+            <td class="whitespace-nowrap">${dataMov}</td>
+            <td>${m.destinatario}</td>
+            <td class="text-center font-medium">${m.quantidade}</td>
+            <td>${m.categoria}</td>
+            <td>${m.responsavel}</td>
+            <td><span class="badge ${statusClass}">${m.status}</span></td>
+            <td class="text-center">${actionHtml}</td>
+        </tr>`;
+    });
+
+    tableBody.innerHTML = html;
+    if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
 }
 
 /**
@@ -114,8 +327,13 @@ export async function handleCestaLancamentoSubmit(e) {
         return;
     }
 
-    // TODO: Implementar a checagem de estoque antes do lançamento
-    // if (quantidade > estoqueAtual[categoria]) { showAlert('alert...', 'Estoque insuficiente', 'error'); return; }
+    // *** CHECAGEM DE ESTOQUE (NOVO) ***
+    const estoqueAtual = calculateCurrentStock(getCestaEstoque(), getCestaMovimentacoes());
+    if (quantidade > estoqueAtual) { 
+        showAlert('alert-cesta-lancamento', `Estoque insuficiente! Disponível: ${estoqueAtual} ${DOM_ELEMENTS.cestaUnidade.value}(s).`, 'error'); 
+        return; 
+    }
+    // **********************************
 
     DOM_ELEMENTS.btnSubmitCestaLancamento.disabled = true;
     DOM_ELEMENTS.btnSubmitCestaLancamento.innerHTML = '<div class="loading-spinner-small mx-auto"></div>';
@@ -123,7 +341,7 @@ export async function handleCestaLancamentoSubmit(e) {
     try {
         await addDoc(COLLECTIONS.cestaMov, {
             data,
-            tipo: 'saida', // Assumindo que este é o formulário de saída (entrega)
+            tipo: 'saida', // Saída do estoque
             destinatario,
             quantidade,
             unidade,
@@ -132,15 +350,13 @@ export async function handleCestaLancamentoSubmit(e) {
             custo,
             responsavel,
             fornecedor,
-            status: 'Entregue', // Status padrão para lançamentos manuais
+            status: 'Entregue', 
             registradoEm: serverTimestamp()
         });
 
         showAlert('alert-cesta-lancamento', `Lançamento de ${quantidade} ${unidade}(s) para ${destinatario} salvo!`, 'success');
         DOM_ELEMENTS.formCestaLancamento.reset();
         DOM_ELEMENTS.cestaData.value = getTodayDateString();
-
-        // TODO: Atualizar estoque (função separada)
 
     } catch (error) {
         console.error("Erro ao salvar lançamento de cesta:", error);
@@ -161,21 +377,124 @@ export async function handleCestaLancamentoSubmit(e) {
  * Renderiza o resumo de estoque de enxovais.
  */
 export function renderEnxovalEstoqueSummary() {
-    // TODO: Implementar lógica de cálculo de estoque (Entradas - Saídas)
-    
+    const estoqueEntries = getEnxovalEstoque();
+    const movimentacoes = getEnxovalMovimentacoes();
+    const estoqueAtual = calculateCurrentStock(estoqueEntries, movimentacoes);
+    const totalEntradas = estoqueEntries.reduce((sum, e) => sum + (e.quantidade || 0), 0);
+    const totalSaidas = movimentacoes.filter(m => m.tipo === 'saida').reduce((sum, m) => sum + (m.quantidade || 0), 0);
+
     const resumoEl = DOM_ELEMENTS.enxovalEstoqueResumo;
     if (resumoEl) {
         resumoEl.innerHTML = `
-            <div class="bg-pink-50 p-4 rounded-lg border border-pink-200">
-                <span class="text-sm text-pink-700">Total em Estoque:</span>
-                <strong class="text-3xl font-bold text-pink-900 block">0</strong>
-                <span class="text-xs text-gray-500">unidades (Aguardando implementação do cálculo de estoque)</span>
+            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex flex-col items-start">
+                <span class="text-sm text-gray-700">Total em Estoque:</span>
+                <strong class="text-3xl font-extrabold text-pink-600 block">${estoqueAtual}</strong>
+                <span class="text-xs text-gray-500 mt-1">unidades de enxoval disponíveis</span>
             </div>
-            <!-- Outros cards de resumo/alertas de baixo estoque -->
+            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex flex-col items-start">
+                <span class="text-sm text-gray-700">Total Entradas:</span>
+                <strong class="text-3xl font-extrabold text-green-600 block">+${totalEntradas}</strong>
+                <span class="text-xs text-gray-500 mt-1">registradas</span>
+            </div>
+            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex flex-col items-start">
+                <span class="text-sm text-gray-700">Total Saídas:</span>
+                <strong class="text-3xl font-extrabold text-red-600 block">-${totalSaidas}</strong>
+                <span class="text-xs text-gray-500 mt-1">registradas</span>
+            </div>
         `;
     }
+    renderEnxovalEstoqueHistoryTable();
+}
 
-    // TODO: Implementar renderização da tabela de estoque e formulário de entrada
+/**
+ * Renderiza a tabela de histórico de entradas de estoque (Enxoval).
+ */
+export function renderEnxovalEstoqueHistoryTable() {
+    const estoque = getEnxovalEstoque();
+    const tableBody = DOM_ELEMENTS.tableEnxovalEstoqueHistory;
+    if (!tableBody) return;
+
+    const historicoOrdenado = [...estoque]
+        .filter(e => e.tipo === 'entrada')
+        .sort((a, b) => (b.registradoEm?.toMillis() || 0) - (a.registradoEm?.toMillis() || 0));
+
+    if (historicoOrdenado.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-slate-500">Nenhuma entrada de estoque registrada.</td></tr>`;
+        return;
+    }
+    
+    let html = '';
+    const isAdmin = getUserRole() === 'admin';
+
+    historicoOrdenado.forEach(e => {
+        const dataMov = formatTimestamp(e.data);
+        const dataLancamento = formatTimestamp(e.registradoEm);
+        const notaFiscal = e.notaFiscal || 'N/A';
+        const responsavel = e.responsavel || 'N/A';
+
+        const details = `Entrada de Estoque Enxoval: ${e.quantidade} un., NF: ${notaFiscal}.`;
+        
+        const actionHtml = isAdmin 
+            ? `<button class="btn-danger btn-remove btn-icon" data-id="${e.id}" data-type="estoque-enxoval" data-details="${details}" title="Remover este lançamento"><i data-lucide="trash-2"></i></button>`
+            : `<span class="text-gray-400 btn-icon" title="Apenas Admin pode excluir"><i data-lucide="slash"></i></span>`;
+
+        html += `<tr title="Lançado em: ${dataLancamento}">
+            <td class="text-center font-medium">${e.quantidade}</td>
+            <td class="whitespace-nowrap">${dataMov}</td>
+            <td>${notaFiscal}</td>
+            <td>${responsavel}</td>
+            <td class="text-center">${actionHtml}</td>
+        </tr>`;
+    });
+
+    tableBody.innerHTML = html;
+    if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
+}
+
+/**
+ * Renderiza a tabela de histórico de saídas (Enxoval).
+ */
+export function renderEnxovalMovimentacoesHistoryTable() {
+    const movimentacoes = getEnxovalMovimentacoes();
+    const tableBody = DOM_ELEMENTS.tableEnxovalHistorico; 
+    if (!tableBody) return;
+
+    const historicoOrdenado = [...movimentacoes]
+        .filter(m => m.tipo === 'saida') 
+        .sort((a, b) => (b.data?.toMillis() || 0) - (a.data?.toMillis() || 0));
+
+    if (historicoOrdenado.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-slate-500">Nenhuma saída de estoque registrada.</td></tr>`;
+        return;
+    }
+    
+    let html = '';
+    const isAdmin = getUserRole() === 'admin';
+
+    historicoOrdenado.forEach(m => {
+        const dataMov = formatTimestamp(m.data);
+        const statusClass = m.status === 'Entregue' ? 'badge-green' : 'badge-gray';
+
+        const details = `Saída Enxoval: ${m.quantidade} un. p/ ${m.destinatario}.`;
+        
+        const actionHtml = isAdmin 
+            ? `<button class="btn-danger btn-remove btn-icon" data-id="${m.id}" data-type="mov-enxoval" data-details="${details}" title="Remover este lançamento"><i data-lucide="trash-2"></i></button>`
+            : `<span class="text-gray-400 btn-icon" title="Apenas Admin pode excluir"><i data-lucide="slash"></i></span>`;
+
+        html += `<tr>
+            <td class="whitespace-nowrap">${dataMov}</td>
+            <td>${m.destinatario}</td>
+            <td class="text-center font-medium">${m.quantidade}</td>
+            <td>${m.categoria}</td>
+            <td>${m.memo}</td>
+            <td>${m.responsavel}</td>
+            <td><span class="badge ${statusClass}">${m.status}</span></td>
+            <td class="text-center">${actionHtml}</td>
+        </tr>`;
+    });
+
+    tableBody.innerHTML = html;
+    if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
 }
 
 /**
@@ -203,28 +522,34 @@ export async function handleEnxovalLancamentoSubmit(e) {
         return;
     }
 
+    // *** CHECAGEM DE ESTOQUE (NOVO) ***
+    const estoqueAtual = calculateCurrentStock(getEnxovalEstoque(), getEnxovalMovimentacoes());
+    if (quantidade > estoqueAtual) { 
+        showAlert('alert-enxoval-lancamento', `Estoque insuficiente! Disponível: ${estoqueAtual} enxoval(is).`, 'error'); 
+        return; 
+    }
+    // **********************************
+
     DOM_ELEMENTS.btnSubmitEnxovalLancamento.disabled = true;
     DOM_ELEMENTS.btnSubmitEnxovalLancamento.innerHTML = '<div class="loading-spinner-small mx-auto"></div>';
 
     try {
         await addDoc(COLLECTIONS.enxovalMov, {
             data,
-            tipo: 'saida', // Assumindo que este é o formulário de saída (entrega)
+            tipo: 'saida', // Saída do estoque
             destinatario,
             quantidade,
             categoria,
             observacoes,
             memo,
             responsavel,
-            status: 'Entregue', // Status padrão para lançamentos manuais
+            status: 'Entregue', 
             registradoEm: serverTimestamp()
         });
 
         showAlert('alert-enxoval-lancamento', `Lançamento de ${quantidade} Enxoval(is) para ${destinatario} salvo!`, 'success');
         DOM_ELEMENTS.formEnxovalLancamento.reset();
         DOM_ELEMENTS.enxovalData.value = getTodayDateString();
-
-        // TODO: Atualizar estoque (função separada)
 
     } catch (error) {
         console.error("Erro ao salvar lançamento de enxoval:", error);
@@ -235,6 +560,7 @@ export async function handleEnxovalLancamentoSubmit(e) {
         if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
     }
 }
+
 
 // =========================================================================
 // LÓGICA DE IMPORTAÇÃO
@@ -378,6 +704,8 @@ export function initSocialListeners() {
         if (btn) switchInternalSubView('cesta', btn.dataset.subview.replace('cesta-', ''));
     });
     DOM_ELEMENTS.formCestaLancamento?.addEventListener('submit', handleCestaLancamentoSubmit);
+    DOM_ELEMENTS.formCestaEntrada?.addEventListener('submit', handleCestaEstoqueEntrySubmit); // NOVO
+
 
     // Listeners para sub-abas de Enxoval
     DOM_ELEMENTS.subNavEnxoval?.addEventListener('click', (e) => {
@@ -385,7 +713,8 @@ export function initSocialListeners() {
         if (btn) switchInternalSubView('enxoval', btn.dataset.subview.replace('enxoval-', ''));
     });
     DOM_ELEMENTS.formEnxovalLancamento?.addEventListener('submit', handleEnxovalLancamentoSubmit);
-
+    DOM_ELEMENTS.formEnxovalEntrada?.addEventListener('submit', handleEnxovalEstoqueEntrySubmit); // NOVO
+    
     // Listener de Importação
     DOM_ELEMENTS.btnSocialImportData?.addEventListener('click', handleSocialImportSubmit);
 
@@ -399,8 +728,16 @@ export function onSocialTabChange() {
     // Garante que a data está preenchida
     if (DOM_ELEMENTS.cestaData) DOM_ELEMENTS.cestaData.value = getTodayDateString();
     if (DOM_ELEMENTS.enxovalData) DOM_ELEMENTS.enxovalData.value = getTodayDateString();
+    if (DOM_ELEMENTS.cestaEntradaData) DOM_ELEMENTS.cestaEntradaData.value = getTodayDateString();
+    if (DOM_ELEMENTS.enxovalEntradaData) DOM_ELEMENTS.enxovalEntradaData.value = getTodayDateString();
 
     // Inicia na view Cesta Básica -> Lançamento
     switchMainSubModule('cesta-basica');
     switchInternalSubView('cesta', 'lancamento');
+    
+    // Força a renderização inicial dos resumos/históricos
+    renderCestaEstoqueSummary(); 
+    renderEnxovalEstoqueSummary(); 
+    renderCestaMovimentacoesHistoryTable(); 
+    renderEnxovalMovimentacoesHistoryTable(); 
 }
