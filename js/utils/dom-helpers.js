@@ -234,6 +234,45 @@ function findDOMElements() {
         ['#select-add-user-role', 'selectAddUserRole'],
         ['#btn-submit-add-user', 'btnSubmitAddUser'],
         ['#alert-add-user', 'alertAddUser'],
+
+        // NOVOS ELEMENTOS: ASSISTÊNCIA SOCIAL (content-social)
+        ['#sub-nav-social-main', 'subNavSocialMain'],
+        ['#social-module-container', 'socialModuleContainer'],
+        ['#social-submodule-cesta-basica', 'socialSubmoduleCestaBasica'],
+        ['#social-submodule-enxoval', 'socialSubmoduleEnxoval'],
+        ['#social-submodule-importar-dados', 'socialSubmoduleImportarDados'],
+        // CESTA BÁSICA
+        ['#sub-nav-cesta', 'subNavCesta'],
+        ['#form-cesta-lancamento', 'formCestaLancamento'],
+        ['#cesta-data', 'cestaData'],
+        ['#cesta-destinatario', 'cestaDestinatario'],
+        ['#cesta-quantidade', 'cestaQuantidade'],
+        ['#cesta-unidade', 'cestaUnidade'],
+        ['#cesta-categoria', 'cestaCategoria'],
+        ['#cesta-observacoes', 'cestaObservacoes'],
+        ['#cesta-custo', 'cestaCusto'],
+        ['#cesta-responsavel', 'cestaResponsavel'],
+        ['#cesta-fornecedor', 'cestaFornecedor'],
+        ['#btn-submit-cesta-lancamento', 'btnSubmitCestaLancamento'],
+        ['#alert-cesta-lancamento', 'alertCestaLancamento'],
+        ['#cesta-estoque-resumo', 'cestaEstoqueResumo'],
+        // ENXOVAL
+        ['#sub-nav-enxoval', 'subNavEnxoval'],
+        ['#form-enxoval-lancamento', 'formEnxovalLancamento'],
+        ['#enxoval-data', 'enxovalData'],
+        ['#enxoval-destinatario', 'enxovalDestinatario'],
+        ['#enxoval-quantidade', 'enxovalQuantidade'],
+        ['#enxoval-categoria', 'enxovalCategoria'],
+        ['#enxoval-observacoes', 'enxovalObservacoes'],
+        ['#enxoval-memo', 'enxovalMemo'],
+        ['#enxoval-responsavel', 'enxovalResponsavel'],
+        ['#btn-submit-enxoval-lancamento', 'btnSubmitEnxovalLancamento'],
+        ['#alert-enxoval-lancamento', 'alertEnxovalLancamento'],
+        ['#enxoval-estoque-resumo', 'enxovalEstoqueResumo'],
+        // IMPORTAÇÃO
+        ['#textarea-social-import', 'textareaSocialImport'],
+        ['#btn-social-import-data', 'btnSocialImportData'],
+        ['#alert-social-import', 'alertSocialImport'],
     ];
 
     mappings.forEach(([selector, varName, isAll]) => {
@@ -318,6 +357,16 @@ function switchSubTabView(tabPrefix, subViewName) {
 
     const navContainer = document.getElementById(`sub-nav-${tabPrefix}`);
     const contentContainer = document.getElementById(`content-${tabPrefix}`);
+
+    if (!navContainer && !contentContainer) { // Adicionado verificação para tab social
+        const mainSubContainer = document.getElementById(`social-submodule-${tabPrefix}`);
+        if(mainSubContainer) {
+            mainSubContainer.querySelectorAll(`div[id^="subview-${tabPrefix}"]`).forEach(pane => {
+                pane.classList.toggle('hidden', pane.id !== `subview-${subViewName}`);
+            });
+            return;
+        }
+    }
 
     if (!navContainer || !contentContainer) {
         console.warn(`Containers not found for sub-tab switch: ${tabPrefix}`);
