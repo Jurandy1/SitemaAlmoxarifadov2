@@ -133,6 +133,12 @@ function switchInternalSubView(itemType, subViewName) {
             dataInicioEl.value = thirtyDaysAgo.toISOString().split('T')[0];
         }
     }
+    
+    // NOVO: Renderiza os selects do formulário ao entrar na aba de lançamento
+    if (subViewName === 'lancamento') {
+        if (itemType === 'cesta') renderCestaLancamentoControls();
+        if (itemType === 'enxoval') renderEnxovalLancamentoControls();
+    }
 }
 
 
@@ -168,7 +174,7 @@ async function handleEstoqueEntrySubmit(e, itemType) {
             itemLabel: 'Cesta(s) Básica(s)'
         },
         'enxoval': {
-            form: DOM_ELEMENTS.formEnxovalEntrada,
+            form: DOM_ELEMENTs.formEnxovalEntrada,
             qtd: DOM_ELEMENTS.enxovalEntradaQuantidade,
             data: DOM_ELEMENTS.enxovalEntradaData,
             resp: DOM_ELEMENTS.enxovalEntradaResponsavel,
@@ -240,6 +246,64 @@ export const handleEnxovalEstoqueEntrySubmit = (e) => handleEstoqueEntrySubmit(e
 // =========================================================================
 // LÓGICA DE CESTAS BÁSICAS (Lancamento e Estoque)
 // =========================================================================
+
+/**
+ * Popula os controles de destinatário/unidade no formulário de lançamento de Cesta.
+ */
+function renderCestaLancamentoControls() {
+    const unidades = getUnidades();
+    const selectUnidadeEl = document.getElementById('cesta-select-unidade');
+    const inputPersonalizadoEl = document.getElementById('cesta-destinatario-personalizado');
+    const selectTipoDestinatarioEl = document.getElementById('cesta-tipo-destinatario');
+
+    if (!selectUnidadeEl || !inputPersonalizadoEl || !selectTipoDestinatarioEl) return;
+
+    // Popula o seletor de unidades com tipos relevantes
+    let unidadeHtml = '<option value="">-- Selecione a Unidade --</option>';
+
+    const grupos = unidades.reduce((acc, unidade) => {
+        let tipo = (unidade.tipo || "Sem Tipo").toUpperCase();
+        if (tipo === "SEMCAS") tipo = "SEDE";
+        if (!acc[tipo]) acc[tipo] = [];
+        acc[tipo].push(unidade);
+        return acc;
+    }, {});
+
+    Object.keys(grupos).sort().forEach(tipo => {
+        unidadeHtml += `<optgroup label="Tipo: ${tipo}">`;
+        grupos[tipo]
+            .sort((a, b) => a.nome.localeCompare(b.nome))
+            // Valor: TIPO-NOME (Ex: CRAS-CRAS CENTRO)
+            .forEach(unidade => {
+                unidadeHtml += `<option value="${tipo.toUpperCase()}: ${unidade.nome}">${unidade.nome}</option>`;
+            });
+        unidadeHtml += `</optgroup>`;
+    });
+
+    selectUnidadeEl.innerHTML = unidadeHtml;
+
+    // Adiciona listener para alternar visibilidade
+    selectTipoDestinatarioEl.onchange = () => {
+        const tipo = selectTipoDestinatarioEl.value;
+        const isPersonalizado = tipo === 'personalizado';
+        
+        selectUnidadeEl.classList.toggle('hidden', isPersonalizado);
+        selectUnidadeEl.required = !isPersonalizado;
+        
+        inputPersonalizadoEl.classList.toggle('hidden', !isPersonalizado);
+        inputPersonalizadoEl.required = isPersonalizado;
+        
+        // Limpa os valores para evitar submissão de campos ocultos
+        if (isPersonalizado) {
+             selectUnidadeEl.value = "";
+        } else {
+             inputPersonalizadoEl.value = "";
+        }
+    };
+    
+    // Garante que o estado inicial esteja correto
+    selectTipoDestinatarioEl.dispatchEvent(new Event('change'));
+}
 
 /**
  * Renderiza o resumo de estoque de cestas.
@@ -385,7 +449,30 @@ export async function handleCestaLancamentoSubmit(e) {
     }
 
     const data = dateToTimestamp(DOM_ELEMENTS.cestaData.value);
-    const destinatario = capitalizeString(DOM_ELEMENTS.cestaDestinatario.value.trim());
+    
+    // NOVO: Lógica para selecionar Destinatário baseado no tipo
+    const tipoDestinatarioEl = document.getElementById('cesta-tipo-destinatario');
+    const selectUnidadeEl = document.getElementById('cesta-select-unidade');
+    const inputPersonalizadoEl = document.getElementById('cesta-destinatario-personalizado');
+    
+    let destinatario = '';
+    const tipoDestinatario = tipoDestinatarioEl.value;
+
+    if (tipoDestinatario === 'unidade') {
+        destinatario = capitalizeString(selectUnidadeEl.value.trim()); // Ex: Cras: Cras Centro
+    } else if (tipoDestinatario === 'personalizado') {
+        destinatario = capitalizeString(inputPersonalizadoEl.value.trim()); // Ex: João da Silva
+    } else {
+        showAlert('alert-cesta-lancamento', 'Selecione o Tipo de Destinatário (Unidade ou Personalizado).', 'warning');
+        return;
+    }
+    
+    if (!destinatario) {
+        showAlert('alert-cesta-lancamento', 'O nome do Destinatário não pode ser vazio.', 'warning');
+        return;
+    }
+    // FIM NOVO
+
     const quantidade = parseInt(DOM_ELEMENTS.cestaQuantidade.value, 10);
     const unidade = DOM_ELEMENTS.cestaUnidade.value;
     // CORREÇÃO 3: Valor da categoria agora inclui Perecível/Não Perecível
@@ -396,8 +483,8 @@ export async function handleCestaLancamentoSubmit(e) {
     const fornecedor = 'N/A'; 
     const responsavel = capitalizeString(DOM_ELEMENTS.cestaResponsavel.value.trim());
 
-    if (!data || !destinatario || !quantidade || quantidade <= 0 || !categoria || !responsavel) {
-        showAlert('alert-cesta-lancamento', 'Preencha todos os campos obrigatórios (Data, Destinatário, Qtd, Categoria, Responsável).', 'warning');
+    if (!data || !quantidade || quantidade <= 0 || !categoria || !responsavel) {
+        showAlert('alert-cesta-lancamento', 'Preencha todos os campos obrigatórios (Data, Qtd, Categoria, Responsável).', 'warning');
         return;
     }
 
@@ -431,6 +518,11 @@ export async function handleCestaLancamentoSubmit(e) {
         showAlert('alert-cesta-lancamento', `Lançamento de ${quantidade} ${unidade}(s) para ${destinatario} salvo!`, 'success');
         DOM_ELEMENTS.formCestaLancamento.reset();
         DOM_ELEMENTS.cestaData.value = getTodayDateString();
+        // Garante que os selects de destinatário voltem para o estado inicial
+        if (tipoDestinatarioEl) tipoDestinatarioEl.value = 'unidade';
+        if (selectUnidadeEl) selectUnidadeEl.value = '';
+        if (inputPersonalizadoEl) inputPersonalizadoEl.value = '';
+        renderCestaLancamentoControls(); // Re-renderiza para aplicar a visibilidade correta
 
     } catch (error) {
         console.error("Erro ao salvar lançamento de cesta:", error);
@@ -446,6 +538,64 @@ export async function handleCestaLancamentoSubmit(e) {
 // =========================================================================
 // LÓGICA DE ENXOVAL (Lancamento e Estoque)
 // =========================================================================
+
+/**
+ * Popula os controles de destinatário/unidade no formulário de lançamento de Enxoval.
+ */
+function renderEnxovalLancamentoControls() {
+    const unidades = getUnidades();
+    const selectUnidadeEl = document.getElementById('enxoval-select-unidade');
+    const inputPersonalizadoEl = document.getElementById('enxoval-destinatario-personalizado');
+    const selectTipoDestinatarioEl = document.getElementById('enxoval-tipo-destinatario');
+
+    if (!selectUnidadeEl || !inputPersonalizadoEl || !selectTipoDestinatarioEl) return;
+
+    // Popula o seletor de unidades com tipos relevantes
+    let unidadeHtml = '<option value="">-- Selecione a Unidade --</option>';
+
+    const grupos = unidades.reduce((acc, unidade) => {
+        let tipo = (unidade.tipo || "Sem Tipo").toUpperCase();
+        if (tipo === "SEMCAS") tipo = "SEDE";
+        if (!acc[tipo]) acc[tipo] = [];
+        acc[tipo].push(unidade);
+        return acc;
+    }, {});
+
+    Object.keys(grupos).sort().forEach(tipo => {
+        unidadeHtml += `<optgroup label="Tipo: ${tipo}">`;
+        grupos[tipo]
+            .sort((a, b) => a.nome.localeCompare(b.nome))
+            // Valor: TIPO-NOME (Ex: CRAS-CRAS CENTRO)
+            .forEach(unidade => {
+                unidadeHtml += `<option value="${tipo.toUpperCase()}: ${unidade.nome}">${unidade.nome}</option>`;
+            });
+        unidadeHtml += `</optgroup>`;
+    });
+
+    selectUnidadeEl.innerHTML = unidadeHtml;
+
+    // Adiciona listener para alternar visibilidade
+    selectTipoDestinatarioEl.onchange = () => {
+        const tipo = selectTipoDestinatarioEl.value;
+        const isPersonalizado = tipo === 'personalizado';
+        
+        selectUnidadeEl.classList.toggle('hidden', isPersonalizado);
+        selectUnidadeEl.required = !isPersonalizado;
+        
+        inputPersonalizadoEl.classList.toggle('hidden', !isPersonalizado);
+        inputPersonalizadoEl.required = isPersonalizado;
+        
+        // Limpa os valores para evitar submissão de campos ocultos
+        if (isPersonalizado) {
+             selectUnidadeEl.value = "";
+        } else {
+             inputPersonalizadoEl.value = "";
+        }
+    };
+    
+    // Garante que o estado inicial esteja correto
+    selectTipoDestinatarioEl.dispatchEvent(new Event('change'));
+}
 
 /**
  * Renderiza o resumo de estoque de enxovais.
@@ -586,14 +736,37 @@ export async function handleEnxovalLancamentoSubmit(e) {
     }
 
     const data = dateToTimestamp(DOM_ELEMENTS.enxovalData.value);
-    const destinatario = capitalizeString(DOM_ELEMENTS.enxovalDestinatario.value.trim());
+    
+    // NOVO: Lógica para selecionar Destinatário baseado no tipo
+    const tipoDestinatarioEl = document.getElementById('enxoval-tipo-destinatario');
+    const selectUnidadeEl = document.getElementById('enxoval-select-unidade');
+    const inputPersonalizadoEl = document.getElementById('enxoval-destinatario-personalizado');
+    
+    let destinatario = '';
+    const tipoDestinatario = tipoDestinatarioEl.value;
+
+    if (tipoDestinatario === 'unidade') {
+        destinatario = capitalizeString(selectUnidadeEl.value.trim()); // Ex: Cras: Cras Centro
+    } else if (tipoDestinatario === 'personalizado') {
+        destinatario = capitalizeString(inputPersonalizadoEl.value.trim()); // Ex: João da Silva
+    } else {
+        showAlert('alert-enxoval-lancamento', 'Selecione o Tipo de Destinatário (Unidade ou Personalizado).', 'warning');
+        return;
+    }
+    
+    if (!destinatario) {
+        showAlert('alert-enxoval-lancamento', 'O nome do Destinatário não pode ser vazio.', 'warning');
+        return;
+    }
+    // FIM NOVO
+    
     const quantidade = parseInt(DOM_ELEMENTS.enxovalQuantidade.value, 10);
     const categoria = DOM_ELEMENTS.enxovalCategoria.value;
     const observacoes = DOM_ELEMENTS.enxovalObservacoes.value.trim();
     const memo = DOM_ELEMENTS.enxovalMemo.value.trim();
     const responsavel = capitalizeString(DOM_ELEMENTS.enxovalResponsavel.value.trim());
 
-    if (!data || !destinatario || !quantidade || quantidade <= 0 || !categoria || !responsavel || !memo) {
+    if (!data || !quantidade || quantidade <= 0 || !categoria || !responsavel || !memo) {
         showAlert('alert-enxoval-lancamento', 'Preencha todos os campos obrigatórios.', 'warning');
         return;
     }
@@ -626,6 +799,11 @@ export async function handleEnxovalLancamentoSubmit(e) {
         showAlert('alert-enxoval-lancamento', `Lançamento de ${quantidade} Enxoval(is) para ${destinatario} salvo!`, 'success');
         DOM_ELEMENTS.formEnxovalLancamento.reset();
         DOM_ELEMENTS.enxovalData.value = getTodayDateString();
+        // Garante que os selects de destinatário voltem para o estado inicial
+        if (tipoDestinatarioEl) tipoDestinatarioEl.value = 'unidade';
+        if (selectUnidadeEl) selectUnidadeEl.value = '';
+        if (inputPersonalizadoEl) inputPersonalizadoEl.value = '';
+        renderEnxovalLancamentoControls(); // Re-renderiza para aplicar a visibilidade correta
 
     } catch (error) {
         console.error("Erro ao salvar lançamento de enxoval:", error);
@@ -697,6 +875,7 @@ function renderRelatorioChart(itemType, dataSet, totalLabel) {
 
 /**
  * Renderiza o resumo textual robusto para a chefia.
+ * **CORRIGIDO:** Substituído ** por <strong> para evitar caracteres bugados no HTML.
  * @param {string} itemType 'cesta' ou 'enxoval'.
  * @param {Array<Object>} movsFiltradas Movimentações de saída filtradas.
  * @param {Map<string, number>} categoriasMap Mapa de categorias e totais.
@@ -744,7 +923,7 @@ function renderRelatorioTextual(itemType, movsFiltradas, categoriasMap, totalSai
     const mesesOrdenados = Array.from(mesesMap.keys()).sort();
     
     // 4. Montagem do Relatório Textual (Robusto)
-    // CORREÇÃO: Substituindo ** por <strong> para evitar que o markdown puro apareça na tela.
+    // CORREÇÃO: Removendo asteriscos e usando tags <strong>
     let relatorioText = `
         <p>Este relatório analisa a distribuição de <strong>${itemLabelPlural}</strong> no período de <strong>${formatTimestamp(dataInicial)}</strong> a <strong>${formatTimestamp(dataFinal)}</strong>, cobrindo um total de <strong>${totalDias.toFixed(0)} dias</strong> de operações de saída.</p>
         
@@ -1055,6 +1234,10 @@ export function initSocialListeners() {
     
     // Listener de Importação
     DOM_ELEMENTS.btnSocialImportData?.addEventListener('click', handleSocialImportSubmit);
+    
+    // NOVO: Adiciona listeners de mudança para o tipo de destinatário para renderizar o select/input correto
+    document.getElementById('cesta-tipo-destinatario')?.addEventListener('change', renderCestaLancamentoControls);
+    document.getElementById('enxoval-tipo-destinatario')?.addEventListener('change', renderEnxovalLancamentoControls);
 
     console.log("[Social Control] Listeners inicializados.");
 }
@@ -1078,6 +1261,10 @@ export function onSocialTabChange() {
     renderEnxovalEstoqueSummary(); 
     renderCestaMovimentacoesHistoryTable(); 
     renderEnxovalMovimentacoesHistoryTable(); 
+    
+    // Renderiza os controles de unidade
+    renderCestaLancamentoControls();
+    renderEnxovalLancamentoControls();
     
     // Limpa os gráficos ao mudar de aba principal
     if (graficoCestaRelatorio) { graficoCestaRelatorio.destroy(); graficoCestaRelatorio = null; }
