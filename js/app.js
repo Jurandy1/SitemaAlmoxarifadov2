@@ -12,6 +12,7 @@ import { executeDelete } from "./utils/db-utils.js";
 import { handleFinalMovimentacaoSubmit } from "./modules/movimentacao-modal-handler.js";
 import { getTodayDateString } from "./utils/formatters.js";
 import { initPrevisaoListeners } from "./modules/previsao.js"; 
+import { initSocialListeners } from "./modules/social-control.js"; // NOVO
 
 // Variável de estado da UI local (para manter o dashboard na tela)
 let visaoAtiva = 'dashboard'; 
@@ -27,8 +28,8 @@ function setupApp() {
     
     // 2. Definir datas iniciais
     const todayStr = getTodayDateString();
-    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
-    [DOM_ELEMENTS.inputDataAgua, DOM_ELEMENTS.inputDataGas, DOM_ELEMENTS.inputDataSeparacao, DOM_ELEMENTS.inputDataEntradaAgua, DOM_ELEMENTS.inputDataEntradaGas].forEach(input => {
+    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS (Adicionadas cestaData e enxovalData)
+    [DOM_ELEMENTS.inputDataAgua, DOM_ELEMENTS.inputDataGas, DOM_ELEMENTS.inputDataSeparacao, DOM_ELEMENTS.inputDataEntradaAgua, DOM_ELEMENTS.inputDataEntradaGas, DOM_ELEMENTS.cestaData, DOM_ELEMENTS.enxovalData].forEach(input => {
         if(input) input.value = todayStr;
     });
 
@@ -44,8 +45,11 @@ function setupApp() {
 
     // 6. ADICIONADO: Inicializa os listeners da Previsão (globais)
     initPrevisaoListeners();
+    
+    // 7. ADICIONADO: Inicializa os listeners de Assistência Social (globais)
+    initSocialListeners();
     
-    // 7. ADICIONADO: Listeners do Modal de Login
+    // 8. ADICIONADO: Listeners do Modal de Login
     if (DOM_ELEMENTS.formLogin) {
         DOM_ELEMENTS.formLogin.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -102,7 +106,7 @@ function setupApp() {
 
     console.log("Setup inicial do DOM concluído.");
     
-    // 8. Configurar o estado inicial do dashboard (inicia o refresh ao entrar na aba)
+    // 9. Configurar o estado inicial do dashboard (inicia o refresh ao entrar na aba)
     const dashboardBtn = document.querySelector('.nav-btn[data-tab="dashboard"]');
     if (dashboardBtn) dashboardBtn.click();
 }
