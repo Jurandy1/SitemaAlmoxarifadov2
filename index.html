@@ -1181,7 +1181,7 @@
                                 </div>
 
                                 <!-- FILTRO DE TIPO (Visível por padrão) -->
-                                <div id="analise-agrupamento-tipo-container-gas">
+                                <div id="analise-agrupamento-tipo-container-gas" class="hidden">
                                     <label for="analise-agrupamento-tipo-gas" class="form-label">Filtro por Tipo</label>
                                     <!-- Este select será populado com CRAS, CREAS, etc. -->
                                     <select id="analise-agrupamento-tipo-gas" class="form-select">
@@ -1480,7 +1480,7 @@
                                      <h4 class="font-semibold text-green-800">Pronto p/ Entrega</h4>
                                  </div>
                                  <p id="summary-materiais-retirada" class="text-4xl font-extrabold text-green-600 mt-auto">0</p>
-                                 <p class="text-xs text-green-500 mt-1">Aguardando retirada</p>
+                                 <p class="text-xs text-green-500 mt-1">Registros prontos</p>
                              </div>
                         </div>
                     </div>
@@ -1631,19 +1631,19 @@
                         <!-- Sub-navegação CESTA -->
                         <div class="flex flex-wrap gap-2 mb-6" id="sub-nav-cesta">
                             <button class="sub-nav-btn active" data-subview="cesta-lancamento">
-                                <i data-lucide="edit-3"></i> Lançamento
+                                <i data-lucide="edit-3"></i> Lançamento (Saída)
                             </button>
                             <button class="sub-nav-btn" data-subview="cesta-estoque">
-                                <i data-lucide="box"></i> Controle de Estoque
+                                <i data-lucide="box"></i> Controle de Estoque (Entrada)
                             </button>
                             <button class="sub-nav-btn" data-subview="cesta-relatorio">
-                                <i data-lucide="file-text"></i> Relatórios e Histórico
+                                <i data-lucide="file-text"></i> Histórico de Saídas
                             </button>
                         </div>
 
                         <!-- Subview: Lançamento de Cestas -->
                         <div id="subview-cesta-lancamento" class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-                            <h3 class="text-xl font-bold text-pink-600 mb-4">📥 Lançamento de Cestas Básicas</h3>
+                            <h3 class="text-xl font-bold text-pink-600 mb-4">📥 Lançamento de Cestas Básicas (Saída)</h3>
                             <form id="form-cesta-lancamento" class="space-y-4 grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl">
                                 <div><label for="cesta-data" class="form-label">Data</label><input type="date" id="cesta-data" class="form-input" required></div>
                                 <div><label for="cesta-destinatario" class="form-label">Destinatário (Nome)</label><input type="text" id="cesta-destinatario" class="form-input" placeholder="Nome completo" required></div>
@@ -1681,44 +1681,60 @@
                             <div id="alert-cesta-lancamento" class="alert mt-4"></div>
                         </div>
 
-                        <!-- Subview: Controle de Estoque (Cestas) -->
+                        <!-- Subview: Controle de Estoque (Cestas) - (UPDATED) -->
                         <div id="subview-cesta-estoque" class="hidden">
                              <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
                                  <h3 class="text-xl font-bold text-pink-600 mb-4">📦 Controle de Estoque (Cestas)</h3>
                                  <div id="alert-cesta-estoque" class="alert mb-4"></div>
                                  <!-- Cards de Resumo -->
                                  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6" id="cesta-estoque-resumo">
-                                     <!-- JS Preenche aqui -->
+                                     <!-- JS Preenche o resumo do Estoque Atual, Entradas e Saídas -->
+                                     <div class="text-center py-10"><div class="loading-spinner-small mx-auto"></div></div>
                                  </div>
+                                 
                                  <h4 class="text-lg font-semibold mb-3 border-b pb-2">Registrar Entrada de Cestas (Compra/Doação)</h4>
-                                 <form id="form-cesta-entrada" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                                     <!-- Campos de Entrada -->
+                                 <!-- NOVO FORMULÁRIO DE ENTRADA -->
+                                 <form id="form-cesta-entrada" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                                     <div><label for="cesta-entrada-quantidade" class="form-label">Quantidade</label><input type="number" id="cesta-entrada-quantidade" class="form-input" min="1" value="1" required></div>
+                                     <div><label for="cesta-entrada-data" class="form-label">Data da Entrada</label><input type="date" id="cesta-entrada-data" class="form-input" required></div>
+                                     <div><label for="cesta-entrada-responsavel" class="form-label">Responsável (Almoxarifado)</label><input type="text" id="cesta-entrada-responsavel" class="form-input" placeholder="Nome de quem recebeu" required></div>
+                                     <div class="col-span-1 flex items-end">
+                                          <button type="submit" id="btn-submit-cesta-entrada" class="btn-primary w-full">
+                                            <i data-lucide="plus-circle"></i> <span>Registrar Entrada</span>
+                                          </button>
+                                     </div>
+                                     <div class="col-span-4">
+                                         <label for="cesta-entrada-nf" class="form-label">Nota Fiscal/Documento (Opcional)</label>
+                                         <input type="text" id="cesta-entrada-nf" class="form-input" placeholder="Nº da Nota Fiscal ou Documento">
+                                     </div>
                                  </form>
-                                 <h4 class="text-lg font-semibold mb-3 border-b pb-2">Estoque Atual por Categoria</h4>
+                                 <!-- FIM NOVO FORMULÁRIO -->
+
+                                 <h4 class="text-lg font-semibold mb-3 border-b pb-2">Histórico de Entradas de Estoque</h4>
                                  <div class="overflow-x-auto border border-gray-200 rounded-lg max-h-96">
                                      <table class="table w-full text-sm">
-                                         <thead class="bg-gray-50"><tr><th>Categoria</th><th>Qtd. Estoque</th><th>Última Atualização</th><th>Ação</th></tr></thead>
-                                         <tbody id="table-cesta-estoque"><tr><td colspan="4" class="text-center py-10"><div class="loading-spinner-small mx-auto"></div></td></tr></tbody>
+                                         <thead class="bg-gray-50"><tr><th>Qtd.</th><th>Data Movimentação</th><th>Nota Fiscal</th><th>Responsável</th><th class="text-center">Ação</th></tr></thead>
+                                         <tbody id="table-cesta-estoque-history"><tr><td colspan="5" class="text-center py-10"><div class="loading-spinner-small mx-auto"></div></td></tr></tbody>
                                      </table>
                                  </div>
                              </div>
                         </div>
 
-                        <!-- Subview: Relatórios e Histórico (Cestas) -->
+                        <!-- Subview: Relatórios e Histórico (Cestas) - (UPDATED) -->
                         <div id="subview-cesta-relatorio" class="hidden">
                              <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-                                 <h3 class="text-xl font-bold text-pink-600 mb-4">📊 Relatório de Cestas Básicas</h3>
+                                 <h3 class="text-xl font-bold text-pink-600 mb-4">📊 Histórico de Saídas (Lançamentos)</h3>
                                  <div id="alert-cesta-relatorio" class="alert mb-4"></div>
-                                 <!-- Área de Filtros -->
+                                 <!-- Área de Filtros - Manter placeholder por enquanto -->
                                  <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                                      <!-- Filtros de Data e Categoria -->
                                  </div>
-                                 <!-- Botões de Ação -->
+                                 <!-- Botões de Ação - Manter placeholder por enquanto -->
                                  <div class="flex flex-wrap gap-3 mb-6">
-                                     <button id="btn-cesta-gerar-pdf" class="btn-primary"><i data-lucide="file-down"></i> Gerar PDF</button>
-                                     <button id="btn-cesta-exportar-excel" class="btn-secondary"><i data-lucide="file-text"></i> Exportar Excel</button>
+                                     <button id="btn-cesta-gerar-pdf" class="btn-primary" disabled><i data-lucide="file-down"></i> Gerar PDF</button>
+                                     <button id="btn-cesta-exportar-excel" class="btn-secondary" disabled><i data-lucide="file-text"></i> Exportar Excel</button>
                                  </div>
-                                 <!-- Tabela de Histórico -->
+                                 <!-- Tabela de Histórico (Movimentação) -->
                                  <div class="overflow-x-auto border border-gray-200 rounded-lg max-h-96">
                                      <table class="table w-full text-sm">
                                          <thead class="bg-gray-50"><tr><th>Data</th><th>Destinatário</th><th>Qtd.</th><th>Categoria</th><th>Responsável</th><th>Status</th><th>Ação</th></tr></thead>
@@ -1735,19 +1751,19 @@
                          <!-- Sub-navegação ENXOVAL -->
                         <div class="flex flex-wrap gap-2 mb-6" id="sub-nav-enxoval">
                             <button class="sub-nav-btn active" data-subview="enxoval-lancamento">
-                                <i data-lucide="edit-3"></i> Lançamento
+                                <i data-lucide="edit-3"></i> Lançamento (Saída)
                             </button>
                             <button class="sub-nav-btn" data-subview="enxoval-estoque">
-                                <i data-lucide="box"></i> Controle de Estoque
+                                <i data-lucide="box"></i> Controle de Estoque (Entrada)
                             </button>
                             <button class="sub-nav-btn" data-subview="enxoval-relatorio">
-                                <i data-lucide="file-text"></i> Relatórios e Histórico
+                                <i data-lucide="file-text"></i> Histórico de Saídas
                             </button>
                         </div>
 
                         <!-- Subview: Lançamento de Enxoval -->
                         <div id="subview-enxoval-lancamento" class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-                            <h3 class="text-xl font-bold text-pink-600 mb-4">📥 Lançamento de Enxoval</h3>
+                            <h3 class="text-xl font-bold text-pink-600 mb-4">📥 Lançamento de Enxoval (Saída)</h3>
                             <form id="form-enxoval-lancamento" class="space-y-4 grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl">
                                 <div><label for="enxoval-data" class="form-label">Data</label><input type="date" id="enxoval-data" class="form-input" required></div>
                                 <div><label for="enxoval-destinatario" class="form-label">Destinatário (Nome)</label><input type="text" id="enxoval-destinatario" class="form-input" placeholder="Nome completo" required></div>
@@ -1774,44 +1790,60 @@
                             <div id="alert-enxoval-lancamento" class="alert mt-4"></div>
                         </div>
 
-                        <!-- Subview: Controle de Estoque (Enxoval) -->
+                        <!-- Subview: Controle de Estoque (Enxoval) - (UPDATED) -->
                         <div id="subview-enxoval-estoque" class="hidden">
                              <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
                                  <h3 class="text-xl font-bold text-pink-600 mb-4">📦 Controle de Estoque (Enxoval)</h3>
                                  <div id="alert-enxoval-estoque" class="alert mb-4"></div>
                                  <!-- Cards de Resumo -->
                                  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6" id="enxoval-estoque-resumo">
-                                     <!-- JS Preenche aqui -->
+                                     <!-- JS Preenche o resumo do Estoque Atual, Entradas e Saídas -->
+                                     <div class="text-center py-10"><div class="loading-spinner-small mx-auto"></div></div>
                                  </div>
+                                 
                                  <h4 class="text-lg font-semibold mb-3 border-b pb-2">Registrar Entrada de Enxoval (Compra/Doação)</h4>
-                                 <form id="form-enxoval-entrada" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                                     <!-- Campos de Entrada -->
+                                 <!-- NOVO FORMULÁRIO DE ENTRADA -->
+                                 <form id="form-enxoval-entrada" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                                     <div><label for="enxoval-entrada-quantidade" class="form-label">Quantidade</label><input type="number" id="enxoval-entrada-quantidade" class="form-input" min="1" value="1" required></div>
+                                     <div><label for="enxoval-entrada-data" class="form-label">Data da Entrada</label><input type="date" id="enxoval-entrada-data" class="form-input" required></div>
+                                     <div><label for="enxoval-entrada-responsavel" class="form-label">Responsável (Almoxarifado)</label><input type="text" id="enxoval-entrada-responsavel" class="form-input" placeholder="Nome de quem recebeu" required></div>
+                                     <div class="col-span-1 flex items-end">
+                                          <button type="submit" id="btn-submit-enxoval-entrada" class="btn-primary w-full">
+                                            <i data-lucide="plus-circle"></i> <span>Registrar Entrada</span>
+                                          </button>
+                                     </div>
+                                     <div class="col-span-4">
+                                         <label for="enxoval-entrada-nf" class="form-label">Nota Fiscal/Documento (Opcional)</label>
+                                         <input type="text" id="enxoval-entrada-nf" class="form-input" placeholder="Nº da Nota Fiscal ou Documento">
+                                     </div>
                                  </form>
-                                 <h4 class="text-lg font-semibold mb-3 border-b pb-2">Estoque Atual por Categoria</h4>
+                                 <!-- FIM NOVO FORMULÁRIO -->
+
+                                 <h4 class="text-lg font-semibold mb-3 border-b pb-2">Histórico de Entradas de Estoque</h4>
                                  <div class="overflow-x-auto border border-gray-200 rounded-lg max-h-96">
                                      <table class="table w-full text-sm">
-                                         <thead class="bg-gray-50"><tr><th>Categoria</th><th>Qtd. Estoque</th><th>Última Atualização</th><th>Ação</th></tr></thead>
-                                         <tbody id="table-enxoval-estoque"><tr><td colspan="4" class="text-center py-10"><div class="loading-spinner-small mx-auto"></div></td></tr></tbody>
+                                         <thead class="bg-gray-50"><tr><th>Qtd.</th><th>Data Movimentação</th><th>Nota Fiscal</th><th>Responsável</th><th class="text-center">Ação</th></tr></thead>
+                                         <tbody id="table-enxoval-estoque-history"><tr><td colspan="5" class="text-center py-10"><div class="loading-spinner-small mx-auto"></div></td></tr></tbody>
                                      </table>
                                  </div>
                              </div>
                         </div>
 
-                        <!-- Subview: Relatórios e Histórico (Enxoval) -->
+                        <!-- Subview: Relatórios e Histórico (Enxoval) - (UPDATED) -->
                         <div id="subview-enxoval-relatorio" class="hidden">
                             <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-                                 <h3 class="text-xl font-bold text-pink-600 mb-4">📊 Relatório de Enxoval</h3>
+                                 <h3 class="text-xl font-bold text-pink-600 mb-4">📊 Histórico de Saídas (Lançamentos)</h3>
                                  <div id="alert-enxoval-relatorio" class="alert mb-4"></div>
-                                 <!-- Área de Filtros -->
+                                 <!-- Área de Filtros - Manter placeholder por enquanto -->
                                  <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                                      <!-- Filtros de Data e Categoria -->
                                  </div>
-                                 <!-- Botões de Ação -->
+                                 <!-- Botões de Ação - Manter placeholder por enquanto -->
                                  <div class="flex flex-wrap gap-3 mb-6">
-                                     <button id="btn-enxoval-gerar-pdf" class="btn-primary"><i data-lucide="file-down"></i> Gerar PDF</button>
-                                     <button id="btn-enxoval-exportar-excel" class="btn-secondary"><i data-lucide="file-text"></i> Exportar Excel</button>
+                                     <button id="btn-enxoval-gerar-pdf" class="btn-primary" disabled><i data-lucide="file-down"></i> Gerar PDF</button>
+                                     <button id="btn-enxoval-exportar-excel" class="btn-secondary" disabled><i data-lucide="file-text"></i> Exportar Excel</button>
                                  </div>
-                                 <!-- Tabela de Histórico -->
+                                 <!-- Tabela de Histórico (Movimentação) -->
                                  <div class="overflow-x-auto border border-gray-200 rounded-lg max-h-96">
                                      <table class="table w-full text-sm">
                                          <thead class="bg-gray-50"><tr><th>Data</th><th>Destinatário</th><th>Qtd.</th><th>Categoria</th><th>Memo</th><th>Responsável</th><th>Status</th><th>Ação</th></tr></thead>
