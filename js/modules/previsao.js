@@ -5,10 +5,12 @@ import {
     getAguaMovimentacoes,
     getGasMovimentacoes,
     getUnidades,
-    modoPrevisao,
-    listaExclusoes,
-    graficoPrevisao
-    // Removido tipoSelecionadoPrevisao se não for usado globalmente
+    modoPrevisao, // Acessa diretamente a variável exportada
+    listaExclusoes, // Acessa diretamente a variável exportada
+    graficoPrevisao, // Acessa diretamente a variável exportada
+    setModoPrevisao, // Usa a função setter
+    setListaExclusoes, // Usa a função setter
+    setGraficoPrevisao // Usa a função setter
 } from "../utils/cache.js";
 import { showAlert, DOM_ELEMENTS } from "../utils/dom-helpers.js";
 import { formatTimestamp, formatTimestampComTempo } from "../utils/formatters.js";
@@ -41,13 +43,13 @@ function normalizeUnidadeType(tipo) {
 export function setupAnaliseUnidadeControls(itemType) {
     const unidades = getUnidades();
     const service = itemType === 'agua' ? 'atendeAgua' : 'atendeGas';
-    
+
     // Filtra unidades que atendem ao serviço
     const unidadesFiltradas = unidades.filter(u => u[service] ?? true);
 
     const selectTipo = DOM_ELEMENTS[`analiseAgrupamentoTipo${itemType === 'agua' ? 'Agua' : 'Gas'}`];
     const selectUnidade = DOM_ELEMENTS[`analiseAgrupamentoUnidade${itemType === 'agua' ? 'Agua' : 'Gas'}`];
-    
+
     if (!selectTipo || !selectUnidade) return;
 
     // 1. Populando Agrupamento por Tipo
@@ -60,7 +62,7 @@ export function setupAnaliseUnidadeControls(itemType) {
 
     // 2. Populando Agrupamento por Unidade Específica
     let unidadeHtml = '<option value="todas">Todas as Unidades</option>';
-    
+
     const grupos = unidadesFiltradas.reduce((acc, unidade) => {
         const tipo = normalizeUnidadeType(unidade.tipo);
         if (!acc[tipo]) acc[tipo] = [];
@@ -89,14 +91,14 @@ export function setupAnaliseUnidadeControls(itemType) {
         // Remove listeners antigos para evitar duplicação
         const newSelectModo = selectModoAgrupamento.cloneNode(true);
         selectModoAgrupamento.parentNode.replaceChild(newSelectModo, selectModoAgrupamento);
-        
+
         newSelectModo.addEventListener('change', (e) => {
             const modo = e.target.value;
             // CORREÇÃO: Alterna a visibilidade dos selects de filtro (Tipo vs Unidade)
             tipoContainer.classList.toggle('hidden', modo !== 'tipo');
             unidadeContainer.classList.toggle('hidden', modo !== 'unidade');
         });
-        
+
         // Garante que a UI comece no estado correto
         const initialMode = newSelectModo.value;
         tipoContainer.classList.toggle('hidden', initialMode !== 'tipo');
@@ -116,15 +118,15 @@ export function setupAnaliseUnidadeControls(itemType) {
 function analisarConsumoPorPeriodo(itemType) {
     const alertId = `alert-analise-consumo-${itemType}`;
     const unidades = getUnidades();
-    
+
     // 1. Coletar os parâmetros (CORRIGIDO)
     const selectModoAgrupamento = DOM_ELEMENTS[`selectModoAgrupamento${itemType === 'agua' ? 'Agua' : 'Gas'}`]?.value; // 'tipo' ou 'unidade'
     const granularidade = DOM_ELEMENTS[`analiseGranularidade${itemType === 'agua' ? 'Agua' : 'Gas'}`]?.value; // 'diario', 'semanal', 'mensal'
-    
+
     // Agrupamento principal
     const agruparPor = selectModoAgrupamento; // 'tipo' ou 'unidade'
-    
-    let filtroAgrupamento = null; 
+
+    let filtroAgrupamento = null;
     let nomeFiltro = "Todas as Unidades";
 
     if (agruparPor === 'tipo') {
@@ -137,19 +139,19 @@ function analisarConsumoPorPeriodo(itemType) {
              nomeFiltro = unidade ? unidade.nome : 'Unidade Desconhecida';
         }
     }
-    
+
     // Coleta as movimentações (apenas entregas, que representam consumo)
     const movimentacoes = (itemType === 'agua' ? getAguaMovimentacoes() : getGasMovimentacoes());
     let movsEntrega = movimentacoes
         .filter(m => m.tipo === 'entrega' && m.data && typeof m.data.toDate === 'function')
         .sort((a, b) => a.data.toMillis() - b.data.toMillis());
-        
+
     // 2. Mapeamento de Unidades e Filtragem de Movimentações
-    const unidadeMap = new Map(unidades.map(u => [u.id, { 
-        nome: u.nome, 
+    const unidadeMap = new Map(unidades.map(u => [u.id, {
+        nome: u.nome,
         tipo: normalizeUnidadeType(u.tipo) // Normaliza SEMCAS para SEDE, etc.
     }]));
-    
+
     // Filtrar as movimentações antes de calcular o consumo
     if (filtroAgrupamento !== 'todas') {
         if (agruparPor === 'tipo') {
@@ -174,21 +176,21 @@ function analisarConsumoPorPeriodo(itemType) {
     // Key: Label do Período (ex: 2024-W40, 2024-10, 2024-10-28)
     // Value: Map<string, number> (Key: Nome da Unidade/Tipo, Value: Consumo Total)
     const consumoPorPeriodo = new Map();
-    
+
     // 4. Processamento dos dados
     movsEntrega.forEach(mov => {
         const data = mov.data.toDate();
         const unidadeInfo = unidadeMap.get(mov.unidadeId);
-        
+
         if (!unidadeInfo) return; // Ignora se a unidade não for encontrada
-        
+
         // Define a chave de agrupamento para o gráfico (série de dados)
         let keyGroup;
-        
+
         // Se o agrupamento principal for por TIPO, a série é o TIPO.
         // Se o agrupamento principal for por UNIDADE, a série é a UNIDADE.
         if (agruparPor === 'tipo') {
-            keyGroup = unidadeInfo.tipo; 
+            keyGroup = unidadeInfo.tipo;
         } else { // 'unidade'
             keyGroup = unidadeInfo.nome;
         }
@@ -198,7 +200,7 @@ function analisarConsumoPorPeriodo(itemType) {
         if (!consumoPorPeriodo.has(periodKey)) {
             consumoPorPeriodo.set(periodKey, new Map());
         }
-        
+
         const periodData = consumoPorPeriodo.get(periodKey);
         const consumoAtual = periodData.get(keyGroup) || 0;
         periodData.set(keyGroup, consumoAtual + mov.quantidade);
@@ -210,7 +212,7 @@ function analisarConsumoPorPeriodo(itemType) {
     // 6. Renderização
     renderGraficoAnalise(itemType, chartLabels, chartDataSets, granularidade, agruparPor, nomeFiltro);
     document.getElementById(`analise-resultado-container-${itemType}`).classList.remove('hidden');
-    
+
     // Renderiza o resumo textual e o ranking
     renderAnaliseTextual(itemType, movsEntrega, unidades, dataInicial, dataFinal);
 
@@ -224,7 +226,7 @@ function analisarConsumoPorPeriodo(itemType) {
  */
 function getPeriodoAnalise(movsEntrega) {
     if (movsEntrega.length === 0) return { dataInicial: null, dataFinal: null, totalDias: 0 };
-    
+
     // Pega a data da movimentação mais antiga (primeira)
     const primeiraMovDate = movsEntrega[0].data.toDate();
     // Pega a data da movimentação mais recente (última)
@@ -237,7 +239,7 @@ function getPeriodoAnalise(movsEntrega) {
     // Normaliza para o início do dia para cálculo preciso dos dias decorridos
     const inicioPrimeira = new Date(primeiraMovDate.getFullYear(), primeiraMovDate.getMonth(), primeiraMovDate.getDate());
     const fimUltima = new Date(ultimaMovDate.getFullYear(), ultimaMovDate.getMonth(), ultimaMovDate.getDate());
-    
+
     // Cálculo dos dias: (diferença em ms / ms por dia) + 1 para incluir o dia final
     const diffTime = Math.abs(fimUltima.getTime() - inicioPrimeira.getTime());
     const totalDaysMs = 1000 * 60 * 60 * 24;
@@ -261,7 +263,7 @@ function getPeriodKey(date, agrupamento) {
     if (agrupamento === 'mensal') {
         return `${year}-${month}`; // Ex: 2024-10
     }
-    
+
     if (agrupamento === 'diario') {
         return `${year}-${month}-${day}`; // Ex: 2024-10-28
     }
@@ -270,7 +272,7 @@ function getPeriodKey(date, agrupamento) {
     const d = new Date(date);
     d.setHours(0, 0, 0, 0);
     // Ajusta para ser a quinta-feira da semana para cálculo ISO
-    d.setDate(d.getDate() + 4 - (d.getDay() || 7)); 
+    d.setDate(d.getDate() + 4 - (d.getDay() || 7));
     const yearStart = new Date(d.getFullYear(), 0, 1);
     const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
     return `${d.getFullYear()}-W${String(weekNo).padStart(2, '0')}`; // Ex: 2024-W44
@@ -286,7 +288,7 @@ function getPeriodKey(date, agrupamento) {
 function formatDataForChart(consumoPorPeriodo, agrupamento) {
     // Ordena as chaves de período
     const sortedPeriodKeys = Array.from(consumoPorPeriodo.keys()).sort();
-    
+
     // Obtém todas as categorias (unidades ou tipos) únicas
     const allCategoriesSet = new Set();
     consumoPorPeriodo.forEach(periodData => {
@@ -297,14 +299,14 @@ function formatDataForChart(consumoPorPeriodo, agrupamento) {
     // Mapeamento de cor fixa para consistência
     // Usando cores mais profissionais e consistentes
     const colors = [
-        '#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', 
+        '#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
         '#64748b', '#06b6d4', '#e879f9', '#4c4c4c', '#57534e'
-    ]; 
+    ];
     const colorMap = new Map();
     allCategories.forEach((cat, index) => {
         colorMap.set(cat, colors[index % colors.length]);
     });
-    
+
     // Cria os rótulos de período formatados (Labels do Eixo X)
     const chartLabels = sortedPeriodKeys.map(key => {
         if (agrupamento === 'mensal') {
@@ -318,7 +320,7 @@ function formatDataForChart(consumoPorPeriodo, agrupamento) {
         // Semanal
         const [year, week] = key.split('-W');
         // Garante que o ano seja o do período
-        return `Sem. ${parseInt(week)} (${year})`; 
+        return `Sem. ${parseInt(week)} (${year})`;
     });
 
     // Cria os conjuntos de dados (DataSets)
@@ -340,7 +342,7 @@ function formatDataForChart(consumoPorPeriodo, agrupamento) {
             type: 'bar',
         };
     });
-    
+
     return { chartLabels, chartDataSets };
 }
 
@@ -357,7 +359,7 @@ function renderGraficoAnalise(itemType, labels, datasets, granularidade, agrupar
     const canvasId = `grafico-analise-consumo-${itemType}`;
     const ctx = document.getElementById(canvasId)?.getContext('2d');
     if (!ctx) return;
-    
+
     // Destrói instância anterior
     if (graficoAnaliseConsumo[itemType]) {
         graficoAnaliseConsumo[itemType].destroy();
@@ -383,7 +385,7 @@ function renderGraficoAnalise(itemType, labels, datasets, granularidade, agrupar
                     title: { display: true, text: granularidade.toUpperCase() }
                 },
                 y: {
-                    stacked: true, 
+                    stacked: true,
                     beginAtZero: true,
                     title: { display: true, text: `Quantidade de ${itemLabel}` },
                     ticks: { precision: 0 }
@@ -419,6 +421,7 @@ function renderGraficoAnalise(itemType, labels, datasets, granularidade, agrupar
 
 /**
  * Renderiza o resumo textual e o ranking de consumo.
+ * MELHORIA: Usa tags <strong> em vez de **.
  * @param {string} itemType 'agua' ou 'gas'.
  * @param {Array<Object>} movsEntrega Movimentações filtradas.
  * @param {Array<Object>} unidades Lista de unidades.
@@ -433,7 +436,6 @@ function renderAnaliseTextual(itemType, movsEntrega, unidades, dataInicial, data
 
     // --- Cálculo de Consumo por Unidade (para Ranking) ---
     const consumoPorUnidade = movsEntrega.reduce((acc, mov) => {
-        // CORREÇÃO: Usa normalizeUnidadeType para garantir o agrupamento correto dos tipos
         const unidadeInfo = unidades.find(u => u.id === mov.unidadeId);
         if (unidadeInfo) {
             const nome = unidadeInfo.nome;
@@ -449,7 +451,7 @@ function renderAnaliseTextual(itemType, movsEntrega, unidades, dataInicial, data
     const totalConsumo = ranking.reduce((sum, item) => sum + item.consumo, 0);
     const mediaConsumo = totalConsumo / (ranking.length > 0 ? ranking.length : 1);
     const itemLabel = itemType === 'agua' ? 'galão' : 'botijão';
-    const itemLabelPlural = itemLabel + (itemType === 'agua' ? 'es' : 'ões'); // Ajuste simples para plural
+    const itemLabelPlural = itemLabel + (itemType === 'agua' ? 'ões' : 'ões'); // Ambos terminam em 'ão'
 
     // --- Renderiza Ranking ---
     rankingEl.innerHTML = '';
@@ -473,18 +475,19 @@ function renderAnaliseTextual(itemType, movsEntrega, unidades, dataInicial, data
     }
 
 
-    // --- Renderiza Relatório Textual ---
+    // --- Renderiza Relatório Textual (com <strong>) ---
+    const { totalDias } = getPeriodoAnalise(movsEntrega);
     let relatorioText = `
-        <p>A análise abrange o período de **${formatTimestamp(dataInicial)}** a **${formatTimestamp(dataFinal)}**, totalizando **${getPeriodoAnalise(movsEntrega).totalDias} dias** de histórico de entregas.</p>
-        <p>Neste período, o **consumo total** de ${itemLabelPlural} foi de **${totalConsumo} unidades**.</p>
-        <p>A média de consumo por unidade considerada é de **${mediaConsumo.toFixed(1)} unidades** de ${itemLabel} (seja ${itemLabel} cheio para entrega ou vazio para troca).</p>
+        <p>A análise abrange o período de <strong>${formatTimestamp(dataInicial)}</strong> a <strong>${formatTimestamp(dataFinal)}</strong>, totalizando <strong>${totalDias} dias</strong> de histórico de entregas.</p>
+        <p>Neste período, o <strong>consumo total</strong> de ${itemLabelPlural} foi de <strong>${totalConsumo} unidades</strong>.</p>
+        <p>A média de consumo por unidade considerada é de <strong>${mediaConsumo.toFixed(1)} unidades</strong> de ${itemLabel} por período analisado.</p>
     `;
 
     if (ranking.length > 0) {
-        relatorioText += `<p>O maior consumidor foi a unidade **${ranking[0].nome}**, com **${ranking[0].consumo} unidades** de ${itemLabelPlural} (ou ${((ranking[0].consumo / totalConsumo) * 100).toFixed(1)}% do total).</p>`;
-        
+        relatorioText += `<p>O maior consumidor foi a unidade <strong>${ranking[0].nome}</strong>, com <strong>${ranking[0].consumo} unidades</strong> de ${itemLabelPlural} (ou ${((ranking[0].consumo / totalConsumo) * 100).toFixed(1)}% do total).</p>`;
+
         const menorConsumo = ranking[ranking.length - 1];
-        relatorioText += `<p>O menor consumidor foi a unidade **${menorConsumo.nome}**, com **${menorConsumo.consumo} unidades**.</p>`;
+        relatorioText += `<p>O menor consumidor foi a unidade <strong>${menorConsumo.nome}</strong>, com <strong>${menorConsumo.consumo} unidades</strong>.</p>`;
     }
 
     relatorioEl.innerHTML = relatorioText;
@@ -492,15 +495,16 @@ function renderAnaliseTextual(itemType, movsEntrega, unidades, dataInicial, data
 
 
 // =========================================================================
-// FUNÇÕES DE PREVISÃO INTELIGENTE (EXISTENTES)
+// FUNÇÕES DE PREVISÃO INTELIGENTE (EXISTENTES - sem modificação funcional)
 // =========================================================================
 
 /**
  * Seleciona o modo de previsão (unidade, tipo, completo) e atualiza a UI.
  * @param {string} itemType 'agua' ou 'gas'.
+ * @param {string} modo 'unidade-especifica', 'por-tipo', 'completo'.
  */
 function selecionarModoPrevisao(itemType, modo) {
-    modoPrevisao[itemType] = modo;
+    setModoPrevisao(itemType, modo); // Usa o setter
     console.log(`[Previsão ${itemType}] Modo selecionado: ${modo}`);
 
     const configEl = document.getElementById(`config-previsao-${itemType}`);
@@ -517,7 +521,7 @@ function selecionarModoPrevisao(itemType, modo) {
 
     // Resetar cards
     document.querySelectorAll(`#subview-analise-previsao-${itemType} .previsao-option-card`).forEach(card => {
-        card.classList.remove('selected'); // Usando a classe 'selected' agora
+        card.classList.remove('selected');
     });
     // Marcar card selecionado
     const selectedCard = document.querySelector(`#subview-analise-previsao-${itemType} .previsao-option-card[data-modo="${modo}"]`);
@@ -529,14 +533,15 @@ function selecionarModoPrevisao(itemType, modo) {
     } else if (modo === 'por-tipo') {
         if (tipoContainer) tipoContainer.classList.remove('hidden');
     }
-    // Não precisa de else if (modo === 'completo'), pois só a exclusão fica visível (já tratado)
 
     // Limpar resultados anteriores
     const resultadoEl = document.getElementById(`resultado-previsao-${itemType}-v2`);
     if (resultadoEl) resultadoEl.classList.add('hidden');
-    if (graficoPrevisao[itemType]) {
-        graficoPrevisao[itemType].destroy();
-        graficoPrevisao[itemType] = null;
+
+    const currentGrafico = graficoPrevisao[itemType]; // Acessa via getter
+    if (currentGrafico) {
+        currentGrafico.destroy();
+        setGraficoPrevisao(itemType, null); // Usa setter para limpar
     }
 }
 
@@ -549,23 +554,23 @@ function renderListaExclusoes(itemType) {
     const listaEl = document.getElementById(`lista-exclusoes-${itemType}`);
     if (!listaEl) return;
 
-    const unidades = getUnidades(); // Pega a lista atualizada de unidades
+    const unidades = getUnidades();
+    const currentExclusoes = listaExclusoes[itemType]; // Acessa via getter
 
-    console.log(`[Previsão ${itemType}] Renderizando lista de exclusões:`, listaExclusoes[itemType]);
+    console.log(`[Previsão ${itemType}] Renderizando lista de exclusões:`, currentExclusoes);
 
-    if (listaExclusoes[itemType].length === 0) {
-        listaEl.innerHTML = ''; // Limpa se vazio
+    if (currentExclusoes.length === 0) {
+        listaEl.innerHTML = '';
         return;
     }
 
     let html = '';
-    listaExclusoes[itemType].forEach(unidadeId => {
+    currentExclusoes.forEach(unidadeId => {
         const unidade = unidades.find(u => u.id === unidadeId);
         const nome = unidade ? unidade.nome : `ID: ${unidadeId.substring(0, 6)}...`;
         html += `
             <span class="exclusao-item">
                 ${nome}
-                <!-- Botão com data-attributes para event listener -->
                 <button type="button" class="btn-remove-exclusao" data-item-type="${itemType}" data-unidade-id="${unidadeId}" title="Remover">&times;</button>
             </span>
         `;
@@ -579,7 +584,7 @@ function renderListaExclusoes(itemType) {
  */
 function adicionarExclusao(itemType) {
     const selectEl = document.getElementById(`select-exclusao-${itemType}`);
-    const alertId = `alertas-previsao-${itemType}`; // ID do alerta dentro da subview de previsão
+    const alertId = `alertas-previsao-${itemType}`;
     if (!selectEl) {
          showAlert(alertId, 'Erro interno: select de exclusão não encontrado.', 'error');
          return;
@@ -592,10 +597,12 @@ function adicionarExclusao(itemType) {
         return;
     }
 
-    if (!listaExclusoes[itemType].includes(unidadeId)) {
-        listaExclusoes[itemType].push(unidadeId);
+    const currentExclusoes = [...listaExclusoes[itemType]]; // Copia array
+    if (!currentExclusoes.includes(unidadeId)) {
+        currentExclusoes.push(unidadeId);
+        setListaExclusoes(itemType, currentExclusoes); // Atualiza via setter
         renderListaExclusoes(itemType);
-        selectEl.value = ''; // Limpa o select após adicionar
+        selectEl.value = '';
     } else {
         showAlert(alertId, 'Essa unidade já está na lista de exclusão.', 'info');
     }
@@ -608,7 +615,8 @@ function adicionarExclusao(itemType) {
  */
 function removerExclusao(itemType, unidadeId) {
     console.log(`[Previsão ${itemType}] Removendo exclusão: ${unidadeId}`);
-    listaExclusoes[itemType] = listaExclusoes[itemType].filter(id => id !== unidadeId);
+    const currentExclusoes = listaExclusoes[itemType].filter(id => id !== unidadeId);
+    setListaExclusoes(itemType, currentExclusoes); // Atualiza via setter
     renderListaExclusoes(itemType);
 }
 
@@ -627,15 +635,14 @@ function renderGraficoPrevisao(itemType, data) {
 
      console.log(`[Previsão ${itemType}] Renderizando gráfico.`);
 
-    // Destruir gráfico antigo, se existir
-    if (graficoPrevisao[itemType]) {
-        graficoPrevisao[itemType].destroy();
-        graficoPrevisao[itemType] = null;
+    const currentGrafico = graficoPrevisao[itemType]; // Acessa via getter
+    if (currentGrafico) {
+        currentGrafico.destroy();
+        setGraficoPrevisao(itemType, null); // Limpa via setter
     }
 
-    // Criar novo gráfico
     try {
-        graficoPrevisao[itemType] = new Chart(ctx, {
+        const newChart = new Chart(ctx, {
             type: 'bar',
             data: data,
             options: {
@@ -648,7 +655,7 @@ function renderGraficoPrevisao(itemType, data) {
                             display: true,
                             text: `Consumo (Unidades de ${itemType === 'agua' ? 'Água' : 'Gás'})`
                         },
-                         ticks: { // Garante ticks inteiros se possível
+                         ticks: {
                             precision: 0
                         }
                     }
@@ -665,7 +672,6 @@ function renderGraficoPrevisao(itemType, data) {
                                     label += ': ';
                                 }
                                 if (context.parsed.y !== null) {
-                                    // Formata para 2 casas decimais, mas remove .00 se for inteiro
                                     label += parseFloat(context.parsed.y.toFixed(2));
                                 }
                                 return label;
@@ -675,6 +681,7 @@ function renderGraficoPrevisao(itemType, data) {
                 }
             }
         });
+        setGraficoPrevisao(itemType, newChart); // Armazena nova instância via setter
     } catch (error) {
         console.error("Erro ao criar o gráfico:", error);
         showAlert(`alertas-previsao-${itemType}`, 'Erro ao renderizar o gráfico.', 'error');
@@ -693,17 +700,13 @@ function calcularPrevisaoInteligente(itemType) {
     const resultadoContainer = document.getElementById(`resultado-previsao-${itemType}-v2`);
     const resultadoContentEl = document.getElementById(`resultado-content-${itemType}`);
     const btn = document.getElementById(`btn-calcular-previsao-${itemType}-v2`);
-    const alertEl = document.getElementById(alertId); 
+    const alertEl = document.getElementById(alertId);
 
-    // Limpa alertas anteriores
     if (alertEl) {
-        // Remove alertas anteriores de cálculo (mas mantém o de análise de consumo se houver)
-        alertEl.querySelectorAll('.alert-info, .alert-warning, .alert-error').forEach(el => el.remove()); 
+        alertEl.querySelectorAll('.alert-info, .alert-warning, .alert-error').forEach(el => el.remove());
         alertEl.style.display = 'none';
     }
 
-
-    // 1. Coletar Inputs
     const diasPrevisaoInput = document.getElementById(`dias-previsao-${itemType}`);
     const margemSegurancaInput = document.getElementById(`margem-seguranca-${itemType}`);
 
@@ -715,10 +718,9 @@ function calcularPrevisaoInteligente(itemType) {
 
     const diasPrevisao = parseInt(diasPrevisaoInput.value, 10);
     const margemSeguranca = parseInt(margemSegurancaInput.value, 10);
-    const modo = modoPrevisao[itemType];
+    const modo = modoPrevisao[itemType]; // Acessa via getter
 
-    // Validações básicas
-     if (isNaN(diasPrevisao) || diasPrevisao <= 0) {
+    if (isNaN(diasPrevisao) || diasPrevisao <= 0) {
         showAlert(alertId, 'Por favor, insira um número válido de dias para a previsão (maior que zero).', 'warning');
         return;
     }
@@ -733,41 +735,34 @@ function calcularPrevisaoInteligente(itemType) {
     }
     console.log(`[Previsão ${itemType}] Inputs coletados: Dias=${diasPrevisao}, Margem=${margemSeguranca}, Modo=${modo}`);
 
-
-    // Desabilitar botão
     btn.disabled = true;
     btn.innerHTML = '<div class="loading-spinner-small mx-auto"></div>';
-    // Esconde resultado antigo enquanto calcula
     resultadoContainer.classList.add('hidden');
 
-    // Usando setTimeout para dar tempo da UI atualizar (spinner)
     setTimeout(() => {
         try {
             console.log(`[Previsão ${itemType}] Coletando e filtrando dados...`);
-            // 2. Coletar Dados
             const movimentacoes = (itemType === 'agua') ? getAguaMovimentacoes() : getGasMovimentacoes();
             const unidades = getUnidades();
 
-            // Filtra apenas entregas VÁLIDAS (com data) e ordena
             const movsEntrega = movimentacoes
                 .filter(m => m.tipo === 'entrega' && m.data && typeof m.data.toDate === 'function')
                 .sort((a, b) => a.data.toMillis() - b.data.toMillis());
 
             let movsFiltradas = [];
             let tituloPrevisao = "";
-            let unidadesConsideradas = []; 
+            let unidadesConsideradas = [];
 
-            // 3. Filtrar Movimentações
-            const exclusoes = listaExclusoes[itemType];
+            const exclusoes = listaExclusoes[itemType]; // Acessa via getter
 
             if (modo === 'unidade-especifica') {
-                const unidadeId = document.getElementById(`select-previsao-unidade-${itemType}-v2`)?.value; 
+                const unidadeId = document.getElementById(`select-previsao-unidade-${itemType}-v2`)?.value;
                 if (!unidadeId) {
                     showAlert(alertId, 'Selecione uma unidade específica.', 'warning');
                     throw new Error("Unidade não selecionada.");
                 }
                 const unidade = unidades.find(u => u.id === unidadeId);
-                if (!unidade) { 
+                if (!unidade) {
                      showAlert(alertId, `Erro: Unidade com ID ${unidadeId} não encontrada.`, 'error');
                      throw new Error("Unidade não encontrada.");
                 }
@@ -776,7 +771,7 @@ function calcularPrevisaoInteligente(itemType) {
                 unidadesConsideradas.push(unidade.nome);
 
             } else if (modo === 'por-tipo') {
-                const tipo = document.getElementById(`select-previsao-tipo-${itemType}`)?.value; 
+                const tipo = document.getElementById(`select-previsao-tipo-${itemType}`)?.value;
                 if (!tipo) {
                     showAlert(alertId, 'Selecione um tipo de unidade.', 'warning');
                     throw new Error("Tipo não selecionado.");
@@ -800,22 +795,17 @@ function calcularPrevisaoInteligente(itemType) {
             }
              console.log(`[Previsão ${itemType}] Modo: ${modo}. Movimentações filtradas: ${movsFiltradas.length}`);
 
-
-            // Validação de dados suficientes APÓS o filtro
             if (movsFiltradas.length < 2) {
                  showAlert(alertId, `Dados insuficientes para calcular a previsão (${tituloPrevisao}). É necessário pelo menos 2 registros de entrega válidos no período.`, 'info');
                 throw new Error("Dados insuficientes.");
             }
 
             console.log(`[Previsão ${itemType}] Calculando média diária...`);
-            // 4. Calcular Média Diária
             const primeiraMov = movsFiltradas[0].data.toMillis();
             const ultimaMov = movsFiltradas[movsFiltradas.length - 1].data.toMillis();
 
-            // Usa a função getPeriodoAnalise para calcular os dias corretamente
-            const totalDiasHistorico = getPeriodoAnalise(movsFiltradas).totalDias;
-            // Se o período for 1 dia, a média é o consumo total
-            const diasParaCalculo = totalDiasHistorico > 1 ? totalDiasHistorico : 1; 
+            const { totalDias: totalDiasHistorico } = getPeriodoAnalise(movsFiltradas);
+            const diasParaCalculo = totalDiasHistorico > 1 ? totalDiasHistorico : 1;
 
             const totalConsumido = movsFiltradas.reduce((sum, m) => sum + m.quantidade, 0);
             const mediaDiaria = totalConsumido / diasParaCalculo;
@@ -823,9 +813,8 @@ function calcularPrevisaoInteligente(itemType) {
 
 
             if (totalDiasHistorico < 30) {
-                 // Usa appendChild para adicionar múltiplos alertas se necessário
                  const warningEl = document.createElement('div');
-                 warningEl.className = 'alert alert-info mt-2'; // Reutiliza estilo de alerta
+                 warningEl.className = 'alert alert-info mt-2';
                  warningEl.textContent = `Aviso: O histórico de dados considerado é de apenas ${totalDiasHistorico.toFixed(0)} dias (${movsFiltradas.length} entregas). A previsão pode ser menos precisa.`;
                  if (alertEl) {
                      alertEl.appendChild(warningEl);
@@ -834,17 +823,14 @@ function calcularPrevisaoInteligente(itemType) {
             }
 
             console.log(`[Previsão ${itemType}] Calculando previsão final...`);
-            // 5. Calcular Previsão
             const previsaoBase = mediaDiaria * diasPrevisao;
             const valorMargem = previsaoBase * (margemSeguranca / 100);
             const previsaoFinal = previsaoBase + valorMargem;
              console.log(`[Previsão ${itemType}] Previsão final: ${previsaoFinal}`);
 
-
-            // 6. Renderizar Resultados
             const unidadesExcluidasNomes = exclusoes
                 .map(id => unidades.find(u => u.id === id)?.nome || `ID:${id.substring(0,4)}...`)
-                .filter(Boolean) 
+                .filter(Boolean)
                 .sort();
 
             resultadoContentEl.innerHTML = `
@@ -896,24 +882,22 @@ function calcularPrevisaoInteligente(itemType) {
             resultadoContainer.classList.remove('hidden');
 
             console.log(`[Previsão ${itemType}] Preparando dados do gráfico...`);
-            // 7. Renderizar Gráfico
             const chartData = {
-                // Usa Math.ceil no valor previsto para o gráfico ficar mais claro
                 labels: ['Média Diária (Histórico)', `Previsão Diária (Próximos ${diasPrevisao} dias)`],
                 datasets: [{
                     label: `Consumo Diário (${itemType === 'agua' ? 'Água' : 'Gás'})`,
-                    data: [mediaDiaria, Math.ceil(previsaoFinal) / diasPrevisao], // Média prevista
+                    data: [mediaDiaria, Math.ceil(previsaoFinal) / diasPrevisao],
                     backgroundColor: [
-                        'rgba(255, 255, 255, 0.6)', // Branco semi-transparente para histórico
-                        'rgba(191, 219, 254, 0.8)'  // Azul claro para previsão
+                        'rgba(255, 255, 255, 0.6)',
+                        'rgba(191, 219, 254, 0.8)'
                     ],
                     borderColor: [
-                        'rgba(229, 231, 235, 1)', // Cinza claro
-                        'rgba(59, 130, 246, 1)'   // Azul
+                        'rgba(229, 231, 235, 1)',
+                        'rgba(59, 130, 246, 1)'
                     ],
                     borderWidth: 1,
-                    type: 'bar', // Força o tipo para garantir a consistência
-                }] 
+                    type: 'bar',
+                }]
             };
             renderGraficoPrevisao(itemType, chartData);
              console.log(`[Previsão ${itemType}] Cálculo concluído com sucesso.`);
@@ -921,18 +905,16 @@ function calcularPrevisaoInteligente(itemType) {
 
         } catch (error) {
              console.error(`[Previsão ${itemType}] Erro durante o cálculo:`, error);
-            // Mostrar alerta apenas se não for um erro esperado (já tratado com showAlert antes)
             if (!error.message.includes("insuficientes") && !error.message.includes("selecionad") && !error.message.includes("encontrada")) {
                  showAlert(alertId, `Erro inesperado durante o cálculo: ${error.message}`, 'error');
             }
-            resultadoContainer.classList.add('hidden'); // Esconde resultados se erro
-            // Destruir gráfico se existir
-            if (graficoPrevisao[itemType]) {
-                graficoPrevisao[itemType].destroy();
-                graficoPrevisao[itemType] = null;
+            resultadoContainer.classList.add('hidden');
+            const currentGrafico = graficoPrevisao[itemType]; // Acessa via getter
+            if (currentGrafico) {
+                currentGrafico.destroy();
+                setGraficoPrevisao(itemType, null); // Limpa via setter
             }
         } finally {
-            // Reabilitar botão
             btn.disabled = false;
             btn.innerHTML = '<i data-lucide="calculator"></i> Calcular Previsão';
             if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') {
@@ -940,7 +922,7 @@ function calcularPrevisaoInteligente(itemType) {
             }
             console.log(`[Previsão ${itemType}] Botão reabilitado.`);
         }
-    }, 50); // Pequeno delay para UI
+    }, 50);
 }
 
 
@@ -952,7 +934,7 @@ export function initPrevisaoListeners() {
     // --- Listeners para Análise de Consumo (NOVO PONTO 2) ---
     DOM_ELEMENTS.btnAnalisarConsumoAgua?.addEventListener('click', () => analisarConsumoPorPeriodo('agua'));
     DOM_ELEMENTS.btnAnalisarConsumoGas?.addEventListener('click', () => analisarConsumoPorPeriodo('gas'));
-    
+
     // --- Listeners para ÁGUA (Previsão) ---
     const containerAgua = document.getElementById('previsao-modo-container-agua');
     if (containerAgua) {
@@ -974,7 +956,6 @@ export function initPrevisaoListeners() {
         btnCalcAgua.addEventListener('click', () => calcularPrevisaoInteligente('agua'));
     }
 
-    // Listener para remover exclusão (delegação de evento)
     const listaExclusaoAgua = document.getElementById('lista-exclusoes-agua');
     if (listaExclusaoAgua) {
         listaExclusaoAgua.addEventListener('click', (e) => {
@@ -1006,7 +987,6 @@ export function initPrevisaoListeners() {
         btnCalcGas.addEventListener('click', () => calcularPrevisaoInteligente('gas'));
     }
 
-    // Listener para remover exclusão (delegação de evento)
     const listaExclusaoGas = document.getElementById('lista-exclusoes-gas');
     if (listaExclusaoGas) {
         listaExclusaoGas.addEventListener('click', (e) => {
