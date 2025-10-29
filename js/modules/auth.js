@@ -33,6 +33,10 @@ import {
     setMateriais,
     setEstoqueAgua,
     setEstoqueGas,
+    setCestaMovimentacoes, // NOVO
+    setCestaEstoque, // NOVO
+    setEnxovalMovimentacoes, // NOVO
+    setEnxovalEstoque, // NOVO
     setEstoqueInicialDefinido,
     setUserRole
 } from "../utils/cache.js";
@@ -182,6 +186,32 @@ function initFirestoreListeners(renderDash, renderControls, renderModules) {
         renderDash();
         renderModules();
     });
+
+    // NOVOS LISTENERS PARA ASSISTÊNCIA SOCIAL
+    addListener(query(COLLECTIONS.cestaMov), snap => {
+        const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        setCestaMovimentacoes(data);
+        renderModules();
+    });
+
+    addListener(query(COLLECTIONS.cestaEstoque), snap => {
+        const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        setCestaEstoque(data);
+        renderModules();
+    });
+
+    addListener(query(COLLECTIONS.enxovalMov), snap => {
+        const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        setEnxovalMovimentacoes(data);
+        renderModules();
+    });
+
+    addListener(query(COLLECTIONS.enxovalEstoque), snap => {
+        const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        setEnxovalEstoque(data);
+        renderModules();
+    });
+    // FIM NOVOS LISTENERS
 }
 
 // =======================================================================
@@ -205,8 +235,7 @@ async function initAuthAndListeners(renderDash, renderControls, renderModules) {
             setUserRole(role);
 
             console.log(`✅ Autenticado com UID: ${userId}, Role: ${role}`);
-            if (DOM_ELEMENTS.userRoleDisplayEl)
-                DOM_ELEMENTS.userRoleDisplayEl.textContent = role.toUpperCase();
+            if (DOM_ELEMENTS.userEmailDisplayEl) DOM_ELEMENTS.userEmailDisplayEl.textContent = user.email || 'Usuário';
 
             unsubscribeFirestoreListeners();
             initFirestoreListeners(renderDash, renderControls, renderModules);
