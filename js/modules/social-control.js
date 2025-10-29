@@ -113,17 +113,24 @@ async function handleEstoqueEntrySubmit(e, itemType) {
             data: DOM_ELEMENTS.cestaEntradaData,
             resp: DOM_ELEMENTS.cestaEntradaResponsavel,
             nf: DOM_ELEMENTS.cestaEntradaNf,
+            // NOVO: Custo Unitário e Fornecedor
+            custo: document.getElementById('cesta-entrada-custo-unitario'), 
+            fornecedor: document.getElementById('cesta-entrada-fornecedor'),
+            // FIM NOVO
             btn: DOM_ELEMENTS.btnSubmitCestaEntrada,
             alert: 'alert-cesta-estoque',
             collection: COLLECTIONS.cestaEstoque,
             itemLabel: 'Cesta(s) Básica(s)'
         },
         'enxoval': {
-            form: DOM_ELEMENTS.formEnxovalEntrada,
+            form: DOM_ELEMENTs.formEnxovalEntrada,
             qtd: DOM_ELEMENTS.enxovalEntradaQuantidade,
             data: DOM_ELEMENTS.enxovalEntradaData,
             resp: DOM_ELEMENTS.enxovalEntradaResponsavel,
             nf: DOM_ELEMENTS.enxovalEntradaNf,
+            // NOVOS CAMPOS IGNORADOS PARA ENXOVAL
+            custo: null, fornecedor: null,
+            // FIM NOVOS
             btn: DOM_ELEMENTS.btnSubmitEnxovalEntrada,
             alert: 'alert-enxoval-estoque',
             collection: COLLECTIONS.enxovalEstoque,
@@ -138,10 +145,21 @@ async function handleEstoqueEntrySubmit(e, itemType) {
     const data = dateToTimestamp(map.data.value);
     const responsavel = capitalizeString(map.resp.value.trim());
     const notaFiscal = map.nf.value.trim() || 'N/A';
+    
+    // NOVO: Custo Unitário
+    const custoUnitario = map.custo ? parseFloat(map.custo.value) : 0;
+    const fornecedor = map.fornecedor ? map.fornecedor.value.trim() : 'N/A';
+    // FIM NOVO
 
     if (!quantidade || quantidade <= 0 || !data || !responsavel) { 
         showAlert(map.alert, 'Dados inválidos. Verifique quantidade, data e responsável.', 'warning'); return; 
     }
+    
+    // NOVO: Validação específica para Cesta
+    if (itemType === 'cesta' && (isNaN(custoUnitario) || custoUnitario < 0)) {
+         showAlert(map.alert, 'O Custo Unitário da Cesta deve ser um valor positivo.', 'warning'); return;
+    }
+    // FIM NOVO
 
     map.btn.disabled = true; 
     map.btn.innerHTML = '<div class="loading-spinner-small mx-auto"></div>';
@@ -153,6 +171,10 @@ async function handleEstoqueEntrySubmit(e, itemType) {
             data: data,
             responsavel: responsavel, 
             notaFiscal: notaFiscal, 
+            // NOVO: Custo e Fornecedor
+            custoUnitario: custoUnitario,
+            fornecedor: fornecedor,
+            // FIM NOVO
             registradoEm: serverTimestamp()
         });
         showAlert(map.alert, `Entrada de ${quantidade} ${map.itemLabel} no estoque salva!`, 'success');
@@ -223,7 +245,7 @@ export function renderCestaEstoqueHistoryTable() {
         .sort((a, b) => (b.registradoEm?.toMillis() || 0) - (a.registradoEm?.toMillis() || 0));
 
     if (historicoOrdenado.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-slate-500">Nenhuma entrada de estoque registrada.</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-slate-500">Nenhuma entrada de estoque registrada.</td></tr>`;
         return;
     }
     
@@ -235,15 +257,17 @@ export function renderCestaEstoqueHistoryTable() {
         const dataLancamento = formatTimestamp(e.registradoEm);
         const notaFiscal = e.notaFiscal || 'N/A';
         const responsavel = e.responsavel || 'N/A';
+        const custoUnitario = (e.custoUnitario || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); // NOVO
 
-        const details = `Entrada de Estoque Cesta: ${e.quantidade} un., NF: ${notaFiscal}.`;
+        const details = `Entrada de Estoque Cesta: ${e.quantidade} un., Custo: ${custoUnitario}, NF: ${notaFiscal}.`;
         
         const actionHtml = isAdmin 
             ? `<button class="btn-danger btn-remove btn-icon" data-id="${e.id}" data-type="estoque-cesta" data-details="${details}" title="Remover este lançamento"><i data-lucide="trash-2"></i></button>`
             : `<span class="text-gray-400 btn-icon" title="Apenas Admin pode excluir"><i data-lucide="slash"></i></span>`;
 
-        html += `<tr title="Lançado em: ${dataLancamento}">
+        html += `<tr title="Lançado em: ${dataLancamento} | Fornecedor: ${e.fornecedor || 'N/A'}">
             <td class="text-center font-medium">${e.quantidade}</td>
+            <td>${custoUnitario}</td>
             <td class="whitespace-nowrap">${dataMov}</td>
             <td>${notaFiscal}</td>
             <td>${responsavel}</td>
@@ -278,6 +302,9 @@ export function renderCestaMovimentacoesHistoryTable() {
     historicoOrdenado.forEach(m => {
         const dataMov = formatTimestamp(m.data);
         const statusClass = m.status === 'Entregue' ? 'badge-green' : 'badge-gray';
+        // Ajusta custo (agora sempre será 0 ou o valor da importação antiga)
+        const custoDisplay = (m.custo || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
 
         const details = `Saída Cesta: ${m.quantidade} un. p/ ${m.destinatario}.`;
         
@@ -318,9 +345,12 @@ export async function handleCestaLancamentoSubmit(e) {
     const unidade = DOM_ELEMENTS.cestaUnidade.value;
     const categoria = DOM_ELEMENTS.cestaCategoria.value;
     const observacoes = DOM_ELEMENTS.cestaObservacoes.value.trim();
-    const custo = parseFloat(DOM_ELEMENTS.cestaCusto.value) || 0;
+    // CORREÇÃO: Campos de custo e fornecedor não existem mais na SAÍDA
+    const custo = 0; // Removido do formulário, fixado em 0 ou pode ser pego do estoque se houver tabela de preços
+    const fornecedor = ''; // Removido do formulário de saída
+    // FIM CORREÇÃO
+
     const responsavel = capitalizeString(DOM_ELEMENTS.cestaResponsavel.value.trim());
-    const fornecedor = DOM_ELEMENTS.cestaFornecedor.value.trim();
 
     if (!data || !destinatario || !quantidade || quantidade <= 0 || !categoria || !responsavel) {
         showAlert('alert-cesta-lancamento', 'Preencha todos os campos obrigatórios (Data, Destinatário, Qtd, Categoria, Responsável).', 'warning');
@@ -563,7 +593,7 @@ export async function handleEnxovalLancamentoSubmit(e) {
 
 
 // =========================================================================
-// LÓGICA DE IMPORTAÇÃO
+// LÓGICA DE IMPORTAÇÃO (CORRIGIDA)
 // =========================================================================
 
 /**
@@ -598,14 +628,16 @@ export async function handleSocialImportSubmit() {
     let collectionRef = null;
     let itemType = '';
     
-    if (numCols === 9) {
+    // CORREÇÃO: Usar 9 colunas (Data | Destinatário | Qtd. | Unidade | Categoria | Observações | Custo | Status | Responsável)
+    // O status e o custo são flexíveis/adaptados.
+    if (numCols >= 8) { // Mínimo 8 colunas para Cesta, 9 é o esperado.
         collectionRef = COLLECTIONS.cestaMov;
         itemType = 'Cesta Básica';
-    } else if (numCols === 7) {
+    } else if (numCols >= 7) { // Mínimo 7 colunas para Enxoval
         collectionRef = COLLECTIONS.enxovalMov;
         itemType = 'Enxoval';
     } else {
-        showAlert('alert-social-import', `Formato de colunas inválido (${numCols} colunas). Esperado 9 (Cesta) ou 7 (Enxoval).`, 'error');
+        showAlert('alert-social-import', `Formato de colunas inválido (${numCols} colunas). Esperado 8/9 (Cesta) ou 7 (Enxoval).`, 'error');
         DOM_ELEMENTS.btnSocialImportData.disabled = false;
         DOM_ELEMENTS.btnSocialImportData.innerHTML = '<i data-lucide="upload"></i> 📤 Importar Dados';
         if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
@@ -617,35 +649,89 @@ export async function handleSocialImportSubmit() {
     const errors = [];
     const timestamp = serverTimestamp();
 
+    // Função auxiliar para sanitizar valores numéricos
+    const sanitizeNumber = (str) => {
+        if (!str) return 0;
+        // Remove R$, espaços, e substitui vírgula por ponto (para decimal)
+        const cleaned = str.replace(/[^\d,\.]/g, '').replace(',', '.');
+        return parseFloat(cleaned) || 0;
+    };
+    
+    // Função auxiliar para converter data no formato DD/MM/YYYY ou YYYY-MM-DD
+    const parseDateToTimestamp = (dateStr) => {
+        if (!dateStr) return null;
+        // Converte DD/MM/YYYY para YYYY-MM-DD
+        if (dateStr.includes('/')) {
+            const parts = dateStr.split('/');
+            if (parts.length === 3) {
+                 // Trata o ano, se for só 2 dígitos (ex: 27/08/25 -> 27/08/2025)
+                const year = parts[2].length === 2 ? `20${parts[2]}` : parts[2];
+                return dateToTimestamp(`${year}-${parts[1]}-${parts[0]}`);
+            }
+        }
+        // Tenta usar o formato YYYY-MM-DD ou o nativo
+        return dateToTimestamp(dateStr);
+    };
+
+
     // Processa cada linha
     lines.forEach((line, index) => {
+        // Usa regex para garantir que TABs sejam o único separador, removendo espaços indesejados
         const parts = line.split('\t').map(p => p.trim());
-        const data = parts[0] ? dateToTimestamp(parts[0]) : null;
+        
+        // CORREÇÃO: O primeiro campo é a data, precisa ser parseada corretamente
+        const rawDate = parts[0];
+        const data = parseDateToTimestamp(rawDate);
         
         if (!data) {
-            errors.push(`Linha ${index + 1}: Data inválida.`);
+            errors.push(`Linha ${index + 1}: Data inválida ('${rawDate}').`);
             return;
         }
 
         try {
             if (itemType === 'Cesta Básica') {
-                 // Data | Destinatário | Qtd. | Unidade | Categoria | Observações | Custo | Responsável | Fornecedor
-                const [_, destinatario, quantidadeStr, unidade, categoria, observacoes, custoStr, responsavel, fornecedor] = parts;
-                const quantidade = parseInt(quantidadeStr, 10);
-                const custo = parseFloat(custoStr.replace(',', '.')) || 0;
+                // Formato esperado (9 colunas):
+                // 0: Data | 1: Destinatário | 2: Qtd. | 3: Unidade | 4: Categoria | 5: Observações/Memo | 6: Custo/NF | 7: Status | 8: Responsável
+                // O exemplo do usuário mostra 9 colunas, mas a ordem é diferente ou há dados extras/faltantes.
+                // Usaremos a ordem mais comum e adaptamos o custo/status:
 
+                const destinatario = capitalizeString(parts[1] || '');
+                const quantidade = parseInt(parts[2], 10);
+                const unidade = parts[3] || 'cesta';
+                const categoria = parts[4] || 'alimentacao';
+                const observacoes = parts[5] || 'Importação em lote';
+                
+                // Custo pode estar na coluna 6 ou 7. O exemplo do usuário tem 'R$ 113,31' na 7a (índice 6)
+                const custo = sanitizeNumber(parts[6] || parts[7]);
+                
+                // Status pode estar na coluna 7 ou 8. O exemplo do usuário tem 'Entregue' na 8a (índice 7)
+                const status = parts[7] || 'Entregue';
+                
+                // Responsável na coluna 8 ou 9
+                const responsavel = capitalizeString(parts[8] || parts[9] || 'Importação');
+                
+                // Fornecedor é ignorado na importação de SAÍDA
+
+                if (!destinatario) throw new Error("Destinatário ausente.");
                 if (isNaN(quantidade) || quantidade <= 0) throw new Error("Quantidade inválida.");
 
                 batch.set(doc(collectionRef), {
                     data, tipo: 'saida', destinatario, quantidade, unidade, categoria,
-                    observacoes: observacoes || 'Importação em lote', custo, responsavel, fornecedor,
-                    status: 'Entregue', registradoEm: timestamp
+                    observacoes: observacoes, custo, responsavel, fornecedor: 'N/A', // Fornecedor fica N/A
+                    status: status, registradoEm: timestamp
                 });
             } else if (itemType === 'Enxoval') {
-                 // Data | Qtd. | Destinatário | Observações | Memo | Categoria | Responsável
-                const [_, quantidadeStr, destinatario, observacoes, memo, categoria, responsavel] = parts;
-                const quantidade = parseInt(quantidadeStr, 10);
+                 // Formato esperado (7 Colunas):
+                 // 0: Data | 1: Qtd. | 2: Destinatário | 3: Observações | 4: Memo | 5: Categoria | 6: Responsável
+                
+                const quantidade = parseInt(parts[1], 10);
+                const destinatario = capitalizeString(parts[2] || '');
+                const observacoes = parts[3] || 'Importação em lote';
+                const memo = parts[4] || 'N/A';
+                const categoria = parts[5] || 'maternidade';
+                const responsavel = capitalizeString(parts[6] || 'Importação');
 
+                if (!destinatario) throw new Error("Destinatário ausente.");
                 if (isNaN(quantidade) || quantidade <= 0) throw new Error("Quantidade inválida.");
 
                 batch.set(doc(collectionRef), {
