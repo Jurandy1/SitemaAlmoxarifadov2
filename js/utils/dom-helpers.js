@@ -256,6 +256,18 @@ function findDOMElements() {
         ['#btn-submit-cesta-lancamento', 'btnSubmitCestaLancamento'],
         ['#alert-cesta-lancamento', 'alertCestaLancamento'],
         ['#cesta-estoque-resumo', 'cestaEstoqueResumo'],
+        
+        // NOVOS ELEMENTOS CESTA - ESTOQUE
+        ['#form-cesta-entrada', 'formCestaEntrada'],
+        ['#cesta-entrada-quantidade', 'cestaEntradaQuantidade'],
+        ['#cesta-entrada-data', 'cestaEntradaData'],
+        ['#cesta-entrada-responsavel', 'cestaEntradaResponsavel'],
+        ['#cesta-entrada-nf', 'cestaEntradaNf'],
+        ['#btn-submit-cesta-entrada', 'btnSubmitCestaEntrada'],
+        ['#alert-cesta-estoque', 'alertCestaEstoque'],
+        ['#table-cesta-estoque-history', 'tableCestaEstoqueHistory'],
+        ['#table-cesta-historico', 'tableCestaHistorico'], // Histórico de Movimentações (Saída)
+
         // ENXOVAL
         ['#sub-nav-enxoval', 'subNavEnxoval'],
         ['#form-enxoval-lancamento', 'formEnxovalLancamento'],
@@ -269,6 +281,18 @@ function findDOMElements() {
         ['#btn-submit-enxoval-lancamento', 'btnSubmitEnxovalLancamento'],
         ['#alert-enxoval-lancamento', 'alertEnxovalLancamento'],
         ['#enxoval-estoque-resumo', 'enxovalEstoqueResumo'],
+        
+        // NOVOS ELEMENTOS ENXOVAL - ESTOQUE
+        ['#form-enxoval-entrada', 'formEnxovalEntrada'],
+        ['#enxoval-entrada-quantidade', 'enxovalEntradaQuantidade'],
+        ['#enxoval-entrada-data', 'enxovalEntradaData'],
+        ['#enxoval-entrada-responsavel', 'enxovalEntradaResponsavel'],
+        ['#enxoval-entrada-nf', 'enxovalEntradaNf'],
+        ['#btn-submit-enxoval-entrada', 'btnSubmitEnxovalEntrada'],
+        ['#alert-enxoval-estoque', 'alertEnxovalEstoque'],
+        ['#table-enxoval-estoque-history', 'tableEnxovalEstoqueHistory'],
+        ['#table-enxoval-historico', 'tableEnxovalHistorico'], // Histórico de Movimentações (Saída)
+
         // IMPORTAÇÃO
         ['#textarea-social-import', 'textareaSocialImport'],
         ['#btn-social-import-data', 'btnSocialImportData'],
@@ -543,26 +567,30 @@ function renderPermissionsUI() {
     }
 
     const formsToDisableForAnon = [
-         DOM_ELEMENTS.formAgua, DOM_ELEMENTS.formGas
+         DOM_ELEMENTS.formAgua, DOM_ELEMENTS.formGas,
+         DOM_ELEMENTS.formCestaLancamento, DOM_ELEMENTS.formEnxovalLancamento
     ];
 
     formsToDisableForAnon.forEach(form => {
         if (form) {
             form.classList.toggle('disabled-by-role', isAnon);
-            form.querySelectorAll('input, select, button[type="submit"]').forEach(el => el.disabled = isAnon);
+            form.querySelectorAll('input, select, button[type="submit"], textarea').forEach(el => el.disabled = isAnon);
         }
     });
 
     const estoqueElementsToDisable = [
+        // Água/Gás
         DOM_ELEMENTS.formEntradaAgua, DOM_ELEMENTS.formEntradaGas,
         DOM_ELEMENTS.formInicialAgua, DOM_ELEMENTS.formInicialGas,
         DOM_ELEMENTS.formInicialAguaContainer, DOM_ELEMENTS.formInicialGasContainer,
-        DOM_ELEMENTS.btnAbrirInicialAgua, DOM_ELEMENTS.btnAbrirInicialGas
+        DOM_ELEMENTS.btnAbrirInicialAgua, DOM_ELEMENTS.btnAbrirInicialGas,
+        // Social
+        DOM_ELEMENTS.formCestaEntrada, DOM_ELEMENTS.formEnxovalEntrada,
     ];
 
     estoqueElementsToDisable.forEach(el => {
         if (el) {
-             const shouldDisable = !isAdmin;
+             const shouldDisable = !isAdmin && !isEditor;
              if (el.tagName === 'DIV' || el.tagName === 'FORM') {
                  el.classList.toggle('disabled-by-role', shouldDisable);
              } else {
@@ -605,6 +633,14 @@ function renderPermissionsUI() {
     if (usuariosPane) {
         usuariosPane.classList.toggle('disabled-by-role', !isAdmin);
     }
+    
+    // Importação Social é Admin/Editor
+    const socialImportPane = DOM_ELEMENTS.socialSubmoduleImportarDados;
+     if (socialImportPane) {
+        const canImport = isAdmin || isEditor;
+        socialImportPane.classList.toggle('disabled-by-role', !canImport);
+        socialImportPane.querySelectorAll('input, select, textarea, button').forEach(el => el.disabled = !canImport);
+    }
 
     const user = auth.currentUser;
     const email = user?.email || (user?.isAnonymous ? 'Anônimo' : 'N/A');
@@ -622,33 +658,4 @@ function renderPermissionsUI() {
     }
     if (DOM_ELEMENTS.btnLogout) DOM_ELEMENTS.btnLogout.classList.toggle('hidden', role === 'unauthenticated');
 
-    const currentTab = document.querySelector('.nav-btn.active')?.dataset.tab;
-    if (currentTab) {
-        let shouldRedirect = false;
-        if (isAnon && currentTab !== 'dashboard') shouldRedirect = true;
-        if (!isAdmin && (currentTab === 'gestao' || currentTab === 'usuarios')) shouldRedirect = true;
-
-        if (shouldRedirect) {
-            switchTab('dashboard');
-            showAlert('connectionStatus', 'Acesso negado para esta seção.', 'warning', 10000);
-        }
-    }
-
-     if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') {
-        setTimeout(() => lucide.createIcons(), 50);
-     }
-}
-
-
-export {
-    DOM_ELEMENTS,
-    findDOMElements,
-    showAlert,
-    switchTab,
-    switchSubTabView,
-    filterTable,
-    updateLastUpdateTime,
-    handleSaldoFilterUI,
-    openConfirmDeleteModal,
-    renderPermissionsUI
-};
+    const
