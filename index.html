@@ -39,9 +39,6 @@
         }
     </script>
 
-    <!-- Firebase e Lógica do App -->
-    <script type="module" src="./js/app.js"></script>
-
 </head>
 <body class="bg-gray-50 text-slate-700 antialiased font-sans h-full flex flex-col">
 
@@ -94,17 +91,17 @@
 
         <!-- 1) CABEÇALHO (HERO / BRAND BAR) - NOVO VISUAL -->
         <header class="bg-white border-b border-gray-200 shadow-sm w-full">
-            
+
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <!-- Removido h-24 para ajuste automático da altura -->
-                <div class="flex justify-between items-center py-3 sm:py-4"> 
+                <div class="flex justify-between items-center py-3 sm:py-4">
                     <!-- Lado Esquerdo: Logo e Títulos -->
                     <div class="flex items-center gap-4 sm:gap-6">
                         <!-- Logo (Aumentado para h-20/h-24) -->
                         <div class="flex-shrink-0">
-                            <img src="SaoLuis.png" 
-                                alt="Logo SEMCAS São Luís" 
-                                class="h-20 sm:h-24 w-auto" 
+                            <img src="SaoLuis.png"
+                                alt="Logo SEMCAS São Luís"
+                                class="h-20 sm:h-24 w-auto"
                                 loading="eager"
                                 onerror="this.src='https://placehold.co/200x80/1e40af/ffffff?text=SEMCAS'; this.onerror=null">
                         </div>
@@ -127,7 +124,7 @@
                     </div>
                 </div>
             </div>
-            
+
             <!-- Faixa superior colorida SEMCAS (MOVIDA PARA O FINAL DO HEADER) -->
             <!-- Usando Tailwind para o degradê -->
             <div class="w-full h-1 bg-gradient-to-r from-orange-400 via-green-500 to-blue-600 faixa-semcas"></div>
@@ -704,7 +701,7 @@
                                 Relatório de Análise de Consumo
                             </h3>
                             <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-                                
+
                                 <!-- NOVO: Agrupamento Principal (Tipo ou Unidade) -->
                                 <div>
                                     <label for="select-modo-agrupamento-agua" class="form-label">Agrupar por</label>
@@ -713,7 +710,7 @@
                                         <option value="unidade">Unidade Específica</option>
                                     </select>
                                 </div>
-                                
+
                                 <!-- FILTRO DE TIPO (Visível por padrão) -->
                                 <div id="analise-agrupamento-tipo-container-agua">
                                     <label for="analise-agrupamento-tipo-agua" class="form-label">Filtro por Tipo</label>
@@ -722,7 +719,7 @@
                                         <option value="todas">Todos os Tipos</option>
                                     </select>
                                 </div>
-                                
+
                                 <!-- FILTRO DE UNIDADE (Inicia Oculto) -->
                                 <div id="analise-agrupamento-unidade-container-agua" class="hidden">
                                    <label for="analise-agrupamento-unidade-agua" class="form-label">Unidade Específica</label>
@@ -730,7 +727,7 @@
                                         <option value="todas">Todas as Unidades</option>
                                     </select>
                                 </div>
-                                
+
                                 <!-- Granularidade (Mantida) -->
                                 <div>
                                     <label for="analise-granularidade-agua" class="form-label">Granularidade (Eixo X)</label>
@@ -740,7 +737,7 @@
                                         <option value="diario">Diário</option>
                                     </select>
                                 </div>
-                                
+
                                 <!-- Botão de Gerar Relatório -->
                                 <div class="col-span-1 flex items-end justify-end">
                                     <button id="btn-analisar-consumo-agua" class="btn-primary flex-shrink-0">
@@ -748,17 +745,17 @@
                                     </button>
                                 </div>
                             </div>
-                            
+
                             <!-- REMOVIDO: Filtros de período e datas personalizadas não usados -->
                             <div id="alert-analise-consumo-agua" class="alert mt-4"></div>
                         </div>
 
                         <!-- RESULTADOS DA ANÁLISE (Oculto até a execução) -->
                         <div id="analise-resultado-container-agua" class="hidden space-y-8">
-                            
+
                             <!-- Resumo Textual e Ranking de Unidades -->
                             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                                
+
                                 <!-- Coluna 1: Relatório Textual de Destaques -->
                                 <div class="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-lg p-6">
                                     <h3 class="font-semibold text-gray-800 mb-4 text-xl flex items-center gap-2">
@@ -783,7 +780,7 @@
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <!-- Gráfico de Consumo por Período -->
                             <div class="bg-white rounded-xl border border-gray-200 shadow-lg p-6">
                                 <h4 class="font-semibold text-gray-700 mb-3 text-lg">
@@ -802,7 +799,7 @@
                         <!-- Etapa 2: Previsão de Compra (existente) -->
                         <div class="mb-6 border-t pt-6">
                             <h3 class="font-semibold text-gray-700 mb-3 text-lg">2. Configure a Previsão de Compra:</h3>
-                            
+
                             <div id="previsao-modo-container-agua" class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div class="previsao-option-card" data-modo="unidade-especifica">
                                     <div class="flex items-center gap-3 mb-2">
@@ -1043,7 +1040,7 @@
                        </div>
                    </div>
                 </div>
-                
+
                 <!-- Sub-view: Histórico de Entradas (Estoque) - GÁS (Ponto 1) -->
                 <div id="subview-historico-estoque-gas" class="hidden"> <!-- NOVO DIV -->
                      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
@@ -1168,7 +1165,7 @@
                                 Relatório de Análise de Consumo
                             </h3>
                             <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-                                
+
                                 <!-- NOVO: Agrupamento Principal (Tipo ou Unidade) -->
                                 <div>
                                     <label for="select-modo-agrupamento-gas" class="form-label">Agrupar por</label>
@@ -1177,7 +1174,7 @@
                                         <option value="unidade">Unidade Específica</option>
                                     </select>
                                 </div>
-                                
+
                                 <!-- FILTRO DE TIPO (Visível por padrão) -->
                                 <div id="analise-agrupamento-tipo-container-gas">
                                     <label for="analise-agrupamento-tipo-gas" class="form-label">Filtro por Tipo</label>
@@ -1186,7 +1183,7 @@
                                         <option value="todas">Todos os Tipos</option>
                                     </select>
                                 </div>
-                                
+
                                 <!-- FILTRO DE UNIDADE (Inicia Oculto) -->
                                 <div id="analise-agrupamento-unidade-container-gas" class="hidden">
                                    <label for="analise-agrupamento-unidade-gas" class="form-label">Unidade Específica</label>
@@ -1211,17 +1208,17 @@
                                     </button>
                                  </div>
                              </div>
-                             
+
                              <!-- REMOVIDO: Filtros de período e datas personalizadas não usados -->
                              <div id="alert-analise-consumo-gas" class="alert mt-4"></div>
                         </div>
 
                         <!-- RESULTADOS DA ANÁLISE (Oculto até a execução) -->
                         <div id="analise-resultado-container-gas" class="hidden space-y-8">
-                            
+
                             <!-- Resumo Textual e Ranking de Unidades -->
                             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                                
+
                                 <!-- Coluna 1: Relatório Textual de Destaques -->
                                 <div class="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-lg p-6">
                                     <h3 class="font-semibold text-gray-800 mb-4 text-xl flex items-center gap-2">
@@ -1246,7 +1243,7 @@
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <!-- Gráfico de Consumo por Período -->
                             <div class="bg-white rounded-xl border border-gray-200 shadow-lg p-6">
                                 <h4 class="font-semibold text-gray-700 mb-3 text-lg">
@@ -1260,11 +1257,11 @@
 
                         </div>
                         <!-- FIM DOS RESULTADOS DA ANÁLISE -->
-                        
+
                         <!-- Etapa 2: Previsão de Compra (existente) -->
                         <div class="mb-6 border-t pt-6">
                              <h3 class="font-semibold text-gray-700 mb-3 text-lg">2. Configure a Previsão de Compra:</h3>
-                            
+
                             <div id="previsao-modo-container-gas" class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div class="previsao-option-card" data-modo="unidade-especifica">
                                     <div class="flex items-center gap-3 mb-2">
@@ -1595,4 +1592,288 @@
                                     <!-- JS Preenche aqui -->
                                     <tr><td colspan="7" class="text-center py-10"><div class="loading-spinner-small mx-auto"></div></td></tr>
                                 </tbody>
-                            </tabl
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div> <!-- Fim de content-materiais -->
+
+            <!-- ============================================= -->
+            <!-- PAINEL GESTÃO DE UNIDADES (ID: content-gestao) -->
+            <!-- ============================================= -->
+            <div id="content-gestao" class="fade-in hidden">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">Gestão de Unidades</h2>
+                <div id="alert-gestao" class="alert mb-4"></div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Coluna de Adição em Lote -->
+                    <div class="lg:col-span-1 bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                        <h3 class="text-lg font-semibold mb-3">Adicionar Unidades em Lote</h3>
+                        <p class="text-sm text-gray-500 mb-3">Cole o texto no formato "TIPO [TAB] NOME DA UNIDADE", uma por linha.</p>
+                        <textarea id="textarea-bulk-unidades" class="form-textarea h-40 mb-3" placeholder="Ex:&#10;CRAS&#9;CRAS CENTRO&#10;CREAS&#9;CREAS CIDADE OPERÁRIA&#10;SEDE&#9;SEMCAS GABINETE"></textarea>
+                        <button id="btn-bulk-add-unidades" class="btn-primary w-full">Adicionar Unidades</button>
+                    </div>
+
+                    <!-- Coluna de Lista e Filtros -->
+                    <div class="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                        <h3 class="text-lg font-semibold mb-3">Unidades Cadastradas</h3>
+                        <div class="flex gap-4 mb-4">
+                            <div class="flex-1">
+                                <label for="filtro-unidade-nome" class="form-label text-xs">Filtrar por Nome</label>
+                                <input type="text" id="filtro-unidade-nome" class="form-input" placeholder="Digite o nome...">
+                            </div>
+                            <div class="flex-1">
+                                <label for="filtro-unidade-tipo" class="form-label text-xs">Filtrar por Tipo</label>
+                                <input type="text" id="filtro-unidade-tipo" class="form-input" placeholder="Digite o tipo (Ex: CRAS)">
+                            </div>
+                        </div>
+
+                        <div class="overflow-x-auto border border-gray-200 rounded-lg max-h-96">
+                            <table class="table w-full text-sm">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th>Nome da Unidade</th>
+                                        <th>Tipo</th>
+                                        <th class="text-center">Água</th>
+                                        <th class="text-center">Gás</th>
+                                        <th class="text-center">Materiais</th>
+                                        <th class="text-center">Ação</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="table-gestao-unidades" class="divide-y divide-gray-100">
+                                    <tr><td colspan="6" class="text-center py-10"><div class="loading-spinner-small mx-auto"></div></td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================================= -->
+            <!-- PAINEL GERAR RELATÓRIO (ID: content-relatorio) -->
+            <!-- ============================================= -->
+            <div id="content-relatorio" class="fade-in hidden">
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 max-w-xl mx-auto">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">Gerar Relatório PDF</h2>
+                    <p class="text-sm text-gray-500 mb-6">Selecione o tipo de item e o período para gerar um relatório de entregas por unidade e por responsável.</p>
+                    <div id="alert-relatorio" class="alert mb-4"></div>
+
+                    <form id="form-relatorio" class="space-y-4">
+                        <div>
+                            <label for="relatorio-tipo" class="form-label">Tipo de Item</label>
+                            <select id="relatorio-tipo" class="form-select">
+                                <option value="agua">Água</option>
+                                <option value="gas">Gás</option>
+                            </select>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label for="relatorio-data-inicio" class="form-label">Data Início</label>
+                                <input type="date" id="relatorio-data-inicio" class="form-input" required>
+                            </div>
+                            <div>
+                                <label for="relatorio-data-fim" class="form-label">Data Fim</label>
+                                <input type="date" id="relatorio-data-fim" class="form-input" required>
+                            </div>
+                        </div>
+                        <button type="button" id="btn-gerar-pdf" class="btn-primary w-full !mt-6">
+                            <i data-lucide="file-down"></i> Gerar Relatório PDF
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- ============================================= -->
+            <!-- PAINEL GESTÃO DE USUÁRIOS (ID: content-usuarios) -->
+            <!-- ============================================= -->
+             <div id="content-usuarios" class="fade-in hidden">
+                 <h2 class="text-2xl font-bold text-gray-800 mb-4">Gestão de Usuários</h2>
+                 <p class="text-sm text-gray-500 mb-6">Adicione, visualize e gerencie as permissões dos usuários do sistema.</p>
+                 <div id="alert-usuarios" class="alert mb-4"></div>
+
+                 <!-- Seção de Adicionar Usuário -->
+                 <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 mb-6">
+                     <h3 class="text-lg font-semibold mb-3">Adicionar Novo Usuário</h3>
+                     <form id="form-add-user" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                         <div class="md:col-span-1">
+                             <label for="input-add-user-email" class="form-label text-xs">E-mail</label>
+                             <input type="email" id="input-add-user-email" class="form-input" placeholder="email@semcas.gov.br" required>
+                         </div>
+                         <div class="md:col-span-1">
+                             <label for="input-add-user-password" class="form-label text-xs">Senha</label>
+                             <input type="password" id="input-add-user-password" class="form-input" placeholder="Senha forte" required>
+                         </div>
+                         <div class="md:col-span-1">
+                             <label for="select-add-user-role" class="form-label text-xs">Permissão</label>
+                             <select id="select-add-user-role" class="form-select">
+                                 <option value="anon">Anônimo (Visualização)</option>
+                                 <option value="editor">Editor (Lançamentos)</option>
+                                 <option value="admin">Admin (Total)</option>
+                             </select>
+                         </div>
+                         <div class="md:col-span-1">
+                             <button type="submit" id="btn-submit-add-user" class="btn-primary w-full">
+                                 <i data-lucide="user-plus"></i> Adicionar Usuário
+                             </button>
+                         </div>
+                     </form>
+                     <div id="alert-add-user" class="alert mt-3"></div>
+                 </div>
+
+                 <!-- Seção de Lista de Usuários -->
+                 <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                     <h3 class="text-lg font-semibold mb-3">Usuários Cadastrados</h3>
+                     <div class="mb-4">
+                         <label for="filtro-usuarios" class="form-label text-xs">Filtrar por E-mail</label>
+                         <input type="text" id="filtro-usuarios" class="form-input" placeholder="Digite o e-mail...">
+                     </div>
+                     <div class="overflow-x-auto border border-gray-200 rounded-lg max-h-96">
+                         <table class="table w-full text-sm">
+                             <thead class="bg-gray-50">
+                                 <tr>
+                                     <th>E-mail</th>
+                                     <th>UID</th>
+                                     <th>Permissão</th>
+                                     <th class="text-center">Ação</th>
+                                 </tr>
+                             </thead>
+                             <tbody id="table-usuarios" class="divide-y divide-gray-100">
+                                 <tr><td colspan="4" class="text-center py-10"><div class="loading-spinner-small mx-auto"></div></td></tr>
+                             </tbody>
+                         </table>
+                     </div>
+                 </div>
+             </div>
+
+
+        </main>
+        <!-- Fim do Conteúdo Principal -->
+
+        <!-- Elementos ocultos para Modais de Fluxo -->
+        <!-- Modal para inserir nome do Responsável do Almoxarifado (Movimentação) -->
+        <div id="almoxarifado-responsavel-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 class="modal-title"><i data-lucide="box" class="w-5 h-5 inline-block -mt-1 mr-2"></i> Confirmar Movimentação</h3>
+                    <!-- Não precisa de botão fechar aqui, força a confirmação ou cancelamento -->
+                </div>
+                <div class="modal-body">
+                    <p class="text-sm mb-4"></p> <!-- JS preenche este texto -->
+                    <div>
+                        <label for="input-almox-responsavel-nome" class="form-label">Seu Nome (Responsável Almoxarifado)</label>
+                        <input type="text" id="input-almox-responsavel-nome" class="form-input" placeholder="Digite seu nome completo" required>
+                    </div>
+                    <div id="alert-almox-responsavel" class="alert mt-3"></div>
+                    <!-- Campos hidden para armazenar temporariamente os dados da movimentação -->
+                    <input type="hidden" id="almox-temp-unidadeId">
+                    <input type="hidden" id="almox-temp-unidadeNome">
+                    <input type="hidden" id="almox-temp-tipoUnidadeRaw">
+                    <input type="hidden" id="almox-temp-tipoMovimentacao">
+                    <input type="hidden" id="almox-temp-qtdEntregue">
+                    <input type="hidden" id="almox-temp-qtdRetorno">
+                    <input type="hidden" id="almox-temp-data">
+                    <input type="hidden" id="almox-temp-responsavelUnidade">
+                    <input type="hidden" id="almox-temp-itemType">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" onclick="this.closest('.modal').style.display='none'">Cancelar</button>
+                    <button type="button" id="btn-salvar-movimentacao-final" class="btn-primary">
+                        Confirmar
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal para inserir nome do Separador (Materiais) -->
+        <div id="separador-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 class="modal-title"><i data-lucide="user-check" class="w-5 h-5 inline-block -mt-1 mr-2"></i> Iniciar Separação</h3>
+                    <button class="modal-close" onclick="this.closest('.modal').style.display='none'">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-sm mb-4">Informe o nome do responsável pela separação deste material.</p>
+                    <div>
+                        <label for="input-separador-nome" class="form-label">Nome do Separador</label>
+                        <input type="text" id="input-separador-nome" class="form-input" placeholder="Nome completo" required>
+                    </div>
+                    <input type="hidden" id="separador-material-id">
+                    <div id="alert-separador" class="alert mt-3"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" onclick="this.closest('.modal').style.display='none'">Cancelar</button>
+                    <button type="button" id="btn-salvar-separador" class="btn-primary">Salvar Nome e Liberar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal para finalizar entrega (Materiais) -->
+        <div id="finalizar-entrega-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 class="modal-title"><i data-lucide="check-circle" class="w-5 h-5 inline-block -mt-1 mr-2"></i> Finalizar Entrega</h3>
+                    <button class="modal-close" onclick="this.closest('.modal').style.display='none'">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-sm mb-4">Confirme os responsáveis pela entrega (Almoxarifado) e recebimento (Unidade).</p>
+                    <div class="space-y-3">
+                        <div>
+                            <label for="input-entrega-responsavel-almox" class="form-label">Entregue por (Almoxarifado)</label>
+                            <input type="text" id="input-entrega-responsavel-almox" class="form-input" placeholder="Nome de quem entregou" required>
+                        </div>
+                        <div>
+                            <label for="input-entrega-responsavel-unidade" class="form-label">Recebido por (Unidade)</label>
+                            <input type="text" id="input-entrega-responsavel-unidade" class="form-input" placeholder="Nome de quem recebeu" required>
+                        </div>
+                    </div>
+                    <input type="hidden" id="finalizar-entrega-material-id">
+                    <div id="alert-finalizar-entrega" class="alert mt-3"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" onclick="this.closest('.modal').style.display='none'">Cancelar</button>
+                    <button type="button" id="btn-confirmar-finalizacao-entrega" class="btn-primary">
+                        <i data-lucide="check-circle"></i> Confirmar Finalização
+                    </button>
+                </div>
+            </div>
+        </div>
+
+
+    </div> <!-- Fim de #app-content-wrapper -->
+
+    <!-- ============================================= -->
+    <!-- MODAL DE CONFIRMAÇÃO DE EXCLUSÃO              -->
+    <!-- ============================================= -->
+    <div id="confirm-delete-modal" class="modal">
+        <div class="modal-content max-w-lg">
+            <div class="modal-header bg-red-50 border-b border-red-200">
+                <h3 class="modal-title text-red-700 flex items-center gap-2">
+                    <i data-lucide="alert-triangle"></i> Confirmar Exclusão
+                </h3>
+                <button class="modal-close" onclick="document.getElementById('confirm-delete-modal').style.display='none'">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-4 text-gray-700">Tem certeza de que deseja excluir este item?</p>
+                <p id="delete-details" class="text-sm font-medium bg-gray-100 p-3 rounded border border-gray-200"></p>
+                <!-- Alerta específico para exclusão de unidade -->
+                <div id="delete-warning-unidade" class="alert alert-warning mt-4 text-sm" style="display:none;">
+                    <strong>Atenção:</strong> Excluir uma unidade removerá <strong>permanentemente</strong> todo o seu histórico de movimentações (água, gás, materiais) e entradas de estoque. Esta ação não pode ser desfeita.
+                </div>
+                 <!-- Alerta específico para exclusão de estoque inicial -->
+                <div id="delete-warning-inicial" class="alert alert-warning mt-4 text-sm" style="display:none;">
+                    <strong>Atenção:</strong> Excluir o lançamento de <strong>Estoque Inicial</strong> pode afetar o cálculo do estoque atual. Certifique-se de que é a ação correta.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="btn-cancel-delete" class="btn-secondary">Cancelar</button>
+                <button id="btn-confirm-delete" class="btn-danger">Confirmar Exclusão</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase e Lógica do App -->
+    <script type="module" src="./js/app.js"></script>
+
+</body>
+</html>
+
