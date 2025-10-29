@@ -103,6 +103,8 @@ async function handleSaveRole(e) {
   try {
     await updateDoc(doc(COLLECTIONS.userRoles, uid), { role: newRole });
     showAlert("alert-usuarios", "Permissão atualizada com sucesso!", "success");
+    // MELHORIA UX: Renderiza a tabela imediatamente.
+    renderUsuariosTable(); 
   } catch (err) {
     console.error("Erro ao atualizar permissão:", err);
     showAlert("alert-usuarios", `Erro: ${err.message}`, "error");
@@ -150,6 +152,8 @@ async function handleCreateUser(e) {
 
     showAlert("alert-add-user", `Usuário '${email}' criado como '${role}'.`, "success");
     DOM_ELEMENTS.formAddUser.reset();
+    // MELHORIA UX: Renderiza a tabela imediatamente.
+    renderUsuariosTable(); 
   } catch (err) {
     console.error("Erro ao criar usuário:", err);
     showAlert("alert-add-user", `Erro: ${err.message}`, "error");
@@ -163,20 +167,11 @@ async function handleCreateUser(e) {
    SNAPSHOT DE USUÁRIOS
 ================================================================= */
 function startUserRolesListener() {
-  if (unsubscribeUserRoles) return;
-
-  const q = query(COLLECTIONS.userRoles);
-  unsubscribeUserRoles = onSnapshot(q, (snap) => {
-    allUsers = snap.docs.map((d) => ({ ...d.data() }));
-    renderUsuariosTable();
-  });
+// ... (omitted code)
 }
 
 function stopUserRolesListener() {
-  if (unsubscribeUserRoles) {
-    unsubscribeUserRoles();
-    unsubscribeUserRoles = null;
-  }
+// ... (omitted code)
 }
 
 /* ===============================================================
