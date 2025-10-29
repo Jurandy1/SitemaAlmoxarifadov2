@@ -178,6 +178,11 @@
                         <i data-lucide="truck" class="text-purple-500"></i>
                         <span>Entrega de Materiais</span>
                     </button>
+                    <!-- NOVO BOTÃO: Assistência Social -->
+                    <button class="nav-btn" data-tab="social">
+                        <i data-lucide="handshake" class="text-pink-500"></i>
+                        <span>Assistência Social</span>
+                    </button>
                     <button class="nav-btn" data-tab="gestao">
                         <i data-lucide="settings" class="text-gray-500"></i>
                         <span>Gestão de Unidades</span>
@@ -1400,10 +1405,7 @@
                             <form id="form-materiais" class="space-y-4">
                                 <div>
                                     <label for="select-unidade-materiais" class="form-label">Unidade</label>
-                                    <select id="select-unidade-materiais" class="form-select" required>
-                                        <option value="">-- Selecione --</option>
-                                        <!-- Options populated by JS -->
-                                    </select>
+                                    <select id="select-unidade-materiais" class="form-select" required></select>
                                 </div>
                                 <div>
                                     <label for="select-tipo-materiais" class="form-label">Tipo de Material</label>
@@ -1597,6 +1599,260 @@
                     </div>
                 </div>
             </div> <!-- Fim de content-materiais -->
+
+            <!-- ========================================================== -->
+            <!-- PAINEL ASSISTÊNCIA SOCIAL (ID: content-social)             -->
+            <!-- ========================================================== -->
+            <div id="content-social" class="fade-in hidden">
+                <h2 class="text-2xl font-bold text-gray-900 mb-4">
+                    <i data-lucide="handshake" class="w-6 h-6 inline-block text-pink-500 mr-2 -mt-1"></i>
+                    Controle de Assistência Social
+                </h2>
+                
+                <!-- Sub-navegação Principal: Cesta Básica / Enxoval / Importar -->
+                <div class="flex flex-wrap gap-2 mb-6" id="sub-nav-social-main">
+                    <button class="sub-nav-btn active" data-subview-main="cesta-basica">
+                        <i data-lucide="shopping-basket" class="w-4 h-4 mr-2"></i> Cestas Básicas
+                    </button>
+                    <button class="sub-nav-btn" data-subview-main="enxoval">
+                        <i data-lucide="baby" class="w-4 h-4 mr-2"></i> Enxoval
+                    </button>
+                    <button class="sub-nav-btn ml-auto bg-yellow-100 text-yellow-800 hover:bg-yellow-200" data-subview-main="importar-dados">
+                        <i data-lucide="clipboard-paste" class="w-4 h-4 mr-2"></i> Importar Dados
+                    </button>
+                </div>
+
+                <!-- Container Geral do Módulo Social -->
+                <div id="social-module-container" class="space-y-6">
+
+                    <!-- SUBMÓDULO: CESTAS BÁSICAS -->
+                    <div id="social-submodule-cesta-basica">
+                        
+                        <!-- Sub-navegação CESTA -->
+                        <div class="flex flex-wrap gap-2 mb-6" id="sub-nav-cesta">
+                            <button class="sub-nav-btn active" data-subview="cesta-lancamento">
+                                <i data-lucide="edit-3"></i> Lançamento
+                            </button>
+                            <button class="sub-nav-btn" data-subview="cesta-estoque">
+                                <i data-lucide="box"></i> Controle de Estoque
+                            </button>
+                            <button class="sub-nav-btn" data-subview="cesta-relatorio">
+                                <i data-lucide="file-text"></i> Relatórios e Histórico
+                            </button>
+                        </div>
+
+                        <!-- Subview: Lançamento de Cestas -->
+                        <div id="subview-cesta-lancamento" class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                            <h3 class="text-xl font-bold text-pink-600 mb-4">📥 Lançamento de Cestas Básicas</h3>
+                            <form id="form-cesta-lancamento" class="space-y-4 grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl">
+                                <div><label for="cesta-data" class="form-label">Data</label><input type="date" id="cesta-data" class="form-input" required></div>
+                                <div><label for="cesta-destinatario" class="form-label">Destinatário (Nome)</label><input type="text" id="cesta-destinatario" class="form-input" placeholder="Nome completo" required></div>
+                                <div><label for="cesta-quantidade" class="form-label">Quantidade</label><input type="number" id="cesta-quantidade" class="form-input" min="1" value="1" required></div>
+                                <div>
+                                     <label for="cesta-unidade" class="form-label">Unidade (Ex: Cesta / Kg)</label>
+                                     <select id="cesta-unidade" class="form-select">
+                                         <option value="cesta">Cesta</option>
+                                         <option value="kg">Kg</option>
+                                     </select>
+                                </div>
+                                <div>
+                                     <label for="cesta-categoria" class="form-label">Categoria</label>
+                                     <select id="cesta-categoria" class="form-select" required>
+                                         <option value="">-- Selecione --</option>
+                                         <option value="alimentacao">Alimentação</option>
+                                         <option value="emergencial">Emergencial</option>
+                                         <option value="doacao">Doação</option>
+                                         <option value="kit_higiene">Kit Higiene</option>
+                                     </select>
+                                </div>
+                                <div><label for="cesta-custo" class="form-label">Custo da Cesta (R$)</label><input type="number" id="cesta-custo" class="form-input" placeholder="Opcional" step="0.01"></div>
+                                <div class="md:col-span-2">
+                                    <label for="cesta-observacoes" class="form-label">Observações</label>
+                                    <textarea id="cesta-observacoes" class="form-textarea" placeholder="Detalhes da entrega ou justificativa"></textarea>
+                                </div>
+                                <div><label for="cesta-responsavel" class="form-label">Responsável (Colaborador)</label><input type="text" id="cesta-responsavel" class="form-input" placeholder="Nome do colaborador que realizou o lançamento" required></div>
+                                <div><label for="cesta-fornecedor" class="form-label">Fornecedor</label><input type="text" id="cesta-fornecedor" class="form-input" placeholder="Opcional"></div>
+                                <div class="md:col-span-2 pt-4">
+                                    <button type="submit" id="btn-submit-cesta-lancamento" class="btn-primary w-full">
+                                        <i data-lucide="save"></i> <span>Salvar Lançamento (Saída do Estoque)</span>
+                                    </button>
+                                </div>
+                            </form>
+                            <div id="alert-cesta-lancamento" class="alert mt-4"></div>
+                        </div>
+
+                        <!-- Subview: Controle de Estoque (Cestas) -->
+                        <div id="subview-cesta-estoque" class="hidden">
+                             <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                                 <h3 class="text-xl font-bold text-pink-600 mb-4">📦 Controle de Estoque (Cestas)</h3>
+                                 <div id="alert-cesta-estoque" class="alert mb-4"></div>
+                                 <!-- Cards de Resumo -->
+                                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6" id="cesta-estoque-resumo">
+                                     <!-- JS Preenche aqui -->
+                                 </div>
+                                 <h4 class="text-lg font-semibold mb-3 border-b pb-2">Registrar Entrada de Cestas (Compra/Doação)</h4>
+                                 <form id="form-cesta-entrada" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                                     <!-- Campos de Entrada -->
+                                 </form>
+                                 <h4 class="text-lg font-semibold mb-3 border-b pb-2">Estoque Atual por Categoria</h4>
+                                 <div class="overflow-x-auto border border-gray-200 rounded-lg max-h-96">
+                                     <table class="table w-full text-sm">
+                                         <thead class="bg-gray-50"><tr><th>Categoria</th><th>Qtd. Estoque</th><th>Última Atualização</th><th>Ação</th></tr></thead>
+                                         <tbody id="table-cesta-estoque"><tr><td colspan="4" class="text-center py-10"><div class="loading-spinner-small mx-auto"></div></td></tr></tbody>
+                                     </table>
+                                 </div>
+                             </div>
+                        </div>
+
+                        <!-- Subview: Relatórios e Histórico (Cestas) -->
+                        <div id="subview-cesta-relatorio" class="hidden">
+                             <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                                 <h3 class="text-xl font-bold text-pink-600 mb-4">📊 Relatório de Cestas Básicas</h3>
+                                 <div id="alert-cesta-relatorio" class="alert mb-4"></div>
+                                 <!-- Área de Filtros -->
+                                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                                     <!-- Filtros de Data e Categoria -->
+                                 </div>
+                                 <!-- Botões de Ação -->
+                                 <div class="flex flex-wrap gap-3 mb-6">
+                                     <button id="btn-cesta-gerar-pdf" class="btn-primary"><i data-lucide="file-down"></i> Gerar PDF</button>
+                                     <button id="btn-cesta-exportar-excel" class="btn-secondary"><i data-lucide="file-text"></i> Exportar Excel</button>
+                                 </div>
+                                 <!-- Tabela de Histórico -->
+                                 <div class="overflow-x-auto border border-gray-200 rounded-lg max-h-96">
+                                     <table class="table w-full text-sm">
+                                         <thead class="bg-gray-50"><tr><th>Data</th><th>Destinatário</th><th>Qtd.</th><th>Categoria</th><th>Responsável</th><th>Status</th><th>Ação</th></tr></thead>
+                                         <tbody id="table-cesta-historico"><tr><td colspan="7" class="text-center py-10"><div class="loading-spinner-small mx-auto"></div></td></tr></tbody>
+                                     </table>
+                                 </div>
+                             </div>
+                        </div>
+                    </div> <!-- FIM CESTAS BÁSICAS -->
+
+                    <!-- SUBMÓDULO: ENXOVAL -->
+                    <div id="social-submodule-enxoval" class="hidden">
+                        
+                         <!-- Sub-navegação ENXOVAL -->
+                        <div class="flex flex-wrap gap-2 mb-6" id="sub-nav-enxoval">
+                            <button class="sub-nav-btn active" data-subview="enxoval-lancamento">
+                                <i data-lucide="edit-3"></i> Lançamento
+                            </button>
+                            <button class="sub-nav-btn" data-subview="enxoval-estoque">
+                                <i data-lucide="box"></i> Controle de Estoque
+                            </button>
+                            <button class="sub-nav-btn" data-subview="enxoval-relatorio">
+                                <i data-lucide="file-text"></i> Relatórios e Histórico
+                            </button>
+                        </div>
+
+                        <!-- Subview: Lançamento de Enxoval -->
+                        <div id="subview-enxoval-lancamento" class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                            <h3 class="text-xl font-bold text-pink-600 mb-4">📥 Lançamento de Enxoval</h3>
+                            <form id="form-enxoval-lancamento" class="space-y-4 grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl">
+                                <div><label for="enxoval-data" class="form-label">Data</label><input type="date" id="enxoval-data" class="form-input" required></div>
+                                <div><label for="enxoval-destinatario" class="form-label">Destinatário (Nome)</label><input type="text" id="enxoval-destinatario" class="form-input" placeholder="Nome completo" required></div>
+                                <div><label for="enxoval-quantidade" class="form-label">Quantidade</label><input type="number" id="enxoval-quantidade" class="form-input" min="1" value="1" required></div>
+                                <div>
+                                     <label for="enxoval-categoria" class="form-label">Categoria</label>
+                                     <select id="enxoval-categoria" class="form-select" required>
+                                         <option value="">-- Selecione --</option>
+                                         <option value="maternidade">Maternidade</option>
+                                         <option value="infantil">Infantil (Geral)</option>
+                                         <option value="idoso">Idoso</option>
+                                         <option value="deficiente">PCD</option>
+                                     </select>
+                                </div>
+                                <div class="md:col-span-2"><label for="enxoval-observacoes" class="form-label">Observações</label><textarea id="enxoval-observacoes" class="form-textarea" placeholder="Detalhes da entrega ou itens específicos"></textarea></div>
+                                <div><label for="enxoval-memo" class="form-label">Memo / Processo Interno</label><input type="text" id="enxoval-memo" class="form-input" placeholder="Ex: Nº do Processo" required></div>
+                                <div><label for="enxoval-responsavel" class="form-label">Responsável (Colaborador)</label><input type="text" id="enxoval-responsavel" class="form-input" placeholder="Nome do colaborador que realizou o lançamento" required></div>
+                                <div class="md:col-span-2 pt-4">
+                                    <button type="submit" id="btn-submit-enxoval-lancamento" class="btn-primary w-full">
+                                        <i data-lucide="save"></i> <span>Salvar Lançamento (Saída do Estoque)</span>
+                                    </button>
+                                </div>
+                            </form>
+                            <div id="alert-enxoval-lancamento" class="alert mt-4"></div>
+                        </div>
+
+                        <!-- Subview: Controle de Estoque (Enxoval) -->
+                        <div id="subview-enxoval-estoque" class="hidden">
+                             <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                                 <h3 class="text-xl font-bold text-pink-600 mb-4">📦 Controle de Estoque (Enxoval)</h3>
+                                 <div id="alert-enxoval-estoque" class="alert mb-4"></div>
+                                 <!-- Cards de Resumo -->
+                                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6" id="enxoval-estoque-resumo">
+                                     <!-- JS Preenche aqui -->
+                                 </div>
+                                 <h4 class="text-lg font-semibold mb-3 border-b pb-2">Registrar Entrada de Enxoval (Compra/Doação)</h4>
+                                 <form id="form-enxoval-entrada" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                                     <!-- Campos de Entrada -->
+                                 </form>
+                                 <h4 class="text-lg font-semibold mb-3 border-b pb-2">Estoque Atual por Categoria</h4>
+                                 <div class="overflow-x-auto border border-gray-200 rounded-lg max-h-96">
+                                     <table class="table w-full text-sm">
+                                         <thead class="bg-gray-50"><tr><th>Categoria</th><th>Qtd. Estoque</th><th>Última Atualização</th><th>Ação</th></tr></thead>
+                                         <tbody id="table-enxoval-estoque"><tr><td colspan="4" class="text-center py-10"><div class="loading-spinner-small mx-auto"></div></td></tr></tbody>
+                                     </table>
+                                 </div>
+                             </div>
+                        </div>
+
+                        <!-- Subview: Relatórios e Histórico (Enxoval) -->
+                        <div id="subview-enxoval-relatorio" class="hidden">
+                            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                                 <h3 class="text-xl font-bold text-pink-600 mb-4">📊 Relatório de Enxoval</h3>
+                                 <div id="alert-enxoval-relatorio" class="alert mb-4"></div>
+                                 <!-- Área de Filtros -->
+                                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                                     <!-- Filtros de Data e Categoria -->
+                                 </div>
+                                 <!-- Botões de Ação -->
+                                 <div class="flex flex-wrap gap-3 mb-6">
+                                     <button id="btn-enxoval-gerar-pdf" class="btn-primary"><i data-lucide="file-down"></i> Gerar PDF</button>
+                                     <button id="btn-enxoval-exportar-excel" class="btn-secondary"><i data-lucide="file-text"></i> Exportar Excel</button>
+                                 </div>
+                                 <!-- Tabela de Histórico -->
+                                 <div class="overflow-x-auto border border-gray-200 rounded-lg max-h-96">
+                                     <table class="table w-full text-sm">
+                                         <thead class="bg-gray-50"><tr><th>Data</th><th>Destinatário</th><th>Qtd.</th><th>Categoria</th><th>Memo</th><th>Responsável</th><th>Status</th><th>Ação</th></tr></thead>
+                                         <tbody id="table-enxoval-historico"><tr><td colspan="8" class="text-center py-10"><div class="loading-spinner-small mx-auto"></div></td></tr></tbody>
+                                     </table>
+                                 </div>
+                             </div>
+                        </div>
+                    </div> <!-- FIM ENXOVAL -->
+
+                    <!-- SUBMÓDULO: IMPORTAÇÃO DE DADOS -->
+                    <div id="social-submodule-importar-dados" class="hidden">
+                         <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 max-w-4xl mx-auto">
+                             <h3 class="text-xl font-bold text-gray-800 mb-4">📂 Importar Dados de Planilha (Copia e Cola)</h3>
+                             <p class="text-sm text-gray-600 mb-4">Cole abaixo os dados de sua planilha. O sistema tentará reconhecer automaticamente o tipo de dados (Cesta Básica - 9 colunas ou Enxoval - 7 colunas).</p>
+
+                             <div id="alert-social-import" class="alert mb-4"></div>
+
+                             <div class="space-y-4">
+                                 <div>
+                                     <label class="form-label">Colar Dados da Planilha</label>
+                                     <textarea id="textarea-social-import" class="form-textarea h-64" placeholder="Cole os dados aqui. Utilize a tecla TAB para separar as colunas, exatamente como no Excel."></textarea>
+                                 </div>
+                                 <button id="btn-social-import-data" class="btn-primary w-full">
+                                     <i data-lucide="upload"></i> 📤 Importar Dados
+                                 </button>
+                             </div>
+
+                             <div class="mt-8 p-4 bg-blue-50 rounded-lg text-sm text-blue-800 border border-blue-200">
+                                <p class="font-bold mb-2">Instruções de Formato:</p>
+                                <ul class="list-disc list-inside space-y-1">
+                                    <li><strong>Cesta Básica (9 Colunas):</strong> Data | Destinatário | Qtd. | Unidade | Categoria | Observações | Custo | Responsável | Fornecedor</li>
+                                    <li><strong>Enxoval (7 Colunas):</strong> Data | Qtd. | Destinatário | Observações | Memo | Categoria | Responsável</li>
+                                </ul>
+                             </div>
+                        </div>
+                    </div> <!-- FIM IMPORTAÇÃO -->
+
+                </div> <!-- Fim de social-module-container -->
+            </div>
+
 
             <!-- ============================================= -->
             <!-- PAINEL GESTÃO DE UNIDADES (ID: content-gestao) -->
@@ -1876,4 +2132,3 @@
 
 </body>
 </html>
-
