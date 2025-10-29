@@ -11,6 +11,10 @@ import { getTodayDateString, dateToTimestamp, capitalizeString, formatTimestamp 
 import { isReady } from "./auth.js";
 import { COLLECTIONS, db } from "../services/firestore-service.js";
 
+// Variáveis para as instâncias dos gráficos
+let graficoCestaRelatorio = null;
+let graficoEnxovalRelatorio = null;
+
 // =========================================================================
 // FUNÇÕES DE UTILIDADE E CÁLCULO DE ESTOQUE
 // =========================================================================
@@ -25,6 +29,37 @@ function calculateCurrentStock(estoqueEntries, movimentacoes) {
     const totalEntradas = estoqueEntries.reduce((sum, e) => sum + (e.quantidade || 0), 0);
     const totalSaidas = movimentacoes.filter(m => m.tipo === 'saida').reduce((sum, m) => sum + (m.quantidade || 0), 0);
     return totalEntradas - totalSaidas;
+}
+
+/**
+ * Obtém as datas inicial e final do período analisado.
+ * @param {Array<Object>} movimentacoes Movimentações de saída.
+ * @returns {Object} { dataInicial, dataFinal, totalDias }.
+ */
+function getPeriodoAnalise(movimentacoes) {
+    if (movimentacoes.length === 0) return { dataInicial: null, dataFinal: null, totalDias: 0 };
+
+    // Pega a data da movimentação mais antiga (primeira)
+    const movsOrdenadas = [...movimentacoes].sort((a, b) => (a.data?.toMillis() || 0) - (b.data?.toMillis() || 0));
+    
+    const primeiraMovDate = movsOrdenadas[0].data.toDate();
+    const ultimaMovDate = movsOrdenadas[movsOrdenadas.length - 1].data.toDate();
+
+    // Cria Timestamps para exibição
+    const dataInicial = Timestamp.fromDate(primeiraMovDate);
+    const dataFinal = Timestamp.fromDate(ultimaMovDate);
+
+    // Normaliza para o início do dia para cálculo preciso dos dias decorridos
+    const inicioPrimeira = new Date(primeiraMovDate.getFullYear(), primeiraMovDate.getMonth(), primeiraMovDate.getDate());
+    const fimUltima = new Date(ultimaMovDate.getFullYear(), ultimaMovDate.getMonth(), ultimaMovDate.getDate());
+
+    // Cálculo dos dias: (diferença em ms / ms por dia) + 1 para incluir o dia final
+    const diffTime = Math.abs(fimUltima.getTime() - inicioPrimeira.getTime());
+    const totalDaysMs = 1000 * 60 * 60 * 24;
+    // +1 para incluir o dia final. Se for no mesmo dia, (0 / X) + 1 = 1 dia.
+    const totalDias = Math.ceil(diffTime / totalDaysMs) + 1; 
+
+    return { dataInicial, dataFinal, totalDias };
 }
 
 
@@ -82,9 +117,19 @@ function switchInternalSubView(itemType, subViewName) {
         if (itemType === 'cesta') renderCestaEstoqueSummary();
         if (itemType === 'enxoval') renderEnxovalEstoqueSummary();
     }
+    // CORREÇÃO: Força a renderização do histórico de saídas sempre que a aba Relatório é acessada
     if (subViewName === 'relatorio') {
         if (itemType === 'cesta') renderCestaMovimentacoesHistoryTable();
         if (itemType === 'enxoval') renderEnxovalMovimentacoesHistoryTable();
+        // Esconde o relatório detalhado ao entrar na aba
+        document.getElementById(`${itemType}-relatorio-output`)?.classList.add('hidden');
+        // Preenche as datas do filtro de relatório com os últimos 30 dias
+        const dataFimEl = document.getElementById(`${itemType}-rel-data-fim`);
+        const dataInicioEl = document.getElementById(`${itemType}-rel-data-inicio`);
+        dataFimEl.value = getTodayDateString();
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        dataInicioEl.value = thirtyDaysAgo.toISOString().split('T')[0];
     }
 }
 
@@ -113,24 +158,20 @@ async function handleEstoqueEntrySubmit(e, itemType) {
             data: DOM_ELEMENTS.cestaEntradaData,
             resp: DOM_ELEMENTS.cestaEntradaResponsavel,
             nf: DOM_ELEMENTS.cestaEntradaNf,
-            // NOVO: Custo Unitário e Fornecedor
             custo: document.getElementById('cesta-entrada-custo-unitario'), 
             fornecedor: document.getElementById('cesta-entrada-fornecedor'),
-            // FIM NOVO
             btn: DOM_ELEMENTS.btnSubmitCestaEntrada,
             alert: 'alert-cesta-estoque',
             collection: COLLECTIONS.cestaEstoque,
             itemLabel: 'Cesta(s) Básica(s)'
         },
         'enxoval': {
-            form: DOM_ELEMENTs.formEnxovalEntrada,
+            form: DOM_ELEMENTS.formEnxovalEntrada,
             qtd: DOM_ELEMENTS.enxovalEntradaQuantidade,
             data: DOM_ELEMENTS.enxovalEntradaData,
             resp: DOM_ELEMENTS.enxovalEntradaResponsavel,
             nf: DOM_ELEMENTS.enxovalEntradaNf,
-            // NOVOS CAMPOS IGNORADOS PARA ENXOVAL
-            custo: null, fornecedor: null,
-            // FIM NOVOS
+            custo: null, fornecedor: null, // Ignorados para enxoval
             btn: DOM_ELEMENTS.btnSubmitEnxovalEntrada,
             alert: 'alert-enxoval-estoque',
             collection: COLLECTIONS.enxovalEstoque,
@@ -146,7 +187,7 @@ async function handleEstoqueEntrySubmit(e, itemType) {
     const responsavel = capitalizeString(map.resp.value.trim());
     const notaFiscal = map.nf.value.trim() || 'N/A';
     
-    // NOVO: Custo Unitário
+    // NOVO: Custo Unitário e Fornecedor (Apenas para Cesta)
     const custoUnitario = map.custo ? parseFloat(map.custo.value) : 0;
     const fornecedor = map.fornecedor ? map.fornecedor.value.trim() : 'N/A';
     // FIM NOVO
@@ -257,7 +298,8 @@ export function renderCestaEstoqueHistoryTable() {
         const dataLancamento = formatTimestamp(e.registradoEm);
         const notaFiscal = e.notaFiscal || 'N/A';
         const responsavel = e.responsavel || 'N/A';
-        const custoUnitario = (e.custoUnitario || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); // NOVO
+        // NOVO: Custo Unitário
+        const custoUnitario = (e.custoUnitario || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); 
 
         const details = `Entrada de Estoque Cesta: ${e.quantidade} un., Custo: ${custoUnitario}, NF: ${notaFiscal}.`;
         
@@ -281,6 +323,7 @@ export function renderCestaEstoqueHistoryTable() {
 
 /**
  * Renderiza a tabela de histórico de saídas (Cesta).
+ * CORREÇÃO 1: Adicionado Observações e padronizado cabeçalhos.
  */
 export function renderCestaMovimentacoesHistoryTable() {
     const movimentacoes = getCestaMovimentacoes();
@@ -292,7 +335,7 @@ export function renderCestaMovimentacoesHistoryTable() {
         .sort((a, b) => (b.data?.toMillis() || 0) - (a.data?.toMillis() || 0));
 
     if (historicoOrdenado.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-slate-500">Nenhuma saída de estoque registrada.</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-slate-500">Nenhuma saída de estoque registrada.</td></tr>`;
         return;
     }
     
@@ -302,9 +345,6 @@ export function renderCestaMovimentacoesHistoryTable() {
     historicoOrdenado.forEach(m => {
         const dataMov = formatTimestamp(m.data);
         const statusClass = m.status === 'Entregue' ? 'badge-green' : 'badge-gray';
-        // Ajusta custo (agora sempre será 0 ou o valor da importação antiga)
-        const custoDisplay = (m.custo || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-
 
         const details = `Saída Cesta: ${m.quantidade} un. p/ ${m.destinatario}.`;
         
@@ -312,11 +352,13 @@ export function renderCestaMovimentacoesHistoryTable() {
             ? `<button class="btn-danger btn-remove btn-icon" data-id="${m.id}" data-type="mov-cesta" data-details="${details}" title="Remover este lançamento"><i data-lucide="trash-2"></i></button>`
             : `<span class="text-gray-400 btn-icon" title="Apenas Admin pode excluir"><i data-lucide="slash"></i></span>`;
 
+        // CORREÇÃO 1: Adicionado Observações. Removido Custo/Fornecedor (mais relevante na Entrada).
         html += `<tr>
             <td class="whitespace-nowrap">${dataMov}</td>
             <td>${m.destinatario}</td>
             <td class="text-center font-medium">${m.quantidade}</td>
             <td>${m.categoria}</td>
+            <td class="text-xs text-gray-600">${m.observacoes || 'N/A'}</td>
             <td>${m.responsavel}</td>
             <td><span class="badge ${statusClass}">${m.status}</span></td>
             <td class="text-center">${actionHtml}</td>
@@ -345,9 +387,9 @@ export async function handleCestaLancamentoSubmit(e) {
     const unidade = DOM_ELEMENTS.cestaUnidade.value;
     const categoria = DOM_ELEMENTS.cestaCategoria.value;
     const observacoes = DOM_ELEMENTS.cestaObservacoes.value.trim();
-    // CORREÇÃO: Campos de custo e fornecedor não existem mais na SAÍDA
-    const custo = 0; // Removido do formulário, fixado em 0 ou pode ser pego do estoque se houver tabela de preços
-    const fornecedor = ''; // Removido do formulário de saída
+    // CORREÇÃO: Campos de custo e fornecedor removidos do formulário de SAÍDA (fixados em 0 e N/A)
+    const custo = 0; 
+    const fornecedor = 'N/A'; 
     // FIM CORREÇÃO
 
     const responsavel = capitalizeString(DOM_ELEMENTS.cestaResponsavel.value.trim());
@@ -483,6 +525,7 @@ export function renderEnxovalEstoqueHistoryTable() {
 
 /**
  * Renderiza a tabela de histórico de saídas (Enxoval).
+ * CORREÇÃO 1: Adicionado Observações e padronizado cabeçalhos (incluindo Memo).
  */
 export function renderEnxovalMovimentacoesHistoryTable() {
     const movimentacoes = getEnxovalMovimentacoes();
@@ -510,13 +553,14 @@ export function renderEnxovalMovimentacoesHistoryTable() {
         const actionHtml = isAdmin 
             ? `<button class="btn-danger btn-remove btn-icon" data-id="${m.id}" data-type="mov-enxoval" data-details="${details}" title="Remover este lançamento"><i data-lucide="trash-2"></i></button>`
             : `<span class="text-gray-400 btn-icon" title="Apenas Admin pode excluir"><i data-lucide="slash"></i></span>`;
-
+        
+        // CORREÇÃO 1: Inclusão da Observação/Memo
         html += `<tr>
             <td class="whitespace-nowrap">${dataMov}</td>
             <td>${m.destinatario}</td>
             <td class="text-center font-medium">${m.quantidade}</td>
             <td>${m.categoria}</td>
-            <td>${m.memo}</td>
+            <td class="text-xs text-gray-600">${m.memo || 'N/A'}</td>
             <td>${m.responsavel}</td>
             <td><span class="badge ${statusClass}">${m.status}</span></td>
             <td class="text-center">${actionHtml}</td>
@@ -593,6 +637,149 @@ export async function handleEnxovalLancamentoSubmit(e) {
 
 
 // =========================================================================
+// NOVO PONTO 2: LÓGICA DE RELATÓRIO E GRÁFICO
+// =========================================================================
+
+/**
+ * Renderiza o gráfico de consumo por categoria (Mensal, Anual, etc.)
+ * @param {string} itemType 'cesta' ou 'enxoval'.
+ * @param {Array<Object>} dataSet Dados do gráfico.
+ * @param {string} totalLabel Título do gráfico.
+ */
+function renderRelatorioChart(itemType, dataSet, totalLabel) {
+    const canvasId = `grafico-${itemType}-relatorio`;
+    const ctx = document.getElementById(canvasId)?.getContext('2d');
+    if (!ctx) return;
+
+    // Destrói instância anterior
+    const currentChart = itemType === 'cesta' ? graficoCestaRelatorio : graficoEnxovalRelatorio;
+    if (currentChart) {
+        currentChart.destroy();
+    }
+
+    const itemLabel = itemType === 'cesta' ? 'Cestas' : 'Enxovais';
+
+    const newChart = new Chart(ctx, {
+        type: 'bar',
+        data: dataSet,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: { stacked: true },
+                y: {
+                    stacked: true,
+                    beginAtZero: true,
+                    title: { display: true, text: `Quantidade de ${itemLabel}` },
+                    ticks: { precision: 0 }
+                }
+            },
+            plugins: {
+                title: {
+                    display: true,
+                    text: totalLabel
+                },
+                legend: {
+                    position: 'bottom',
+                }
+            }
+        }
+    });
+
+    if (itemType === 'cesta') {
+        graficoCestaRelatorio = newChart;
+    } else {
+        graficoEnxovalRelatorio = newChart;
+    }
+}
+
+/**
+ * Lida com a geração do relatório personalizado (Gráfico e Resumo Textual).
+ * @param {string} itemType 'cesta' ou 'enxoval'.
+ */
+async function handleGerarSocialRelatorio(itemType) {
+    if (!isReady()) { showAlert(`alert-${itemType}-relatorio`, 'Erro: Não autenticado.', 'error'); return; }
+
+    const relatorioOutputEl = document.getElementById(`${itemType}-relatorio-output`);
+    const alertId = `alert-${itemType}-relatorio`;
+
+    // 1. Coletar filtros
+    const dataInicioStr = document.getElementById(`${itemType}-rel-data-inicio`)?.value;
+    const dataFimStr = document.getElementById(`${itemType}-rel-data-fim`)?.value;
+    const categoriaFiltro = document.getElementById(`${itemType}-rel-categoria`)?.value;
+
+    if (!dataInicioStr || !dataFimStr) { showAlert(alertId, 'Selecione a data de início e fim.', 'warning'); return; }
+
+    const dataInicio = dateToTimestamp(dataInicioStr).toMillis();
+    // Adiciona 23:59:59.999ms para incluir o dia final
+    const dataFim = dateToTimestamp(dataFimStr).toMillis() + (24 * 60 * 60 * 1000 - 1); 
+
+    const movimentacoes = itemType === 'cesta' ? getCestaMovimentacoes() : getEnxovalMovimentacoes();
+    
+    // 2. Filtrar as movimentações
+    let movsFiltradas = movimentacoes.filter(m => { 
+        const mData = m.data?.toMillis(); 
+        const isSaida = m.tipo === 'saida';
+        const dataMatch = mData >= dataInicio && mData <= dataFim;
+        const categoriaMatch = categoriaFiltro === 'all' || m.categoria === categoriaFiltro;
+        return isSaida && dataMatch && categoriaMatch; 
+    });
+
+    if (movsFiltradas.length === 0) { 
+        showAlert(alertId, 'Nenhum dado de saída encontrado para os filtros selecionados.', 'info'); 
+        relatorioOutputEl.classList.add('hidden');
+        return; 
+    }
+    
+    // 3. Processamento de dados
+    const totalSaidas = movsFiltradas.reduce((sum, m) => sum + (m.quantidade || 0), 0);
+    const categoriasMap = new Map();
+    const mesesMap = new Map();
+
+    movsFiltradas.forEach(m => {
+        // Por Categoria (Gráfico)
+        const categoria = m.categoria || 'Não Categorizado';
+        categoriasMap.set(categoria, (categoriasMap.get(categoria) || 0) + (m.quantidade || 0));
+
+        // Por Mês (Simulação de Consumo Recorrente)
+        const date = m.data.toDate();
+        const mesKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        mesesMap.set(mesKey, (mesesMap.get(mesKey) || 0) + (m.quantidade || 0));
+    });
+
+    const categoriasOrdenadas = Array.from(categoriasMap.entries()).sort((a, b) => b[1] - a[1]);
+    const categoriaPrincipal = categoriasOrdenadas.length > 0 ? categoriasOrdenadas[0][0] : 'N/A';
+    
+    const { totalDias } = getPeriodoAnalise(movsFiltradas);
+    
+    // 4. Preparar dados do gráfico
+    const chartLabels = categoriasOrdenadas.map(entry => entry[0]);
+    const chartData = categoriasOrdenadas.map(entry => entry[1]);
+
+    const dataset = {
+        labels: chartLabels,
+        datasets: [{
+            label: itemType === 'cesta' ? 'Qtd. Cestas' : 'Qtd. Enxovais',
+            data: chartData,
+            backgroundColor: 'rgba(236, 72, 153, 0.7)', // Pink-500
+            borderColor: 'rgba(236, 72, 153, 1)',
+            borderWidth: 1
+        }]
+    };
+    
+    // 5. Renderizar
+    document.getElementById(`${itemType}-rel-total-saidas`).textContent = totalSaidas;
+    document.getElementById(`${itemType}-rel-categoria-principal`).textContent = capitalizeString(categoriaPrincipal);
+    document.getElementById(`${itemType}-rel-dias-cobertos`).textContent = `${totalDias.toFixed(0)} dias`;
+    
+    renderRelatorioChart(itemType, dataset, `Saídas de ${itemType === 'cesta' ? 'Cestas Básicas' : 'Enxovais'} (${formatTimestamp(Timestamp.fromMillis(dataInicio))} - ${formatTimestamp(Timestamp.fromMillis(dataFim))})`);
+    
+    relatorioOutputEl.classList.remove('hidden');
+    showAlert(alertId, 'Relatório gerado com sucesso!', 'success', 3000);
+}
+
+
+// =========================================================================
 // LÓGICA DE IMPORTAÇÃO (CORRIGIDA)
 // =========================================================================
 
@@ -628,16 +815,17 @@ export async function handleSocialImportSubmit() {
     let collectionRef = null;
     let itemType = '';
     
-    // CORREÇÃO: Usar 9 colunas (Data | Destinatário | Qtd. | Unidade | Categoria | Observações | Custo | Status | Responsável)
-    // O status e o custo são flexíveis/adaptados.
-    if (numCols >= 8) { // Mínimo 8 colunas para Cesta, 9 é o esperado.
+    // 9 colunas para Cesta Básica (Saída)
+    if (numCols >= 9) { 
         collectionRef = COLLECTIONS.cestaMov;
         itemType = 'Cesta Básica';
-    } else if (numCols >= 7) { // Mínimo 7 colunas para Enxoval
+    } 
+    // 7 colunas para Enxoval (Saída)
+    else if (numCols >= 7) { 
         collectionRef = COLLECTIONS.enxovalMov;
         itemType = 'Enxoval';
     } else {
-        showAlert('alert-social-import', `Formato de colunas inválido (${numCols} colunas). Esperado 8/9 (Cesta) ou 7 (Enxoval).`, 'error');
+        showAlert('alert-social-import', `Formato de colunas inválido (${numCols} colunas). Esperado 9 (Cesta) ou 7 (Enxoval).`, 'error');
         DOM_ELEMENTS.btnSocialImportData.disabled = false;
         DOM_ELEMENTS.btnSocialImportData.innerHTML = '<i data-lucide="upload"></i> 📤 Importar Dados';
         if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
@@ -652,7 +840,6 @@ export async function handleSocialImportSubmit() {
     // Função auxiliar para sanitizar valores numéricos
     const sanitizeNumber = (str) => {
         if (!str) return 0;
-        // Remove R$, espaços, e substitui vírgula por ponto (para decimal)
         const cleaned = str.replace(/[^\d,\.]/g, '').replace(',', '.');
         return parseFloat(cleaned) || 0;
     };
@@ -660,26 +847,21 @@ export async function handleSocialImportSubmit() {
     // Função auxiliar para converter data no formato DD/MM/YYYY ou YYYY-MM-DD
     const parseDateToTimestamp = (dateStr) => {
         if (!dateStr) return null;
-        // Converte DD/MM/YYYY para YYYY-MM-DD
         if (dateStr.includes('/')) {
             const parts = dateStr.split('/');
             if (parts.length === 3) {
-                 // Trata o ano, se for só 2 dígitos (ex: 27/08/25 -> 27/08/2025)
                 const year = parts[2].length === 2 ? `20${parts[2]}` : parts[2];
                 return dateToTimestamp(`${year}-${parts[1]}-${parts[0]}`);
             }
         }
-        // Tenta usar o formato YYYY-MM-DD ou o nativo
         return dateToTimestamp(dateStr);
     };
 
 
     // Processa cada linha
     lines.forEach((line, index) => {
-        // Usa regex para garantir que TABs sejam o único separador, removendo espaços indesejados
         const parts = line.split('\t').map(p => p.trim());
         
-        // CORREÇÃO: O primeiro campo é a data, precisa ser parseada corretamente
         const rawDate = parts[0];
         const data = parseDateToTimestamp(rawDate);
         
@@ -691,33 +873,32 @@ export async function handleSocialImportSubmit() {
         try {
             if (itemType === 'Cesta Básica') {
                 // Formato esperado (9 colunas):
-                // 0: Data | 1: Destinatário | 2: Qtd. | 3: Unidade | 4: Categoria | 5: Observações/Memo | 6: Custo/NF | 7: Status | 8: Responsável
-                // O exemplo do usuário mostra 9 colunas, mas a ordem é diferente ou há dados extras/faltantes.
-                // Usaremos a ordem mais comum e adaptamos o custo/status:
-
+                // 0: Data | 1: Destinatário | 2: Qtd. | 3: Unidade | 4: Categoria | 5: Observações | 6: Custo | 7: Responsável | 8: Fornecedor
+                // NOTA: Ajustei a interpretação das colunas para bater com o formato mais lógico e o HTML.
+                
                 const destinatario = capitalizeString(parts[1] || '');
                 const quantidade = parseInt(parts[2], 10);
                 const unidade = parts[3] || 'cesta';
                 const categoria = parts[4] || 'alimentacao';
                 const observacoes = parts[5] || 'Importação em lote';
                 
-                // Custo pode estar na coluna 6 ou 7. O exemplo do usuário tem 'R$ 113,31' na 7a (índice 6)
-                const custo = sanitizeNumber(parts[6] || parts[7]);
+                // Custo (índice 6)
+                const custo = sanitizeNumber(parts[6]);
                 
-                // Status pode estar na coluna 7 ou 8. O exemplo do usuário tem 'Entregue' na 8a (índice 7)
-                const status = parts[7] || 'Entregue';
+                // Responsável (índice 7)
+                const responsavel = capitalizeString(parts[7] || 'Importação');
+
+                // Fornecedor (índice 8) - Usado aqui como dado extra, mas não obrigatório na saída
+                const fornecedor = parts[8] || 'N/A';
                 
-                // Responsável na coluna 8 ou 9
-                const responsavel = capitalizeString(parts[8] || parts[9] || 'Importação');
-                
-                // Fornecedor é ignorado na importação de SAÍDA
+                const status = 'Entregue'; // Assumindo entregue na importação de saída
 
                 if (!destinatario) throw new Error("Destinatário ausente.");
                 if (isNaN(quantidade) || quantidade <= 0) throw new Error("Quantidade inválida.");
 
                 batch.set(doc(collectionRef), {
                     data, tipo: 'saida', destinatario, quantidade, unidade, categoria,
-                    observacoes: observacoes, custo, responsavel, fornecedor: 'N/A', // Fornecedor fica N/A
+                    observacoes: observacoes, custo, responsavel, fornecedor,
                     status: status, registradoEm: timestamp
                 });
             } else if (itemType === 'Enxoval') {
@@ -730,13 +911,15 @@ export async function handleSocialImportSubmit() {
                 const memo = parts[4] || 'N/A';
                 const categoria = parts[5] || 'maternidade';
                 const responsavel = capitalizeString(parts[6] || 'Importação');
+                
+                const status = 'Entregue'; // Assumindo entregue na importação de saída
 
                 if (!destinatario) throw new Error("Destinatário ausente.");
                 if (isNaN(quantidade) || quantidade <= 0) throw new Error("Quantidade inválida.");
 
                 batch.set(doc(collectionRef), {
                     data, tipo: 'saida', destinatario, quantidade, categoria, observacoes,
-                    memo, responsavel, status: 'Entregue', registradoEm: timestamp
+                    memo, responsavel, status: status, registradoEm: timestamp
                 });
             }
             successfullyParsedCount++;
@@ -790,7 +973,9 @@ export function initSocialListeners() {
         if (btn) switchInternalSubView('cesta', btn.dataset.subview.replace('cesta-', ''));
     });
     DOM_ELEMENTS.formCestaLancamento?.addEventListener('submit', handleCestaLancamentoSubmit);
-    DOM_ELEMENTS.formCestaEntrada?.addEventListener('submit', handleCestaEstoqueEntrySubmit); // NOVO
+    DOM_ELEMENTS.formCestaEntrada?.addEventListener('submit', handleCestaEstoqueEntrySubmit); 
+    // NOVO: Listener para gerar relatório
+    document.getElementById('btn-cesta-gerar-relatorio')?.addEventListener('click', () => handleGerarSocialRelatorio('cesta'));
 
 
     // Listeners para sub-abas de Enxoval
@@ -799,7 +984,9 @@ export function initSocialListeners() {
         if (btn) switchInternalSubView('enxoval', btn.dataset.subview.replace('enxoval-', ''));
     });
     DOM_ELEMENTS.formEnxovalLancamento?.addEventListener('submit', handleEnxovalLancamentoSubmit);
-    DOM_ELEMENTS.formEnxovalEntrada?.addEventListener('submit', handleEnxovalEstoqueEntrySubmit); // NOVO
+    DOM_ELEMENTS.formEnxovalEntrada?.addEventListener('submit', handleEnxovalEstoqueEntrySubmit); 
+    // NOVO: Listener para gerar relatório
+    document.getElementById('btn-enxoval-gerar-relatorio')?.addEventListener('click', () => handleGerarSocialRelatorio('enxoval'));
     
     // Listener de Importação
     DOM_ELEMENTS.btnSocialImportData?.addEventListener('click', handleSocialImportSubmit);
@@ -826,4 +1013,10 @@ export function onSocialTabChange() {
     renderEnxovalEstoqueSummary(); 
     renderCestaMovimentacoesHistoryTable(); 
     renderEnxovalMovimentacoesHistoryTable(); 
+    
+    // Limpa os gráficos ao mudar de aba principal
+    if (graficoCestaRelatorio) { graficoCestaRelatorio.destroy(); graficoCestaRelatorio = null; }
+    if (graficoEnxovalRelatorio) { graficoEnxovalRelatorio.destroy(); graficoEnxovalRelatorio = null; }
+}
+
 }
