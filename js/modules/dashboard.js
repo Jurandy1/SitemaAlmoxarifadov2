@@ -388,7 +388,7 @@ export function renderDashboardMateriaisProntos(filterStatus = null) {
                     } else if (m.status === 'separacao') {
                         spanClass += ' separando'; 
                         spanText = '⏳ Separando...';
-                        // NOVO: Adiciona o nome do separador
+                        // NOVO: Adiciona o nome do separador APENAS no status 'separacao'
                         if (m.responsavelSeparador) {
                             separadorInfo = `<p class="text-xs text-yellow-700 mt-1 font-semibold">Separador: ${m.responsavelSeparador}</p>`;
                         }
@@ -403,7 +403,7 @@ export function renderDashboardMateriaisProntos(filterStatus = null) {
                     li.innerHTML = `
                         <strong class="text-sm text-gray-800">${m.unidadeNome}</strong>
                         <p class="text-xs text-gray-500 capitalize">(${tiposMateriais})</p>
-                        ${separadorInfo} // NOVO: Inclui a informação do separador
+                        ${separadorInfo}
                         <div><span class="${spanClass}">${spanText}</span></div>
                     `;
                     ulDestino.appendChild(li);
