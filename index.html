@@ -1637,7 +1637,7 @@
                                 <i data-lucide="box"></i> Controle de Estoque (Entrada)
                             </button>
                             <button class="sub-nav-btn" data-subview="cesta-relatorio">
-                                <i data-lucide="file-text"></i> Histórico de Saídas
+                                <i data-lucide="file-text"></i> Relatórios e Histórico
                             </button>
                         </div>
 
@@ -1663,6 +1663,9 @@
                                          <option value="emergencial">Emergencial</option>
                                          <option value="doacao">Doação</option>
                                          <option value="kit_higiene">Kit Higiene</option>
+                                         <!-- CORREÇÃO 3: NOVAS OPÇÕES DE CATEGORIA -->
+                                         <option value="perecivel">Perecível</option>
+                                         <option value="nao_perecivel">Não Perecível</option>
                                      </select>
                                 </div>
                                 
@@ -1728,7 +1731,10 @@
                                  <h4 class="text-lg font-semibold mb-3 border-b pb-2">Histórico de Entradas de Estoque</h4>
                                  <div class="overflow-x-auto border border-gray-200 rounded-lg max-h-96">
                                      <table class="table w-full text-sm">
-                                         <thead class="bg-gray-50"><tr><th>Qtd.</th><th>Custo Unit.</th><th>Data Movimentação</th><th>Nota Fiscal</th><th>Responsável</th><th class="text-center">Ação</th></tr></thead>
+                                         <thead class="bg-gray-50">
+                                            <!-- CORREÇÃO 2: CABEÇALHO "CUSTO UNIT." -->
+                                            <tr><th>Qtd.</th><th>Custo Unit.</th><th>Data Movimentação</th><th>Nota Fiscal</th><th>Responsável</th><th class="text-center">Ação</th></tr>
+                                         </thead>
                                          <tbody id="table-cesta-estoque-history"><tr><td colspan="6" class="text-center py-10"><div class="loading-spinner-small mx-auto"></div></td></tr></tbody>
                                      </table>
                                  </div>
@@ -1764,6 +1770,9 @@
                                                  <option value="emergencial">Emergencial</option>
                                                  <option value="doacao">Doação</option>
                                                  <option value="kit_higiene">Kit Higiene</option>
+                                                 <!-- CORREÇÃO 3: NOVAS OPÇÕES DE CATEGORIA NO FILTRO -->
+                                                 <option value="perecivel">Perecível</option>
+                                                 <option value="nao_perecivel">Não Perecível</option>
                                              </select>
                                          </div>
                                          <div class="col-span-1 flex items-end justify-end">
@@ -1776,23 +1785,16 @@
                                  
                                  <!-- Resultados do Relatório (Resumo Textual e Gráfico) -->
                                  <div id="cesta-relatorio-output" class="hidden space-y-6">
-                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                                        <!-- Resumo Texto (Total Saídas) -->
-                                        <div class="text-center">
-                                            <span class="text-sm text-gray-700">Total de Saídas no Período</span>
-                                            <strong id="cesta-rel-total-saidas" class="text-3xl font-extrabold text-red-600 block">0</strong>
-                                        </div>
-                                        <!-- Resumo Texto (Mais Comum) -->
-                                        <div class="text-center">
-                                            <span class="text-sm text-gray-700">Categoria Mais Comum</span>
-                                            <strong id="cesta-rel-categoria-principal" class="text-xl font-extrabold text-blue-600 block pt-1">N/A</strong>
-                                        </div>
-                                        <!-- Resumo Texto (Dias Cobertos) -->
-                                        <div class="text-center">
-                                            <span class="text-sm text-gray-700">Registros em</span>
-                                            <strong id="cesta-rel-dias-cobertos" class="text-xl font-extrabold text-green-600 block pt-1">0 dias</strong>
-                                        </div>
-                                    </div>
+                                    <!-- CORREÇÃO 1: Adicionado Resumo Textual Detalhado (Total, Média, Categoria Principal) -->
+                                    <div id="cesta-rel-detalhes-texto" class="lg:col-span-2 bg-blue-50 rounded-xl border border-blue-200 shadow-sm p-6">
+                                         <h4 class="font-semibold text-blue-800 mb-3 text-lg flex items-center gap-2">
+                                             <i data-lucide="clipboard-list" class="w-5 h-5 text-blue-600"></i>
+                                             Análise de Saídas no Período
+                                         </h4>
+                                         <div id="cesta-relatorio-resumo-texto" class="text-sm text-gray-700 space-y-3">
+                                            <!-- JS preenche aqui -->
+                                         </div>
+                                     </div>
                                     
                                     <div class="bg-white rounded-xl border border-gray-200 shadow-lg p-6">
                                         <h4 class="font-semibold text-gray-700 mb-3 text-lg">
@@ -1841,7 +1843,7 @@
                                 <i data-lucide="box"></i> Controle de Estoque (Entrada)
                             </button>
                             <button class="sub-nav-btn" data-subview="enxoval-relatorio">
-                                <i data-lucide="file-text"></i> Histórico de Saídas
+                                <i data-lucide="file-text"></i> Relatórios e Histórico
                             </button>
                         </div>
 
@@ -1955,23 +1957,16 @@
                                  
                                  <!-- Resultados do Relatório (Resumo Textual e Gráfico) -->
                                  <div id="enxoval-relatorio-output" class="hidden space-y-6">
-                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                                        <!-- Resumo Texto (Total Saídas) -->
-                                        <div class="text-center">
-                                            <span class="text-sm text-gray-700">Total de Saídas no Período</span>
-                                            <strong id="enxoval-rel-total-saidas" class="text-3xl font-extrabold text-red-600 block">0</strong>
-                                        </div>
-                                        <!-- Resumo Texto (Mais Comum) -->
-                                        <div class="text-center">
-                                            <span class="text-sm text-gray-700">Categoria Mais Comum</span>
-                                            <strong id="enxoval-rel-categoria-principal" class="text-xl font-extrabold text-blue-600 block pt-1">N/A</strong>
-                                        </div>
-                                        <!-- Resumo Texto (Dias Cobertos) -->
-                                        <div class="text-center">
-                                            <span class="text-sm text-gray-700">Registros em</span>
-                                            <strong id="enxoval-rel-dias-cobertos" class="text-xl font-extrabold text-green-600 block pt-1">0 dias</strong>
-                                        </div>
-                                    </div>
+                                    <!-- CORREÇÃO 1: Adicionado Resumo Textual Detalhado (Total, Média, Categoria Principal) -->
+                                     <div id="enxoval-rel-detalhes-texto" class="lg:col-span-2 bg-blue-50 rounded-xl border border-blue-200 shadow-sm p-6">
+                                         <h4 class="font-semibold text-blue-800 mb-3 text-lg flex items-center gap-2">
+                                             <i data-lucide="clipboard-list" class="w-5 h-5 text-blue-600"></i>
+                                             Análise de Saídas no Período
+                                         </h4>
+                                         <div id="enxoval-relatorio-resumo-texto" class="text-sm text-gray-700 space-y-3">
+                                            <!-- JS preenche aqui -->
+                                         </div>
+                                     </div>
                                     
                                     <div class="bg-white rounded-xl border border-gray-200 shadow-lg p-6">
                                         <h4 class="font-semibold text-gray-700 mb-3 text-lg">
