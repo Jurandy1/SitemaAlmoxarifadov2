@@ -267,6 +267,14 @@ function findDOMElements() {
         ['#alert-cesta-estoque', 'alertCestaEstoque'],
         ['#table-cesta-estoque-history', 'tableCestaEstoqueHistory'],
         ['#table-cesta-historico', 'tableCestaHistorico'], // Histórico de Movimentações (Saída)
+        // NOVOS ELEMENTOS CESTA - RELATÓRIO (CORREÇÃO 1)
+        ['#cesta-relatorio-output', 'cestaRelatorioOutput'],
+        ['#btn-cesta-gerar-relatorio', 'btnCestaGerarRelatorio'],
+        ['#cesta-rel-data-inicio', 'cestaRelDataInicio'],
+        ['#cesta-rel-data-fim', 'cestaRelDataFim'],
+        ['#cesta-rel-categoria', 'cestaRelCategoria'],
+        ['#cesta-relatorio-resumo-texto', 'cestaRelatorioResumoTexto'],
+
 
         // ENXOVAL
         ['#sub-nav-enxoval', 'subNavEnxoval'],
@@ -292,6 +300,14 @@ function findDOMElements() {
         ['#alert-enxoval-estoque', 'alertEnxovalEstoque'],
         ['#table-enxoval-estoque-history', 'tableEnxovalEstoqueHistory'],
         ['#table-enxoval-historico', 'tableEnxovalHistorico'], // Histórico de Movimentações (Saída)
+        // NOVOS ELEMENTOS ENXOVAL - RELATÓRIO (CORREÇÃO 1)
+        ['#enxoval-relatorio-output', 'enxovalRelatorioOutput'],
+        ['#btn-enxoval-gerar-relatorio', 'btnEnxovalGerarRelatorio'],
+        ['#enxoval-rel-data-inicio', 'enxovalRelDataInicio'],
+        ['#enxoval-rel-data-fim', 'enxovalRelDataFim'],
+        ['#enxoval-rel-categoria', 'enxovalRelCategoria'],
+        ['#enxoval-relatorio-resumo-texto', 'enxovalRelatorioResumoTexto'],
+
 
         // IMPORTAÇÃO
         ['#textarea-social-import', 'textareaSocialImport'],
@@ -688,3 +704,5 @@ export {
     openConfirmDeleteModal,
     renderPermissionsUI
 };
+
+}
