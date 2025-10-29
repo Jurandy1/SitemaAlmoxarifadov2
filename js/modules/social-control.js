@@ -744,21 +744,22 @@ function renderRelatorioTextual(itemType, movsFiltradas, categoriasMap, totalSai
     const mesesOrdenados = Array.from(mesesMap.keys()).sort();
     
     // 4. Montagem do Relatório Textual (Robusto)
+    // CORREÇÃO: Substituindo ** por <strong> para evitar que o markdown puro apareça na tela.
     let relatorioText = `
-        <p>Este relatório analisa a distribuição de **${itemLabelPlural}** no período de **${formatTimestamp(dataInicial)}** a **${formatTimestamp(dataFinal)}**, cobrindo um total de **${totalDias.toFixed(0)} dias** de operações de saída.</p>
+        <p>Este relatório analisa a distribuição de <strong>${itemLabelPlural}</strong> no período de <strong>${formatTimestamp(dataInicial)}</strong> a <strong>${formatTimestamp(dataFinal)}</strong>, cobrindo um total de <strong>${totalDias.toFixed(0)} dias</strong> de operações de saída.</p>
         
         <p class="font-bold pt-3">Indicadores Chave:</p>
         <ul class="list-disc list-inside space-y-1 ml-4">
-            <li>O **Total de Saídas** no período foi de **${totalSaidas} unidades** de ${itemLabelPlural}.</li>
-            <li>A média de saídas é de **${(totalSaidas / totalDias).toFixed(2)} ${itemLabel}s por dia**.</li>
-            ${totalMeses > 1 ? `<li>A média mensal de saídas é de aproximadamente **${mediaMensal.toFixed(1)} unidades** (calculado em ${totalMeses} meses).</li>` : ''}
-            ${categoriaPrincipal ? `<li>A **Categoria Principal** de distribuição foi **${categoriaPrincipal.nome}**, representando **${categoriaPrincipal.total} unidades** (${categoriaPrincipal.percentual.toFixed(1)}% do total).</li>` : ''}
+            <li>O <strong>Total de Saídas</strong> no período foi de <strong>${totalSaidas} unidades</strong> de ${itemLabelPlural}.</li>
+            <li>A média de saídas é de <strong>${(totalSaidas / totalDias).toFixed(2)} ${itemLabel}s por dia</strong>.</li>
+            ${totalMeses > 1 ? `<li>A média mensal de saídas é de aproximadamente <strong>${mediaMensal.toFixed(1)} unidades</strong> (calculado em ${totalMeses} meses).</li>` : ''}
+            ${categoriaPrincipal ? `<li>A <strong>Categoria Principal</strong> de distribuição foi <strong>${categoriaPrincipal.nome}</strong>, representando <strong>${categoriaPrincipal.total} unidades</strong> (${categoriaPrincipal.percentual.toFixed(1)}% do total).</li>` : ''}
         </ul>
         
         <p class="font-bold pt-3">Distribuição Detalhada por Categoria:</p>
         <div class="p-3 bg-white border border-gray-200 rounded-lg">${distribuicaoHtml}</div>
         
-        <p class="text-xs text-gray-500 pt-3 italic">**Sugestão:** Focar a próxima compra ou reposição de estoque na categoria **${categoriaPrincipal?.nome || 'N/A'}**, considerando a média de consumo diário/mensal para evitar rupturas de estoque.</p>
+        <p class="text-xs text-gray-500 pt-3 italic"><strong>Sugestão:</strong> Focar a próxima compra ou reposição de estoque na categoria <strong>${categoriaPrincipal?.nome || 'N/A'}</strong>, considerando a média de consumo diário/mensal para evitar rupturas de estoque.</p>
     `;
 
     relatorioEl.innerHTML = relatorioText;
@@ -824,7 +825,6 @@ async function handleGerarSocialRelatorio(itemType) {
         labels: chartLabels,
         datasets: [{
             label: itemType === 'cesta' ? 'Qtd. Cestas' : 'Qtd. Enxovais',
-            data: chartData,
             backgroundColor: 'rgba(236, 72, 153, 0.7)', // Pink-500
             borderColor: 'rgba(236, 72, 153, 1)',
             borderWidth: 1
@@ -836,7 +836,7 @@ async function handleGerarSocialRelatorio(itemType) {
     renderRelatorioTextual(itemType, movsFiltradas, categoriasMap, totalSaidas);
     
     // Geração do Título
-    const tituloRelatorio = `Distribuição de Saídas por Categoria (${formatTimestamp(Timestamp.fromMillis(dataInicioStr))} - ${formatTimestamp(Timestamp.fromMillis(dataFim))})`;
+    const tituloRelatorio = `Distribuição de Saídas por Categoria (${formatTimestamp(Timestamp.fromMillis(dataInicio))} - ${formatTimestamp(Timestamp.fromMillis(dataFim))})`;
     renderRelatorioChart(itemType, dataset, tituloRelatorio);
     
     relatorioOutputEl.classList.remove('hidden');
