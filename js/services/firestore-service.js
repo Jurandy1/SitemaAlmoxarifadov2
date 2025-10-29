@@ -35,8 +35,12 @@ function initializeFirebaseServices() {
         materiais: collection(db, `${basePath}/controleMateriais`),
         estoqueAgua: collection(db, `${basePath}/estoqueAgua`),
         estoqueGas: collection(db, `${basePath}/estoqueGas`),
-        // NOVO: Coleção para armazenar os roles dos usuários
         userRoles: collection(db, `${basePath}/userRoles`),
+        // NOVAS COLEÇÕES PARA ASSISTÊNCIA SOCIAL
+        cestaMov: collection(db, `${basePath}/socialCestaMov`),
+        cestaEstoque: collection(db, `${basePath}/socialCestaEstoque`),
+        enxovalMov: collection(db, `${basePath}/socialEnxovalMov`),
+        enxovalEstoque: collection(db, `${basePath}/socialEnxovalEstoque`),
     };
 }
 
