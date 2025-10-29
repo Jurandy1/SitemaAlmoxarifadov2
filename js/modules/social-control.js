@@ -126,10 +126,12 @@ function switchInternalSubView(itemType, subViewName) {
         // Preenche as datas do filtro de relatório com os últimos 30 dias
         const dataFimEl = document.getElementById(`${itemType}-rel-data-fim`);
         const dataInicioEl = document.getElementById(`${itemType}-rel-data-inicio`);
-        dataFimEl.value = getTodayDateString();
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        dataInicioEl.value = thirtyDaysAgo.toISOString().split('T')[0];
+        if (dataFimEl) dataFimEl.value = getTodayDateString();
+        if (dataInicioEl) {
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            dataInicioEl.value = thirtyDaysAgo.toISOString().split('T')[0];
+        }
     }
 }
 
@@ -768,9 +770,14 @@ async function handleGerarSocialRelatorio(itemType) {
     };
     
     // 5. Renderizar
-    document.getElementById(`${itemType}-rel-total-saidas`).textContent = totalSaidas;
-    document.getElementById(`${itemType}-rel-categoria-principal`).textContent = capitalizeString(categoriaPrincipal);
-    document.getElementById(`${itemType}-rel-dias-cobertos`).textContent = `${totalDias.toFixed(0)} dias`;
+    const totalSaidasEl = document.getElementById(`${itemType}-rel-total-saidas`);
+    if (totalSaidasEl) totalSaidasEl.textContent = totalSaidas;
+
+    const categoriaPrincipalEl = document.getElementById(`${itemType}-rel-categoria-principal`);
+    if (categoriaPrincipalEl) categoriaPrincipalEl.textContent = capitalizeString(categoriaPrincipal);
+    
+    const diasCobertosEl = document.getElementById(`${itemType}-rel-dias-cobertos`);
+    if (diasCobertosEl) diasCobertosEl.textContent = `${totalDias.toFixed(0)} dias`;
     
     renderRelatorioChart(itemType, dataset, `Saídas de ${itemType === 'cesta' ? 'Cestas Básicas' : 'Enxovais'} (${formatTimestamp(Timestamp.fromMillis(dataInicio))} - ${formatTimestamp(Timestamp.fromMillis(dataFim))})`);
     
@@ -1017,6 +1024,4 @@ export function onSocialTabChange() {
     // Limpa os gráficos ao mudar de aba principal
     if (graficoCestaRelatorio) { graficoCestaRelatorio.destroy(); graficoCestaRelatorio = null; }
     if (graficoEnxovalRelatorio) { graficoEnxovalRelatorio.destroy(); graficoEnxovalRelatorio = null; }
-}
-
 }
