@@ -1,10 +1,3 @@
-Com base na sua solicitação de exibir o nome do "Separador" para itens no status "Em Separação" no dashboard, ajustarei a função `renderDashboardMateriaisProntos` no arquivo `js/modules/dashboard.js`.
-
-A modificação incluirá o nome do responsável pela separação abaixo do nome do material, apenas quando o status for `'separacao'`.
-
-Arquivo a ser modificado: `js/modules/dashboard.js`
-
-```javascript
 // js/modules/dashboard.js
 import { getAguaMovimentacoes, getGasMovimentacoes, getEstoqueAgua, getEstoqueGas, getMateriais, isEstoqueInicialDefinido, getCurrentDashboardMaterialFilter, setCurrentDashboardMaterialFilter, initialMaterialFilter } from "../utils/cache.js";
 // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
@@ -508,4 +501,3 @@ export function initDashboardListeners() {
     if (cardSeparacao) cardSeparacao.addEventListener('click', () => filterDashboardMateriais('separacao')); 
     if (cardRetirada) cardRetirada.addEventListener('click', () => filterDashboardMateriais('retirada'));
 }
-```
