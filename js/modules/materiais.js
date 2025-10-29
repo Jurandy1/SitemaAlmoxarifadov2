@@ -102,6 +102,10 @@ export async function handleMateriaisSubmit(e) {
         DOM_ELEMENTS.formMateriais.reset(); 
         // Resetar data para hoje
         DOM_ELEMENTS.inputDataSeparacao.value = getTodayDateString(); 
+        
+        // CORREÇÃO 2.2: Chamar renderização local após sucesso para atualizar imediatamente a UI
+        renderMateriaisStatus();
+
     } catch (error) { 
         console.error("Erro salvar requisição:", error);
         showAlert('alert-materiais', `Erro: ${error.message}`, 'error');
@@ -206,7 +210,8 @@ function renderMaterialSubTable(tableBody, data, status) {
                 ? `<button class="btn-icon btn-retirada text-teal-600 hover:text-teal-800" data-id="${m.id}" title="Marcar como pronto para entrega"><i data-lucide="package-check"></i></button>`
                 : `<span class="btn-icon text-gray-400" title="Apenas Admin/Editor pode marcar como pronto"><i data-lucide="slash"></i></span>`;
 
-            acoesHtml = downloadBtn + prontaRetiradaBtn;
+            // CORREÇÃO 1: Removendo o downloadBtn daqui, pois o download é automático ao iniciar a separação.
+            acoesHtml = prontaRetiradaBtn;
                 
             rowContent = `<td>${m.unidadeNome}</td>` +
                 `<td class="capitalize">${m.tipoMaterial}</td>` +
@@ -290,6 +295,10 @@ async function handleMarcarRetirada(e) {
             dataRetirada: serverTimestamp() 
         });
         showAlert('alert-em-separacao', 'Material marcado como Pronto para Entrega!', 'success', 3000);
+        
+        // CORREÇÃO 2.2: Chamar renderização local após sucesso
+        renderMateriaisStatus();
+        
     } catch (error) { 
         console.error("Erro marcar p/ retirada:", error); 
         showAlert('alert-em-separacao', `Erro: ${error.message}`, 'error'); 
@@ -384,6 +393,9 @@ export async function handleFinalizarEntregaSubmit() {
              });
              console.log(`Referências do arquivo removidas do Firestore para ${materialId}`);
         }
+        
+        // CORREÇÃO 2.2: Chamar renderização local após sucesso
+        renderMateriaisStatus();
 
     } catch (error) { 
         console.error("Erro finalizar entrega:", error); 
@@ -458,6 +470,9 @@ export async function handleSalvarSeparador() {
         // Mostra o alerta na view "Para Separar"
         showAlert('alert-para-separar', 'Nome salvo! O status foi atualizado para "Em Separação".', 'success', 3000); 
         DOM_ELEMENTS.separadorModal.style.display = 'none'; // Fecha o modal imediatamente
+        
+        // CORREÇÃO 2.2: Chamar renderização local após sucesso
+        renderMateriaisStatus();
 
         // Tenta baixar o arquivo automaticamente, se existir
         const material = getMateriais().find(m => m.id === materialId);
@@ -614,7 +629,12 @@ export function initMateriaisListeners() {
  */
 export function onMateriaisTabChange() {
     // Define a subview inicial ao carregar a aba
-    switchSubTabView('materiais', 'lancar-materiais'); 
+    // MELHORIA: Ao entrar na aba, se não houver subview ativa, define o default
+    const activeSubView = document.querySelector('#sub-nav-materiais .sub-nav-btn.active')?.dataset.subview;
+    if (!activeSubView) {
+        switchSubTabView('materiais', 'lancar-materiais'); 
+    }
+    
     renderMateriaisStatus(); 
     // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (DOM_ELEMENTS.inputDataSeparacao) DOM_ELEMENTS.inputDataSeparacao.value = getTodayDateString();
