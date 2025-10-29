@@ -13,11 +13,6 @@ import {
     openConfirmDeleteModal 
 } from "../utils/dom-helpers.js";
 
-// NOTA DE CORREÇÃO:
-// 'showAlert' foi removido da importação acima, pois não está definido em dom-helpers.js.
-// Caso o app.js precise dessa função, importe-a diretamente do módulo correto ou
-// defina-a no próprio app.js.
-
 import { onAguaTabChange, initAguaListeners } from "../modules/agua-control.js";
 import { onGasTabChange, initGasListeners } from "../modules/gas-control.js";
 import { onMateriaisTabChange, initMateriaisListeners } from "../modules/materiais.js";
@@ -45,6 +40,13 @@ let __gasMovimentacoes = [];
 let __materiais = [];
 let __estoqueAgua = [];
 let __estoqueGas = [];
+// NOVAS VARIÁVEIS PARA ASSISTÊNCIA SOCIAL
+let __cestaMovimentacoes = [];
+let __cestaEstoque = [];
+let __enxovalMovimentacoes = [];
+let __enxovalEstoque = [];
+// FIM NOVAS VARIÁVEIS
+
 let __estoqueInicialDefinido = { agua: false, gas: false };
 let __currentStatusFilter = { agua: 'all', gas: 'all' };
 let __dashboardMaterialFilter = null; // 'separacao', 'retirada' ou null
@@ -64,11 +66,7 @@ let __userRole = 'unauthenticated'; // 'anon', 'editor', 'admin', 'unauthenticat
 
 // Essas variáveis são usadas nos gráficos e cálculos de previsão
 let modoPrevisao = { agua: null, gas: null };
-
-// VARIÁVEL CORRIGIDA: Removida a exportação direta e definida como let, para ser exportada no bloco final.
 let listaExclusoes = { agua: [], gas: [] };
-
-// VARIÁVEL CORRIGIDA: Incluída para ser exportada no bloco final.
 let graficoPrevisao = { agua: null, gas: null };
 
 
@@ -82,6 +80,13 @@ function getGasMovimentacoes() { return __gasMovimentacoes; }
 function getMateriais() { return __materiais; }
 function getEstoqueAgua() { return __estoqueAgua; }
 function getEstoqueGas() { return __estoqueGas; }
+// NOVOS GETTERS
+function getCestaMovimentacoes() { return __cestaMovimentacoes; }
+function getCestaEstoque() { return __cestaEstoque; }
+function getEnxovalMovimentacoes() { return __enxovalMovimentacoes; }
+function getEnxovalEstoque() { return __enxovalEstoque; }
+// FIM NOVOS GETTERS
+
 function isEstoqueInicialDefinido(tipo) { return __estoqueInicialDefinido[tipo]; }
 function getCurrentStatusFilter(tipo) { return __currentStatusFilter[tipo]; }
 function getCurrentDashboardMaterialFilter() { return __dashboardMaterialFilter; }
@@ -102,6 +107,13 @@ function setGasMovimentacoes(data) { __gasMovimentacoes = data; }
 function setMateriais(data) { __materiais = data; }
 function setEstoqueAgua(data) { __estoqueAgua = data; }
 function setEstoqueGas(data) { __estoqueGas = data; }
+// NOVOS SETTERS
+function setCestaMovimentacoes(data) { __cestaMovimentacoes = data; }
+function setCestaEstoque(data) { __cestaEstoque = data; }
+function setEnxovalMovimentacoes(data) { __enxovalMovimentacoes = data; }
+function setEnxovalEstoque(data) { __enxovalEstoque = data; }
+// FIM NOVOS SETTERS
+
 function setEstoqueInicialDefinido(tipo, isDefined) { __estoqueInicialDefinido[tipo] = isDefined; }
 function setCurrentStatusFilter(tipo, filter) { __currentStatusFilter[tipo] = filter; }
 function setCurrentDashboardMaterialFilter(filter) { __dashboardMaterialFilter = filter; }
@@ -134,6 +146,13 @@ export {
     getMateriais, setMateriais,
     getEstoqueAgua, setEstoqueAgua,
     getEstoqueGas, setEstoqueGas,
+    // Novos Getters/Setters Social
+    getCestaMovimentacoes, setCestaMovimentacoes,
+    getCestaEstoque, setCestaEstoque,
+    getEnxovalMovimentacoes, setEnxovalMovimentacoes,
+    getEnxovalEstoque, setEnxovalEstoque,
+    // Fim Novos Getters/Setters Social
+
     isEstoqueInicialDefinido, setEstoqueInicialDefinido,
     getCurrentStatusFilter, setCurrentStatusFilter,
     getCurrentDashboardMaterialFilter, setCurrentDashboardMaterialFilter,
