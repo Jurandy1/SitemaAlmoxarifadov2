@@ -1,3 +1,10 @@
+Com base na sua solicitação de exibir o nome do "Separador" para itens no status "Em Separação" no dashboard, ajustarei a função `renderDashboardMateriaisProntos` no arquivo `js/modules/dashboard.js`.
+
+A modificação incluirá o nome do responsável pela separação abaixo do nome do material, apenas quando o status for `'separacao'`.
+
+Arquivo a ser modificado: `js/modules/dashboard.js`
+
+```javascript
 // js/modules/dashboard.js
 import { getAguaMovimentacoes, getGasMovimentacoes, getEstoqueAgua, getEstoqueGas, getMateriais, isEstoqueInicialDefinido, getCurrentDashboardMaterialFilter, setCurrentDashboardMaterialFilter, initialMaterialFilter } from "../utils/cache.js";
 // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
@@ -379,6 +386,7 @@ export function renderDashboardMateriaisProntos(filterStatus = null) {
                     let liClass = '';
                     let spanClass = 'status-indicator';
                     let spanText = '';
+                    let separadorInfo = ''; // NOVO: Variável para a informação do separador
 
                     if (m.status === 'requisitado') {
                         liClass = 'item-requisitado';
@@ -387,6 +395,10 @@ export function renderDashboardMateriaisProntos(filterStatus = null) {
                     } else if (m.status === 'separacao') {
                         spanClass += ' separando'; 
                         spanText = '⏳ Separando...';
+                        // NOVO: Adiciona o nome do separador
+                        if (m.responsavelSeparador) {
+                            separadorInfo = `<p class="text-xs text-yellow-700 mt-1 font-semibold">Separador: ${m.responsavelSeparador}</p>`;
+                        }
                     } else if (m.status === 'retirada') {
                         liClass = 'item-retirada';
                         spanClass += ' pronto'; 
@@ -398,6 +410,7 @@ export function renderDashboardMateriaisProntos(filterStatus = null) {
                     li.innerHTML = `
                         <strong class="text-sm text-gray-800">${m.unidadeNome}</strong>
                         <p class="text-xs text-gray-500 capitalize">(${tiposMateriais})</p>
+                        ${separadorInfo} // NOVO: Inclui a informação do separador
                         <div><span class="${spanClass}">${spanText}</span></div>
                     `;
                     ulDestino.appendChild(li);
@@ -495,3 +508,4 @@ export function initDashboardListeners() {
     if (cardSeparacao) cardSeparacao.addEventListener('click', () => filterDashboardMateriais('separacao')); 
     if (cardRetirada) cardRetirada.addEventListener('click', () => filterDashboardMateriais('retirada'));
 }
+```
