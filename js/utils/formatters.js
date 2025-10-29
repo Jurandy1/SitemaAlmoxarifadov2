@@ -14,15 +14,38 @@ function getTodayDateString() {
 }
 
 /**
- * Converte uma string de data (YYYY-MM-DD) para um Timestamp do Firestore.
- * @param {string} dateString Data no formato YYYY-MM-DD.
+ * Converte uma string de data (YYYY-MM-DD ou DD/MM/YYYY) para um Timestamp do Firestore.
+ * @param {string} dateString Data no formato YYYY-MM-DD (ideal) ou DD/MM/YYYY.
  * @returns {Timestamp | null} Timestamp do Firestore.
  */
 function dateToTimestamp(dateString) {
      if (!dateString) return null;
     try {
-        const date = new Date(dateString + 'T00:00:00'); 
-        if (isNaN(date.getTime())) return null; 
+        let date;
+        // Tenta converter DD/MM/YYYY para YYYY-MM-DD se o formato for com barras
+        if (dateString.includes('/') && dateString.split('/').length === 3) {
+            const parts = dateString.split('/');
+            // Assume DD/MM/YYYY
+            const day = parts[0].padStart(2, '0');
+            const month = parts[1].padStart(2, '0');
+            let year = parts[2];
+            // Trata anos de 2 dígitos (ex: 25 -> 2025)
+            if (year.length === 2) year = `20${year}`;
+            
+            // Cria a data no formato YYYY-MM-DD e tenta parsear
+            const isoDateString = `${year}-${month}-${day}T00:00:00`;
+            date = new Date(isoDateString);
+        } else {
+             // Assume formato YYYY-MM-DD (ou tenta parsear nativamente)
+             date = new Date(dateString + 'T00:00:00');
+        }
+
+        if (isNaN(date.getTime())) {
+             // Tenta o parse nativo se a tentativa acima falhar (alguns navegadores são mais flexíveis)
+             date = new Date(dateString);
+             if (isNaN(date.getTime())) return null;
+        }
+
         return Timestamp.fromDate(date);
     } catch (e) { console.error("Erro ao converter data:", dateString, e); return null; }
 }
