@@ -172,6 +172,14 @@ function renderMaterialSubTable(tableBody, data, status) {
     data.forEach(m => {
         let acoesHtml = '';
         let rowContent = '';
+
+        // CORREÇÃO SOLICITADA: Adicionar o tipo da unidade antes do nome se for CT ou ABRIGO
+        let unidadeDisplay = m.unidadeNome;
+        if (m.tipoUnidade === 'CT' || m.tipoUnidade === 'ABRIGO') {
+            unidadeDisplay = `${m.tipoUnidade} ${m.unidadeNome}`;
+        }
+        // FIM CORREÇÃO SOLICITADA
+        
         // CORREÇÃO SOLICITADA 2: Usar formatTimestampComTempo para a data de registro/requisição
         const dataRequisicaoFormatada = formatTimestampComTempo(m.registradoEm || m.dataRequisicao); 
         const responsavelLancamento = m.responsavelLancamento || 'N/A';
@@ -198,7 +206,7 @@ function renderMaterialSubTable(tableBody, data, status) {
 
             acoesHtml = downloadBtn + startSeparacaoBtn + removeBtn;
             
-            rowContent = `<td>${m.unidadeNome}</td>` +
+            rowContent = `<td>${unidadeDisplay}</td>` +
                 `<td class="capitalize">${m.tipoMaterial}</td>` +
                 `<td class="whitespace-nowrap">${dataRequisicaoFormatada}</td>` + // Coluna Data Requisição com TEMPO (CORREÇÃO 2)
                 `<td>${responsavelLancamento}</td>` +
@@ -213,7 +221,7 @@ function renderMaterialSubTable(tableBody, data, status) {
             // CORREÇÃO 1: Removendo o downloadBtn daqui, pois o download é automático ao iniciar a separação.
             acoesHtml = prontaRetiradaBtn;
                 
-            rowContent = `<td>${m.unidadeNome}</td>` +
+            rowContent = `<td>${unidadeDisplay}</td>` +
                 `<td class="capitalize">${m.tipoMaterial}</td>` +
                 `<td>${separador}</td>` +
                 `<td class="text-xs">${dataInicioSeparacaoFormatada}</td>` +
@@ -228,7 +236,7 @@ function renderMaterialSubTable(tableBody, data, status) {
             
             acoesHtml = finalizarEntregaBtn;
             
-            rowContent = `<td>${m.unidadeNome}</td>` +
+            rowContent = `<td>${unidadeDisplay}</td>` +
                 `<td class="capitalize">${m.tipoMaterial}</td>` +
                 `<td>${separador}</td>` +
                 `<td>${dataRetiradaFormatada}</td>` + // Coluna Pronto Em
@@ -240,7 +248,7 @@ function renderMaterialSubTable(tableBody, data, status) {
             const respAlmox = m.responsavelEntrega || m.responsavelSeparador || 'N/A';
             const dataLancamentoFormatada = formatTimestampComTempo(m.registradoEm);
 
-            rowContent = `<td>${m.unidadeNome}</td>` +
+            rowContent = `<td>${unidadeDisplay}</td>` +
                 `<td class="capitalize">${m.tipoMaterial}</td>` +
                 `<td>${dataEntregaFormatada}</td>` +
                 `<td>${respUnidade}</td>` +
