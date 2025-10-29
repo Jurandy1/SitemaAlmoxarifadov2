@@ -1080,8 +1080,6 @@ export function onSocialTabChange() {
     renderEnxovalMovimentacoesHistoryTable(); 
     
     // Limpa os gráficos ao mudar de aba principal
-    if (graficoCestaRelatorio) { graficoCestaRelatorio.destroy(); graficoCestaRelatorio = null; }
-    if (graficoEnxovalRelatorio) { graficoEnxovalRelatorio.destroy(); graficoEnxovalRelatorio = null; }
-}
-
+   if (graficoCestaRelatorio) { graficoCestaRelatorio.destroy(); graficoCestaRelatorio = null; }
+if (graficoEnxovalRelatorio) { graficoEnxovalRelatorio.destroy(); graficoEnxovalRelatorio = null; }
 }
