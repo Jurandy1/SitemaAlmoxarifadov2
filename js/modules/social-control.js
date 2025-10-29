@@ -300,7 +300,7 @@ export function renderCestaEstoqueHistoryTable() {
         const dataLancamento = formatTimestamp(e.registradoEm);
         const notaFiscal = e.notaFiscal || 'N/A';
         const responsavel = e.responsavel || 'N/A';
-        // NOVO: Custo Unitário
+        // CORREÇÃO 2: Custo Unitário
         const custoUnitario = (e.custoUnitario || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); 
 
         const details = `Entrada de Estoque Cesta: ${e.quantidade} un., Custo: ${custoUnitario}, NF: ${notaFiscal}.`;
@@ -311,7 +311,8 @@ export function renderCestaEstoqueHistoryTable() {
 
         html += `<tr title="Lançado em: ${dataLancamento} | Fornecedor: ${e.fornecedor || 'N/A'}">
             <td class="text-center font-medium">${e.quantidade}</td>
-            <td>${custoUnitario}</td>
+            <!-- CORREÇÃO 2: Exibir Custo Unitário -->
+            <td class="whitespace-nowrap">${custoUnitario}</td>
             <td class="whitespace-nowrap">${dataMov}</td>
             <td>${notaFiscal}</td>
             <td>${responsavel}</td>
@@ -354,12 +355,12 @@ export function renderCestaMovimentacoesHistoryTable() {
             ? `<button class="btn-danger btn-remove btn-icon" data-id="${m.id}" data-type="mov-cesta" data-details="${details}" title="Remover este lançamento"><i data-lucide="trash-2"></i></button>`
             : `<span class="text-gray-400 btn-icon" title="Apenas Admin pode excluir"><i data-lucide="slash"></i></span>`;
 
-        // CORREÇÃO 1: Adicionado Observações. Removido Custo/Fornecedor (mais relevante na Entrada).
+        // CORREÇÃO 1: Padronização das colunas
         html += `<tr>
             <td class="whitespace-nowrap">${dataMov}</td>
             <td>${m.destinatario}</td>
             <td class="text-center font-medium">${m.quantidade}</td>
-            <td>${m.categoria}</td>
+            <td>${capitalizeString(m.categoria)}</td>
             <td class="text-xs text-gray-600">${m.observacoes || 'N/A'}</td>
             <td>${m.responsavel}</td>
             <td><span class="badge ${statusClass}">${m.status}</span></td>
@@ -387,13 +388,12 @@ export async function handleCestaLancamentoSubmit(e) {
     const destinatario = capitalizeString(DOM_ELEMENTS.cestaDestinatario.value.trim());
     const quantidade = parseInt(DOM_ELEMENTS.cestaQuantidade.value, 10);
     const unidade = DOM_ELEMENTS.cestaUnidade.value;
-    const categoria = DOM_ELEMENTS.cestaCategoria.value;
+    // CORREÇÃO 3: Valor da categoria agora inclui Perecível/Não Perecível
+    const categoria = DOM_ELEMENTS.cestaCategoria.value; 
     const observacoes = DOM_ELEMENTS.cestaObservacoes.value.trim();
-    // CORREÇÃO: Campos de custo e fornecedor removidos do formulário de SAÍDA (fixados em 0 e N/A)
+    // Custo e fornecedor fixados em 0 e N/A para saída
     const custo = 0; 
     const fornecedor = 'N/A'; 
-    // FIM CORREÇÃO
-
     const responsavel = capitalizeString(DOM_ELEMENTS.cestaResponsavel.value.trim());
 
     if (!data || !destinatario || !quantidade || quantidade <= 0 || !categoria || !responsavel) {
@@ -561,7 +561,7 @@ export function renderEnxovalMovimentacoesHistoryTable() {
             <td class="whitespace-nowrap">${dataMov}</td>
             <td>${m.destinatario}</td>
             <td class="text-center font-medium">${m.quantidade}</td>
-            <td>${m.categoria}</td>
+            <td>${capitalizeString(m.categoria)}</td>
             <td class="text-xs text-gray-600">${m.memo || 'N/A'}</td>
             <td>${m.responsavel}</td>
             <td><span class="badge ${statusClass}">${m.status}</span></td>
@@ -639,7 +639,7 @@ export async function handleEnxovalLancamentoSubmit(e) {
 
 
 // =========================================================================
-// NOVO PONTO 2: LÓGICA DE RELATÓRIO E GRÁFICO
+// NOVO PONTO 2: LÓGICA DE RELATÓRIO E GRÁFICO (MODIFICADA PARA SER MAIS ROBUSTA)
 // =========================================================================
 
 /**
@@ -696,6 +696,76 @@ function renderRelatorioChart(itemType, dataSet, totalLabel) {
 }
 
 /**
+ * Renderiza o resumo textual robusto para a chefia.
+ * @param {string} itemType 'cesta' ou 'enxoval'.
+ * @param {Array<Object>} movsFiltradas Movimentações de saída filtradas.
+ * @param {Map<string, number>} categoriasMap Mapa de categorias e totais.
+ * @param {number} totalSaidas Total de saídas no período.
+ */
+function renderRelatorioTextual(itemType, movsFiltradas, categoriasMap, totalSaidas) {
+    const relatorioEl = DOM_ELEMENTS[`${itemType}RelatorioResumoTexto`];
+    if (!relatorioEl) return;
+
+    // 1. Cálculos Adicionais
+    const { dataInicial, dataFinal, totalDias } = getPeriodoAnalise(movsFiltradas);
+    const itemLabel = itemType === 'cesta' ? 'cesta' : 'enxoval';
+    const itemLabelPlural = itemType === 'cesta' ? 'cestas básicas' : 'enxovais';
+
+    const categoriasOrdenadas = Array.from(categoriasMap.entries()).sort((a, b) => b[1] - a[1]);
+    const categoriaPrincipal = categoriasOrdenadas.length > 0 ? {
+        nome: capitalizeString(categoriasOrdenadas[0][0]),
+        total: categoriasOrdenadas[0][1],
+        percentual: (categoriasOrdenadas[0][1] / totalSaidas) * 100
+    } : null;
+
+    // 2. Resumo da Distribuição por Categoria
+    let distribuicaoHtml = '<ul>';
+    categoriasOrdenadas.forEach(([nome, total]) => {
+        const percentual = (total / totalSaidas) * 100;
+        distribuicaoHtml += `
+            <li class="flex justify-between border-b border-gray-100 py-1">
+                <span class="font-medium text-gray-800">${capitalizeString(nome)}:</span>
+                <span class="font-bold text-blue-700">${total} un. (${percentual.toFixed(1)}%)</span>
+            </li>
+        `;
+    });
+    distribuicaoHtml += '</ul>';
+    
+    // 3. Resumo da Distribuição Mensal (para indicar recorrência)
+    const mesesMap = new Map();
+    movsFiltradas.forEach(m => {
+        const date = m.data.toDate();
+        const mesKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        mesesMap.set(mesKey, (mesesMap.get(mesKey) || 0) + (m.quantidade || 0));
+    });
+    const totalMeses = mesesMap.size;
+    const mediaMensal = totalSaidas / (totalMeses > 0 ? totalMeses : 1);
+    
+    const mesesOrdenados = Array.from(mesesMap.keys()).sort();
+    
+    // 4. Montagem do Relatório Textual (Robusto)
+    let relatorioText = `
+        <p>Este relatório analisa a distribuição de **${itemLabelPlural}** no período de **${formatTimestamp(dataInicial)}** a **${formatTimestamp(dataFinal)}**, cobrindo um total de **${totalDias.toFixed(0)} dias** de operações de saída.</p>
+        
+        <p class="font-bold pt-3">Indicadores Chave:</p>
+        <ul class="list-disc list-inside space-y-1 ml-4">
+            <li>O **Total de Saídas** no período foi de **${totalSaidas} unidades** de ${itemLabelPlural}.</li>
+            <li>A média de saídas é de **${(totalSaidas / totalDias).toFixed(2)} ${itemLabel}s por dia**.</li>
+            ${totalMeses > 1 ? `<li>A média mensal de saídas é de aproximadamente **${mediaMensal.toFixed(1)} unidades** (calculado em ${totalMeses} meses).</li>` : ''}
+            ${categoriaPrincipal ? `<li>A **Categoria Principal** de distribuição foi **${categoriaPrincipal.nome}**, representando **${categoriaPrincipal.total} unidades** (${categoriaPrincipal.percentual.toFixed(1)}% do total).</li>` : ''}
+        </ul>
+        
+        <p class="font-bold pt-3">Distribuição Detalhada por Categoria:</p>
+        <div class="p-3 bg-white border border-gray-200 rounded-lg">${distribuicaoHtml}</div>
+        
+        <p class="text-xs text-gray-500 pt-3 italic">**Sugestão:** Focar a próxima compra ou reposição de estoque na categoria **${categoriaPrincipal?.nome || 'N/A'}**, considerando a média de consumo diário/mensal para evitar rupturas de estoque.</p>
+    `;
+
+    relatorioEl.innerHTML = relatorioText;
+}
+
+
+/**
  * Lida com a geração do relatório personalizado (Gráfico e Resumo Textual).
  * @param {string} itemType 'cesta' ou 'enxoval'.
  */
@@ -736,26 +806,18 @@ async function handleGerarSocialRelatorio(itemType) {
     // 3. Processamento de dados
     const totalSaidas = movsFiltradas.reduce((sum, m) => sum + (m.quantidade || 0), 0);
     const categoriasMap = new Map();
-    const mesesMap = new Map();
+    // const mesesMap = new Map(); // Removido para usar apenas no resumo
 
     movsFiltradas.forEach(m => {
         // Por Categoria (Gráfico)
         const categoria = m.categoria || 'Não Categorizado';
         categoriasMap.set(categoria, (categoriasMap.get(categoria) || 0) + (m.quantidade || 0));
-
-        // Por Mês (Simulação de Consumo Recorrente)
-        const date = m.data.toDate();
-        const mesKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-        mesesMap.set(mesKey, (mesesMap.get(mesKey) || 0) + (m.quantidade || 0));
     });
 
     const categoriasOrdenadas = Array.from(categoriasMap.entries()).sort((a, b) => b[1] - a[1]);
-    const categoriaPrincipal = categoriasOrdenadas.length > 0 ? categoriasOrdenadas[0][0] : 'N/A';
-    
-    const { totalDias } = getPeriodoAnalise(movsFiltradas);
     
     // 4. Preparar dados do gráfico
-    const chartLabels = categoriasOrdenadas.map(entry => entry[0]);
+    const chartLabels = categoriasOrdenadas.map(entry => capitalizeString(entry[0]));
     const chartData = categoriasOrdenadas.map(entry => entry[1]);
 
     const dataset = {
@@ -770,16 +832,12 @@ async function handleGerarSocialRelatorio(itemType) {
     };
     
     // 5. Renderizar
-    const totalSaidasEl = document.getElementById(`${itemType}-rel-total-saidas`);
-    if (totalSaidasEl) totalSaidasEl.textContent = totalSaidas;
-
-    const categoriaPrincipalEl = document.getElementById(`${itemType}-rel-categoria-principal`);
-    if (categoriaPrincipalEl) categoriaPrincipalEl.textContent = capitalizeString(categoriaPrincipal);
+    // CORREÇÃO 1: Renderiza o resumo textual robusto antes do gráfico
+    renderRelatorioTextual(itemType, movsFiltradas, categoriasMap, totalSaidas);
     
-    const diasCobertosEl = document.getElementById(`${itemType}-rel-dias-cobertos`);
-    if (diasCobertosEl) diasCobertosEl.textContent = `${totalDias.toFixed(0)} dias`;
-    
-    renderRelatorioChart(itemType, dataset, `Saídas de ${itemType === 'cesta' ? 'Cestas Básicas' : 'Enxovais'} (${formatTimestamp(Timestamp.fromMillis(dataInicio))} - ${formatTimestamp(Timestamp.fromMillis(dataFim))})`);
+    // Geração do Título
+    const tituloRelatorio = `Distribuição de Saídas por Categoria (${formatTimestamp(Timestamp.fromMillis(dataInicioStr))} - ${formatTimestamp(Timestamp.fromMillis(dataFim))})`;
+    renderRelatorioChart(itemType, dataset, tituloRelatorio);
     
     relatorioOutputEl.classList.remove('hidden');
     showAlert(alertId, 'Relatório gerado com sucesso!', 'success', 3000);
@@ -1024,4 +1082,6 @@ export function onSocialTabChange() {
     // Limpa os gráficos ao mudar de aba principal
     if (graficoCestaRelatorio) { graficoCestaRelatorio.destroy(); graficoCestaRelatorio = null; }
     if (graficoEnxovalRelatorio) { graficoEnxovalRelatorio.destroy(); graficoEnxovalRelatorio = null; }
+}
+
 }
