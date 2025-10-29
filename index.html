@@ -791,7 +791,7 @@
                                 <h4 class="font-semibold text-gray-700 mb-3 text-lg">
                                     <i data-lucide="bar-chart" class="w-5 h-5 text-blue-600 inline-block -mt-1"></i>
                                     Gráfico de Consumo ao Longo do Tempo
-                                </h4>
+                                </h4 >
                                 <div class="chart-container-lg">
                                     <canvas id="grafico-analise-consumo-agua"></canvas>
                                 </div>
@@ -1254,7 +1254,7 @@
                                 <h4 class="font-semibold text-gray-700 mb-3 text-lg">
                                     <i data-lucide="bar-chart" class="w-5 h-5 text-blue-600 inline-block -mt-1"></i>
                                     Gráfico de Consumo ao Longo do Tempo
-                                </h4>
+                                </h4 >
                                 <div class="chart-container-lg">
                                     <canvas id="grafico-analise-consumo-gas"></canvas>
                                 </div>
@@ -1665,13 +1665,20 @@
                                          <option value="kit_higiene">Kit Higiene</option>
                                      </select>
                                 </div>
-                                <div><label for="cesta-custo" class="form-label">Custo da Cesta (R$)</label><input type="number" id="cesta-custo" class="form-input" placeholder="Opcional" step="0.01"></div>
+                                
+                                <!-- Campos de Custo e Fornecedor removidos da SAÍDA, mantendo o layout -->
+                                <div class="hidden"><label for="cesta-custo" class="form-label">Custo da Cesta (R$)</label><input type="number" id="cesta-custo" class="form-input" placeholder="Opcional" step="0.01"></div>
+                                <div class="hidden"><label for="cesta-fornecedor" class="form-label">Fornecedor</label><input type="text" id="cesta-fornecedor" class="form-input" placeholder="Opcional"></div>
+
                                 <div class="md:col-span-2">
                                     <label for="cesta-observacoes" class="form-label">Observações</label>
                                     <textarea id="cesta-observacoes" class="form-textarea" placeholder="Detalhes da entrega ou justificativa"></textarea>
                                 </div>
                                 <div><label for="cesta-responsavel" class="form-label">Responsável (Colaborador)</label><input type="text" id="cesta-responsavel" class="form-input" placeholder="Nome do colaborador que realizou o lançamento" required></div>
-                                <div><label for="cesta-fornecedor" class="form-label">Fornecedor</label><input type="text" id="cesta-fornecedor" class="form-input" placeholder="Opcional"></div>
+                                
+                                <!-- Placeholder para manter o grid -->
+                                <div></div>
+                                
                                 <div class="md:col-span-2 pt-4">
                                     <button type="submit" id="btn-submit-cesta-lancamento" class="btn-primary w-full">
                                         <i data-lucide="save"></i> <span>Salvar Lançamento (Saída do Estoque)</span>
@@ -1696,12 +1703,20 @@
                                  <!-- NOVO FORMULÁRIO DE ENTRADA -->
                                  <form id="form-cesta-entrada" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                                      <div><label for="cesta-entrada-quantidade" class="form-label">Quantidade</label><input type="number" id="cesta-entrada-quantidade" class="form-input" min="1" value="1" required></div>
+                                     <div><label for="cesta-entrada-custo-unitario" class="form-label">Custo Unitário (R$)</label><input type="number" id="cesta-entrada-custo-unitario" class="form-input" placeholder="0.00" step="0.01"></div>
                                      <div><label for="cesta-entrada-data" class="form-label">Data da Entrada</label><input type="date" id="cesta-entrada-data" class="form-input" required></div>
-                                     <div><label for="cesta-entrada-responsavel" class="form-label">Responsável (Almoxarifado)</label><input type="text" id="cesta-entrada-responsavel" class="form-input" placeholder="Nome de quem recebeu" required></div>
                                      <div class="col-span-1 flex items-end">
                                           <button type="submit" id="btn-submit-cesta-entrada" class="btn-primary w-full">
                                             <i data-lucide="plus-circle"></i> <span>Registrar Entrada</span>
                                           </button>
+                                     </div>
+                                     <div class="col-span-2">
+                                        <label for="cesta-entrada-responsavel" class="form-label">Responsável (Almoxarifado)</label>
+                                        <input type="text" id="cesta-entrada-responsavel" class="form-input" placeholder="Nome de quem recebeu" required>
+                                     </div>
+                                     <div class="col-span-2">
+                                         <label for="cesta-entrada-fornecedor" class="form-label">Fornecedor</label>
+                                         <input type="text" id="cesta-entrada-fornecedor" class="form-input" placeholder="Nome do fornecedor">
                                      </div>
                                      <div class="col-span-4">
                                          <label for="cesta-entrada-nf" class="form-label">Nota Fiscal/Documento (Opcional)</label>
@@ -1713,8 +1728,8 @@
                                  <h4 class="text-lg font-semibold mb-3 border-b pb-2">Histórico de Entradas de Estoque</h4>
                                  <div class="overflow-x-auto border border-gray-200 rounded-lg max-h-96">
                                      <table class="table w-full text-sm">
-                                         <thead class="bg-gray-50"><tr><th>Qtd.</th><th>Data Movimentação</th><th>Nota Fiscal</th><th>Responsável</th><th class="text-center">Ação</th></tr></thead>
-                                         <tbody id="table-cesta-estoque-history"><tr><td colspan="5" class="text-center py-10"><div class="loading-spinner-small mx-auto"></div></td></tr></tbody>
+                                         <thead class="bg-gray-50"><tr><th>Qtd.</th><th>Custo Unit.</th><th>Data Movimentação</th><th>Nota Fiscal</th><th>Responsável</th><th class="text-center">Ação</th></tr></thead>
+                                         <tbody id="table-cesta-estoque-history"><tr><td colspan="6" class="text-center py-10"><div class="loading-spinner-small mx-auto"></div></td></tr></tbody>
                                      </table>
                                  </div>
                              </div>
@@ -1723,22 +1738,91 @@
                         <!-- Subview: Relatórios e Histórico (Cestas) - (UPDATED) -->
                         <div id="subview-cesta-relatorio" class="hidden">
                              <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-                                 <h3 class="text-xl font-bold text-pink-600 mb-4">📊 Histórico de Saídas (Lançamentos)</h3>
+                                 <h3 class="text-xl font-bold text-pink-600 mb-4">📊 Histórico de Saídas e Relatórios</h3>
                                  <div id="alert-cesta-relatorio" class="alert mb-4"></div>
-                                 <!-- Área de Filtros - Manter placeholder por enquanto -->
-                                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                                     <!-- Filtros de Data e Categoria -->
+                                 
+                                 <!-- NOVO: Área de Relatório e Filtros -->
+                                 <div class="mb-6 p-4 bg-gray-50 rounded-xl border border-gray-200 shadow-inner">
+                                     <h4 class="text-lg font-semibold mb-3 border-b pb-2 flex items-center gap-2">
+                                         <i data-lucide="filter" class="w-5 h-5 text-gray-600"></i>
+                                         Relatório Personalizado
+                                     </h4>
+                                     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                                         <div>
+                                             <label for="cesta-rel-data-inicio" class="form-label text-xs">Data Início</label>
+                                             <input type="date" id="cesta-rel-data-inicio" class="form-input" required>
+                                         </div>
+                                         <div>
+                                             <label for="cesta-rel-data-fim" class="form-label text-xs">Data Fim</label>
+                                             <input type="date" id="cesta-rel-data-fim" class="form-input" required>
+                                         </div>
+                                         <div>
+                                             <label for="cesta-rel-categoria" class="form-label text-xs">Categoria</label>
+                                             <select id="cesta-rel-categoria" class="form-select">
+                                                 <option value="all">Todas as Categorias</option>
+                                                 <option value="alimentacao">Alimentação</option>
+                                                 <option value="emergencial">Emergencial</option>
+                                                 <option value="doacao">Doação</option>
+                                                 <option value="kit_higiene">Kit Higiene</option>
+                                             </select>
+                                         </div>
+                                         <div class="col-span-1 flex items-end justify-end">
+                                             <button type="button" id="btn-cesta-gerar-relatorio" class="btn-primary w-full md:w-auto">
+                                                 <i data-lucide="send"></i> Gerar Relatório
+                                             </button>
+                                         </div>
+                                     </div>
                                  </div>
-                                 <!-- Botões de Ação - Manter placeholder por enquanto -->
-                                 <div class="flex flex-wrap gap-3 mb-6">
-                                     <button id="btn-cesta-gerar-pdf" class="btn-primary" disabled><i data-lucide="file-down"></i> Gerar PDF</button>
-                                     <button id="btn-cesta-exportar-excel" class="btn-secondary" disabled><i data-lucide="file-text"></i> Exportar Excel</button>
+                                 
+                                 <!-- Resultados do Relatório (Resumo Textual e Gráfico) -->
+                                 <div id="cesta-relatorio-output" class="hidden space-y-6">
+                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                                        <!-- Resumo Texto (Total Saídas) -->
+                                        <div class="text-center">
+                                            <span class="text-sm text-gray-700">Total de Saídas no Período</span>
+                                            <strong id="cesta-rel-total-saidas" class="text-3xl font-extrabold text-red-600 block">0</strong>
+                                        </div>
+                                        <!-- Resumo Texto (Mais Comum) -->
+                                        <div class="text-center">
+                                            <span class="text-sm text-gray-700">Categoria Mais Comum</span>
+                                            <strong id="cesta-rel-categoria-principal" class="text-xl font-extrabold text-blue-600 block pt-1">N/A</strong>
+                                        </div>
+                                        <!-- Resumo Texto (Dias Cobertos) -->
+                                        <div class="text-center">
+                                            <span class="text-sm text-gray-700">Registros em</span>
+                                            <strong id="cesta-rel-dias-cobertos" class="text-xl font-extrabold text-green-600 block pt-1">0 dias</strong>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="bg-white rounded-xl border border-gray-200 shadow-lg p-6">
+                                        <h4 class="font-semibold text-gray-700 mb-3 text-lg">
+                                            Distribuição de Saídas por Categoria
+                                        </h4>
+                                        <div class="chart-container-lg">
+                                            <canvas id="grafico-cesta-relatorio"></canvas>
+                                        </div>
+                                    </div>
                                  </div>
+
+                                 <h4 class="text-lg font-semibold mt-8 mb-3 border-b pb-2">Histórico Completo de Lançamentos</h4>
+                                 
                                  <!-- Tabela de Histórico (Movimentação) -->
                                  <div class="overflow-x-auto border border-gray-200 rounded-lg max-h-96">
                                      <table class="table w-full text-sm">
-                                         <thead class="bg-gray-50"><tr><th>Data</th><th>Destinatário</th><th>Qtd.</th><th>Categoria</th><th>Responsável</th><th>Status</th><th>Ação</th></tr></thead>
-                                         <tbody id="table-cesta-historico"><tr><td colspan="7" class="text-center py-10"><div class="loading-spinner-small mx-auto"></div></td></tr></tbody>
+                                         <thead class="bg-gray-50">
+                                            <!-- CORREÇÃO 1: Padronizando cabeçalhos -->
+                                            <tr>
+                                                <th>Data Mov.</th>
+                                                <th>Destinatário</th>
+                                                <th>Qtd.</th>
+                                                <th>Categoria</th>
+                                                <th>Observações</th>
+                                                <th>Responsável</th>
+                                                <th>Status</th>
+                                                <th class="text-center">Ação</th>
+                                            </tr>
+                                         </thead>
+                                         <tbody id="table-cesta-historico"><tr><td colspan="8" class="text-center py-10"><div class="loading-spinner-small mx-auto"></div></td></tr></tbody>
                                      </table>
                                  </div>
                              </div>
@@ -1805,6 +1889,7 @@
                                  <!-- NOVO FORMULÁRIO DE ENTRADA -->
                                  <form id="form-enxoval-entrada" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                                      <div><label for="enxoval-entrada-quantidade" class="form-label">Quantidade</label><input type="number" id="enxoval-entrada-quantidade" class="form-input" min="1" value="1" required></div>
+                                     <!-- Campo de Custo Unitário não relevante para Enxoval, mas mantendo a data -->
                                      <div><label for="enxoval-entrada-data" class="form-label">Data da Entrada</label><input type="date" id="enxoval-entrada-data" class="form-input" required></div>
                                      <div><label for="enxoval-entrada-responsavel" class="form-label">Responsável (Almoxarifado)</label><input type="text" id="enxoval-entrada-responsavel" class="form-input" placeholder="Nome de quem recebeu" required></div>
                                      <div class="col-span-1 flex items-end">
@@ -1832,21 +1917,90 @@
                         <!-- Subview: Relatórios e Histórico (Enxoval) - (UPDATED) -->
                         <div id="subview-enxoval-relatorio" class="hidden">
                             <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-                                 <h3 class="text-xl font-bold text-pink-600 mb-4">📊 Histórico de Saídas (Lançamentos)</h3>
+                                 <h3 class="text-xl font-bold text-pink-600 mb-4">📊 Histórico de Saídas e Relatórios</h3>
                                  <div id="alert-enxoval-relatorio" class="alert mb-4"></div>
-                                 <!-- Área de Filtros - Manter placeholder por enquanto -->
-                                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                                     <!-- Filtros de Data e Categoria -->
+
+                                 <!-- NOVO: Área de Relatório e Filtros -->
+                                 <div class="mb-6 p-4 bg-gray-50 rounded-xl border border-gray-200 shadow-inner">
+                                     <h4 class="text-lg font-semibold mb-3 border-b pb-2 flex items-center gap-2">
+                                         <i data-lucide="filter" class="w-5 h-5 text-gray-600"></i>
+                                         Relatório Personalizado
+                                     </h4>
+                                     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                                         <div>
+                                             <label for="enxoval-rel-data-inicio" class="form-label text-xs">Data Início</label>
+                                             <input type="date" id="enxoval-rel-data-inicio" class="form-input" required>
+                                         </div>
+                                         <div>
+                                             <label for="enxoval-rel-data-fim" class="form-label text-xs">Data Fim</label>
+                                             <input type="date" id="enxoval-rel-data-fim" class="form-input" required>
+                                         </div>
+                                         <div>
+                                             <label for="enxoval-rel-categoria" class="form-label text-xs">Categoria</label>
+                                             <select id="enxoval-rel-categoria" class="form-select">
+                                                 <option value="all">Todas as Categorias</option>
+                                                 <option value="maternidade">Maternidade</option>
+                                                 <option value="infantil">Infantil (Geral)</option>
+                                                 <option value="idoso">Idoso</option>
+                                                 <option value="deficiente">PCD</option>
+                                             </select>
+                                         </div>
+                                         <div class="col-span-1 flex items-end justify-end">
+                                             <button type="button" id="btn-enxoval-gerar-relatorio" class="btn-primary w-full md:w-auto">
+                                                 <i data-lucide="send"></i> Gerar Relatório
+                                             </button>
+                                         </div>
+                                     </div>
                                  </div>
-                                 <!-- Botões de Ação - Manter placeholder por enquanto -->
-                                 <div class="flex flex-wrap gap-3 mb-6">
-                                     <button id="btn-enxoval-gerar-pdf" class="btn-primary" disabled><i data-lucide="file-down"></i> Gerar PDF</button>
-                                     <button id="btn-enxoval-exportar-excel" class="btn-secondary" disabled><i data-lucide="file-text"></i> Exportar Excel</button>
+                                 
+                                 <!-- Resultados do Relatório (Resumo Textual e Gráfico) -->
+                                 <div id="enxoval-relatorio-output" class="hidden space-y-6">
+                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                                        <!-- Resumo Texto (Total Saídas) -->
+                                        <div class="text-center">
+                                            <span class="text-sm text-gray-700">Total de Saídas no Período</span>
+                                            <strong id="enxoval-rel-total-saidas" class="text-3xl font-extrabold text-red-600 block">0</strong>
+                                        </div>
+                                        <!-- Resumo Texto (Mais Comum) -->
+                                        <div class="text-center">
+                                            <span class="text-sm text-gray-700">Categoria Mais Comum</span>
+                                            <strong id="enxoval-rel-categoria-principal" class="text-xl font-extrabold text-blue-600 block pt-1">N/A</strong>
+                                        </div>
+                                        <!-- Resumo Texto (Dias Cobertos) -->
+                                        <div class="text-center">
+                                            <span class="text-sm text-gray-700">Registros em</span>
+                                            <strong id="enxoval-rel-dias-cobertos" class="text-xl font-extrabold text-green-600 block pt-1">0 dias</strong>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="bg-white rounded-xl border border-gray-200 shadow-lg p-6">
+                                        <h4 class="font-semibold text-gray-700 mb-3 text-lg">
+                                            Distribuição de Saídas por Categoria
+                                        </h4>
+                                        <div class="chart-container-lg">
+                                            <canvas id="grafico-enxoval-relatorio"></canvas>
+                                        </div>
+                                    </div>
                                  </div>
+
+                                 <h4 class="text-lg font-semibold mt-8 mb-3 border-b pb-2">Histórico Completo de Lançamentos</h4>
+
                                  <!-- Tabela de Histórico (Movimentação) -->
                                  <div class="overflow-x-auto border border-gray-200 rounded-lg max-h-96">
                                      <table class="table w-full text-sm">
-                                         <thead class="bg-gray-50"><tr><th>Data</th><th>Destinatário</th><th>Qtd.</th><th>Categoria</th><th>Memo</th><th>Responsável</th><th>Status</th><th>Ação</th></tr></thead>
+                                         <thead class="bg-gray-50">
+                                            <!-- CORREÇÃO 1: Padronizando cabeçalhos -->
+                                            <tr>
+                                                <th>Data Mov.</th>
+                                                <th>Destinatário</th>
+                                                <th>Qtd.</th>
+                                                <th>Categoria</th>
+                                                <th>Memo/Processo</th>
+                                                <th>Responsável</th>
+                                                <th>Status</th>
+                                                <th class="text-center">Ação</th>
+                                            </tr>
+                                         </thead>
                                          <tbody id="table-enxoval-historico"><tr><td colspan="8" class="text-center py-10"><div class="loading-spinner-small mx-auto"></div></td></tr></tbody>
                                      </table>
                                  </div>
