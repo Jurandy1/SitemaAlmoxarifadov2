@@ -1646,7 +1646,29 @@
                             <h3 class="text-xl font-bold text-pink-600 mb-4">📥 Lançamento de Cestas Básicas (Saída)</h3>
                             <form id="form-cesta-lancamento" class="space-y-4 grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl">
                                 <div><label for="cesta-data" class="form-label">Data</label><input type="date" id="cesta-data" class="form-input" required></div>
-                                <div><label for="cesta-destinatario" class="form-label">Destinatário (Nome)</label><input type="text" id="cesta-destinatario" class="form-input" placeholder="Nome completo" required></div>
+                                
+                                <!-- NOVO: Tipo de Destinatário -->
+                                <div>
+                                     <label for="cesta-tipo-destinatario" class="form-label">Tipo de Destinatário</label>
+                                     <select id="cesta-tipo-destinatario" class="form-select" required>
+                                         <option value="unidade">Unidade (Ex: Cras, Creas)</option>
+                                         <option value="personalizado">Personalizado (Nome Avulso)</option>
+                                     </select>
+                                </div>
+                                
+                                <!-- NOVO: Select de Unidade (Visível por padrão) -->
+                                <div class="md:col-span-2">
+                                    <label for="cesta-select-unidade" class="form-label">Destinatário: Unidade</label>
+                                    <select id="cesta-select-unidade" class="form-select" required></select>
+                                </div>
+
+                                <!-- NOVO: Input Personalizado (Oculto por padrão) -->
+                                <div class="md:col-span-2 hidden">
+                                    <label for="cesta-destinatario-personalizado" class="form-label">Destinatário: Nome Personalizado</label>
+                                    <input type="text" id="cesta-destinatario-personalizado" class="form-input" placeholder="Digite o nome completo do destinatário" disabled>
+                                </div>
+                                <!-- O campo original "cesta-destinatario" no JS agora é o campo que recebe o valor final, mas não é um input no HTML -->
+
                                 <div><label for="cesta-quantidade" class="form-label">Quantidade</label><input type="number" id="cesta-quantidade" class="form-input" min="1" value="1" required></div>
                                 <div>
                                      <label for="cesta-unidade" class="form-label">Unidade (Ex: Cesta / Kg)</label>
@@ -1852,7 +1874,29 @@
                             <h3 class="text-xl font-bold text-pink-600 mb-4">📥 Lançamento de Enxoval (Saída)</h3>
                             <form id="form-enxoval-lancamento" class="space-y-4 grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl">
                                 <div><label for="enxoval-data" class="form-label">Data</label><input type="date" id="enxoval-data" class="form-input" required></div>
-                                <div><label for="enxoval-destinatario" class="form-label">Destinatário (Nome)</label><input type="text" id="enxoval-destinatario" class="form-input" placeholder="Nome completo" required></div>
+                                
+                                <!-- NOVO: Tipo de Destinatário -->
+                                <div>
+                                     <label for="enxoval-tipo-destinatario" class="form-label">Tipo de Destinatário</label>
+                                     <select id="enxoval-tipo-destinatario" class="form-select" required>
+                                         <option value="unidade">Unidade (Ex: Cras, Creas)</option>
+                                         <option value="personalizado">Personalizado (Nome Avulso)</option>
+                                     </select>
+                                </div>
+                                
+                                <!-- NOVO: Select de Unidade (Visível por padrão) -->
+                                <div class="md:col-span-2">
+                                    <label for="enxoval-select-unidade" class="form-label">Destinatário: Unidade</label>
+                                    <select id="enxoval-select-unidade" class="form-select" required></select>
+                                </div>
+
+                                <!-- NOVO: Input Personalizado (Oculto por padrão) -->
+                                <div class="md:col-span-2 hidden">
+                                    <label for="enxoval-destinatario-personalizado" class="form-label">Destinatário: Nome Personalizado</label>
+                                    <input type="text" id="enxoval-destinatario-personalizado" class="form-input" placeholder="Digite o nome completo do destinatário" disabled>
+                                </div>
+                                <!-- O campo original "enxoval-destinatario" no JS agora é o campo que recebe o valor final, mas não é um input no HTML -->
+
                                 <div><label for="enxoval-quantidade" class="form-label">Quantidade</label><input type="number" id="enxoval-quantidade" class="form-input" min="1" value="1" required></div>
                                 <div>
                                      <label for="enxoval-categoria" class="form-label">Categoria</label>
