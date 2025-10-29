@@ -583,7 +583,7 @@ function renderPermissionsUI() {
         DOM_ELEMENTS.formEntradaAgua, DOM_ELEMENTS.formEntradaGas,
         DOM_ELEMENTS.formInicialAgua, DOM_ELEMENTS.formInicialGas,
         DOM_ELEMENTS.formInicialAguaContainer, DOM_ELEMENTS.formInicialGasContainer,
-        DOM_ELEMENTS.btnAbrirInicialAgua, DOM_ELEMENTS.btnAbrirInicialGas,
+        DOM_ELEMENTS.btnAbrirInicialAgua, DOM_ELEMENTS.btnAbrirInicialAgua,
         // Social
         DOM_ELEMENTS.formCestaEntrada, DOM_ELEMENTS.formEnxovalEntrada,
     ];
@@ -658,4 +658,33 @@ function renderPermissionsUI() {
     }
     if (DOM_ELEMENTS.btnLogout) DOM_ELEMENTS.btnLogout.classList.toggle('hidden', role === 'unauthenticated');
 
-    const
+    const currentTab = document.querySelector('.nav-btn.active')?.dataset.tab;
+    if (currentTab) {
+        let shouldRedirect = false;
+        if (isAnon && currentTab !== 'dashboard') shouldRedirect = true;
+        if (!isAdmin && (currentTab === 'gestao' || currentTab === 'usuarios')) shouldRedirect = true;
+
+        if (shouldRedirect) {
+            switchTab('dashboard');
+            showAlert('connectionStatus', 'Acesso negado para esta seção.', 'warning', 10000);
+        }
+    }
+
+     if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') {
+        setTimeout(() => lucide.createIcons(), 50);
+     }
+}
+
+
+export {
+    DOM_ELEMENTS,
+    findDOMElements,
+    showAlert,
+    switchTab,
+    switchSubTabView,
+    filterTable,
+    updateLastUpdateTime,
+    handleSaldoFilterUI,
+    openConfirmDeleteModal,
+    renderPermissionsUI
+};
