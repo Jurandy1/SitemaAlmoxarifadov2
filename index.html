@@ -1763,72 +1763,137 @@
                              </div>
                         </div>
 
-                        <!-- Subview: Relatórios e Histórico (Cestas) - (UPDATED) -->
-                        <div id="subview-cesta-relatorio" class="hidden">
-                             <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-                                 <h3 class="text-xl font-bold text-pink-600 mb-4">📊 Histórico de Saídas e Relatórios</h3>
-                                 <div id="alert-cesta-relatorio" class="alert mb-4"></div>
-                                 
-                                 <!-- NOVO: Área de Relatório e Filtros -->
-                                 <div class="mb-6 p-4 bg-gray-50 rounded-xl border border-gray-200 shadow-inner">
-                                     <h4 class="text-lg font-semibold mb-3 border-b pb-2 flex items-center gap-2">
-                                         <i data-lucide="filter" class="w-5 h-5 text-gray-600"></i>
-                                         Relatório Personalizado
-                                     </h4>
-                                     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-                                         <div>
-                                             <label for="cesta-rel-data-inicio" class="form-label text-xs">Data Início</label>
-                                             <input type="date" id="cesta-rel-data-inicio" class="form-input" required>
-                                         </div>
-                                         <div>
-                                             <label for="cesta-rel-data-fim" class="form-label text-xs">Data Fim</label>
-                                             <input type="date" id="cesta-rel-data-fim" class="form-input" required>
-                                         </div>
-                                         <div>
-                                             <label for="cesta-rel-categoria" class="form-label text-xs">Categoria</label>
-                                             <select id="cesta-rel-categoria" class="form-select">
-                                                 <option value="all">Todas as Categorias</option>
-                                                 <option value="alimentacao">Alimentação</option>
-                                                 <option value="emergencial">Emergencial</option>
-                                                 <option value="doacao">Doação</option>
-                                                 <option value="kit_higiene">Kit Higiene</option>
-                                                 <!-- CORREÇÃO 3: NOVAS OPÇÕES DE CATEGORIA NO FILTRO -->
-                                                 <option value="perecivel">Perecível</option>
-                                                 <option value="nao_perecivel">Não Perecível</option>
-                                             </select>
-                                         </div>
-                                         <div class="col-span-1 flex items-end justify-end">
-                                             <button type="button" id="btn-cesta-gerar-relatorio" class="btn-primary w-full md:w-auto">
-                                                 <i data-lucide="send"></i> Gerar Relatório
-                                             </button>
-                                         </div>
-                                     </div>
-                                 </div>
-                                 
-                                 <!-- Resultados do Relatório (Resumo Textual e Gráfico) -->
-                                 <div id="cesta-relatorio-output" class="hidden space-y-6">
-                                    <!-- CORREÇÃO 1: Adicionado Resumo Textual Detalhado (Total, Média, Categoria Principal) -->
-                                    <div id="cesta-rel-detalhes-texto" class="lg:col-span-2 bg-blue-50 rounded-xl border border-blue-200 shadow-sm p-6">
-                                         <h4 class="font-semibold text-blue-800 mb-3 text-lg flex items-center gap-2">
-                                             <i data-lucide="clipboard-list" class="w-5 h-5 text-blue-600"></i>
-                                             Análise de Saídas no Período
-                                         </h4>
-                                         <div id="cesta-relatorio-resumo-texto" class="text-sm text-gray-700 space-y-3">
-                                            <!-- JS preenche aqui -->
-                                         </div>
-                                     </div>
-                                    
-                                    <div class="bg-white rounded-xl border border-gray-200 shadow-lg p-6">
-                                        <h4 class="font-semibold text-gray-700 mb-3 text-lg">
-                                            Distribuição de Saídas por Categoria
-                                        </h4>
-                                        <div class="chart-container-lg">
-                                            <canvas id="grafico-cesta-relatorio"></canvas>
-                                        </div>
-                                    </div>
-                                 </div>
-
-                                 <h4 class="text-lg font-semibold mt-8 mb-3 border-b pb-2">Histórico Completo de Lançamentos</h4>
+                        <!-- Subview: Relatórios e Histórico (Cestas) - NOVO HTML DO USUÁRIO -->
+                        <div id="subview-cesta-relatorio" class="hidden">    
+                            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 max-w-6xl mx-auto">        
+                                <h2 class="text-2xl font-bold text-gray-800 mb-2">            
+                                    <i data-lucide="bar-chart-3" class="inline-block -mt-1"></i> Relatório de Assistência Social - Cestas Básicas        
+                                </h2>        
+                                <p class="text-sm text-gray-500 mb-6">            
+                                    Analise a distribuição de cestas básicas por período e unidade.        
+                                </p>        
+                                <!-- Painel de Filtros -->        
+                                <div class="mb-8 p-4 bg-gray-50 rounded-xl border border-gray-200 shadow-inner">            
+                                    <h3 class="font-semibold text-gray-700 mb-4 text-lg border-b pb-2 flex items-center gap-2">                
+                                        <i data-lucide="filter" class="w-5 h-5 text-blue-600"></i>                
+                                        Filtros do Relatório            
+                                    </h3>            
+                                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">                
+                                        <!-- Período -->                
+                                        <div>                    
+                                            <label for="cesta-periodo-relatorio" class="form-label">Período</label>                    
+                                            <select id="cesta-periodo-relatorio" class="form-select">                        
+                                                <option value="30">Últimos 30 dias</option>                        
+                                                <option value="60">Últimos 60 dias</option>                        
+                                                <option value="90">Últimos 90 dias</option>                        
+                                                <option value="custom">Período personalizado</option>                    
+                                            </select>                
+                                        </div>                                
+                                        <!-- Datas customizadas -->                
+                                        <div id="cesta-datas-custom" class="hidden">                    
+                                            <label for="cesta-data-inicio" class="form-label">Data Início</label>                    
+                                            <input type="date" id="cesta-data-inicio" class="form-input">                
+                                        </div>                
+                                        <div id="cesta-datas-custom-fim" class="hidden">                    
+                                            <label for="cesta-data-fim" class="form-label">Data Fim</label>                    
+                                            <input type="date" id="cesta-data-fim" class="form-input">                
+                                        </div>                
+                                        <!-- Tipo de agrupamento -->                
+                                        <div>                    
+                                            <label for="cesta-agrupamento" class="form-label">Agrupar por</label>                    
+                                            <select id="cesta-agrupamento" class="form-select">                        
+                                                <option value="unidade">Unidade</option>                        
+                                                <option value="tipo-unidade">Tipo de Unidade</option>                        
+                                                <option value="mensal">Distribuição Mensal</option>                        
+                                                <option value="semanal">Distribuição Semanal</option>                    
+                                            </select>                
+                                        </div>                
+                                        <!-- Botão -->                
+                                        <div class="flex items-end">                    
+                                            <button id="btn-gerar-relatorio-cesta" class="btn-primary">                        
+                                                <i data-lucide="bar-chart-2"></i> Gerar Relatório                    
+                                            </button>                
+                                        </div>            
+                                    </div>            
+                                    <div id="alert-relatorio-cesta" class="alert mt-4"></div>        
+                                </div>        
+                                <!-- Resultados do Relatório -->        
+                                <div id="resultado-relatorio-cesta" class="hidden space-y-8">            
+                                    <!-- KPIs Principais -->            
+                                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">                
+                                        <div class="bg-gradient-to-br from-pink-50 to-pink-100 rounded-xl p-4 border border-pink-200">                    
+                                            <h4 class="font-semibold text-pink-800 mb-2">Total Distribuído</h4>                    
+                                            <p id="kpi-total-cestas" class="text-3xl font-bold text-pink-600">0</p>                    
+                                            <p class="text-xs text-pink-500">Cestas básicas</p>                
+                                        </div>                
+                                        <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 border border-blue-200">                    
+                                            <h4 class="font-semibold text-blue-800 mb-2">Unidades Atendidas</h4>                    
+                                            <p id="kpi-unidades-atendidas-cesta" class="text-3xl font-bold text-blue-600">0</p>                    
+                                            <p class="text-xs text-blue-500">Unidades diferentes</p>                
+                                        </div>                
+                                        <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4 border border-green-200">                    
+                                            <h4 class="font-semibold text-green-800 mb-2">Média Diária</h4>                    
+                                            <p id="kpi-media-diaria-cesta" class="text-3xl font-bold text-green-600">0</p>                    
+                                            <p class="text-xs text-green-500">Cestas por dia</p>                
+                                        </div>                
+                                        <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 border border-purple-200">                    
+                                            <h4 class="font-semibold text-purple-800 mb-2">Maior Volume</h4>                    
+                                            <p id="kpi-maior-volume-data-cesta" class="text-lg font-bold text-purple-600">-</p>                    
+                                            <p class="text-xs text-purple-500">Dia com mais entregas</p>                
+                                        </div>            
+                                    </div>            
+                                    <!-- Resumo Textual e Ranking -->            
+                                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">                
+                                        <!-- Relatório Textual -->                
+                                        <div class="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-lg p-6">                    
+                                            <h3 class="font-semibold text-gray-800 mb-4 text-xl flex items-center gap-2">                        
+                                                <i data-lucide="clipboard-list" class="w-5 h-5 text-green-600"></i>                        
+                                                Análise Detalhada do Período                    
+                                            </h3>                    
+                                            <div id="relatorio-textual-cesta" class="text-sm text-gray-700 space-y-3">                        
+                                                <p class="text-gray-500 italic">Gere o relatório para visualizar a análise completa.</p>                    
+                                            </div>                
+                                        </div>                
+                                        <!-- Ranking de Unidades -->                
+                                        <div class="lg:col-span-1 bg-white rounded-xl border border-gray-200 shadow-lg p-6">                    
+                                            <h3 class="font-semibold text-gray-800 mb-4 text-xl flex items-center gap-2">                        
+                                                <i data-lucide="trophy" class="w-5 h-5 text-yellow-600"></i>                        
+                                                Ranking de Recebimento                    
+                                            </h3>                    
+                                            <div id="ranking-unidades-cesta" class="space-y-3">                        
+                                                <p class="text-gray-500 italic text-sm">Gere o relatório para visualizar o ranking.</p>                    
+                                            </div>                
+                                        </div>            
+                                    </div>            
+                                    <!-- Gráfico Principal -->            
+                                    <div class="bg-white rounded-xl border border-gray-200 shadow-lg p-6">                
+                                        <h4 class="font-semibold text-gray-700 mb-3 text-lg flex items-center gap-2">                    
+                                            <i data-lucide="bar-chart" class="w-5 h-5 text-blue-600"></i>                    
+                                            <span id="titulo-grafico-cesta">Distribuição de Cestas Básicas</span>                
+                                        </h4>                
+                                        <div class="chart-container-lg" style="height: 400px;">                    
+                                            <canvas id="grafico-cesta-relatorio"></canvas>                
+                                        </div>            
+                                    </div>            
+                                    <!-- Tabela Detalhada -->            
+                                    <div class="bg-white rounded-xl border border-gray-200 shadow-lg p-6">                
+                                        <h4 class="font-semibold text-gray-700 mb-3 text-lg">Detalhamento por Item</h4>                
+                                        <div class="overflow-x-auto border border-gray-200 rounded-lg max-h-96">                    
+                                            <table class="table w-full text-sm">                        
+                                                <thead class="bg-gray-50">                            
+                                                    <tr id="header-tabela-cesta">                                
+                                                        <!-- Headers dinâmicos baseados no agrupamento -->                            
+                                                    </tr>                        
+                                                </thead>                        
+                                                <tbody id="tabela-detalhes-cesta" class="divide-y divide-gray-100">                            
+                                                    <tr><td colspan="4" class="text-center py-10">Gere o relatório para ver os detalhes</td></tr>                        
+                                                </tbody>                    
+                                            </table>                
+                                        </div>            
+                                    </div>        
+                                </div>    
+                                <!-- Histórico de Saídas (Mantido da estrutura anterior, abaixo do novo relatório) -->
+                                <h4 class="text-lg font-semibold mt-8 mb-3 border-b pb-2">Histórico Completo de Lançamentos</h4>
                                  
                                  <!-- Tabela de Histórico (Movimentação) -->
                                  <div class="overflow-x-auto border border-gray-200 rounded-lg max-h-96">
@@ -1849,7 +1914,7 @@
                                          <tbody id="table-cesta-historico"><tr><td colspan="8" class="text-center py-10"><div class="loading-spinner-small mx-auto"></div></td></tr></tbody>
                                      </table>
                                  </div>
-                             </div>
+                            </div>
                         </div>
                     </div> <!-- FIM CESTAS BÁSICAS -->
 
@@ -1960,69 +2025,138 @@
                              </div>
                         </div>
 
-                        <!-- Subview: Relatórios e Histórico (Enxoval) - (UPDATED) -->
-                        <div id="subview-enxoval-relatorio" class="hidden">
-                            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-                                 <h3 class="text-xl font-bold text-pink-600 mb-4">📊 Histórico de Saídas e Relatórios</h3>
-                                 <div id="alert-enxoval-relatorio" class="alert mb-4"></div>
-
-                                 <!-- NOVO: Área de Relatório e Filtros -->
-                                 <div class="mb-6 p-4 bg-gray-50 rounded-xl border border-gray-200 shadow-inner">
-                                     <h4 class="text-lg font-semibold mb-3 border-b pb-2 flex items-center gap-2">
-                                         <i data-lucide="filter" class="w-5 h-5 text-gray-600"></i>
-                                         Relatório Personalizado
-                                     </h4>
-                                     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-                                         <div>
-                                             <label for="enxoval-rel-data-inicio" class="form-label text-xs">Data Início</label>
-                                             <input type="date" id="enxoval-rel-data-inicio" class="form-input" required>
-                                         </div>
-                                         <div>
-                                             <label for="enxoval-rel-data-fim" class="form-label text-xs">Data Fim</label>
-                                             <input type="date" id="enxoval-rel-data-fim" class="form-input" required>
-                                         </div>
-                                         <div>
-                                             <label for="enxoval-rel-categoria" class="form-label text-xs">Categoria</label>
-                                             <select id="enxoval-rel-categoria" class="form-select">
-                                                 <option value="all">Todas as Categorias</option>
-                                                 <option value="maternidade">Maternidade</option>
-                                                 <option value="infantil">Infantil (Geral)</option>
-                                                 <option value="idoso">Idoso</option>
-                                                 <option value="deficiente">PCD</option>
-                                             </select>
-                                         </div>
-                                         <div class="col-span-1 flex items-end justify-end">
-                                             <button type="button" id="btn-enxoval-gerar-relatorio" class="btn-primary w-full md:w-auto">
-                                                 <i data-lucide="send"></i> Gerar Relatório
-                                             </button>
-                                         </div>
-                                     </div>
-                                 </div>
-                                 
-                                 <!-- Resultados do Relatório (Resumo Textual e Gráfico) -->
-                                 <div id="enxoval-relatorio-output" class="hidden space-y-6">
-                                    <!-- CORREÇÃO 1: Adicionado Resumo Textual Detalhado (Total, Média, Categoria Principal) -->
-                                     <div id="enxoval-rel-detalhes-texto" class="lg:col-span-2 bg-blue-50 rounded-xl border border-blue-200 shadow-sm p-6">
-                                         <h4 class="font-semibold text-blue-800 mb-3 text-lg flex items-center gap-2">
-                                             <i data-lucide="clipboard-list" class="w-5 h-5 text-blue-600"></i>
-                                             Análise de Saídas no Período
-                                         </h4>
-                                         <div id="enxoval-relatorio-resumo-texto" class="text-sm text-gray-700 space-y-3">
-                                            <!-- JS preenche aqui -->
-                                         </div>
-                                     </div>
-                                    
-                                    <div class="bg-white rounded-xl border border-gray-200 shadow-lg p-6">
-                                        <h4 class="font-semibold text-gray-700 mb-3 text-lg">
-                                            Distribuição de Saídas por Categoria
-                                        </h4>
-                                        <div class="chart-container-lg">
-                                            <canvas id="grafico-enxoval-relatorio"></canvas>
-                                        </div>
-                                    </div>
-                                 </div>
-
-                                 <h4 class="text-lg font-semibold mt-8 mb-3 border-b pb-2">Histórico Completo de Lançamentos</h4>
+                        <!-- Subview: Relatórios e Histórico (Enxoval) - NOVO HTML DO USUÁRIO ADAPTADO -->
+                        <div id="subview-enxoval-relatorio" class="hidden">    
+                            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 max-w-6xl mx-auto">        
+                                <h2 class="text-2xl font-bold text-gray-800 mb-2">            
+                                    <i data-lucide="bar-chart-3" class="inline-block -mt-1"></i> Relatório de Assistência Social - Enxoval        
+                                </h2>        
+                                <p class="text-sm text-gray-500 mb-6">            
+                                    Analise a distribuição de enxovais por período e unidade.        
+                                </p>        
+                                <!-- Painel de Filtros -->        
+                                <div class="mb-8 p-4 bg-gray-50 rounded-xl border border-gray-200 shadow-inner">            
+                                    <h3 class="font-semibold text-gray-700 mb-4 text-lg border-b pb-2 flex items-center gap-2">                
+                                        <i data-lucide="filter" class="w-5 h-5 text-blue-600"></i>                
+                                        Filtros do Relatório            
+                                    </h3>            
+                                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">                
+                                        <!-- Período -->                
+                                        <div>                    
+                                            <label for="enxoval-periodo-relatorio" class="form-label">Período</label>                    
+                                            <select id="enxoval-periodo-relatorio" class="form-select">                        
+                                                <option value="30">Últimos 30 dias</option>                        
+                                                <option value="60">Últimos 60 dias</option>                        
+                                                <option value="90">Últimos 90 dias</option>                        
+                                                <option value="custom">Período personalizado</option>                    
+                                            </select>                
+                                        </div>                                
+                                        <!-- Datas customizadas -->                
+                                        <div id="enxoval-datas-custom" class="hidden">                    
+                                            <label for="enxoval-data-inicio" class="form-label">Data Início</label>                    
+                                            <input type="date" id="enxoval-data-inicio" class="form-input">                
+                                        </div>                
+                                        <div id="enxoval-datas-custom-fim" class="hidden">                    
+                                            <label for="enxoval-data-fim" class="form-label">Data Fim</label>                    
+                                            <input type="date" id="enxoval-data-fim" class="form-input">                
+                                        </div>                
+                                        <!-- Tipo de agrupamento -->                
+                                        <div>                    
+                                            <label for="enxoval-agrupamento" class="form-label">Agrupar por</label>                    
+                                            <select id="enxoval-agrupamento" class="form-select">                        
+                                                <option value="unidade">Unidade</option>                        
+                                                <option value="tipo-unidade">Tipo de Unidade</option>                        
+                                                <option value="mensal">Distribuição Mensal</option>                        
+                                                <option value="semanal">Distribuição Semanal</option>                    
+                                            </select>                
+                                        </div>                
+                                        <!-- Botão -->                
+                                        <div class="flex items-end">                    
+                                            <button id="btn-gerar-relatorio-enxoval" class="btn-primary">                        
+                                                <i data-lucide="bar-chart-2"></i> Gerar Relatório                    
+                                            </button>                
+                                        </div>            
+                                    </div>            
+                                    <div id="alert-relatorio-enxoval" class="alert mt-4"></div>        
+                                </div>        
+                                <!-- Resultados do Relatório -->        
+                                <div id="resultado-relatorio-enxoval" class="hidden space-y-8">            
+                                    <!-- KPIs Principais -->            
+                                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">                
+                                        <div class="bg-gradient-to-br from-pink-50 to-pink-100 rounded-xl p-4 border border-pink-200">                    
+                                            <h4 class="font-semibold text-pink-800 mb-2">Total Distribuído</h4>                    
+                                            <p id="kpi-total-enxovais" class="text-3xl font-bold text-pink-600">0</p>                    
+                                            <p class="text-xs text-pink-500">Enxovais</p>                
+                                        </div>                
+                                        <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 border border-blue-200">                    
+                                            <h4 class="font-semibold text-blue-800 mb-2">Unidades Atendidas</h4>                    
+                                            <p id="kpi-unidades-atendidas-enxoval" class="text-3xl font-bold text-blue-600">0</p>                    
+                                            <p class="text-xs text-blue-500">Unidades diferentes</p>                
+                                        </div>                
+                                        <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4 border border-green-200">                    
+                                            <h4 class="font-semibold text-green-800 mb-2">Média Diária</h4>                    
+                                            <p id="kpi-media-diaria-enxoval" class="text-3xl font-bold text-green-600">0</p>                    
+                                            <p class="text-xs text-green-500">Enxovais por dia</p>                
+                                        </div>                
+                                        <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 border border-purple-200">                    
+                                            <h4 class="font-semibold text-purple-800 mb-2">Maior Volume</h4>                    
+                                            <p id="kpi-maior-volume-data-enxoval" class="text-lg font-bold text-purple-600">-</p>                    
+                                            <p class="text-xs text-purple-500">Dia com mais entregas</p>                
+                                        </div>            
+                                    </div>            
+                                    <!-- Resumo Textual e Ranking -->            
+                                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">                
+                                        <!-- Relatório Textual -->                
+                                        <div class="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-lg p-6">                    
+                                            <h3 class="font-semibold text-gray-800 mb-4 text-xl flex items-center gap-2">                        
+                                                <i data-lucide="clipboard-list" class="w-5 h-5 text-green-600"></i>                        
+                                                Análise Detalhada do Período                    
+                                            </h3>                    
+                                            <div id="relatorio-textual-enxoval" class="text-sm text-gray-700 space-y-3">                        
+                                                <p class="text-gray-500 italic">Gere o relatório para visualizar a análise completa.</p>                    
+                                            </div>                
+                                        </div>                
+                                        <!-- Ranking de Unidades -->                
+                                        <div class="lg:col-span-1 bg-white rounded-xl border border-gray-200 shadow-lg p-6">                    
+                                            <h3 class="font-semibold text-gray-800 mb-4 text-xl flex items-center gap-2">                        
+                                                <i data-lucide="trophy" class="w-5 h-5 text-yellow-600"></i>                        
+                                                Ranking de Recebimento                    
+                                            </h3>                    
+                                            <div id="ranking-unidades-enxoval" class="space-y-3">                        
+                                                <p class="text-gray-500 italic text-sm">Gere o relatório para visualizar o ranking.</p>                    
+                                            </div>                
+                                        </div>            
+                                    </div>            
+                                    <!-- Gráfico Principal -->            
+                                    <div class="bg-white rounded-xl border border-gray-200 shadow-lg p-6">                
+                                        <h4 class="font-semibold text-gray-700 mb-3 text-lg flex items-center gap-2">                    
+                                            <i data-lucide="bar-chart" class="w-5 h-5 text-blue-600"></i>                    
+                                            <span id="titulo-grafico-enxoval">Distribuição de Enxovais</span>                
+                                        </h4>                
+                                        <div class="chart-container-lg" style="height: 400px;">                    
+                                            <canvas id="grafico-enxoval-relatorio"></canvas>                
+                                        </div>            
+                                    </div>            
+                                    <!-- Tabela Detalhada -->            
+                                    <div class="bg-white rounded-xl border border-gray-200 shadow-lg p-6">                
+                                        <h4 class="font-semibold text-gray-700 mb-3 text-lg">Detalhamento por Item</h4>                
+                                        <div class="overflow-x-auto border border-gray-200 rounded-lg max-h-96">                    
+                                            <table class="table w-full text-sm">                        
+                                                <thead class="bg-gray-50">                            
+                                                    <tr id="header-tabela-enxoval">                                
+                                                        <!-- Headers dinâmicos baseados no agrupamento -->                            
+                                                    </tr>                        
+                                                </thead>                        
+                                                <tbody id="tabela-detalhes-enxoval" class="divide-y divide-gray-100">                            
+                                                    <tr><td colspan="4" class="text-center py-10">Gere o relatório para ver os detalhes</td></tr>                        
+                                                </tbody>                    
+                                            </table>                
+                                        </div>            
+                                    </div>        
+                                </div>
+                                
+                                <!-- Histórico de Saídas (Mantido da estrutura anterior, abaixo do novo relatório) -->
+                                <h4 class="text-lg font-semibold mt-8 mb-3 border-b pb-2">Histórico Completo de Lançamentos</h4>
 
                                  <!-- Tabela de Histórico (Movimentação) -->
                                  <div class="overflow-x-auto border border-gray-200 rounded-lg max-h-96">
@@ -2043,7 +2177,7 @@
                                          <tbody id="table-enxoval-historico"><tr><td colspan="8" class="text-center py-10"><div class="loading-spinner-small mx-auto"></div></td></tr></tbody>
                                      </table>
                                  </div>
-                             </div>
+                            </div>
                         </div>
                     </div> <!-- FIM ENXOVAL -->
 
