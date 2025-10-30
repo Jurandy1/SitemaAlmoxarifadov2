@@ -222,7 +222,10 @@ function initAllListeners() {
              // Lógica de alerta para unidade
              else if (type === 'unidade') alertId = 'alert-gestao'; 
              // Lógica de alerta para Social (Cesta/Enxoval)
-             else if (type === 'cesta' || type === 'enxoval') alertId = `${type}-relatorio`; 
+             else if (type === 'mov-cesta') alertId = 'alertRelatorioCesta'; 
+             else if (type === 'estoque-cesta') alertId = 'alert-cesta-estoque';
+             else if (type === 'mov-enxoval') alertId = 'alertRelatorioEnxoval';
+             else if (type === 'estoque-enxoval') alertId = 'alert-enxoval-estoque';
 
              console.log(`openConfirmDeleteModal called with type: ${type}, alertId: ${alertId}`);
 
