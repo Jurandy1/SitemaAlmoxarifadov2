@@ -10,10 +10,10 @@ import { DOM_ELEMENTS, showAlert, switchSubTabView } from "../utils/dom-helpers.
 import { getTodayDateString, dateToTimestamp, capitalizeString, formatTimestamp } from "../utils/formatters.js";
 import { isReady } from "./auth.js";
 import { COLLECTIONS, db } from "../services/firestore-service.js";
+// NOVO: Importa funções do módulo de relatórios avançados
+import { handleGerarSocialRelatorioMelhorado, limparGraficosSocial } from "./social-control-improved.js"; 
 
-// Variáveis para as instâncias dos gráficos
-let graficoCestaRelatorio = null;
-let graficoEnxovalRelatorio = null;
+// Variáveis para as instâncias dos gráficos - REMOVIDAS para social-control-improved.js
 
 // =========================================================================
 // FUNÇÕES DE UTILIDADE E CÁLCULO DE ESTOQUE
@@ -73,7 +73,7 @@ function getPeriodoAnalise(movimentacoes) {
  */
 function switchMainSubModule(mainSubView) {
     // Altera a classe 'active' do botão principal
-    DOM_ELEMENTS.subNavSocialMain.querySelectorAll('button').forEach(btn => {
+    DOM_ELEMENTS.subNavSocialMain?.querySelectorAll('button').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.subviewMain === mainSubView);
     });
 
@@ -86,9 +86,11 @@ function switchMainSubModule(mainSubView) {
     if (mainSubView === 'cesta-basica') {
         switchInternalSubView('cesta', 'lancamento');
         renderCestaEstoqueSummary();
+        limparGraficosSocial(); // Limpa gráficos ao trocar de módulo
     } else if (mainSubView === 'enxoval') {
         switchInternalSubView('enxoval', 'lancamento');
         renderEnxovalEstoqueSummary();
+        limparGraficosSocial(); // Limpa gráficos ao trocar de módulo
     }
 }
 
@@ -132,6 +134,7 @@ function switchInternalSubView(itemType, subViewName) {
             thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
             dataInicioEl.value = thirtyDaysAgo.toISOString().split('T')[0];
         }
+        limparGraficosSocial(); // Limpa gráficos ao entrar na view de relatório (evita bugs)
     }
     
     // NOVO: Renderiza os selects do formulário ao entrar na aba de lançamento
@@ -174,7 +177,7 @@ async function handleEstoqueEntrySubmit(e, itemType) {
             itemLabel: 'Cesta(s) Básica(s)'
         },
         'enxoval': {
-            form: DOM_ELEMENTs.formEnxovalEntrada,
+            form: DOM_ELEMENTS.formEnxovalEntrada,
             qtd: DOM_ELEMENTS.enxovalEntradaQuantidade,
             data: DOM_ELEMENTS.enxovalEntradaData,
             resp: DOM_ELEMENTS.enxovalEntradaResponsavel,
@@ -283,15 +286,19 @@ function renderCestaLancamentoControls() {
     selectUnidadeEl.innerHTML = unidadeHtml;
 
     // Adiciona listener para alternar visibilidade
-    selectTipoDestinatarioEl.onchange = () => {
+    const tipoChangeHandler = () => {
         const tipo = selectTipoDestinatarioEl.value;
         const isPersonalizado = tipo === 'personalizado';
         
-        selectUnidadeEl.classList.toggle('hidden', isPersonalizado);
+        const unidadeContainer = selectUnidadeEl.closest('div');
+        const personalizadoContainer = inputPersonalizadoEl.closest('div');
+        
+        if(unidadeContainer) unidadeContainer.classList.toggle('hidden', isPersonalizado);
         selectUnidadeEl.required = !isPersonalizado;
         
-        inputPersonalizadoEl.classList.toggle('hidden', !isPersonalizado);
+        if(personalizadoContainer) personalizadoContainer.classList.toggle('hidden', !isPersonalizado);
         inputPersonalizadoEl.required = isPersonalizado;
+        inputPersonalizadoEl.disabled = !isPersonalizado; // Corrige a desabilitação
         
         // Limpa os valores para evitar submissão de campos ocultos
         if (isPersonalizado) {
@@ -301,8 +308,12 @@ function renderCestaLancamentoControls() {
         }
     };
     
+    // Remove listener antigo (se existir) e adiciona o novo para evitar duplicação
+    selectTipoDestinatarioEl.removeEventListener('change', tipoChangeHandler);
+    selectTipoDestinatarioEl.addEventListener('change', tipoChangeHandler);
+    
     // Garante que o estado inicial esteja correto
-    selectTipoDestinatarioEl.dispatchEvent(new Event('change'));
+    tipoChangeHandler();
 }
 
 /**
@@ -575,15 +586,19 @@ function renderEnxovalLancamentoControls() {
     selectUnidadeEl.innerHTML = unidadeHtml;
 
     // Adiciona listener para alternar visibilidade
-    selectTipoDestinatarioEl.onchange = () => {
+    const tipoChangeHandler = () => {
         const tipo = selectTipoDestinatarioEl.value;
         const isPersonalizado = tipo === 'personalizado';
         
-        selectUnidadeEl.classList.toggle('hidden', isPersonalizado);
+        const unidadeContainer = selectUnidadeEl.closest('div');
+        const personalizadoContainer = inputPersonalizadoEl.closest('div');
+        
+        if(unidadeContainer) unidadeContainer.classList.toggle('hidden', isPersonalizado);
         selectUnidadeEl.required = !isPersonalizado;
         
-        inputPersonalizadoEl.classList.toggle('hidden', !isPersonalizado);
+        if(personalizadoContainer) personalizadoContainer.classList.toggle('hidden', !isPersonalizado);
         inputPersonalizadoEl.required = isPersonalizado;
+        inputPersonalizadoEl.disabled = !isPersonalizado;
         
         // Limpa os valores para evitar submissão de campos ocultos
         if (isPersonalizado) {
@@ -593,8 +608,12 @@ function renderEnxovalLancamentoControls() {
         }
     };
     
+    // Remove listener antigo (se existir) e adiciona o novo para evitar duplicação
+    selectTipoDestinatarioEl.removeEventListener('change', tipoChangeHandler);
+    selectTipoDestinatarioEl.addEventListener('change', tipoChangeHandler);
+
     // Garante que o estado inicial esteja correto
-    selectTipoDestinatarioEl.dispatchEvent(new Event('change'));
+    tipoChangeHandler();
 }
 
 /**
@@ -817,211 +836,10 @@ export async function handleEnxovalLancamentoSubmit(e) {
 
 
 // =========================================================================
-// NOVO PONTO 2: LÓGICA DE RELATÓRIO E GRÁFICO (MODIFICADA PARA SER MAIS ROBUSTA)
+// LÓGICA DE RELATÓRIO E GRÁFICO (REMOVIDA PARA social-control-improved.js)
 // =========================================================================
 
-/**
- * Renderiza o gráfico de consumo por categoria (Mensal, Anual, etc.)
- * @param {string} itemType 'cesta' ou 'enxoval'.
- * @param {Array<Object>} dataSet Dados do gráfico.
- * @param {string} totalLabel Título do gráfico.
- */
-function renderRelatorioChart(itemType, dataSet, totalLabel) {
-    const canvasId = `grafico-${itemType}-relatorio`;
-    const ctx = document.getElementById(canvasId)?.getContext('2d');
-    if (!ctx) return;
-
-    // Destrói instância anterior
-    const currentChart = itemType === 'cesta' ? graficoCestaRelatorio : graficoEnxovalRelatorio;
-    if (currentChart) {
-        currentChart.destroy();
-    }
-
-    const itemLabel = itemType === 'cesta' ? 'Cestas' : 'Enxovais';
-
-    const newChart = new Chart(ctx, {
-        type: 'bar',
-        data: dataSet,
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                x: { stacked: true },
-                y: {
-                    stacked: true,
-                    beginAtZero: true,
-                    title: { display: true, text: `Quantidade de ${itemLabel}` },
-                    ticks: { precision: 0 }
-                }
-            },
-            plugins: {
-                title: {
-                    display: true,
-                    text: totalLabel
-                },
-                legend: {
-                    position: 'bottom',
-                }
-            }
-        }
-    });
-
-    if (itemType === 'cesta') {
-        graficoCestaRelatorio = newChart;
-    } else {
-        graficoEnxovalRelatorio = newChart;
-    }
-}
-
-/**
- * Renderiza o resumo textual robusto para a chefia.
- * **CORRIGIDO:** Substituído ** por <strong> para evitar caracteres bugados no HTML.
- * @param {string} itemType 'cesta' ou 'enxoval'.
- * @param {Array<Object>} movsFiltradas Movimentações de saída filtradas.
- * @param {Map<string, number>} categoriasMap Mapa de categorias e totais.
- * @param {number} totalSaidas Total de saídas no período.
- */
-function renderRelatorioTextual(itemType, movsFiltradas, categoriasMap, totalSaidas) {
-    const relatorioEl = DOM_ELEMENTS[`${itemType}RelatorioResumoTexto`];
-    if (!relatorioEl) return;
-
-    // 1. Cálculos Adicionais
-    const { dataInicial, dataFinal, totalDias } = getPeriodoAnalise(movsFiltradas);
-    const itemLabel = itemType === 'cesta' ? 'cesta' : 'enxoval';
-    const itemLabelPlural = itemType === 'cesta' ? 'cestas básicas' : 'enxovais';
-
-    const categoriasOrdenadas = Array.from(categoriasMap.entries()).sort((a, b) => b[1] - a[1]);
-    const categoriaPrincipal = categoriasOrdenadas.length > 0 ? {
-        nome: capitalizeString(categoriasOrdenadas[0][0]),
-        total: categoriasOrdenadas[0][1],
-        percentual: (categoriasOrdenadas[0][1] / totalSaidas) * 100
-    } : null;
-
-    // 2. Resumo da Distribuição por Categoria
-    let distribuicaoHtml = '<ul>';
-    categoriasOrdenadas.forEach(([nome, total]) => {
-        const percentual = (total / totalSaidas) * 100;
-        distribuicaoHtml += `
-            <li class="flex justify-between border-b border-gray-100 py-1">
-                <span class="font-medium text-gray-800">${capitalizeString(nome)}:</span>
-                <span class="font-bold text-blue-700">${total} un. (${percentual.toFixed(1)}%)</span>
-            </li>
-        `;
-    });
-    distribuicaoHtml += '</ul>';
-    
-    // 3. Resumo da Distribuição Mensal (para indicar recorrência)
-    const mesesMap = new Map();
-    movsFiltradas.forEach(m => {
-        const date = m.data.toDate();
-        const mesKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-        mesesMap.set(mesKey, (mesesMap.get(mesKey) || 0) + (m.quantidade || 0));
-    });
-    const totalMeses = mesesMap.size;
-    const mediaMensal = totalSaidas / (totalMeses > 0 ? totalMeses : 1);
-    
-    const mesesOrdenados = Array.from(mesesMap.keys()).sort();
-    
-    // 4. Montagem do Relatório Textual (Robusto)
-    // CORREÇÃO: Removendo asteriscos e usando tags <strong>
-    let relatorioText = `
-        <p>Este relatório analisa a distribuição de <strong>${itemLabelPlural}</strong> no período de <strong>${formatTimestamp(dataInicial)}</strong> a <strong>${formatTimestamp(dataFinal)}</strong>, cobrindo um total de <strong>${totalDias.toFixed(0)} dias</strong> de operações de saída.</p>
-        
-        <p class="font-bold pt-3">Indicadores Chave:</p>
-        <ul class="list-disc list-inside space-y-1 ml-4">
-            <li>O <strong>Total de Saídas</strong> no período foi de <strong>${totalSaidas} unidades</strong> de ${itemLabelPlural}.</li>
-            <li>A média de saídas é de <strong>${(totalSaidas / totalDias).toFixed(2)} ${itemLabel}s por dia</strong>.</li>
-            ${totalMeses > 1 ? `<li>A média mensal de saídas é de aproximadamente <strong>${mediaMensal.toFixed(1)} unidades</strong> (calculado em ${totalMeses} meses).</li>` : ''}
-            ${categoriaPrincipal ? `<li>A <strong>Categoria Principal</strong> de distribuição foi <strong>${categoriaPrincipal.nome}</strong>, representando <strong>${categoriaPrincipal.total} unidades</strong> (${categoriaPrincipal.percentual.toFixed(1)}% do total).</li>` : ''}
-        </ul>
-        
-        <p class="font-bold pt-3">Distribuição Detalhada por Categoria:</p>
-        <div class="p-3 bg-white border border-gray-200 rounded-lg">${distribuicaoHtml}</div>
-        
-        <p class="text-xs text-gray-500 pt-3 italic"><strong>Sugestão:</strong> Focar a próxima compra ou reposição de estoque na categoria <strong>${categoriaPrincipal?.nome || 'N/A'}</strong>, considerando a média de consumo diário/mensal para evitar rupturas de estoque.</p>
-    `;
-
-    relatorioEl.innerHTML = relatorioText;
-}
-
-
-/**
- * Lida com a geração do relatório personalizado (Gráfico e Resumo Textual).
- * @param {string} itemType 'cesta' ou 'enxoval'.
- */
-async function handleGerarSocialRelatorio(itemType) {
-    if (!isReady()) { showAlert(`alert-${itemType}-relatorio`, 'Erro: Não autenticado.', 'error'); return; }
-
-    const relatorioOutputEl = document.getElementById(`${itemType}-relatorio-output`);
-    const alertId = `alert-${itemType}-relatorio`;
-
-    // 1. Coletar filtros
-    const dataInicioStr = document.getElementById(`${itemType}-rel-data-inicio`)?.value;
-    const dataFimStr = document.getElementById(`${itemType}-rel-data-fim`)?.value;
-    const categoriaFiltro = document.getElementById(`${itemType}-rel-categoria`)?.value;
-
-    if (!dataInicioStr || !dataFimStr) { showAlert(alertId, 'Selecione a data de início e fim.', 'warning'); return; }
-
-    const dataInicio = dateToTimestamp(dataInicioStr).toMillis();
-    // Adiciona 23:59:59.999ms para incluir o dia final
-    const dataFim = dateToTimestamp(dataFimStr).toMillis() + (24 * 60 * 60 * 1000 - 1); 
-
-    const movimentacoes = itemType === 'cesta' ? getCestaMovimentacoes() : getEnxovalMovimentacoes();
-    
-    // 2. Filtrar as movimentações
-    let movsFiltradas = movimentacoes.filter(m => { 
-        const mData = m.data?.toMillis(); 
-        const isSaida = m.tipo === 'saida';
-        const dataMatch = mData >= dataInicio && mData <= dataFim;
-        const categoriaMatch = categoriaFiltro === 'all' || m.categoria === categoriaFiltro;
-        return isSaida && dataMatch && categoriaMatch; 
-    });
-
-    if (movsFiltradas.length === 0) { 
-        showAlert(alertId, 'Nenhum dado de saída encontrado para os filtros selecionados.', 'info'); 
-        relatorioOutputEl.classList.add('hidden');
-        return; 
-    }
-    
-    // 3. Processamento de dados
-    const totalSaidas = movsFiltradas.reduce((sum, m) => sum + (m.quantidade || 0), 0);
-    const categoriasMap = new Map();
-    // const mesesMap = new Map(); // Removido para usar apenas no resumo
-
-    movsFiltradas.forEach(m => {
-        // Por Categoria (Gráfico)
-        const categoria = m.categoria || 'Não Categorizado';
-        categoriasMap.set(categoria, (categoriasMap.get(categoria) || 0) + (m.quantidade || 0));
-    });
-
-    const categoriasOrdenadas = Array.from(categoriasMap.entries()).sort((a, b) => b[1] - a[1]);
-    
-    // 4. Preparar dados do gráfico
-    const chartLabels = categoriasOrdenadas.map(entry => capitalizeString(entry[0]));
-    const chartData = categoriasOrdenadas.map(entry => entry[1]);
-
-    const dataset = {
-        labels: chartLabels,
-        datasets: [{
-            label: itemType === 'cesta' ? 'Qtd. Cestas' : 'Qtd. Enxovais',
-            backgroundColor: 'rgba(236, 72, 153, 0.7)', // Pink-500
-            borderColor: 'rgba(236, 72, 153, 1)',
-            borderWidth: 1
-        }]
-    };
-    
-    // 5. Renderizar
-    // CORREÇÃO 1: Renderiza o resumo textual robusto antes do gráfico
-    renderRelatorioTextual(itemType, movsFiltradas, categoriasMap, totalSaidas);
-    
-    // Geração do Título
-    const tituloRelatorio = `Distribuição de Saídas por Categoria (${formatTimestamp(Timestamp.fromMillis(dataInicio))} - ${formatTimestamp(Timestamp.fromMillis(dataFim))})`;
-    renderRelatorioChart(itemType, dataset, tituloRelatorio);
-    
-    relatorioOutputEl.classList.remove('hidden');
-    showAlert(alertId, 'Relatório gerado com sucesso!', 'success', 3000);
-}
-
+// Funções de relatório removidas
 
 // =========================================================================
 // LÓGICA DE IMPORTAÇÃO (CORRIGIDA)
@@ -1118,7 +936,6 @@ export async function handleSocialImportSubmit() {
             if (itemType === 'Cesta Básica') {
                 // Formato esperado (9 colunas):
                 // 0: Data | 1: Destinatário | 2: Qtd. | 3: Unidade | 4: Categoria | 5: Observações | 6: Custo | 7: Responsável | 8: Fornecedor
-                // NOTA: Ajustei a interpretação das colunas para bater com o formato mais lógico e o HTML.
                 
                 const destinatario = capitalizeString(parts[1] || '');
                 const quantidade = parseInt(parts[2], 10);
@@ -1218,9 +1035,9 @@ export function initSocialListeners() {
     });
     DOM_ELEMENTS.formCestaLancamento?.addEventListener('submit', handleCestaLancamentoSubmit);
     DOM_ELEMENTS.formCestaEntrada?.addEventListener('submit', handleCestaEstoqueEntrySubmit); 
-    // NOVO: Listener para gerar relatório
-    document.getElementById('btn-cesta-gerar-relatorio')?.addEventListener('click', () => handleGerarSocialRelatorio('cesta'));
-
+    // NOVO: Listener para gerar relatório MELHORADO
+    document.getElementById('btn-cesta-gerar-relatorio-melhorado')?.addEventListener('click', () => handleGerarSocialRelatorioMelhorado('cesta'));
+    // REMOVIDO: Antigo listener 'btn-cesta-gerar-relatorio'
 
     // Listeners para sub-abas de Enxoval
     DOM_ELEMENTS.subNavEnxoval?.addEventListener('click', (e) => {
@@ -1229,8 +1046,9 @@ export function initSocialListeners() {
     });
     DOM_ELEMENTS.formEnxovalLancamento?.addEventListener('submit', handleEnxovalLancamentoSubmit);
     DOM_ELEMENTS.formEnxovalEntrada?.addEventListener('submit', handleEnxovalEstoqueEntrySubmit); 
-    // NOVO: Listener para gerar relatório
-    document.getElementById('btn-enxoval-gerar-relatorio')?.addEventListener('click', () => handleGerarSocialRelatorio('enxoval'));
+    // NOVO: Listener para gerar relatório MELHORADO
+    document.getElementById('btn-enxoval-gerar-relatorio-melhorado')?.addEventListener('click', () => handleGerarSocialRelatorioMelhorado('enxoval'));
+    // REMOVIDO: Antigo listener 'btn-enxoval-gerar-relatorio'
     
     // Listener de Importação
     DOM_ELEMENTS.btnSocialImportData?.addEventListener('click', handleSocialImportSubmit);
@@ -1267,6 +1085,5 @@ export function onSocialTabChange() {
     renderEnxovalLancamentoControls();
     
     // Limpa os gráficos ao mudar de aba principal
-    if (graficoCestaRelatorio) { graficoCestaRelatorio.destroy(); graficoCestaRelatorio = null; }
-    if (graficoEnxovalRelatorio) { graficoEnxovalRelatorio.destroy(); graficoEnxovalRelatorio = null; }
+    limparGraficosSocial();
 }
