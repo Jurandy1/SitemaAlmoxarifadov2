@@ -7,7 +7,7 @@ import {
     getUserRole 
 } from "../utils/cache.js";
 import { DOM_ELEMENTS, showAlert, switchSubTabView } from "../utils/dom-helpers.js";
-import { getTodayDateString, dateToTimestamp, capitalizeString, formatTimestamp } from "../utils/formatters.js";
+import { getTodayDateString, dateToTimestamp, capitalizeString, formatTimestamp, formatTimestampComTempo } from "../utils/formatters.js";
 import { isReady } from "./auth.js";
 import { COLLECTIONS, db } from "../services/firestore-service.js";
 
@@ -121,17 +121,24 @@ function switchInternalSubView(itemType, subViewName) {
     if (subViewName === 'relatorio') {
         if (itemType === 'cesta') renderCestaMovimentacoesHistoryTable();
         if (itemType === 'enxoval') renderEnxovalMovimentacoesHistoryTable();
-        // Esconde o relatório detalhado ao entrar na aba
-        document.getElementById(`${itemType}-relatorio-output`)?.classList.add('hidden');
-        // Preenche as datas do filtro de relatório com os últimos 30 dias
-        const dataFimEl = document.getElementById(`${itemType}-rel-data-fim`);
-        const dataInicioEl = document.getElementById(`${itemType}-rel-data-inicio`);
+        
+        // Esconde o relatório detalhado e reseta filtros customizados
+        document.getElementById(`resultado-relatorio-${itemType}`)?.classList.add('hidden');
+        document.getElementById(`${itemType}-datas-custom`)?.classList.add('hidden');
+        document.getElementById(`${itemType}-datas-custom-fim`)?.classList.add('hidden');
+
+        // Preenche as datas do filtro de relatório com os últimos 30 dias (lógica do usuário)
+        const dataFimEl = DOM_ELEMENTS[`${itemType}DataFimRelatorio`];
+        const dataInicioEl = DOM_ELEMENTS[`${itemType}DataInicioRelatorio`];
+        const periodoEl = DOM_ELEMENTS[`${itemType}PeriodoRelatorio`];
+        
         if (dataFimEl) dataFimEl.value = getTodayDateString();
         if (dataInicioEl) {
             const thirtyDaysAgo = new Date();
             thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
             dataInicioEl.value = thirtyDaysAgo.toISOString().split('T')[0];
         }
+        if (periodoEl) periodoEl.value = '30'; // Seleciona "Últimos 30 dias"
     }
     
     // NOVO: Renderiza os selects do formulário ao entrar na aba de lançamento
@@ -174,7 +181,7 @@ async function handleEstoqueEntrySubmit(e, itemType) {
             itemLabel: 'Cesta(s) Básica(s)'
         },
         'enxoval': {
-            form: DOM_ELEMENTs.formEnxovalEntrada,
+            form: DOM_ELEMENTS.formEnxovalEntrada,
             qtd: DOM_ELEMENTS.enxovalEntradaQuantidade,
             data: DOM_ELEMENTS.enxovalEntradaData,
             resp: DOM_ELEMENTS.enxovalEntradaResponsavel,
@@ -273,7 +280,7 @@ function renderCestaLancamentoControls() {
         unidadeHtml += `<optgroup label="Tipo: ${tipo}">`;
         grupos[tipo]
             .sort((a, b) => a.nome.localeCompare(b.nome))
-            // Valor: TIPO-NOME (Ex: CRAS-CRAS CENTRO)
+            // Valor: TIPO-NOME (Ex: CRAS: Cras Centro)
             .forEach(unidade => {
                 unidadeHtml += `<option value="${tipo.toUpperCase()}: ${unidade.nome}">${unidade.nome}</option>`;
             });
@@ -287,10 +294,14 @@ function renderCestaLancamentoControls() {
         const tipo = selectTipoDestinatarioEl.value;
         const isPersonalizado = tipo === 'personalizado';
         
-        selectUnidadeEl.classList.toggle('hidden', isPersonalizado);
+        // Containers dos campos
+        const containerUnidade = selectUnidadeEl.closest('.md\\:col-span-2');
+        const containerPersonalizado = inputPersonalizadoEl.closest('.md\\:col-span-2');
+
+        if (containerUnidade) containerUnidade.classList.toggle('hidden', isPersonalizado);
         selectUnidadeEl.required = !isPersonalizado;
         
-        inputPersonalizadoEl.classList.toggle('hidden', !isPersonalizado);
+        if (containerPersonalizado) containerPersonalizado.classList.toggle('hidden', !isPersonalizado);
         inputPersonalizadoEl.required = isPersonalizado;
         
         // Limpa os valores para evitar submissão de campos ocultos
@@ -579,10 +590,14 @@ function renderEnxovalLancamentoControls() {
         const tipo = selectTipoDestinatarioEl.value;
         const isPersonalizado = tipo === 'personalizado';
         
-        selectUnidadeEl.classList.toggle('hidden', isPersonalizado);
+        // Containers dos campos
+        const containerUnidade = selectUnidadeEl.closest('.md\\:col-span-2');
+        const containerPersonalizado = inputPersonalizadoEl.closest('.md\\:col-span-2');
+
+        if (containerUnidade) containerUnidade.classList.toggle('hidden', isPersonalizado);
         selectUnidadeEl.required = !isPersonalizado;
         
-        inputPersonalizadoEl.classList.toggle('hidden', !isPersonalizado);
+        if (containerPersonalizado) containerPersonalizado.classList.toggle('hidden', !isPersonalizado);
         inputPersonalizadoEl.required = isPersonalizado;
         
         // Limpa os valores para evitar submissão de campos ocultos
@@ -821,127 +836,398 @@ export async function handleEnxovalLancamentoSubmit(e) {
 // =========================================================================
 
 /**
- * Renderiza o gráfico de consumo por categoria (Mensal, Anual, etc.)
- * @param {string} itemType 'cesta' ou 'enxoval'.
- * @param {Array<Object>} dataSet Dados do gráfico.
- * @param {string} totalLabel Título do gráfico.
+ * Normaliza o nome da unidade/tipo para ser usado como chave de agrupamento
+ * @param {string} destinatario Nome do destinatário (pode incluir prefixo TIPO:).
+ * @returns {string} Nome da unidade ou tipo da unidade.
  */
-function renderRelatorioChart(itemType, dataSet, totalLabel) {
-    const canvasId = `grafico-${itemType}-relatorio`;
-    const ctx = document.getElementById(canvasId)?.getContext('2d');
-    if (!ctx) return;
-
-    // Destrói instância anterior
-    const currentChart = itemType === 'cesta' ? graficoCestaRelatorio : graficoEnxovalRelatorio;
-    if (currentChart) {
-        currentChart.destroy();
+function normalizeDestinatario(destinatario) {
+    if (!destinatario) return 'Não Informado';
+    const parts = destinatario.split(':').map(p => p.trim());
+    if (parts.length > 1) {
+        // Ex: "CRAS: Cras Centro" -> "Cras Centro" (Unidade)
+        return parts[1];
     }
+    return destinatario; // Nome personalizado ou não formatado
+}
 
-    const itemLabel = itemType === 'cesta' ? 'Cestas' : 'Enxovais';
+/**
+ * Calcula a chave temporal para agrupamento (Mensal ou Semanal).
+ * @param {Timestamp} timestamp Timestamp do Firestore.
+ * @param {string} agrupamento 'mensal' ou 'semanal'.
+ * @returns {string} Chave formatada.
+ */
+function getPeriodKey(timestamp, agrupamento) {
+    if (!timestamp || typeof timestamp.toDate !== 'function') return 'N/A';
+    const date = timestamp.toDate();
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    
+    if (agrupamento === 'mensal') {
+        return `${year}-${month}`; // Ex: 2024-10
+    }
+    
+    if (agrupamento === 'semanal') {
+        // Calcula o início da semana (domingo)
+        const d = new Date(date);
+        d.setHours(0, 0, 0, 0);
+        d.setDate(d.getDate() - d.getDay()); // Início da semana (Domingo)
+        // Usa o formato AAAA-MM-DD para garantir a ordem
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; 
+    }
+    
+    return `${year}-${month}-${day}`; // Agrupamento diário
+}
 
-    const newChart = new Chart(ctx, {
-        type: 'bar',
-        data: dataSet,
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                x: { stacked: true },
-                y: {
-                    stacked: true,
-                    beginAtZero: true,
-                    title: { display: true, text: `Quantidade de ${itemLabel}` },
-                    ticks: { precision: 0 }
-                }
-            },
-            plugins: {
-                title: {
-                    display: true,
-                    text: totalLabel
-                },
-                legend: {
-                    position: 'bottom',
-                }
-            }
+/**
+ * Processa os dados de movimentação com base no tipo de agrupamento.
+ * @param {Array<Object>} movsFiltradas Movimentações de saída filtradas.
+ * @param {string} agrupamento 'unidade', 'tipo-unidade', 'mensal', 'semanal'.
+ * @returns {Object} Dados processados para KPIs, Ranking e Gráfico.
+ */
+function processSocialReportData(movsFiltradas, agrupamento) {
+    const dadosProcessados = {
+        totalSaidas: 0,
+        unidadesUnicas: new Set(),
+        dadosAgrupados: new Map(), // Agrupa por Unidade, Tipo, Mês ou Semana
+        maiorVolumeDia: { data: null, quantidade: 0 },
+        distribuicaoDiaria: new Map(), // Para KPI de maior volume
+        ranking: new Map(), // Para Ranking de Unidades/Tipos
+    };
+
+    const unidadesMap = new Map(getUnidades().map(u => [`${u.tipo.toUpperCase()}: ${u.nome}`, u]));
+
+    movsFiltradas.forEach(mov => {
+        const quantidade = mov.quantidade || 0;
+        if (quantidade === 0) return;
+
+        dadosProcessados.totalSaidas += quantidade;
+
+        // 1. Agrupamento principal (para Ranking e Gráfico)
+        let chaveAgrupamento = '';
+
+        if (agrupamento === 'unidade') {
+            chaveAgrupamento = normalizeDestinatario(mov.destinatario);
+        } else if (agrupamento === 'tipo-unidade') {
+            // Tenta extrair o tipo da unidade (Ex: "CRAS: Cras Centro" -> "CRAS")
+            const parts = mov.destinatario.split(':').map(p => p.trim());
+            const tipo = parts.length > 1 ? parts[0] : 'Personalizado';
+            chaveAgrupamento = capitalizeString(tipo);
+        } else if (agrupamento === 'mensal' || agrupamento === 'semanal') {
+            chaveAgrupamento = getPeriodKey(mov.data, agrupamento);
+        }
+        
+        // Acumula no agrupamento principal
+        dadosProcessados.dadosAgrupados.set(chaveAgrupamento, (dadosProcessados.dadosAgrupados.get(chaveAgrupamento) || 0) + quantidade);
+
+
+        // 2. Cálculo para KPIs (Unidades Atendidas, Maior Dia)
+        
+        // Unidades Únicas: conta o destinatário se for unidade
+        const destinatarioNormalizado = normalizeDestinatario(mov.destinatario);
+        if (destinatarioNormalizado !== 'Não Informado') {
+             dadosProcessados.unidadesUnicas.add(destinatarioNormalizado);
+        }
+        
+        // Distribuição Diária
+        const diaKey = getPeriodKey(mov.data, 'diario');
+        dadosProcessados.distribuicaoDiaria.set(diaKey, (dadosProcessados.distribuicaoDiaria.get(diaKey) || 0) + quantidade);
+    });
+
+    // 3. Finaliza KPI: Maior Volume
+    dadosProcessados.distribuicaoDiaria.forEach((qtd, dia) => {
+        if (qtd > dadosProcessados.maiorVolumeDia.quantidade) {
+            dadosProcessados.maiorVolumeDia = { data: dia, quantidade: qtd };
         }
     });
 
-    if (itemType === 'cesta') {
-        graficoCestaRelatorio = newChart;
-    } else {
-        graficoEnxovalRelatorio = newChart;
+    // 4. Cria o Ranking (Top 10)
+    dadosProcessados.ranking = Array.from(dadosProcessados.dadosAgrupados.entries())
+        .map(([nome, quantidade]) => ({ nome, quantidade }))
+        .sort((a, b) => b.quantidade - a.quantidade)
+        .slice(0, 10);
+        
+    return dadosProcessados;
+}
+
+
+/**
+ * Atualiza os KPIs na UI.
+ */
+function renderSocialReportKPIs(itemType, dadosProcessados, totalDias) {
+    const itemLabel = itemType === 'cesta' ? 'cestas' : 'enxovais';
+    
+    // Mapeamento dos IDs de KPI
+    const kpiMap = {
+        total: DOM_ELEMENTS[`kpiTotal${capitalizeString(itemLabel)}`],
+        unidades: DOM_ELEMENTS[`kpiUnidadesAtendidas${capitalizeString(itemType)}`],
+        media: DOM_ELEMENTS[`kpiMediaDiaria${capitalizeString(itemType)}`],
+        maiorVolume: DOM_ELEMENTS[`kpiMaiorVolumeData${capitalizeString(itemType)}`]
+    };
+
+    if (kpiMap.total) {
+        kpiMap.total.textContent = dadosProcessados.totalSaidas.toLocaleString('pt-BR');
+    }
+    if (kpiMap.unidades) {
+        kpiMap.unidades.textContent = dadosProcessados.unidadesUnicas.size;
+    }
+    if (kpiMap.media) {
+        const mediaDiaria = totalDias > 0 ? (dadosProcessados.totalSaidas / totalDias) : 0;
+        kpiMap.media.textContent = mediaDiaria.toFixed(1);
+    }
+    if (kpiMap.maiorVolume) {
+        if (dadosProcessados.maiorVolumeDia.data) {
+             const [ano, mes, dia] = dadosProcessados.maiorVolumeDia.data.split('-');
+             const dataFormatada = `${dia}/${mes}/${ano.substring(2)}`;
+             kpiMap.maiorVolume.textContent = `${dadosProcessados.maiorVolumeDia.quantidade} un. em ${dataFormatada}`;
+        } else {
+             kpiMap.maiorVolume.textContent = '-';
+        }
     }
 }
 
 /**
- * Renderiza o resumo textual robusto para a chefia.
- * **CORRIGIDO:** Substituído ** por <strong> para evitar caracteres bugados no HTML.
+ * Renderiza o ranking de recebimento.
+ */
+function renderSocialReportRanking(itemType, ranking, totalSaidas) {
+    const container = DOM_ELEMENTS[`rankingUnidades${capitalizeString(itemType)}`];
+    if (!container) return;
+
+    if (ranking.length === 0) {
+        container.innerHTML = '<p class="text-gray-500 italic text-sm">Nenhum dado de distribuição encontrado para o ranking.</p>';
+        return;
+    }
+    
+    const rankingHTML = ranking.map((item, index) => {
+        const medalha = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}º`;
+        const percentual = ((item.quantidade / totalSaidas) * 100).toFixed(1);
+        const itemClasse = index < 3 ? 'bg-yellow-50' : 'bg-gray-50';
+        
+        return `            
+            <div class="flex items-center justify-between p-2 rounded-lg ${itemClasse}">                
+                <div class="flex items-center gap-2">                    
+                    <span class="text-lg">${medalha}</span>                    
+                    <div>                        
+                        <p class="font-medium text-sm">${item.nome}</p>                        
+                        <p class="text-xs text-gray-500">${percentual}% do total</p>                    
+                    </div>                
+                </div>                
+                <span class="font-bold text-lg text-blue-600">${item.quantidade}</span>            
+            </div>        
+        `;
+    }).join('');
+
+    container.innerHTML = rankingHTML;
+    if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
+}
+
+/**
+ * Renderiza o gráfico principal (Barras para tempo, Rosca para Unidade/Tipo).
+ */
+function renderSocialReportChart(itemType, dadosProcessados, agrupamento) {
+    const canvas = DOM_ELEMENTS[`grafico${capitalizeString(itemType)}RelatorioCanvas`];
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    
+    // Destrói gráfico anterior se existir
+    const chartInstance = itemType === 'cesta' ? graficoCestaRelatorio : graficoEnxovalRelatorio;
+    if (chartInstance) {
+        chartInstance.destroy();
+        if (itemType === 'cesta') graficoCestaRelatorio = null;
+        else graficoEnxovalRelatorio = null;
+    }
+
+    const labels = Array.from(dadosProcessados.dadosAgrupados.keys());
+    const valores = Array.from(dadosProcessados.dadosAgrupados.values());
+    const total = valores.reduce((a, b) => a + b, 0);
+
+    // Mapeamento de cores
+    const cores = [
+        '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+        '#FF9F40', '#E7E9ED', '#8B0000', '#006400', '#4B0082'
+    ];
+
+    const isTemporal = agrupamento === 'mensal' || agrupamento === 'semanal';
+    const chartType = isTemporal ? 'bar' : 'doughnut';
+    const itemLabel = itemType === 'cesta' ? 'Cestas Básicas' : 'Enxovais';
+
+    // Formata rótulos temporais para exibição
+    const formattedLabels = labels.map(label => {
+        if (agrupamento === 'mensal') {
+            const [year, month] = label.split('-');
+            return new Date(year, month - 1, 1).toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+        }
+        if (agrupamento === 'semanal') {
+             const [year, month, day] = label.split('-');
+             return `Sem. de ${day}/${month}`;
+        }
+        return label;
+    });
+
+    const config = {
+        type: chartType,
+        data: {
+            labels: formattedLabels,
+            datasets: [{
+                label: itemLabel,
+                data: valores,
+                backgroundColor: isTemporal ? 'rgba(59, 130, 246, 0.7)' : cores.slice(0, labels.length),
+                borderColor: isTemporal ? 'rgba(59, 130, 246, 1)' : 'white',
+                borderWidth: isTemporal ? 1 : 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: isTemporal ? 'top' : 'right',
+                    labels: {
+                        boxWidth: 12,
+                        padding: 15
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const percentual = ((context.parsed / total) * 100).toFixed(1);
+                            return `${context.label}: ${context.parsed} un. (${percentual}%)`;
+                        }
+                    }
+                }
+            },
+            scales: isTemporal ? {
+                x: { title: { display: true, text: capitalizeString(agrupamento) } },
+                y: { beginAtZero: true, ticks: { stepSize: 1, precision: 0 } }
+            } : {}
+        }
+    };
+
+    const newChartInstance = new Chart(ctx, config);
+    if (itemType === 'cesta') graficoCestaRelatorio = newChartInstance;
+    else graficoEnxovalRelatorio = newChartInstance;
+
+    // Atualiza título
+    const tituloEl = DOM_ELEMENTS[`tituloGrafico${capitalizeString(itemType)}`];
+    if (tituloEl) {
+        const titulos = {
+            'unidade': `Distribuição por Unidade (${total} total)`,
+            'tipo-unidade': `Distribuição por Tipo de Unidade (${total} total)`,
+            'mensal': 'Evolução Mensal',
+            'semanal': 'Evolução Semanal',
+        };
+        tituloEl.textContent = titulos[agrupamento] || `Distribuição de ${itemLabel}`;
+    }
+}
+
+/**
+ * Renderiza o relatório textual robusto para a chefia.
  * @param {string} itemType 'cesta' ou 'enxoval'.
  * @param {Array<Object>} movsFiltradas Movimentações de saída filtradas.
- * @param {Map<string, number>} categoriasMap Mapa de categorias e totais.
- * @param {number} totalSaidas Total de saídas no período.
+ * @param {Object} dadosProcessados Dados processados.
  */
-function renderRelatorioTextual(itemType, movsFiltradas, categoriasMap, totalSaidas) {
-    const relatorioEl = DOM_ELEMENTS[`${itemType}RelatorioResumoTexto`];
-    if (!relatorioEl) return;
-
-    // 1. Cálculos Adicionais
+function renderSocialReportTextual(itemType, movsFiltradas, dadosProcessados) {
+    const container = DOM_ELEMENTS[`relatorioTextual${capitalizeString(itemType)}`];
+    if (!container) return;
+    
+    const { totalSaidas, unidadesUnicas, ranking } = dadosProcessados;
     const { dataInicial, dataFinal, totalDias } = getPeriodoAnalise(movsFiltradas);
-    const itemLabel = itemType === 'cesta' ? 'cesta' : 'enxoval';
-    const itemLabelPlural = itemType === 'cesta' ? 'cestas básicas' : 'enxovais';
-
-    const categoriasOrdenadas = Array.from(categoriasMap.entries()).sort((a, b) => b[1] - a[1]);
-    const categoriaPrincipal = categoriasOrdenadas.length > 0 ? {
-        nome: capitalizeString(categoriasOrdenadas[0][0]),
-        total: categoriasOrdenadas[0][1],
-        percentual: (categoriasOrdenadas[0][1] / totalSaidas) * 100
-    } : null;
-
-    // 2. Resumo da Distribuição por Categoria
-    let distribuicaoHtml = '<ul>';
-    categoriasOrdenadas.forEach(([nome, total]) => {
-        const percentual = (total / totalSaidas) * 100;
-        distribuicaoHtml += `
-            <li class="flex justify-between border-b border-gray-100 py-1">
-                <span class="font-medium text-gray-800">${capitalizeString(nome)}:</span>
-                <span class="font-bold text-blue-700">${total} un. (${percentual.toFixed(1)}%)</span>
-            </li>
-        `;
-    });
-    distribuicaoHtml += '</ul>';
     
-    // 3. Resumo da Distribuição Mensal (para indicar recorrência)
-    const mesesMap = new Map();
-    movsFiltradas.forEach(m => {
-        const date = m.data.toDate();
-        const mesKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-        mesesMap.set(mesKey, (mesesMap.get(mesKey) || 0) + (m.quantidade || 0));
-    });
-    const totalMeses = mesesMap.size;
-    const mediaMensal = totalSaidas / (totalMeses > 0 ? totalMeses : 1);
+    const itemLabel = itemType === 'cesta' ? 'cestas básicas' : 'enxovais';
+    const mediaDiaria = totalDias > 0 ? (totalSaidas / totalDias).toFixed(1) : '0';
     
-    const mesesOrdenados = Array.from(mesesMap.keys()).sort();
+    const maisRecebeu = ranking.length > 0 ? ranking[0] : null;
+    let relatorioHTML = '';
     
-    // 4. Montagem do Relatório Textual (Robusto)
-    // CORREÇÃO: Removendo asteriscos e usando tags <strong>
-    let relatorioText = `
-        <p>Este relatório analisa a distribuição de <strong>${itemLabelPlural}</strong> no período de <strong>${formatTimestamp(dataInicial)}</strong> a <strong>${formatTimestamp(dataFinal)}</strong>, cobrindo um total de <strong>${totalDias.toFixed(0)} dias</strong> de operações de saída.</p>
-        
-        <p class="font-bold pt-3">Indicadores Chave:</p>
-        <ul class="list-disc list-inside space-y-1 ml-4">
-            <li>O <strong>Total de Saídas</strong> no período foi de <strong>${totalSaidas} unidades</strong> de ${itemLabelPlural}.</li>
-            <li>A média de saídas é de <strong>${(totalSaidas / totalDias).toFixed(2)} ${itemLabel}s por dia</strong>.</li>
-            ${totalMeses > 1 ? `<li>A média mensal de saídas é de aproximadamente <strong>${mediaMensal.toFixed(1)} unidades</strong> (calculado em ${totalMeses} meses).</li>` : ''}
-            ${categoriaPrincipal ? `<li>A <strong>Categoria Principal</strong> de distribuição foi <strong>${categoriaPrincipal.nome}</strong>, representando <strong>${categoriaPrincipal.total} unidades</strong> (${categoriaPrincipal.percentual.toFixed(1)}% do total).</li>` : ''}
-        </ul>
-        
-        <p class="font-bold pt-3">Distribuição Detalhada por Categoria:</p>
-        <div class="p-3 bg-white border border-gray-200 rounded-lg">${distribuicaoHtml}</div>
-        
-        <p class="text-xs text-gray-500 pt-3 italic"><strong>Sugestão:</strong> Focar a próxima compra ou reposição de estoque na categoria <strong>${categoriaPrincipal?.nome || 'N/A'}</strong>, considerando a média de consumo diário/mensal para evitar rupturas de estoque.</p>
+    if (totalSaidas === 0) {
+         container.innerHTML = `<p class="text-gray-500 italic">Nenhum dado encontrado para o período.</p>`;
+         return;
+    }
+    
+    // --- Resumo Executivo ---
+    relatorioHTML += `
+        <div class="bg-blue-50 p-3 rounded-lg border-l-4 border-blue-500">
+            <h4 class="font-semibold text-blue-800 mb-2">📊 Resumo Executivo</h4>
+            <p><strong>Período analisado:</strong> ${formatTimestamp(dataInicial)} a ${formatTimestamp(dataFinal)} (${totalDias} dias)</p>
+            <p><strong>Total distribuído:</strong> ${totalSaidas} ${itemLabel}</p>
+            <p><strong>Média diária:</strong> ${mediaDiaria} ${itemLabel.replace(' básicas', '')}/dia</p>
+            <p><strong>Unidades atendidas:</strong> ${unidadesUnicas.size} diferentes</p>
+        </div>
     `;
 
-    relatorioEl.innerHTML = relatorioText;
+    // --- Destaque - Maior Recebimento ---
+    if (maisRecebeu) {
+        const percentualMaior = ((maisRecebeu.quantidade / totalSaidas) * 100).toFixed(1);
+        relatorioHTML += `
+            <div class="bg-green-50 p-3 rounded-lg border-l-4 border-green-500">
+                <h4 class="font-semibold text-green-800 mb-2">🏆 Destaque - Maior Recebimento</h4>
+                <p>A categoria/unidade <strong>${maisRecebeu.nome}</strong> mais recebeu ${itemLabel}:</p>
+                <p><strong>${maisRecebeu.quantidade} unidades</strong> (${percentualMaior}% do total)</p>
+            </div>
+        `;
+    }
+
+    // --- Top 3 de Recebimento ---
+    if (ranking.length > 3) {
+        relatorioHTML += `
+            <div class="bg-yellow-50 p-3 rounded-lg border-l-4 border-yellow-500">
+                <h4 class="font-semibold text-yellow-800 mb-2">📈 Análise de Distribuição (Top 3)</h4>
+                <p>As <strong>3 maiores fontes de distribuição</strong> foram:</p>
+                <ol class="list-decimal list-inside mt-2 space-y-1">
+                    ${ranking.slice(0, 3).map(item => 
+                         `<li><strong>${item.nome}:</strong> ${item.quantidade} un. (${((item.quantidade/totalSaidas)*100).toFixed(1)}%)</li>`
+                    ).join('')}
+                </ol>
+            </div>
+        `;
+    }
+
+    container.innerHTML = relatorioHTML;
+}
+
+/**
+ * Renderiza a tabela de detalhes.
+ */
+function renderSocialReportDetailTable(itemType, dadosProcessados, agrupamento) {
+    const tableBody = DOM_ELEMENTS[`tabelaDetalhes${capitalizeString(itemType)}`];
+    const tableHeader = DOM_ELEMENTS[`headerTabela${capitalizeString(itemType)}`];
+    
+    if (!tableBody || !tableHeader) return;
+
+    // 1. Define Headers
+    let headerText = '';
+    let bodyData = [];
+    
+    if (agrupamento === 'unidade') {
+        headerText = '<th>Unidade</th><th>Qtd. Total Recebida</th>';
+        bodyData = dadosProcessados.ranking.map(item => `<tr><td>${item.nome}</td><td class="text-center font-bold">${item.quantidade}</td></tr>`);
+    } else if (agrupamento === 'tipo-unidade') {
+        headerText = '<th>Tipo de Unidade</th><th>Qtd. Total Recebida</th>';
+        bodyData = dadosProcessados.ranking.map(item => `<tr><td>${item.nome}</td><td class="text-center font-bold">${item.quantidade}</td></tr>`);
+    } else { // Mensal / Semanal
+        headerText = `<th>Período</th><th>Qtd. Total Distribuída</th>`;
+        // Converte Map para Array e ordena cronologicamente
+        const sortedData = Array.from(dadosProcessados.dadosAgrupados.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+        bodyData = sortedData.map(([periodoKey, quantidade]) => {
+            let periodoDisplay = periodoKey;
+            if (agrupamento === 'mensal') {
+                const [year, month] = periodoKey.split('-');
+                periodoDisplay = `${month}/${year}`;
+            } else if (agrupamento === 'semanal') {
+                 const [year, month, day] = periodoKey.split('-');
+                 periodoDisplay = `Semana de ${day}/${month}/${year.substring(2)}`;
+            }
+            return `<tr><td>${periodoDisplay}</td><td class="text-center font-bold">${quantidade}</td></tr>`;
+        });
+    }
+
+    tableHeader.innerHTML = headerText;
+    
+    if (bodyData.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="2" class="text-center py-10">Nenhum dado encontrado para este agrupamento no período.</td></tr>`;
+    } else {
+        tableBody.innerHTML = bodyData.join('');
+    }
 }
 
 
@@ -950,33 +1236,45 @@ function renderRelatorioTextual(itemType, movsFiltradas, categoriasMap, totalSai
  * @param {string} itemType 'cesta' ou 'enxoval'.
  */
 async function handleGerarSocialRelatorio(itemType) {
-    if (!isReady()) { showAlert(`alert-${itemType}-relatorio`, 'Erro: Não autenticado.', 'error'); return; }
+    if (!isReady()) { showAlert(`alert-relatorio-${itemType}`, 'Erro: Não autenticado.', 'error'); return; }
 
-    const relatorioOutputEl = document.getElementById(`${itemType}-relatorio-output`);
-    const alertId = `alert-${itemType}-relatorio`;
+    const relatorioOutputEl = DOM_ELEMENTS[`resultadoRelatorio${capitalizeString(itemType)}`];
+    const alertId = `alertRelatorio${capitalizeString(itemType)}`;
 
     // 1. Coletar filtros
-    const dataInicioStr = document.getElementById(`${itemType}-rel-data-inicio`)?.value;
-    const dataFimStr = document.getElementById(`${itemType}-rel-data-fim`)?.value;
-    const categoriaFiltro = document.getElementById(`${itemType}-rel-categoria`)?.value;
-
-    if (!dataInicioStr || !dataFimStr) { showAlert(alertId, 'Selecione a data de início e fim.', 'warning'); return; }
-
-    const dataInicio = dateToTimestamp(dataInicioStr).toMillis();
-    // Adiciona 23:59:59.999ms para incluir o dia final
-    const dataFim = dateToTimestamp(dataFimStr).toMillis() + (24 * 60 * 60 * 1000 - 1); 
+    const periodo = DOM_ELEMENTS[`${itemType}PeriodoRelatorio`].value;
+    const agrupamento = DOM_ELEMENTS[`${itemType}Agrupamento`].value;
+    let dataInicioStr = DOM_ELEMENTS[`${itemType}DataInicioRelatorio`].value;
+    let dataFimStr = DOM_ELEMENTS[`${itemType}DataFimRelatorio`].value;
+    
+    // Calcula datas se não for customizado
+    if (periodo !== 'custom') {
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setDate(endDate.getDate() - parseInt(periodo));
+        dataInicioStr = startDate.toISOString().split('T')[0];
+        dataFimStr = endDate.toISOString().split('T')[0];
+    } else {
+        if (!dataInicioStr || !dataFimStr) {
+             showAlert(alertId, 'Para "Período personalizado", informe as datas de início e fim.', 'warning'); 
+             return;
+        }
+    }
+    
+    // Converte datas para Milissegundos (com +1 dia para o fim)
+    const dataInicioMillis = dateToTimestamp(dataInicioStr).toMillis();
+    const dataFimMillis = dateToTimestamp(dataFimStr).toMillis() + (24 * 60 * 60 * 1000 - 1); 
 
     const movimentacoes = itemType === 'cesta' ? getCestaMovimentacoes() : getEnxovalMovimentacoes();
-    
+
     // 2. Filtrar as movimentações
     let movsFiltradas = movimentacoes.filter(m => { 
         const mData = m.data?.toMillis(); 
         const isSaida = m.tipo === 'saida';
-        const dataMatch = mData >= dataInicio && mData <= dataFim;
-        const categoriaMatch = categoriaFiltro === 'all' || m.categoria === categoriaFiltro;
-        return isSaida && dataMatch && categoriaMatch; 
+        const dataMatch = mData >= dataInicioMillis && mData <= dataFimMillis;
+        return isSaida && dataMatch; 
     });
-
+    
     if (movsFiltradas.length === 0) { 
         showAlert(alertId, 'Nenhum dado de saída encontrado para os filtros selecionados.', 'info'); 
         relatorioOutputEl.classList.add('hidden');
@@ -984,44 +1282,19 @@ async function handleGerarSocialRelatorio(itemType) {
     }
     
     // 3. Processamento de dados
-    const totalSaidas = movsFiltradas.reduce((sum, m) => sum + (m.quantidade || 0), 0);
-    const categoriasMap = new Map();
-    // const mesesMap = new Map(); // Removido para usar apenas no resumo
-
-    movsFiltradas.forEach(m => {
-        // Por Categoria (Gráfico)
-        const categoria = m.categoria || 'Não Categorizado';
-        categoriasMap.set(categoria, (categoriasMap.get(categoria) || 0) + (m.quantidade || 0));
-    });
-
-    const categoriasOrdenadas = Array.from(categoriasMap.entries()).sort((a, b) => b[1] - a[1]);
+    const totalDaysCount = Math.ceil((dataFimMillis - dataInicioMillis) / (1000 * 60 * 60 * 24));
+    const dadosProcessados = processSocialReportData(movsFiltradas, agrupamento);
     
-    // 4. Preparar dados do gráfico
-    const chartLabels = categoriasOrdenadas.map(entry => capitalizeString(entry[0]));
-    const chartData = categoriasOrdenadas.map(entry => entry[1]);
-
-    const dataset = {
-        labels: chartLabels,
-        datasets: [{
-            label: itemType === 'cesta' ? 'Qtd. Cestas' : 'Qtd. Enxovais',
-            backgroundColor: 'rgba(236, 72, 153, 0.7)', // Pink-500
-            borderColor: 'rgba(236, 72, 153, 1)',
-            borderWidth: 1
-        }]
-    };
-    
-    // 5. Renderizar
-    // CORREÇÃO 1: Renderiza o resumo textual robusto antes do gráfico
-    renderRelatorioTextual(itemType, movsFiltradas, categoriasMap, totalSaidas);
-    
-    // Geração do Título
-    const tituloRelatorio = `Distribuição de Saídas por Categoria (${formatTimestamp(Timestamp.fromMillis(dataInicio))} - ${formatTimestamp(Timestamp.fromMillis(dataFim))})`;
-    renderRelatorioChart(itemType, dataset, tituloRelatorio);
+    // 4. Renderizar
+    renderSocialReportKPIs(itemType, dadosProcessados, totalDaysCount);
+    renderSocialReportTextual(itemType, movsFiltradas, dadosProcessados);
+    renderSocialReportRanking(itemType, dadosProcessados.ranking, dadosProcessados.totalSaidas);
+    renderSocialReportChart(itemType, dadosProcessados, agrupamento);
+    renderSocialReportDetailTable(itemType, dadosProcessados, agrupamento);
     
     relatorioOutputEl.classList.remove('hidden');
     showAlert(alertId, 'Relatório gerado com sucesso!', 'success', 3000);
 }
-
 
 // =========================================================================
 // LÓGICA DE IMPORTAÇÃO (CORRIGIDA)
@@ -1219,7 +1492,19 @@ export function initSocialListeners() {
     DOM_ELEMENTS.formCestaLancamento?.addEventListener('submit', handleCestaLancamentoSubmit);
     DOM_ELEMENTS.formCestaEntrada?.addEventListener('submit', handleCestaEstoqueEntrySubmit); 
     // NOVO: Listener para gerar relatório
-    document.getElementById('btn-cesta-gerar-relatorio')?.addEventListener('click', () => handleGerarSocialRelatorio('cesta'));
+    DOM_ELEMENTS.btnGerarRelatorioCesta?.addEventListener('click', () => handleGerarSocialRelatorio('cesta'));
+    // NOVO: Listener para alternar datas customizadas
+    DOM_ELEMENTS.cestaPeriodoRelatorio?.addEventListener('change', function() {
+        const customDiv = DOM_ELEMENTS.cestaDatasCustom;
+        const customDivFim = DOM_ELEMENTS.cestaDatasCustomFim;
+        if (this.value === 'custom') {
+            customDiv?.classList.remove('hidden');
+            customDivFim?.classList.remove('hidden');
+        } else {
+            customDiv?.classList.add('hidden');
+            customDivFim?.classList.add('hidden');
+        }
+    });
 
 
     // Listeners para sub-abas de Enxoval
@@ -1230,7 +1515,19 @@ export function initSocialListeners() {
     DOM_ELEMENTS.formEnxovalLancamento?.addEventListener('submit', handleEnxovalLancamentoSubmit);
     DOM_ELEMENTS.formEnxovalEntrada?.addEventListener('submit', handleEnxovalEstoqueEntrySubmit); 
     // NOVO: Listener para gerar relatório
-    document.getElementById('btn-enxoval-gerar-relatorio')?.addEventListener('click', () => handleGerarSocialRelatorio('enxoval'));
+    DOM_ELEMENTS.btnGerarRelatorioEnxoval?.addEventListener('click', () => handleGerarSocialRelatorio('enxoval'));
+    // NOVO: Listener para alternar datas customizadas
+    DOM_ELEMENTS.enxovalPeriodoRelatorio?.addEventListener('change', function() {
+        const customDiv = DOM_ELEMENTS.enxovalDatasCustom;
+        const customDivFim = DOM_ELEMENTS.enxovalDatasCustomFim;
+        if (this.value === 'custom') {
+            customDiv?.classList.remove('hidden');
+            customDivFim?.classList.remove('hidden');
+        } else {
+            customDiv?.classList.add('hidden');
+            customDivFim?.classList.add('hidden');
+        }
+    });
     
     // Listener de Importação
     DOM_ELEMENTS.btnSocialImportData?.addEventListener('click', handleSocialImportSubmit);
