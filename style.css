@@ -1,0 +1,1069 @@
+/* style.css
+  Este arquivo contém APENAS os estilos dinâmicos que o app.js precisa 
+  ou que são complexos demais para o Tailwind inline, baseados no novo design.
+  Todos os estilos de layout, fonte e cor primários vêm do Tailwind no index.html.
+*/
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+/* Fontes base (fallback caso o Tailwind não pegue) */
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #f9fafb; /* bg-gray-50 */
+}
+
+/* ============================================= */
+/* MELHORIAS DO CABEÇALHO (NOVO)                 */
+/* ============================================= */
+
+/* ===== Faixa superior colorida SEMCAS (Corrigido para 3px) ===== */
+header .faixa-semcas {
+  height: 3px; /* Reduzido para ser mais fino */
+  /* As cores já estão no Tailwind do HTML, mas garantimos aqui a altura */
+}
+
+/* ===== Título institucional (Reforçando as cores Tailwind) ===== */
+header h1 {
+  color: #1e3a8a; /* semcas-dark-blue */
+  letter-spacing: -0.5px;
+}
+
+header p {
+  color: #334155; /* slate-700 (mais escuro que gray-600) */
+}
+
+
+/* ============================================= */
+/* MODAL DE AUTENTICAÇÃO (NOVO)                  */
+/* ============================================= */
+.auth-modal {
+    z-index: 10000; /* Z-index mais alto para garantir que fique por cima */
+}
+.auth-modal-content {
+    max-width: 450px;
+    padding: 0; /* Remover padding padrão do modal-content */
+}
+/* Re-aplicar fundo branco e sombra */
+.auth-modal-content .modal-header, 
+.auth-modal-content .modal-body {
+    background-color: #ffffff;
+}
+.auth-modal-content .modal-header {
+    border-bottom: none;
+}
+
+
+/* ============================================= */
+/* 3) NAVEGAÇÃO PRINCIPAL (ABAS)                 */
+/* ============================================= */
+.main-nav-container {
+    /* CORREÇÃO: Re-habilitando o scrollbar horizontal */
+    -ms-overflow-style: auto;  /* IE and Edge */
+    scrollbar-width: auto;  /* Firefox */
+    
+    /* Adicionando uma sombra sutil para indicar que há mais conteúdo */
+    box-shadow: inset 0 -4px 6px -1px rgba(0, 0, 0, 0.05);
+    padding-bottom: 0.5rem; 
+}
+.main-nav-container::-webkit-scrollbar {
+    display: block; /* Chrome, Safari, Opera */
+    height: 8px; /* Mostrar o scrollbar */
+}
+
+/* NOVO: Estiliza o scrollbar para ser sutil, mas visível */
+.main-nav-container::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1; /* slate-300 */
+    border-radius: 4px;
+}
+.main-nav-container::-webkit-scrollbar-track {
+    background-color: #f1f5f9; /* slate-100 */
+}
+
+.nav-btn {
+    /* Estilo Inativo (Spec 3) */
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem; /* gap-2 */
+    padding: 0.5rem 1rem; /* px-4 py-2 */
+    font-size: 0.875rem; /* text-sm */
+    font-weight: 500; /* font-medium */
+    border-radius: 9999px; /* rounded-full */
+    background-color: #f3f4f6; /* bg-gray-100 */
+    color: #374151; /* text-gray-700 */
+    white-space: nowrap;
+    transition: all 0.2s ease-in-out;
+    border: 2px solid transparent;
+}
+.nav-btn:hover {
+    background-color: #e5e7eb; /* hover:bg-gray-200 */
+}
+.nav-btn.active {
+    /* Estilo Ativo (Spec 3) */
+    background-color: #2563eb; /* bg-blue-600 */
+    color: #ffffff; /* text-white */
+    font-weight: 600;
+}
+/* Ajusta a cor do ícone quando inativo */
+.nav-btn .lucide {
+    width: 1rem; /* w-4 */
+    height: 1rem; /* h-4 */
+}
+.nav-btn.active .lucide {
+    color: #ffffff !important; /* Força o ícone a ser branco */
+}
+
+
+/* ============================================= */
+/* 4) FILTROS DO DASHBOARD (PILLS)               */
+/* ============================================= */
+.dashboard-nav-btn {
+    /* Estilo Inativo (Spec 4) */
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border-radius: 9999px;
+    background-color: #f3f4f6; /* bg-gray-100 */
+    color: #374151; /* text-gray-700 */
+    border: 1px solid #e5e7eb; /* border-gray-200 */
+    transition: all 0.2s ease-in-out;
+}
+.dashboard-nav-btn:hover {
+    background-color: #e5e7eb; /* hover:bg-gray-200 */
+}
+.dashboard-nav-btn.active {
+    /* Estilo Ativo (Spec 4) */
+    background-color: #2563eb; /* bg-blue-600 */
+    color: #ffffff; /* text-white */
+    border-color: #2563eb;
+    font-weight: 600;
+}
+.dashboard-nav-btn .lucide {
+    width: 1rem;
+    height: 1rem;
+}
+.dashboard-nav-btn.active .lucide {
+    color: #ffffff !important;
+}
+
+/* ============================================= */
+/* 6) SEÇÃO MATERIAIS DO ALMOXARIFADO (DINÂMICO) */
+/* ============================================= */
+
+/* Cabeçalho da Coluna (CT, SEDE, CRAS...) */
+.materiais-prontos-col h4 {
+    font-size: 0.875rem; /* text-sm */
+    font-weight: 700; /* font-bold */
+    color: #1e3a8a; /* text-blue-900 */
+    border-bottom: 2px solid #93c5fd; /* border-blue-300 */
+    padding-bottom: 0.5rem; /* pb-2 */
+    margin-bottom: 0.75rem; /* mb-3 */
+    text-transform: uppercase;
+}
+
+/* Card da Unidade (Item da Lista) */
+.materiais-prontos-col li {
+    list-style-type: none;
+    border-radius: 0.5rem; /* rounded-lg */
+    padding: 0.75rem 1rem; /* p-3/p-4 */
+    border: 1px solid;
+    transition: all 0.2s ease;
+}
+.materiais-prontos-col li:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+}
+
+.materiais-prontos-col li strong {
+    font-weight: 600; /* Título forte */
+    color: #1f2937; /* text-gray-800 */
+    display: block;
+}
+.materiais-prontos-col li span {
+    font-size: 0.875rem; /* text-sm */
+    color: #6b7280; /* text-gray-500 */
+}
+
+/* Estado: Requisitado (Spec 6) */
+.materiais-prontos-col li.item-requisitado {
+    background-color: #eef2ff; /* bg-indigo-50 ou blue-50 */
+    border-color: #c7d2fe; /* border-indigo-200 ou blue-200 */
+}
+
+/* Estado: Em Separação (implícito, app.js não põe classe) */
+/* Vamos usar um padrão para o 'li' que não é nem requisitado nem retirada */
+.materiais-prontos-col li:not(.item-requisitado):not(.item-retirada) {
+    background-color: #fffbeb; /* bg-yellow-50 */
+    border-color: #fde68a; /* border-yellow-200 */
+}
+
+/* Estado: Pronto (Spec 6) */
+.materiais-prontos-col li.item-retirada {
+    background-color: #f0fdf4; /* bg-green-50 */
+    border-color: #bbf7d0; /* border-green-200 */
+}
+
+
+/* Badge de Status (Dentro do Card da Unidade) */
+.status-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.75rem; /* text-xs */
+    font-weight: 600; /* font-semibold */
+    padding: 0.25rem 0.625rem; /* py-1 px-2.5 */
+    border-radius: 9999px; /* rounded-full */
+    margin-top: 0.5rem; /* mt-2 */
+    border-width: 1px;
+}
+
+/* Estado: Requisitado (Spec 6 - Roxo/Violeta) */
+.status-indicator.requisitado { /* app.js não gera, mas Spec 6 pede */
+    background-color: #f5f3ff; /* bg-purple-100 */
+    color: #7c3aed; /* text-purple-700 */
+    border-color: #ddd6fe; /* border-purple-200 */
+}
+
+/* Estado: Separando... (Spec 6 - Amarelo) */
+.status-indicator.separando {
+    background-color: #fef9c3; /* bg-yellow-100 */
+    color: #a16207; /* text-yellow-700 */
+    border-color: #fde68a; /* border-yellow-200 */
+}
+
+/* Estado: Pronto (Spec 6 - Verde) */
+.status-indicator.pronto {
+    background-color: #dcfce7; /* bg-green-100 */
+    color: #166534; /* text-green-700 */
+    border-color: #bbf7d0; /* border-green-200 */
+}
+
+
+/* ============================================= */
+/* ESTILOS DE COMPONENTES DINÂMICOS (JS)         */
+/* ============================================= */
+
+/* Abas de Sub-Navegação (Ex: Lançamentos / Previsão) */
+.sub-nav-btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #475569; /* slate-600 */
+    background-color: #f1f5f9; /* slate-100 */
+    border-radius: 0.375rem; /* rounded-md */
+    border: 1px solid #e2e8f0; /* slate-200 */
+    transition: all 0.2s ease-in-out;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.sub-nav-btn:hover {
+    background-color: #e2e8f0; /* slate-200 */
+    color: #1e293b; /* slate-800 */
+}
+.sub-nav-btn.active {
+    background-color: #1e40af; /* semcas-blue */
+    color: #ffffff;
+    font-weight: 600;
+    border-color: #1e40af;
+}
+.sub-nav-btn .lucide {
+    width: 1rem;
+    height: 1rem;
+}
+
+/* Abas de Formulário (Ex: Saída / Entrada) */
+.form-tab-btn {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    font-weight: 500;
+    color: #475569; /* slate-600 */
+    background-color: #f8fafc; /* slate-50 */
+    border: none;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s ease-in-out;
+    cursor: pointer;
+    font-size: 0.875rem;
+    text-align: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+.form-tab-btn:hover {
+    background-color: #f1f5f9; /* slate-100 */
+    color: #1e293b; /* slate-800 */
+}
+.form-tab-btn.active {
+    color: #1e40af; /* semcas-blue */
+    border-bottom-color: #1e40af;
+    font-weight: 600;
+    background-color: #ffffff;
+}
+
+/* Card de Opção de Previsão (Dinâmico) */
+.previsao-option-card {
+    background-color: #f8fafc; /* bg-slate-50 */
+    border: 2px solid #e2e8f0; /* border-slate-200 */
+    border-radius: 0.5rem; /* rounded-lg */
+    padding: 1.5rem; /* p-6 */
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+}
+.previsao-option-card:hover {
+    background-color: #ffffff;
+    border-color: #93c5fd; /* border-blue-300 */
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+}
+.previsao-option-card.selected {
+    background-color: #eff6ff; /* bg-blue-50 */
+    border-color: #2563eb; /* border-blue-600 */
+    box-shadow: 0 0 0 2px #bfdbfe; /* ring-2 ring-blue-200 */
+}
+.previsao-card {
+    background-color: #1e3a8a; /* bg-blue-900 */
+    color: #e0f2fe; /* text-blue-100 */
+    border-radius: 0.5rem; /* rounded-lg */
+    padding: 1.5rem; /* p-6 */
+}
+.exclusao-item {
+    display: inline-flex;
+    align-items: center;
+    background-color: #fef2f2; /* red-50 */
+    color: #991b1b; /* red-800 */
+    border: 1px solid #fecaca; /* red-200 */
+    border-radius: 0.25rem; /* rounded */
+    padding: 0.25rem 0.5rem; /* py-1 px-2 */
+    font-size: 0.8125rem;
+    font-weight: 500;
+}
+.exclusao-item button {
+    margin-left: 0.5rem; background: transparent; border: none;
+    color: #b91c1c; font-weight: bold; cursor: pointer;
+    padding: 0; line-height: 1;
+}
+.exclusao-item button:hover { color: #7f1d1d; }
+
+/* ============================================= */
+/* CLASSES DE UTILIDADE (JS)                     */
+/* ============================================= */
+
+/* Estilos para o Ranking de Unidades (NOVO) */
+.ranking-item {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+    background-color: #f9fafb; /* bg-gray-50 */
+    border: 1px solid #e5e7eb;
+    transition: all 0.2s;
+}
+.ranking-item:nth-child(1) { /* Ouro */
+    background-color: #fff9e6; /* yellow-50 */
+    border-color: #fde68a; /* yellow-300 */
+}
+.ranking-item:nth-child(2) { /* Prata */
+    background-color: #f1f5f9; /* slate-100 */
+    border-color: #cbd5e1; /* slate-300 */
+}
+.ranking-item:nth-child(3) { /* Bronze */
+    background-color: #fef2f2; /* red-50 */
+    border-color: #fecaca; /* red-300 */
+}
+.rank-number {
+    font-size: 1.125rem; /* text-lg */
+    font-weight: 800;
+    color: #1e40af; /* semcas-blue */
+    width: 2.5rem;
+    text-align: center;
+}
+.rank-name {
+    font-size: 0.875rem;
+    font-weight: 600;
+    flex-grow: 1;
+    color: #334155;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+.rank-consumption {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #166534; /* green-700 */
+    flex-shrink: 0;
+    margin-left: 0.5rem;
+}
+
+
+/* Altera opacidade e cursor para elementos desabilitados por Role */
+.disabled-by-role {
+    opacity: 0.5;
+    pointer-events: none; /* Desabilita o clique */
+    user-select: none; /* Desabilita seleção de texto */
+}
+
+
+/* Animação de Fade-in */
+.fade-in {
+    animation: fadeIn 0.4s ease-out;
+}
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Spinners de Carregamento */
+.loading-spinner {
+    border: 4px solid #e2e8f0; /* slate-200 */
+    border-top: 4px solid #1e40af; /* semcas-blue */
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    animation: spin 0.8s linear infinite;
+    margin: 1rem auto;
+}
+.loading-spinner-small {
+    border: 3px solid #e2e8f0; /* slate-200 */
+    border-top: 3px solid #1e40af; /* semcas-blue */
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    animation: spin 0.8s linear infinite;
+}
+button .loading-spinner-small {
+    margin: 0;
+}
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Gráficos */
+.chart-container {
+    position: relative;
+    height: 250px;
+    width: 100%;
+}
+/* NOVO: Gráfico maior para a análise de consumo */
+.chart-container-lg {
+    position: relative;
+    height: 400px; /* Altura maior para gráficos de barras com mais categorias */
+    width: 100%;
+}
+
+
+/* ============================================= */
+/* MODAIS (Estilo Base para JS)                  */
+/* ============================================= */
+.modal {
+    display: none; /* Escondido por padrão */
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.5); /* Fundo escuro */
+    /* Usado pelo JS para centralizar */
+    align-items: center; 
+    justify-content: center; 
+}
+/* Força o 'flex' quando o JS usa .style.display = 'block' */
+.modal[style*="display: block"] {
+    display: flex;
+}
+
+.modal-content {
+    background-color: #ffffff;
+    margin: auto;
+    padding: 0;
+    border: 1px solid #e5e7eb; /* border-gray-200 */
+    width: 90%;
+    max-width: 500px;
+    border-radius: 0.75rem; /* rounded-xl */
+    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05); /* shadow-lg */
+    overflow: hidden;
+    animation: fadeIn 0.2s ease-out; /* Adiciona animação */
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem; /* p-4 sm:p-6 */
+    border-bottom: 1px solid #e5e7eb; /* border-gray-200 */
+}
+
+.modal-title {
+    font-size: 1.125rem; /* text-lg */
+    font-weight: 600;
+    color: #1f2937; /* text-gray-800 */
+}
+
+.modal-close {
+    color: #9ca3af; /* text-gray-400 */
+    font-size: 1.75rem;
+    font-weight: bold;
+    cursor: pointer;
+    background: none;
+    border: none;
+    line-height: 1;
+    padding: 0;
+}
+.modal-close:hover { color: #1f2937; }
+
+.modal-body {
+    padding: 1.5rem; /* p-6 */
+    line-height: 1.6;
+    color: #4b5563; /* text-gray-600 */
+}
+.modal-body .form-label {
+    font-size: 0.875rem;
+    color: #374151; /* text-gray-700 */
+    margin-bottom: 0.25rem;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem; /* space-x-3 */
+    padding: 1rem 1.5rem; /* p-4 sm:p-6 */
+    border-top: 1px solid #e5e7eb; /* border-gray-200 */
+    background-color: #f9fafb; /* bg-gray-50 */
+}
+
+/* Botões customizados para o modal (Tailwind não alcança aqui) */
+.modal-footer .btn-secondary {
+    background-color: #ffffff;
+    color: #374151; /* text-gray-700 */
+    border: 1px solid #d1d5db; /* border-gray-300 */
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border-radius: 0.375rem; /* rounded-md */
+    transition: all 0.2s ease;
+}
+.modal-footer .btn-secondary:hover {
+    background-color: #f9fafb; /* bg-gray-50 */
+}
+
+.modal-footer .btn-danger {
+    background-color: #dc2626; /* bg-red-600 */
+    color: #ffffff;
+    border: 1px solid #dc2626;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border-radius: 0.375rem;
+    transition: all 0.2s ease;
+}
+.modal-footer .btn-danger:hover {
+    background-color: #b91c1c; /* bg-red-700 */
+}
+
+.modal-footer .btn-primary {
+    background-color: #2563eb; /* bg-blue-600 */
+    color: #ffffff;
+    border: 1px solid #2563eb;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border-radius: 0.375rem;
+    transition: all 0.2s ease;
+}
+.modal-footer .btn-primary:hover {
+    background-color: #1d4ed8; /* bg-blue-700 */
+}
+
+/* Botões genéricos que o JS pode precisar */
+.btn-primary {
+    display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+    padding: 0.625rem 1.25rem; font-weight: 600; border-radius: 0.375rem;
+    background-color: #1e40af; color: #ffffff; border: 1px solid #1e40af;
+    transition: all 0.2s ease; cursor: pointer;
+}
+.btn-primary:hover { background-color: #1e3a8a; }
+.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.btn-secondary {
+    display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+    padding: 0.625rem 1.25rem; font-weight: 600; border-radius: 0.375rem;
+    background-color: #e2e8f0; color: #334155; border: 1px solid #e2e8f0;
+    transition: all 0.2s ease; cursor: pointer;
+}
+.btn-secondary:hover { background-color: #cbd5e1; }
+.btn-secondary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.btn-danger {
+    display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+    padding: 0.625rem 1.25rem; font-weight: 600; border-radius: 0.375rem;
+    background-color: #dc2626; color: #ffffff; border: 1px solid #dc2626;
+    transition: all 0.2s ease; cursor: pointer;
+}
+.btn-danger:hover { background-color: #b91c1c; }
+.btn-danger:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* Formulários genéricos */
+.form-input, .form-select, .form-textarea {
+    display: block; width: 100%;
+    padding: 0.625rem 0.75rem;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: #334155;
+    background-color: #ffffff;
+    border: 1px solid #cbd5e1; /* border-gray-300 */
+    border-radius: 0.375rem; /* rounded-md */
+    box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05); /* shadow-sm */
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+.form-input:focus, .form-select:focus, .form-textarea:focus {
+    border-color: #2563eb; /* focus:border-blue-500 */
+    outline: 0;
+    box-shadow: 0 0 0 2px #bfdbfe; /* focus:ring-blue-200 */
+}
+.form-select {
+    -webkit-appearance: none; -moz-appearance: none; appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 0.5rem center;
+    background-repeat: no-repeat;
+    background-size: 1.5em 1.5em;
+    padding-right: 2.5rem;
+}
+.form-label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #374151; /* text-gray-700 */
+    margin-bottom: 0.5rem;
+}
+.form-textarea { min-height: 6rem; }
+
+/* Alertas */
+.alert {
+    padding: 1rem; border-radius: 0.5rem; font-size: 0.875rem;
+    border: 1px solid transparent; display: none;
+}
+.alert-success { background-color: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
+.alert-error { background-color: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+.alert-info { background-color: #f0f9ff; color: #0c4a6e; border-color: #bae6fd; }
+.alert-warning { background-color: #fffbeb; color: #b45309; border-color: #fde68a; }
+
+/* Tabela genérica */
+.table {
+    border-collapse: collapse;
+    width: 100%;
+}
+.table thead th {
+    background-color: #f9fafb; /* bg-gray-50 */
+    padding: 0.75rem 1rem; /* py-3 px-4 */
+    text-align: left;
+    font-size: 0.75rem; /* text-xs */
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #6b7280; /* text-gray-500 */
+}
+.table tbody td {
+    padding: 0.75rem 1rem;
+    color: #374151; /* text-gray-700 */
+    vertical-align: middle;
+}
+/* Linhas de Observação e Separador */
+.table .obs-row td { padding-top: 0; padding-bottom: 0.75rem; font-size: 0.8125rem; line-height: 1.5; color: #6b7280; }
+.table .separador-row td { padding: 0.5rem 1rem; }
+
+/* Badges de Status genéricos */
+.badge {
+    display: inline-block; padding: 0.25rem 0.625rem; font-size: 0.75rem;
+    font-weight: 600; line-height: 1.25; border-radius: 9999px;
+    white-space: nowrap; border: 1px solid;
+}
+.badge-purple { background-color: #f5f3ff; color: #7c3aed; border-color: #ddd6fe; }
+.badge-yellow { background-color: #fef9c3; color: #a16207; border-color: #fde68a; }
+.badge-green { background-color: #dcfce7; color: #166534; border-color: #bbf7d0; }
+.badge-gray { background-color: #f3f4f6; color: #4b5563; border-color: #e5e7eb; }
+.badge-blue { background-color: #dbeafe; color: #1e40af; border-color: #bfdbfe; }
+
+/* NOVO: Estilos para os botões de filtro de saldo ativos */
+/* Devendo (Vermelho) */
+.btn-warning.active {
+    background-color: #b91c1c !important; /* bg-red-700 */
+    color: #ffffff !important;
+    border-color: #991b1c !important; /* border-red-800 */
+}
+.btn-warning.active:hover {
+    background-color: #991b1b !important;
+}
+
+/* Crédito (Azul - Primário) */
+.btn-info.active {
+    background-color: #1e40af !important; /* semcas-blue (bg-blue-800) */
+    color: #ffffff !important;
+    border-color: #1e40af !important;
+}
+.btn-info.active:hover {
+    background-color: #1d3674 !important; /* dark blue hover */
+}
+
+
+/* ======= ENTREGA DE MATERIAIS MODERNA ======= */ 
+.subtab-btn { 
+    
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb; /* border-gray-200 */
+  border-radius: 0.5rem; /* rounded-lg */
+  padding: 0.5rem 1rem; /* px-4 py-2 */
+  font-size: 0.875rem; /* text-sm */
+  font-weight: 500; /* font-medium */
+  display: inline-flex;
+  align-items: center;
+  color: #4b5563; /* text-gray-700 */
+  transition: all 0.2s ease-in-out; 
+} 
+
+.subtab-btn:hover {
+    background-color: #eff6ff; /* hover:bg-blue-50 */ 
+    border-color: #93c5fd; /* hover:border-blue-300 */ 
+    color: #1e40af;
+}
+
+.subtab-btn.active { 
+  background-color: #2563eb; /* bg-blue-600 */ 
+  color: #ffffff; 
+  border-color: #2563eb; 
+  box-shadow: 0 1px 3px 0 rgba(0,0,0,0.1), 0 1px 2px 0 rgba(0,0,0,0.06); /* shadow */
+} 
+
+.subtab-content { 
+  animation: fadeIn 0.3s ease; 
+} 
+
+@keyframes fadeIn { 
+  from { opacity: 0; transform: translateY(4px); } 
+  to { opacity: 1; transform: translateY(0); }
+} 
+
+/* Painel de instruções */ 
+#instructionContent p { 
+  position: relative; 
+  padding-left: 1.2rem; 
+} 
+#instructionContent p::before { 
+  content: "•"; 
+  position: absolute; 
+  left: 0; 
+  color: #2563eb; 
+  font-weight: bold; 
+} 
+
+/* Tooltip de ajuda */ 
+.tooltip { 
+  position: relative; 
+  display: inline-block; 
+} 
+.tooltip .tooltip-text { 
+  visibility: hidden; 
+  background-color: #1e40af; 
+  color: #fff; 
+  text-align: center; 
+  border-radius: 6px; 
+  padding: 4px 8px; 
+  position: absolute; 
+  z-index: 10; 
+  bottom: 125%; 
+  left: 50%; 
+  transform: translateX(-50%); 
+  font-size: 0.75rem; 
+  opacity: 0; 
+  transition: opacity 0.3s; 
+  white-space: nowrap; 
+} 
+.tooltip:hover .tooltip-text { 
+  visibility: visible; 
+  opacity: 1; 
+} 
+
+/* Botões de ação */ 
+.btn-icon { /* Usando btn-icon como classe base para todos os botões de ação na tabela */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.375rem; /* rounded-md */
+    padding: 0.5rem; /* p-2 */
+    transition: all 0.2s ease-in-out; 
+    border: 1px solid transparent; 
+} 
+.btn-icon:hover { 
+    background-color: #f3f4f6; /* hover:bg-gray-100 */
+    border-color: #d1d5db; /* border-gray-300 */
+}
+/* Estilos específicos para ícones */
+.btn-icon .lucide {
+    width: 1rem;
+    height: 1rem;
+}
+
+
+/* Botões de ação no módulo Materiais */ 
+.action-btn { 
+  border-radius: 0.375rem; /* rounded-md */
+  padding: 0.5rem; /* p-2 */
+  transition: all 0.2s ease-in-out; 
+  border: 1px solid transparent; 
+} 
+.action-btn:hover { 
+  border-color: #d1d5db; /* border-gray-300 */
+}
+
+/* =================================== 
+  MELHORIAS PARA ENTREGA DE MATERIAIS   
+  Aplicar nos 4 submenus (exceto Registrar Requisição)   
+  =================================== */
+
+/* Tabelas dos submenus - Estrutura base mais forte */
+#subview-para-separar .overflow-x-auto table,
+#subview-em-separacao .overflow-x-auto table,
+#subview-pronto-entrega .overflow-x-auto table,
+#subview-historico-entregues .overflow-x-auto table {
+    border-collapse: separate;
+    border-spacing: 0;
+    border: 2px solid #cbd5e1; /* Borda externa mais forte */
+    border-radius: 0.75rem;
+    overflow: hidden;
+    width: 100%; /* Garantir que a tabela ocupe o espaço */
+}
+/* Container das tabelas - Borda e sombra externa */
+#subview-para-separar .overflow-x-auto,
+#subview-em-separacao .overflow-x-auto,
+#subview-pronto-entrega .overflow-x-auto,
+#subview-historico-entregues .overflow-x-auto {
+    border: none; /* Remove a borda do container, pois já está na tabela */
+    border-radius: 0.75rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+/* Cabeçalho da tabela - Mais destaque */
+#subview-para-separar thead,
+#subview-em-separacao thead,
+#subview-pronto-entrega thead,
+#subview-historico-entregues thead {
+    background: linear-gradient(to bottom, #f1f5f9, #e2e8f0); /* Gradiente sutil */
+    border-bottom: 3px solid #94a3b8; /* Borda inferior forte */
+}
+#subview-para-separar thead th,
+#subview-em-separacao thead th,
+#subview-pronto-entrega thead th,
+#subview-historico-entregues thead th {
+    padding: 1rem 1.25rem;
+    font-weight: 700;
+    font-size: 0.813rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #1e293b; /* Texto mais escuro */
+    border-right: 1px solid #cbd5e1;
+}
+#subview-para-separar thead th:last-child,
+#subview-em-separacao thead th:last-child,
+#subview-pronto-entrega thead th:last-child,
+#subview-historico-entregues thead th:last-child {
+    border-right: none;
+}
+
+/* Linhas do corpo da tabela - Separação clara */
+#subview-para-separar tbody tr,
+#subview-em-separacao tbody tr,
+#subview-pronto-entrega tbody tr,
+#subview-historico-entregues tbody tr {
+    border-bottom: 2px solid #e2e8f0; /* Linha de separação mais forte */
+    transition: all 0.2s ease-in-out;
+    background-color: #ffffff;
+}
+
+/* Efeito hover nas linhas */
+#subview-para-separar tbody tr:hover,
+#subview-em-separacao tbody tr:hover,
+#subview-pronto-entrega tbody tr:hover,
+#subview-historico-entregues tbody tr:hover {
+    background-color: #f8fafc;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    transform: scale(1.005);
+}
+
+/* Células do corpo - Padding e bordas verticais */
+#subview-para-separar tbody td,
+#subview-em-separacao tbody td,
+#subview-pronto-entrega tbody td,
+#subview-historico-entregues tbody td {
+    padding: 1rem 1.25rem;
+    font-size: 0.875rem;
+    color: #334155;
+    border-right: 1px solid #e2e8f0; /* Separador vertical sutil */
+    vertical-align: middle;
+}
+#subview-para-separar tbody td:last-child,
+#subview-em-separacao tbody td:last-child,
+#subview-pronto-entrega tbody td:last-child,
+#subview-historico-entregues tbody td:last-child {
+    border-right: none;
+}
+
+/* Alternância de cores (Zebra Stripes) para melhor leitura */
+#subview-para-separar tbody tr:nth-child(even):not(.obs-row),
+#subview-em-separacao tbody tr:nth-child(even):not(.obs-row),
+#subview-pronto-entrega tbody tr:nth-child(even):not(.obs-row),
+#subview-historico-entregues tbody tr:nth-child(even):not(.obs-row) {
+    background-color: #f8fafc;
+}
+
+/* Linhas de observação - Destaque diferenciado */
+#subview-para-separar .obs-row,
+#subview-em-separacao .obs-row,
+#subview-pronto-entrega .obs-row,
+#subview-historico-entregues .obs-row {
+    background-color: #fef3c7 !important; /* Amarelo suave */
+    border-bottom: 2px solid #fbbf24;
+}
+/* Garante que o hover não mude a cor de fundo da obs-row */
+#subview-para-separar .obs-row:hover,
+#subview-em-separacao .obs-row:hover,
+#subview-pronto-entrega .obs-row:hover,
+#subview-historico-entregues .obs-row:hover {
+    background-color: #fef3c7 !important;
+    transform: none;
+    box-shadow: none;
+}
+/* Garante que a linha de observação pegue a cor do fundo da linha anterior no zebra, mas isso é mais complexo. Manter cor fixa por enquanto. */
+/* Alternância de cores para linhas de observação que vêm depois de linhas pares */
+#subview-para-separar tbody tr:nth-child(even) + .obs-row,
+#subview-em-separacao tbody tr:nth-child(even) + .obs-row,
+#subview-pronto-entrega tbody tr:nth-child(even) + .obs-row,
+#subview-historico-entregues tbody tr:nth-child(even) + .obs-row {
+    background-color: #fef3c7 !important; /* Mante a cor de observação */
+}
+
+#subview-para-separar .obs-row td,
+#subview-em-separacao .obs-row td,
+#subview-pronto-entrega .obs-row td,
+#subview-historico-entregues .obs-row td {
+    padding: 0.75rem 1.25rem;
+    font-size: 0.813rem;
+    font-style: italic;
+    color: #78350f;
+    border-right: none;
+    border-bottom: none !important; /* Evita dupla borda */
+}
+/* Linhas vazias da observação devem ter padding-top/bottom */
+#subview-para-separar .obs-row td.pt-0.pb-1,
+#subview-em-separacao .obs-row td.pt-0.pb-1,
+#subview-pronto-entrega .obs-row td.pt-0.pb-1,
+#subview-historico-entregues .obs-row td.pt-0.pb-1 {
+     padding-top: 0 !important;
+     padding-bottom: 0.25rem !important;
+}
+
+
+/* Títulos das seções - Mais destaque */
+#subview-para-separar h3,
+#subview-em-separacao h3,
+#subview-pronto-entrega h3,
+#subview-historico-entregues h3 {
+    font-size: 1.375rem;
+    font-weight: 700;
+    color: #1e293b;
+    border-left: 4px solid #2563eb;
+    padding-left: 1rem;
+    margin-bottom: 1rem;
+}
+
+/* Badges de status - Mais contraste */
+#subview-para-separar .status-indicator,
+#subview-em-separacao .status-indicator,
+#subview-pronto-entrega .status-indicator,
+#subview-historico-entregues .status-indicator {
+    border-width: 2px;
+    font-weight: 700;
+    padding: 0.375rem 0.75rem;
+}
+
+/* Botões de ação - Mais visíveis */
+#subview-para-separar .btn-icon,
+#subview-em-separacao .btn-icon,
+#subview-pronto-entrega .btn-icon,
+#subview-historico-entregues .btn-icon {
+    border: 1.5px solid #cbd5e1;
+    background-color: #f8fafc;
+}
+#subview-para-separar .btn-icon:hover,
+#subview-em-separacao .btn-icon:hover,
+#subview-pronto-entrega .btn-icon:hover,
+#subview-historico-entregues .btn-icon:hover {
+    background-color: #e2e8f0;
+    border-color: #94a3b8;
+    transform: scale(1.1);
+}
+
+/* Alertas - Destaque visual */
+#alert-para-separar,
+#alert-em-separacao,
+#alert-pronto-entrega,
+#alert-historico-entregues {
+    border-width: 2px;
+    border-radius: 0.5rem;
+    font-weight: 500;
+}
+
+/* Espaçamento entre seções (para o layout da view principal, se necessário) */
+#subview-para-separar > div,
+#subview-em-separacao > div,
+#subview-pronto-entrega > div,
+#subview-historico-entregues > div {
+    margin-bottom: 1.5rem;
+}
+
+/* Estado vazio - Mensagem centralizada */
+#subview-para-separar tbody tr td[colspan],
+#subview-em-separacao tbody tr td[colspan],
+#subview-pronto-entrega tbody tr td[colspan],
+#subview-historico-entregues tbody tr td[colspan] {
+    text-align: center;
+    padding: 2.5rem;
+    color: #64748b;
+    font-size: 0.938rem;
+    font-weight: 500;
+    background-color: #f8fafc;
+    border-bottom: none !important;
+}
+/* Remove o hover para linha de mensagem vazia */
+#subview-para-separar tbody tr:hover td[colspan],
+#subview-em-separacao tbody tr:hover td[colspan],
+#subview-pronto-entrega tbody tr:hover td[colspan],
+#subview-historico-entregues tbody tr:hover td[colspan] {
+    background-color: #f8fafc !important;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Responsividade - Mobile */
+@media (max-width: 768px) {
+    #subview-para-separar tbody td,
+    #subview-em-separacao tbody td,
+    #subview-pronto-entrega tbody td,
+    #subview-historico-entregues tbody td {
+        padding: 0.75rem;
+        font-size: 0.813rem;
+    }
+        
+    #subview-para-separar thead th,
+    #subview-em-separacao thead th,
+    #subview-pronto-entrega thead th,
+    #subview-historico-entregues thead th {
+        padding: 0.75rem;
+        font-size: 0.75rem;
+    }
+}
