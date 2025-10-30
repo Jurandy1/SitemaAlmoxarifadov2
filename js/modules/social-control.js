@@ -1,5 +1,5 @@
 // js/modules/social-control.js
-import { Timestamp, addDoc, serverTimestamp, getDocs, query, where, writeBatch, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { Timestamp, addDoc, updateDoc, serverTimestamp, getDocs, query, where, writeBatch, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { 
     getUnidades, 
     getCestaMovimentacoes, getCestaEstoque, 
@@ -174,7 +174,7 @@ async function handleEstoqueEntrySubmit(e, itemType) {
             itemLabel: 'Cesta(s) Básica(s)'
         },
         'enxoval': {
-            form: DOM_ELEMENTs.formEnxovalEntrada,
+            form: DOM_ELEMENTS.formEnxovalEntrada,
             qtd: DOM_ELEMENTS.enxovalEntradaQuantidade,
             data: DOM_ELEMENTS.enxovalEntradaData,
             resp: DOM_ELEMENTS.enxovalEntradaResponsavel,
@@ -248,19 +248,16 @@ export const handleEnxovalEstoqueEntrySubmit = (e) => handleEstoqueEntrySubmit(e
 // =========================================================================
 
 /**
- * Popula os controles de destinatário/unidade no formulário de lançamento de Cesta.
+ * Gera o HTML para o select de unidades, usado tanto no formulário quanto na edição.
+ * @param {string} [selectedValue] - O valor (string formatada "TIPO: NOME" ou nome personalizado) que deve ser pré-selecionado.
+ * @returns {string} HTML com as options.
  */
-function renderCestaLancamentoControls() {
+function getUnidadeOptionsHtml(selectedValue = '') {
     const unidades = getUnidades();
-    const selectUnidadeEl = document.getElementById('cesta-select-unidade');
-    const inputPersonalizadoEl = document.getElementById('cesta-destinatario-personalizado');
-    const selectTipoDestinatarioEl = document.getElementById('cesta-tipo-destinatario');
+    let unidadeHtml = '';
+    let foundInList = false;
 
-    if (!selectUnidadeEl || !inputPersonalizadoEl || !selectTipoDestinatarioEl) return;
-
-    // Popula o seletor de unidades com tipos relevantes
-    let unidadeHtml = '<option value="">-- Selecione a Unidade --</option>';
-
+    // 1. Agrupar unidades por tipo
     const grupos = unidades.reduce((acc, unidade) => {
         let tipo = (unidade.tipo || "Sem Tipo").toUpperCase();
         if (tipo === "SEMCAS") tipo = "SEDE";
@@ -269,29 +266,58 @@ function renderCestaLancamentoControls() {
         return acc;
     }, {});
 
+    // 2. Gerar HTML dos <optgroup>
     Object.keys(grupos).sort().forEach(tipo => {
         unidadeHtml += `<optgroup label="Tipo: ${tipo}">`;
         grupos[tipo]
             .sort((a, b) => a.nome.localeCompare(b.nome))
-            // Valor: TIPO-NOME (Ex: CRAS-CRAS CENTRO)
             .forEach(unidade => {
-                unidadeHtml += `<option value="${tipo.toUpperCase()}: ${unidade.nome}">${unidade.nome}</option>`;
+                // O valor salvo no DB é "TIPO: NOME" (Ex: "CRAS: CRAS CENTRO")
+                const optionValue = `${tipo.toUpperCase()}: ${unidade.nome}`;
+                const isSelected = optionValue === selectedValue;
+                if (isSelected) foundInList = true;
+                
+                unidadeHtml += `<option value="${optionValue}" ${isSelected ? 'selected' : ''}>${unidade.nome}</option>`;
             });
         unidadeHtml += `</optgroup>`;
     });
 
-    selectUnidadeEl.innerHTML = unidadeHtml;
+    // 3. Adicionar o valor atual (Personalizado/Importado) se não estiver na lista
+    // Isso garante que nomes personalizados ou importados possam ser "corrigidos" para uma unidade padrão
+    if (!foundInList && selectedValue) {
+        unidadeHtml = `<option value="${selectedValue}" selected>Personalizado: ${selectedValue}</option>` + unidadeHtml;
+    } else if (!selectedValue) {
+        unidadeHtml = `<option value="">-- Selecione a Unidade --</option>` + unidadeHtml;
+    }
+
+    return unidadeHtml;
+}
+
+
+/**
+ * Popula os controles de destinatário/unidade no formulário de lançamento de Cesta.
+ */
+function renderCestaLancamentoControls() {
+    const selectUnidadeEl = document.getElementById('cesta-select-unidade');
+    const inputPersonalizadoEl = document.getElementById('cesta-destinatario-personalizado');
+    const selectTipoDestinatarioEl = document.getElementById('cesta-tipo-destinatario');
+
+    if (!selectUnidadeEl || !inputPersonalizadoEl || !selectTipoDestinatarioEl) return;
+
+    // Popula o seletor de unidades
+    selectUnidadeEl.innerHTML = getUnidadeOptionsHtml();
 
     // Adiciona listener para alternar visibilidade
     selectTipoDestinatarioEl.onchange = () => {
         const tipo = selectTipoDestinatarioEl.value;
         const isPersonalizado = tipo === 'personalizado';
         
-        selectUnidadeEl.classList.toggle('hidden', isPersonalizado);
+        // Oculta/Exibe os campos corretos
+        selectUnidadeEl.parentElement.classList.toggle('hidden', isPersonalizado);
         selectUnidadeEl.required = !isPersonalizado;
         
-        inputPersonalizadoEl.classList.toggle('hidden', !isPersonalizado);
-        inputPersonalizadoEl.required = isPersonalizado;
+        inputPersonalizadoEl.parentElement.classList.toggle('hidden', !isPersonalizado);
+        inputPersonalizadoEl.disabled = !isPersonalizado; // Usa 'disabled' em vez de 'required' para evitar problemas de validação
         
         // Limpa os valores para evitar submissão de campos ocultos
         if (isPersonalizado) {
@@ -391,6 +417,7 @@ export function renderCestaEstoqueHistoryTable() {
 /**
  * Renderiza a tabela de histórico de saídas (Cesta).
  * CORREÇÃO 1: Adicionado Observações e padronizado cabeçalhos.
+ * IMPLEMENTAÇÃO: Adicionado botão de editar destinatário.
  */
 export function renderCestaMovimentacoesHistoryTable() {
     const movimentacoes = getCestaMovimentacoes();
@@ -407,7 +434,9 @@ export function renderCestaMovimentacoesHistoryTable() {
     }
     
     let html = '';
-    const isAdmin = getUserRole() === 'admin';
+    const role = getUserRole();
+    const isAdmin = role === 'admin';
+    const canEdit = isAdmin || role === 'editor'; // Admin e Editor podem editar
 
     historicoOrdenado.forEach(m => {
         const dataMov = formatTimestamp(m.data);
@@ -419,10 +448,24 @@ export function renderCestaMovimentacoesHistoryTable() {
             ? `<button class="btn-danger btn-remove btn-icon" data-id="${m.id}" data-type="mov-cesta" data-details="${details}" title="Remover este lançamento"><i data-lucide="trash-2"></i></button>`
             : `<span class="text-gray-400 btn-icon" title="Apenas Admin pode excluir"><i data-lucide="slash"></i></span>`;
 
+        // NOVO: Botão de Edição
+        const editButtonHtml = canEdit
+            ? `<button class="btn-icon btn-edit-destinatario ml-1" title="Editar Destinatário"><i data-lucide="pencil"></i></button>`
+            : '';
+
+        // NOVO: Célula de Destinatário Editável
+        // Usamos encodeURIComponent para garantir que o valor no data-attribute seja seguro
+        const destinatarioHtml = `
+            <td id="destinatario-cell-${m.id}" data-item-type="cesta" data-doc-id="${m.id}" data-current-value="${encodeURIComponent(m.destinatario)}">
+                <span class="destinatario-nome">${m.destinatario}</span>
+                ${editButtonHtml}
+            </td>
+        `;
+
         // CORREÇÃO 1: Padronização das colunas
         html += `<tr>
             <td class="whitespace-nowrap">${dataMov}</td>
-            <td>${m.destinatario}</td>
+            ${destinatarioHtml}
             <td class="text-center font-medium">${m.quantidade}</td>
             <td>${capitalizeString(m.categoria)}</td>
             <td class="text-xs text-gray-600">${m.observacoes || 'N/A'}</td>
@@ -543,47 +586,25 @@ export async function handleCestaLancamentoSubmit(e) {
  * Popula os controles de destinatário/unidade no formulário de lançamento de Enxoval.
  */
 function renderEnxovalLancamentoControls() {
-    const unidades = getUnidades();
     const selectUnidadeEl = document.getElementById('enxoval-select-unidade');
     const inputPersonalizadoEl = document.getElementById('enxoval-destinatario-personalizado');
     const selectTipoDestinatarioEl = document.getElementById('enxoval-tipo-destinatario');
 
     if (!selectUnidadeEl || !inputPersonalizadoEl || !selectTipoDestinatarioEl) return;
 
-    // Popula o seletor de unidades com tipos relevantes
-    let unidadeHtml = '<option value="">-- Selecione a Unidade --</option>';
-
-    const grupos = unidades.reduce((acc, unidade) => {
-        let tipo = (unidade.tipo || "Sem Tipo").toUpperCase();
-        if (tipo === "SEMCAS") tipo = "SEDE";
-        if (!acc[tipo]) acc[tipo] = [];
-        acc[tipo].push(unidade);
-        return acc;
-    }, {});
-
-    Object.keys(grupos).sort().forEach(tipo => {
-        unidadeHtml += `<optgroup label="Tipo: ${tipo}">`;
-        grupos[tipo]
-            .sort((a, b) => a.nome.localeCompare(b.nome))
-            // Valor: TIPO-NOME (Ex: CRAS-CRAS CENTRO)
-            .forEach(unidade => {
-                unidadeHtml += `<option value="${tipo.toUpperCase()}: ${unidade.nome}">${unidade.nome}</option>`;
-            });
-        unidadeHtml += `</optgroup>`;
-    });
-
-    selectUnidadeEl.innerHTML = unidadeHtml;
+    // Popula o seletor de unidades
+    selectUnidadeEl.innerHTML = getUnidadeOptionsHtml();
 
     // Adiciona listener para alternar visibilidade
     selectTipoDestinatarioEl.onchange = () => {
         const tipo = selectTipoDestinatarioEl.value;
         const isPersonalizado = tipo === 'personalizado';
         
-        selectUnidadeEl.classList.toggle('hidden', isPersonalizado);
+        selectUnidadeEl.parentElement.classList.toggle('hidden', isPersonalizado);
         selectUnidadeEl.required = !isPersonalizado;
         
-        inputPersonalizadoEl.classList.toggle('hidden', !isPersonalizado);
-        inputPersonalizadoEl.required = isPersonalizado;
+        inputPersonalizadoEl.parentElement.classList.toggle('hidden', !isPersonalizado);
+        inputPersonalizadoEl.disabled = !isPersonalizado; // Usa 'disabled'
         
         // Limpa os valores para evitar submissão de campos ocultos
         if (isPersonalizado) {
@@ -678,6 +699,7 @@ export function renderEnxovalEstoqueHistoryTable() {
 /**
  * Renderiza a tabela de histórico de saídas (Enxoval).
  * CORREÇÃO 1: Adicionado Observações e padronizado cabeçalhos (incluindo Memo).
+ * IMPLEMENTAÇÃO: Adicionado botão de editar destinatário.
  */
 export function renderEnxovalMovimentacoesHistoryTable() {
     const movimentacoes = getEnxovalMovimentacoes();
@@ -694,7 +716,9 @@ export function renderEnxovalMovimentacoesHistoryTable() {
     }
     
     let html = '';
-    const isAdmin = getUserRole() === 'admin';
+    const role = getUserRole();
+    const isAdmin = role === 'admin';
+    const canEdit = isAdmin || role === 'editor'; // Admin e Editor podem editar
 
     historicoOrdenado.forEach(m => {
         const dataMov = formatTimestamp(m.data);
@@ -706,10 +730,23 @@ export function renderEnxovalMovimentacoesHistoryTable() {
             ? `<button class="btn-danger btn-remove btn-icon" data-id="${m.id}" data-type="mov-enxoval" data-details="${details}" title="Remover este lançamento"><i data-lucide="trash-2"></i></button>`
             : `<span class="text-gray-400 btn-icon" title="Apenas Admin pode excluir"><i data-lucide="slash"></i></span>`;
         
+        // NOVO: Botão de Edição
+        const editButtonHtml = canEdit
+            ? `<button class="btn-icon btn-edit-destinatario ml-1" title="Editar Destinatário"><i data-lucide="pencil"></i></button>`
+            : '';
+
+        // NOVO: Célula de Destinatário Editável
+        const destinatarioHtml = `
+            <td id="destinatario-cell-${m.id}" data-item-type="enxoval" data-doc-id="${m.id}" data-current-value="${encodeURIComponent(m.destinatario)}">
+                <span class="destinatario-nome">${m.destinatario}</span>
+                ${editButtonHtml}
+            </td>
+        `;
+
         // CORREÇÃO 1: Inclusão da Observação/Memo
         html += `<tr>
             <td class="whitespace-nowrap">${dataMov}</td>
-            <td>${m.destinatario}</td>
+            ${destinatarioHtml}
             <td class="text-center font-medium">${m.quantidade}</td>
             <td>${capitalizeString(m.categoria)}</td>
             <td class="text-xs text-gray-600">${m.memo || 'N/A'}</td>
@@ -815,6 +852,133 @@ export async function handleEnxovalLancamentoSubmit(e) {
     }
 }
 
+
+// =========================================================================
+// NOVO: LÓGICA DE EDIÇÃO DO DESTINATÁRIO NO HISTÓRICO
+// =========================================================================
+
+/**
+ * Coloca a célula do destinatário em modo de edição.
+ * @param {Event} e Evento de clique.
+ */
+function enterEditModeDestinatario(e) {
+    const button = e.target.closest('.btn-edit-destinatario');
+    if (!button) return;
+
+    const td = button.closest('td');
+    const docId = td.dataset.docId;
+    const currentValue = decodeURIComponent(td.dataset.currentValue); // Decodifica o valor
+
+    // Trava para não editar duas vezes
+    if (td.classList.contains('editing')) return;
+    td.classList.add('editing');
+
+    // Gera o HTML do select com as unidades
+    const selectOptionsHtml = getUnidadeOptionsHtml(currentValue);
+
+    td.innerHTML = `
+        <select id="edit-destinatario-select-${docId}" class="form-select form-select-sm" style="min-width: 200px;">
+            ${selectOptionsHtml}
+        </select>
+        <div class="mt-1 space-x-1 flex">
+            <button class="btn-icon btn-save-destinatario text-green-600" title="Salvar"><i data-lucide="save"></i></button>
+            <button class="btn-icon btn-cancel-destinatario text-red-600" title="Cancelar"><i data-lucide="x-circle"></i></button>
+        </div>
+    `;
+
+    if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') {
+        lucide.createIcons();
+    }
+}
+
+/**
+ * Cancela a edição do destinatário e restaura o valor original.
+ * @param {Event} e Evento de clique.
+ */
+function cancelDestinatarioEdit(e) {
+    const button = e.target.closest('.btn-cancel-destinatario');
+    if (!button) return;
+
+    const td = button.closest('td');
+    const currentValue = decodeURIComponent(td.dataset.currentValue); // Pega o valor original
+    td.classList.remove('editing');
+
+    // Restaura o HTML original
+    const role = getUserRole();
+    const canEdit = role === 'admin' || role === 'editor';
+    const editButtonHtml = canEdit
+        ? `<button class="btn-icon btn-edit-destinatario ml-1" title="Editar Destinatário"><i data-lucide="pencil"></i></button>`
+        : '';
+
+    td.innerHTML = `
+        <span class="destinatario-nome">${currentValue}</span>
+        ${editButtonHtml}
+    `;
+
+    if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') {
+        lucide.createIcons();
+    }
+}
+
+/**
+ * Salva o novo nome do destinatário no Firestore.
+ * @param {Event} e Evento de clique.
+ */
+async function saveDestinatarioEdit(e) {
+    const button = e.target.closest('.btn-save-destinatario');
+    if (!button) return;
+
+    const td = button.closest('td');
+    const docId = td.dataset.docId;
+    const itemType = td.dataset.itemType; // 'cesta' ou 'enxoval'
+    const select = td.querySelector(`#edit-destinatario-select-${docId}`);
+    const newDestinatarioName = select.value;
+    const alertId = `alert-${itemType}-relatorio`;
+
+    if (!newDestinatarioName) {
+        showAlert(alertId, 'O nome do destinatário não pode ser vazio.', 'warning');
+        return;
+    }
+
+    button.disabled = true;
+    td.querySelector('.btn-cancel-destinatario')?.remove();
+    button.innerHTML = '<div class="loading-spinner-small mx-auto" style="width:16px; height:16px;"></div>';
+
+    try {
+        const collectionRef = itemType === 'cesta' ? COLLECTIONS.cestaMov : COLLECTIONS.enxovalMov;
+        const docRef = doc(collectionRef, docId);
+        
+        await updateDoc(docRef, { destinatario: newDestinatarioName });
+
+        // Atualiza o data-attribute para o novo valor
+        td.dataset.currentValue = encodeURIComponent(newDestinatarioName);
+        
+        // Restaura a célula para o modo de exibição
+        const role = getUserRole();
+        const canEdit = role === 'admin' || role === 'editor';
+        const editButtonHtml = canEdit
+            ? `<button class="btn-icon btn-edit-destinatario ml-1" title="Editar Destinatário"><i data-lucide="pencil"></i></button>`
+            : '';
+
+        td.innerHTML = `
+            <span class="destinatario-nome">${newDestinatarioName}</span>
+            ${editButtonHtml}
+        `;
+        td.classList.remove('editing');
+        
+        showAlert(alertId, 'Destinatário atualizado com sucesso!', 'success', 3000);
+
+    } catch (error) {
+        console.error("Erro ao salvar destinatário:", error);
+        showAlert(alertId, `Erro ao salvar: ${error.message}`, 'error');
+        // Restaura o botão em caso de erro (pode chamar a função de cancelar)
+        cancelDestinatarioEdit(e); // Reutiliza a lógica de cancelamento para restaurar
+    } finally {
+        if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') {
+            lucide.createIcons();
+        }
+    }
+}
 
 // =========================================================================
 // NOVO PONTO 2: LÓGICA DE RELATÓRIO E GRÁFICO (MODIFICADA PARA SER MAIS ROBUSTA)
@@ -1004,6 +1168,7 @@ async function handleGerarSocialRelatorio(itemType) {
         labels: chartLabels,
         datasets: [{
             label: itemType === 'cesta' ? 'Qtd. Cestas' : 'Qtd. Enxovais',
+            data: chartData, // Adicionando os dados aqui
             backgroundColor: 'rgba(236, 72, 153, 0.7)', // Pink-500
             borderColor: 'rgba(236, 72, 153, 1)',
             borderWidth: 1
@@ -1238,6 +1403,25 @@ export function initSocialListeners() {
     // NOVO: Adiciona listeners de mudança para o tipo de destinatário para renderizar o select/input correto
     document.getElementById('cesta-tipo-destinatario')?.addEventListener('change', renderCestaLancamentoControls);
     document.getElementById('enxoval-tipo-destinatario')?.addEventListener('change', renderEnxovalLancamentoControls);
+
+    // NOVO: Listeners para edição inline do destinatário (Tabelas de Histórico)
+    const cestaHistoryTable = DOM_ELEMENTS.tableCestaHistorico;
+    if (cestaHistoryTable) {
+        cestaHistoryTable.addEventListener('click', (e) => {
+            enterEditModeDestinatario(e);
+            cancelDestinatarioEdit(e);
+            saveDestinatarioEdit(e);
+        });
+    }
+    
+    const enxovalHistoryTable = DOM_ELEMENTS.tableEnxovalHistorico;
+    if (enxovalHistoryTable) {
+        enxovalHistoryTable.addEventListener('click', (e) => {
+            enterEditModeDestinatario(e);
+            cancelDestinatarioEdit(e);
+            saveDestinatarioEdit(e);
+        });
+    }
 
     console.log("[Social Control] Listeners inicializados.");
 }
