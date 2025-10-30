@@ -267,15 +267,29 @@ function findDOMElements() {
         ['#alert-cesta-estoque', 'alertCestaEstoque'],
         ['#table-cesta-estoque-history', 'tableCestaEstoqueHistory'],
         ['#table-cesta-historico', 'tableCestaHistorico'], // Histórico de Movimentações (Saída)
-        // NOVOS ELEMENTOS CESTA - RELATÓRIO (CORREÇÃO 1)
-        ['#cesta-relatorio-output', 'cestaRelatorioOutput'],
-        ['#btn-cesta-gerar-relatorio', 'btnCestaGerarRelatorio'],
-        ['#cesta-rel-data-inicio', 'cestaRelDataInicio'],
-        ['#cesta-rel-data-fim', 'cestaRelDataFim'],
-        ['#cesta-rel-categoria', 'cestaRelCategoria'],
-        ['#cesta-relatorio-resumo-texto', 'cestaRelatorioResumoTexto'],
-
-
+        
+        // **NOVOS ELEMENTOS CESTA - RELATÓRIO (PROPOSTA MELHORADA)
+        ['#btn-gerar-relatorio-cesta', 'btnGerarRelatorioCesta'],
+        ['#cesta-periodo-relatorio', 'cestaPeriodoRelatorio'],
+        ['#cesta-datas-custom', 'cestaDatasCustom'],
+        ['#cesta-datas-custom-fim', 'cestaDatasCustomFim'],
+        ['#cesta-data-inicio', 'cestaDataInicioRelatorio'],
+        ['#cesta-data-fim', 'cestaDataFimRelatorio'],
+        ['#cesta-agrupamento', 'cestaAgrupamento'],
+        ['#alert-relatorio-cesta', 'alertRelatorioCesta'],
+        ['#resultado-relatorio-cesta', 'resultadoRelatorioCesta'],
+        ['#kpi-total-cestas', 'kpiTotalCestas'],
+        ['#kpi-unidades-atendidas-cesta', 'kpiUnidadesAtendidasCesta'],
+        ['#kpi-media-diaria-cesta', 'kpiMediaDiariaCesta'],
+        ['#kpi-maior-volume-data-cesta', 'kpiMaiorVolumeDataCesta'],
+        ['#relatorio-textual-cesta', 'relatorioTextualCesta'],
+        ['#ranking-unidades-cesta', 'rankingUnidadesCesta'],
+        ['#grafico-cesta-relatorio', 'graficoCestaRelatorioCanvas'],
+        ['#titulo-grafico-cesta', 'tituloGraficoCesta'],
+        ['#header-tabela-cesta', 'headerTabelaCesta'],
+        ['#tabela-detalhes-cesta', 'tabelaDetalhesCesta'],
+        // FIM NOVOS ELEMENTOS CESTA - RELATÓRIO
+        
         // ENXOVAL
         ['#sub-nav-enxoval', 'subNavEnxoval'],
         ['#form-enxoval-lancamento', 'formEnxovalLancamento'],
@@ -300,14 +314,28 @@ function findDOMElements() {
         ['#alert-enxoval-estoque', 'alertEnxovalEstoque'],
         ['#table-enxoval-estoque-history', 'tableEnxovalEstoqueHistory'],
         ['#table-enxoval-historico', 'tableEnxovalHistorico'], // Histórico de Movimentações (Saída)
-        // NOVOS ELEMENTOS ENXOVAL - RELATÓRIO (CORREÇÃO 1)
-        ['#enxoval-relatorio-output', 'enxovalRelatorioOutput'],
-        ['#btn-enxoval-gerar-relatorio', 'btnEnxovalGerarRelatorio'],
-        ['#enxoval-rel-data-inicio', 'enxovalRelDataInicio'],
-        ['#enxoval-rel-data-fim', 'enxovalRelDataFim'],
-        ['#enxoval-rel-categoria', 'enxovalRelCategoria'],
-        ['#enxoval-relatorio-resumo-texto', 'enxovalRelatorioResumoTexto'],
-
+        
+        // **NOVOS ELEMENTOS ENXOVAL - RELATÓRIO (PROPOSTA MELHORADA)
+        ['#btn-gerar-relatorio-enxoval', 'btnGerarRelatorioEnxoval'],
+        ['#enxoval-periodo-relatorio', 'enxovalPeriodoRelatorio'],
+        ['#enxoval-datas-custom', 'enxovalDatasCustom'],
+        ['#enxoval-datas-custom-fim', 'enxovalDatasCustomFim'],
+        ['#enxoval-data-inicio', 'enxovalDataInicioRelatorio'],
+        ['#enxoval-data-fim', 'enxovalDataFimRelatorio'],
+        ['#enxoval-agrupamento', 'enxovalAgrupamento'],
+        ['#alert-relatorio-enxoval', 'alertRelatorioEnxoval'],
+        ['#resultado-relatorio-enxoval', 'resultadoRelatorioEnxoval'],
+        ['#kpi-total-enxovais', 'kpiTotalEnxovais'],
+        ['#kpi-unidades-atendidas-enxoval', 'kpiUnidadesAtendidasEnxoval'],
+        ['#kpi-media-diaria-enxoval', 'kpiMediaDiariaEnxoval'],
+        ['#kpi-maior-volume-data-enxoval', 'kpiMaiorVolumeDataEnxoval'],
+        ['#relatorio-textual-enxoval', 'relatorioTextualEnxoval'],
+        ['#ranking-unidades-enxoval', 'rankingUnidadesEnxoval'],
+        ['#grafico-enxoval-relatorio', 'graficoEnxovalRelatorioCanvas'],
+        ['#titulo-grafico-enxoval', 'tituloGraficoEnxoval'],
+        ['#header-tabela-enxoval', 'headerTabelaEnxoval'],
+        ['#tabela-detalhes-enxoval', 'tabelaDetalhesEnxoval'],
+        // FIM NOVOS ELEMENTOS ENXOVAL - RELATÓRIO
 
         // IMPORTAÇÃO
         ['#textarea-social-import', 'textareaSocialImport'],
@@ -704,4 +732,3 @@ export {
     openConfirmDeleteModal,
     renderPermissionsUI
 };
-
