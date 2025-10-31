@@ -587,6 +587,7 @@ function renderPermissionsUI() {
          DOM_ELEMENTS.formCestaLancamento, DOM_ELEMENTS.formEnxovalLancamento
     ];
 
+    // Saída (Unidades): Deve ser desabilitado SÓ para ANÔNIMO. Editor e Admin podem usar.
     formsToDisableForAnon.forEach(form => {
         if (form) {
             form.classList.toggle('disabled-by-role', isAnon);
@@ -595,23 +596,26 @@ function renderPermissionsUI() {
     });
 
     const estoqueElementsToDisable = [
-        // Água/Gás
+        // Formulários em si (Entrada/Inicial)
         DOM_ELEMENTS.formEntradaAgua, DOM_ELEMENTS.formEntradaGas,
         DOM_ELEMENTS.formInicialAgua, DOM_ELEMENTS.formInicialGas,
+        // Containers (para o botão 'Definir Estoque Inicial')
         DOM_ELEMENTS.formInicialAguaContainer, DOM_ELEMENTS.formInicialGasContainer,
-        DOM_ELEMENTS.btnAbrirInicialAgua, DOM_ELEMENTS.btnAbrirInicialAgua,
+        DOM_ELEMENTS.btnAbrirInicialAgua, DOM_ELEMENTS.btnAbrirInicialGas,
         // Social
         DOM_ELEMENTS.formCestaEntrada, DOM_ELEMENTS.formEnxovalEntrada,
     ];
 
+    // Entrada (Estoque) e Inicial: Deve ser desabilitado para ANÔNIMO E EDITOR (Admin-Only)
     estoqueElementsToDisable.forEach(el => {
         if (el) {
-             const shouldDisable = !isAdmin && !isEditor;
+             const shouldDisable = !isAdmin; // Admin-Only
              if (el.tagName === 'DIV' || el.tagName === 'FORM') {
                  el.classList.toggle('disabled-by-role', shouldDisable);
              } else {
                  el.disabled = shouldDisable;
              }
+             // Desabilita os filhos se for container/form
              if (el.tagName === 'DIV' || el.tagName === 'FORM') {
                 el.querySelectorAll('input, select, button').forEach(child => child.disabled = shouldDisable);
              }
@@ -704,4 +708,3 @@ export {
     openConfirmDeleteModal,
     renderPermissionsUI
 };
-
