@@ -234,7 +234,7 @@ export async function handleGasSubmit(e) {
     if (!isReady()) { showAlert('alert-gas', 'Erro: Não autenticado.', 'error'); return; }
     
     const role = getUserRole(); // Obter o role
-    // PERMISSÃO: Editor/Admin (Anon bloqueado na UI)
+    // PERMISSÃO: Editor/Admin (Anon bloqueado na UI) -> Editor/Admin já são permitidos
     if (role === 'anon') { 
         showAlert('alert-gas', "Permissão negada. Usuário Anônimo não pode lançar movimentações.", 'error'); return; 
     }
@@ -555,6 +555,8 @@ export function initGasListeners() {
         // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
         if (DOM_ELEMENTS.formGas) DOM_ELEMENTS.formGas.classList.toggle('hidden', formName !== 'saida-gas');
         if (DOM_ELEMENTS.formEntradaGas) DOM_ELEMENTS.formEntradaGas.classList.toggle('hidden', formName !== 'entrada-gas');
+        // Re-aplica as permissões aqui para garantir que o formulário de Entrada seja desabilitado para Editor
+        renderPermissionsUI(); 
     }));
 }
 
