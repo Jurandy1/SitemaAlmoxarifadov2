@@ -218,7 +218,13 @@ function initAllListeners() {
              else if (type === 'entrada-agua') alertId = 'alert-historico-estoque-agua'; 
              else if (type === 'entrada-gas') alertId = 'alert-historico-estoque-gas'; 
              // Lógica de alerta para materiais (usa o ID da subview)
-             else if (type === 'materiais') alertId = `alert-${removeBtn.closest('[id^="subview-"]').id.split('-')[1]}`; 
+             else if (type === 'materiais') {
+                const subview = removeBtn.closest('[id^="subview-"]');
+                if (subview) {
+                    // Pega a parte do meio da ID da subview (ex: subview-para-separar -> para)
+                    alertId = `alert-${subview.id.split('-')[1]}`;
+                }
+             }
              // Lógica de alerta para unidade
              else if (type === 'unidade') alertId = 'alert-gestao'; 
              // Lógica de alerta para Social (Cesta/Enxoval)
