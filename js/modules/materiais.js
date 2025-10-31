@@ -1,4 +1,4 @@
-// js/modules/materiais.js
+// js/modules/materiais.js// js/modules/materiais.js
 import { Timestamp, addDoc, updateDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { getMateriais, getUserRole } from "../utils/cache.js"; // Adicionado getUserRole
 // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
@@ -137,7 +137,7 @@ export function renderMateriaisStatus() {
     // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS (Atualiza os resumos)
     if (DOM_ELEMENTS.summaryMateriaisRequisitado) DOM_ELEMENTS.summaryMateriaisRequisitado.textContent = requisitado.length;
     if (DOM_ELEMENTS.summaryMateriaisSeparacao) DOM_ELEMENTS.summaryMateriaisSeparacao.textContent = separacao.length;
-    if (DOM_ELEMENTS.summaryMateriaisRetirada) DOM_ELEMENTS.summaryMateriaisRetirada.textContent = retirada.length;
+    if (DOM_ELEMENTS.summaryMateriaisRetirada) DOM_ELEMENTOS.summaryMateriaisRetirada.textContent = retirada.length;
     
     // Renderiza tabelas individuais
     renderMaterialSubTable(DOM_ELEMENTS.tableParaSeparar, requisitado, 'requisitado');
@@ -173,10 +173,18 @@ function renderMaterialSubTable(tableBody, data, status) {
         let acoesHtml = '';
         let rowContent = '';
 
-        // CORREÇÃO SOLICITADA: Adicionar o tipo da unidade antes do nome se for CT ou ABRIGO
-        let unidadeDisplay = m.unidadeNome;
-        if (m.tipoUnidade === 'CT' || m.tipoUnidade === 'ABRIGO') {
-            unidadeDisplay = `${m.tipoUnidade} ${m.unidadeNome}`;
+        // ** CORREÇÃO SOLICITADA: Ajuste da exibição da Unidade e Tipo **
+        let unidadeDisplay = m.unidadeNome || 'N/A';
+        const tipoUnidade = (m.tipoUnidade || '').toUpperCase();
+        
+        // Se o tipo for CT ou ABRIGO, prefixa o nome.
+        if (tipoUnidade === 'CT' || tipoUnidade === 'ABRIGO' || tipoUnidade === 'SEDE' || tipoUnidade === 'CREAS' || tipoUnidade === 'CRAS') {
+             // Garante que o nome da unidade só seja prefixado se for diferente do tipo (evita "CT CT CENTRO")
+             if (!unidadeDisplay.toUpperCase().startsWith(tipoUnidade)) {
+                 unidadeDisplay = `${tipoUnidade} ${unidadeDisplay}`;
+             } else {
+                 unidadeDisplay = unidadeDisplay; // Usa só o nome da unidade se já começar com o tipo
+             }
         }
         // FIM CORREÇÃO SOLICITADA
         
@@ -206,9 +214,10 @@ function renderMaterialSubTable(tableBody, data, status) {
 
             acoesHtml = downloadBtn + startSeparacaoBtn + removeBtn;
             
+            // Colunas para 'Para Separar'
             rowContent = `<td>${unidadeDisplay}</td>` +
                 `<td class="capitalize">${m.tipoMaterial}</td>` +
-                `<td class="whitespace-nowrap">${dataRequisicaoFormatada}</td>` + // Coluna Data Requisição com TEMPO (CORREÇÃO 2)
+                `<td class="whitespace-nowrap">${dataRequisicaoFormatada}</td>` + // Coluna Data Requisição com TEMPO
                 `<td>${responsavelLancamento}</td>` +
                 `<td class="text-center space-x-2">${acoesHtml}</td>`;
             
@@ -218,9 +227,9 @@ function renderMaterialSubTable(tableBody, data, status) {
                 ? `<button class="btn-icon btn-retirada text-teal-600 hover:text-teal-800" data-id="${m.id}" title="Marcar como pronto para entrega"><i data-lucide="package-check"></i></button>`
                 : `<span class="btn-icon text-gray-400" title="Apenas Admin/Editor pode marcar como pronto"><i data-lucide="slash"></i></span>`;
 
-            // CORREÇÃO 1: Removendo o downloadBtn daqui, pois o download é automático ao iniciar a separação.
-            acoesHtml = prontaRetiradaBtn;
+            acoesHtml = prontaRetiradaBtn + removeBtn;
                 
+            // Colunas para 'Em Separação'
             rowContent = `<td>${unidadeDisplay}</td>` +
                 `<td class="capitalize">${m.tipoMaterial}</td>` +
                 `<td>${separador}</td>` +
@@ -234,8 +243,9 @@ function renderMaterialSubTable(tableBody, data, status) {
                 ? `<button class="btn-icon btn-entregue text-blue-600 hover:text-blue-800" data-id="${m.id}" title="Finalizar entrega e registrar responsáveis"><i data-lucide="check-circle"></i></button>`
                 : `<span class="btn-icon text-gray-400" title="Apenas Admin/Editor pode finalizar a entrega"><i data-lucide="slash"></i></span>`;
             
-            acoesHtml = finalizarEntregaBtn;
+            acoesHtml = finalizarEntregaBtn + removeBtn;
             
+            // Colunas para 'Pronto p/ Entrega'
             rowContent = `<td>${unidadeDisplay}</td>` +
                 `<td class="capitalize">${m.tipoMaterial}</td>` +
                 `<td>${separador}</td>` +
@@ -248,6 +258,7 @@ function renderMaterialSubTable(tableBody, data, status) {
             const respAlmox = m.responsavelEntrega || m.responsavelSeparador || 'N/A';
             const dataLancamentoFormatada = formatTimestampComTempo(m.registradoEm);
 
+            // Colunas para 'Histórico'
             rowContent = `<td>${unidadeDisplay}</td>` +
                 `<td class="capitalize">${m.tipoMaterial}</td>` +
                 `<td>${dataEntregaFormatada}</td>` +
@@ -342,7 +353,7 @@ async function handleMarcarEntregue(e) {
     DOM_ELEMENTS.finalizarEntregaMaterialIdEl.value = materialId;
     DOM_ELEMENTS.inputEntregaResponsavelAlmox.value = material.responsavelSeparador || '';
     // Tenta pegar o responsável pelo lançamento como default para quem recebeu
-    DOM_ELEMENTS.inputEntregaResponsavelUnidade.value = material.responsavelLancamento || ''; 
+    DOM_ELEMENTS.inputEntregaResponsavelUnidade.value = material.responsavelRecebimento || material.responsavelLancamento || ''; // Pega o último responsável de recebimento se existir
     DOM_ELEMENTS.alertFinalizarEntrega.style.display = 'none';
 
     DOM_ELEMENTS.finalizarEntregaModal.style.display = 'flex';
