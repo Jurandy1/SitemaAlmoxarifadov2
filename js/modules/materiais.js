@@ -1,4 +1,4 @@
-// js/modules/materiais.js// js/modules/materiais.js
+// js/modules/materiais.js
 import { Timestamp, addDoc, updateDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { getMateriais, getUserRole } from "../utils/cache.js"; // Adicionado getUserRole
 // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
@@ -137,7 +137,7 @@ export function renderMateriaisStatus() {
     // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS (Atualiza os resumos)
     if (DOM_ELEMENTS.summaryMateriaisRequisitado) DOM_ELEMENTS.summaryMateriaisRequisitado.textContent = requisitado.length;
     if (DOM_ELEMENTS.summaryMateriaisSeparacao) DOM_ELEMENTS.summaryMateriaisSeparacao.textContent = separacao.length;
-    if (DOM_ELEMENTS.summaryMateriaisRetirada) DOM_ELEMENTOS.summaryMateriaisRetirada.textContent = retirada.length;
+    if (DOM_ELEMENTS.summaryMateriaisRetirada) DOM_ELEMENTS.summaryMateriaisRetirada.textContent = retirada.length;
     
     // Renderiza tabelas individuais
     renderMaterialSubTable(DOM_ELEMENTS.tableParaSeparar, requisitado, 'requisitado');
@@ -349,7 +349,7 @@ async function handleMarcarEntregue(e) {
     if (!material) return;
     
     // Preenche e abre o modal de finalização
-    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
+    // CORREÇÃO: DOM_ELEMENTS -> DOM_ELEMENTS
     DOM_ELEMENTS.finalizarEntregaMaterialIdEl.value = materialId;
     DOM_ELEMENTS.inputEntregaResponsavelAlmox.value = material.responsavelSeparador || '';
     // Tenta pegar o responsável pelo lançamento como default para quem recebeu
@@ -373,7 +373,7 @@ export async function handleFinalizarEntregaSubmit() {
          return;
     }
     
-    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
+    // CORREÇÃO: DOM_ELEMENTS -> DOM_ELEMENTS
     const materialId = DOM_ELEMENTS.finalizarEntregaMaterialIdEl.value;
     const respAlmox = capitalizeString(DOM_ELEMENTS.inputEntregaResponsavelAlmox.value.trim());
     const respUnidade = capitalizeString(DOM_ELEMENTS.inputEntregaResponsavelUnidade.value.trim());
@@ -439,7 +439,7 @@ function openSeparadorModal(materialId) {
          return;
     }
     
-    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
+    // CORREÇÃO: DOM_ELEMENTS -> DOM_ELEMENTS
     if (!DOM_ELEMENTS.separadorModal) return;
     console.log("Abrindo modal para material ID:", materialId);
     DOM_ELEMENTS.separadorMaterialIdEl.value = materialId;
@@ -456,7 +456,7 @@ function openSeparadorModal(materialId) {
  * Salva o nome do separador e move o status para 'separacao'.
  */
 export async function handleSalvarSeparador() {
-    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
+    // CORREÇÃO: DOM_ELEMENTS -> DOM_ELEMENTS
     if (!isReady() || !DOM_ELEMENTS.inputSeparadorNome) return;
     
     const role = getUserRole();
@@ -591,7 +591,7 @@ async function handleDownloadPedido(materialId, fileURL) {
 // =========================================================================
 
 export function initMateriaisListeners() {
-    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
+    // CORREÇÃO: DOM_ELEMENTS -> DOM_ELEMENTS
     if (DOM_ELEMENTS.formMateriais) {
         DOM_ELEMENTS.formMateriais.addEventListener('submit', handleMateriaisSubmit);
     }
@@ -655,6 +655,6 @@ export function onMateriaisTabChange() {
     }
     
     renderMateriaisStatus(); 
-    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
+    // CORREÇÃO: DOM_ELEMENTS -> DOM_ELEMENTS
     if (DOM_ELEMENTS.inputDataSeparacao) DOM_ELEMENTS.inputDataSeparacao.value = getTodayDateString();
 }
