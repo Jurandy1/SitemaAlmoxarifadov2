@@ -88,11 +88,24 @@ export function setupAnaliseUnidadeControls(itemType) {
     const unidadeContainer = DOM_ELEMENTS[`analiseAgrupamentoUnidadeContainer${itemType === 'agua' ? 'Agua' : 'Gas'}`];
 
     if (selectModoAgrupamento && tipoContainer && unidadeContainer) {
-        // Remove listeners antigos para evitar duplicação
+        // CORREÇÃO DO ERRO 'parentNode is null'
+        // Criamos o clone
         const newSelectModo = selectModoAgrupamento.cloneNode(true);
-        selectModoAgrupamento.parentNode.replaceChild(newSelectModo, selectModoAgrupamento);
+        
+        // Garantimos que o elemento original tem um pai antes de tentar substituir
+        if (selectModoAgrupamento.parentNode) {
+            selectModoAgrupamento.parentNode.replaceChild(newSelectModo, selectModoAgrupamento);
+            // Reatribuímos a referência DOM_ELEMENTS ao novo elemento no DOM
+            DOM_ELEMENTS[`selectModoAgrupamento${itemType === 'agua' ? 'Agua' : 'Gas'}`] = newSelectModo;
+        } else {
+             // Se não tiver pai, usamos o clone para adicionar o listener, mas ele não substituiu o original
+             console.warn(`[Previsão] Erro: selectModoAgrupamento${itemType} não tem pai. Listener anexado ao clone.`);
+        }
 
-        newSelectModo.addEventListener('change', (e) => {
+        // Usamos o novo (e agora possivelmente inserido) elemento para anexar o listener
+        const elementToListen = DOM_ELEMENTS[`selectModoAgrupamento${itemType === 'agua' ? 'Agua' : 'Gas'}`] || newSelectModo;
+        
+        elementToListen.addEventListener('change', (e) => {
             const modo = e.target.value;
             // CORREÇÃO: Alterna a visibilidade dos selects de filtro (Tipo vs Unidade)
             tipoContainer.classList.toggle('hidden', modo !== 'tipo');
@@ -100,7 +113,7 @@ export function setupAnaliseUnidadeControls(itemType) {
         });
 
         // Garante que a UI comece no estado correto
-        const initialMode = newSelectModo.value;
+        const initialMode = elementToListen.value;
         tipoContainer.classList.toggle('hidden', initialMode !== 'tipo');
         unidadeContainer.classList.toggle('hidden', initialMode !== 'unidade');
     }
