@@ -160,7 +160,9 @@ function renderMaterialSubTable(tableBody, data, status) {
     else if (status === 'entregue') msgVazio = 'Nenhuma entrega finalizada.';
 
     if (data.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-slate-500">${msgVazio}</td></tr>`;
+        // CORRIGIDO: Alterado colspan para 7 para Histórico (max 7 colunas) e 5 para Para Separar (max 5 colunas)
+        const colspan = status === 'entregue' ? 7 : 5; 
+        tableBody.innerHTML = `<tr><td colspan="${colspan}" class="text-center py-4 text-slate-500">${msgVazio}</td></tr>`;
         return;
     }
 
@@ -177,8 +179,8 @@ function renderMaterialSubTable(tableBody, data, status) {
         let unidadeDisplay = m.unidadeNome || 'N/A';
         const tipoUnidade = (m.tipoUnidade || '').toUpperCase();
         
-        // Se o tipo for CT ou ABRIGO, prefixa o nome.
-        if (tipoUnidade === 'CT' || tipoUnidade === 'ABRIGO' || tipoUnidade === 'SEDE' || tipoUnidade === 'CREAS' || tipoUnidade === 'CRAS') {
+        // Se o tipo for CT, ABRIGO, SEDE, CREAS, CRAS, prefixa o nome para garantir o formato TIPO NOME
+        if (['CT', 'ABRIGO', 'SEDE', 'CREAS', 'CRAS'].includes(tipoUnidade)) {
              // Garante que o nome da unidade só seja prefixado se for diferente do tipo (evita "CT CT CENTRO")
              if (!unidadeDisplay.toUpperCase().startsWith(tipoUnidade)) {
                  unidadeDisplay = `${tipoUnidade} ${unidadeDisplay}`;
