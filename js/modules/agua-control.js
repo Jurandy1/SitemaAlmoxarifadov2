@@ -551,6 +551,8 @@ export function initAguaListeners() {
         // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
         if (DOM_ELEMENTS.formAgua) DOM_ELEMENTS.formAgua.classList.toggle('hidden', formName !== 'saida-agua');
         if (DOM_ELEMENTS.formEntradaAgua) DOM_ELEMENTS.formEntradaAgua.classList.toggle('hidden', formName !== 'entrada-agua');
+        // Re-aplica as permissões aqui para garantir que o formulário de Entrada seja desabilitado para Editor
+        renderPermissionsUI(); 
     }));
 
 }
