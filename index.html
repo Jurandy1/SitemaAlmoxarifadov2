@@ -2289,6 +2289,44 @@
                                 <input type="date" id="relatorio-data-fim" class="form-input" required>
                             </div>
                         </div>
+                        <!-- Parâmetros de Custo (opcional, apenas para Água) -->
+                        <div class="mt-2 border rounded-lg p-4 bg-slate-50">
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-sm font-semibold text-slate-700">Parâmetros de Custo (opcional)</h3>
+                                <span class="text-xs text-slate-500">Se vazio, usa padrão atual</span>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                                <div>
+                                    <label for="relatorio-custo-galao" class="form-label">Custo por Galão 20L (R$)</label>
+                                    <input type="number" step="0.01" min="0" id="relatorio-custo-galao" class="form-input" placeholder="12.00">
+                                </div>
+                                <div>
+                                    <label for="relatorio-litros-por-galao" class="form-label">Litros por Galão</label>
+                                    <input type="number" step="1" min="1" id="relatorio-litros-por-galao" class="form-input" placeholder="20">
+                                </div>
+                                <div>
+                                    <label for="relatorio-custo-industrial-energia" class="form-label">Custo mensal Bebedouro Industrial (Energia)</label>
+                                    <input type="number" step="0.01" min="0" id="relatorio-custo-industrial-energia" class="form-input" placeholder="80.00">
+                                </div>
+                                <div>
+                                    <label for="relatorio-custo-industrial-filtro" class="form-label">Custo mensal Bebedouro Industrial (Filtros)</label>
+                                    <input type="number" step="0.01" min="0" id="relatorio-custo-industrial-filtro" class="form-input" placeholder="50.00">
+                                </div>
+                                <div>
+                                    <label for="relatorio-custo-filtro-rede" class="form-label">Custo mensal Filtro (Rede)</label>
+                                    <input type="number" step="0.01" min="0" id="relatorio-custo-filtro-rede" class="form-input" placeholder="50.00">
+                                </div>
+                                <div>
+                                    <label for="relatorio-limite-baixo-litros" class="form-label">Limite baixo consumo (L/mês)</label>
+                                    <input type="number" step="1" min="1" id="relatorio-limite-baixo-litros" class="form-input" placeholder="300">
+                                </div>
+                                <div>
+                                    <label for="relatorio-limite-alto-litros" class="form-label">Limite alto consumo (L/mês)</label>
+                                    <input type="number" step="1" min="1" id="relatorio-limite-alto-litros" class="form-input" placeholder="1200">
+                                </div>
+                            </div>
+                            <p class="text-xs text-slate-500 mt-2">Preencha apenas se desejar personalizar este relatório de Água.</p>
+                        </div>
                         <button type="button" id="btn-gerar-pdf" class="btn-primary w-full !mt-6">
                             <i data-lucide="file-down"></i> Gerar Relatório PDF
                         </button>

@@ -238,6 +238,14 @@ function findDOMElements() {
         ['#relatorio-data-fim', 'relatorioDataFim'],
         ['#btn-gerar-pdf', 'btnGerarPdf'],
         ['#alert-relatorio', 'alertRelatorio'],
+        // Parâmetros de custo do relatório (opcional)
+        ['#relatorio-custo-galao', 'relatorioCustoGalao'],
+        ['#relatorio-litros-por-galao', 'relatorioLitrosPorGalao'],
+        ['#relatorio-custo-industrial-energia', 'relatorioCustoIndustrialEnergia'],
+        ['#relatorio-custo-industrial-filtro', 'relatorioCustoIndustrialFiltro'],
+        ['#relatorio-custo-filtro-rede', 'relatorioCustoFiltroRede'],
+        ['#relatorio-limite-baixo-litros', 'relatorioLimiteBaixoLitros'],
+        ['#relatorio-limite-alto-litros', 'relatorioLimiteAltoLitros'],
 
         // ADICIONADO: Gestão de Usuários
         ['#alert-usuarios', 'alertUsuarios'],
