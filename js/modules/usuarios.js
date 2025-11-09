@@ -167,11 +167,48 @@ async function handleCreateUser(e) {
    SNAPSHOT DE USUÁRIOS
 ================================================================= */
 function startUserRolesListener() {
-// ... (omitted code)
+  // Para evitar múltiplos listeners simultâneos
+  stopUserRolesListener();
+
+  try {
+    // Query simples em toda a coleção de roles
+    const q = query(COLLECTIONS.userRoles);
+    unsubscribeUserRoles = onSnapshot(
+      q,
+      (snap) => {
+        allUsers = snap.docs.map((d) => {
+          const data = d.data() || {};
+          const role = ['admin', 'editor', 'anon'].includes(data.role)
+            ? data.role
+            : 'anon';
+          return {
+            uid: d.id,
+            email: data.email || '',
+            role,
+          };
+        });
+        renderUsuariosTable();
+      },
+      (err) => {
+        console.error('Erro listener userRoles:', err);
+        showAlert('alert-usuarios', `Erro ao listar usuários: ${err.message}`, 'error');
+      }
+    );
+  } catch (err) {
+    console.error('Erro ao iniciar listener userRoles:', err);
+    showAlert('alert-usuarios', `Erro ao iniciar listener: ${err.message}`, 'error');
+  }
 }
 
 function stopUserRolesListener() {
-// ... (omitted code)
+  if (typeof unsubscribeUserRoles === 'function') {
+    try {
+      unsubscribeUserRoles();
+    } catch (err) {
+      console.warn('Falha ao cancelar listener userRoles:', err);
+    }
+    unsubscribeUserRoles = null;
+  }
 }
 
 /* ===============================================================
