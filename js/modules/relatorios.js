@@ -37,12 +37,11 @@ function moedaBRL(valor) {
  */
 export async function handleGerarPdf() {
     if (!isReady()) { showAlert('alert-relatorio', 'Erro: Não autenticado.', 'error'); return; }
-    if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined' || typeof window.jspdf.plugin.autotable === 'undefined') {
-        showAlert('alert-relatorio', 'Erro: Bibliotecas PDF não carregadas. Tente recarregar a página.', 'error'); return;
+    if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined') {
+        showAlert('alert-relatorio', 'Erro: Biblioteca jsPDF não carregada. Tente recarregar a página.', 'error'); return;
     }
     
     const { jsPDF } = window.jspdf;
-    const autoTable = window.jspdf.plugin.autotable; 
 
     // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     const tipo = DOM_ELEMENTS.relatorioTipo.value; 
@@ -70,6 +69,10 @@ export async function handleGerarPdf() {
     
     try {
         const doc = new jsPDF('p', 'mm', 'a4');
+        if (typeof doc.autoTable !== 'function') {
+            showAlert('alert-relatorio', 'Erro: Módulo AutoTable não carregado. Verifique a internet ou recarregue a página.', 'error');
+            return;
+        }
         const logoDataUrl = await toDataURL('SaoLuis.png');
 
         // Cabeçalho institucional
@@ -153,7 +156,7 @@ export async function handleGerarPdf() {
                 });
 
             // Seção: Análise por Unidade
-            autoTable(doc, {
+            doc.autoTable({
                 startY: 46,
                 head: [[
                     'Unidade', 'Galões (período)', 'Litros (período)', 'Consumo médio mensal',
@@ -188,7 +191,7 @@ export async function handleGerarPdf() {
             doc.setFontSize(10); doc.setTextColor(11, 61, 145);
             doc.text('Sumário Executivo', 14, startY);
             doc.setTextColor(51, 65, 85);
-            autoTable(doc, {
+            doc.autoTable({
                 startY: startY + 2,
                 theme: 'plain',
                 body: [
@@ -204,7 +207,7 @@ export async function handleGerarPdf() {
             const recomendacaoGeral = litrosMensalTotal > limiteAlto ? 'Investir em bebedouros industriais nas unidades de maior consumo.'
                 : (litrosMensalTotal <= limiteBaixo ? 'Adotar bebedouros com filtro (rede) nas unidades de baixo consumo.'
                 : 'Manter/otimizar abastecimento por galões nas unidades com consumo moderado.');
-            autoTable(doc, {
+            doc.autoTable({
                 startY: (doc.lastAutoTable?.finalY || startY) + 4,
                 theme: 'plain',
                 head: [['Recomendação Geral']],
@@ -216,7 +219,7 @@ export async function handleGerarPdf() {
             const responsavelData = Array.from(responsavelMap.entries())
                 .sort((a,b) => b[1] - a[1])
                 .map(entry => [entry[0], entry[1]]);
-            autoTable(doc, {
+            doc.autoTable({
                 startY: (doc.lastAutoTable?.finalY || startY) + 8,
                 head: [['Responsável', 'Entregas (galões)']],
                 body: responsavelData,
@@ -233,7 +236,7 @@ export async function handleGerarPdf() {
                 .sort((a,b) => b[1] - a[1])
                 .map(entry => [entry[0], entry[1]]);
 
-            autoTable(doc, {
+            doc.autoTable({
                 startY: 46,
                 head: [['Unidade', 'Quantidade Fornecida']],
                 body: abastecimentoData,
@@ -242,7 +245,7 @@ export async function handleGerarPdf() {
                 styles: { fontSize: 9 }
             });
 
-            autoTable(doc, {
+            doc.autoTable({
                 startY: (doc.lastAutoTable?.finalY || 46) + 8,
                 head: [['Responsável', 'Quantidade Recebida']],
                 body: responsavelData,
