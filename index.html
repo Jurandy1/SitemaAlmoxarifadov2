@@ -295,14 +295,24 @@
                         <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
                             <div class="flex justify-between items-center mb-4 flex-wrap gap-3">
                                 <h3 id="dashboard-materiais-title" class="text-xl font-semibold text-gray-900">Materiais do Almoxarifado</h3>
-                                <button id="btn-clear-dashboard-filter" class="hidden text-sm font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1">
-                                    <i data-lucide="x" class="w-4 h-4"></i>
-                                    Limpar Filtro
-                                </button>
+                                <div class="flex items-center gap-2">
+                                    <button id="btn-dashboard-ver-lista" class="text-sm font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1" title="Ver como Lista">
+                                        <i data-lucide="list" class="w-4 h-4"></i>
+                                        Ver Lista
+                                    </button>
+                                    <button id="btn-tv-mode" class="text-sm font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1" title="Ativar Modo TV">
+                                        <i data-lucide="tv" class="w-4 h-4"></i>
+                                        Modo TV
+                                    </button>
+                                    <button id="btn-clear-dashboard-filter" class="hidden text-sm font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                                        <i data-lucide="x" class="w-4 h-4"></i>
+                                        Limpar Filtro
+                                    </button>
+                                </div>
                             </div>
 
                             <!-- Container para o grid dinâmico de materiais -->
-                            <div id="dashboard-materiais-prontos" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
+                            <div id="dashboard-materiais-prontos" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
 
                                 <!-- Coluna CT -->
                                 <div class="materiais-prontos-col">
@@ -407,7 +417,13 @@
                     <!-- VISÃO MATERIAIS (LISTA) -->
                     <div id="dashboard-view-materiais" class="hidden fade-in">
                         <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Materiais Pendentes (Requisição, Separação e Retirada)</h3>
+                            <div class="flex justify-between items-center mb-4 flex-wrap gap-3">
+                                <h3 class="text-lg font-semibold text-gray-900">Materiais Pendentes (Requisição, Separação e Retirada)</h3>
+                                <button id="btn-dashboard-ver-grade" class="text-sm font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1" title="Ver como Grade">
+                                    <i data-lucide="grid" class="w-4 h-4"></i>
+                                    Ver Grade
+                                </button>
+                            </div>
                             <div id="dashboard-materiais-list" class="space-y-3 dashboard-list">
                                  <div class="text-center p-10" id="loading-materiais-dashboard">
                                     <div class="loading-spinner-small mx-auto"></div>

@@ -169,6 +169,9 @@ header p {
     padding: 0.75rem 1rem; /* p-3/p-4 */
     border: 1px solid;
     transition: all 0.2s ease;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    max-width: 100%;
 }
 .materiais-prontos-col li:hover {
     transform: translateY(-2px);
@@ -189,6 +192,33 @@ header p {
 .materiais-prontos-col li.item-requisitado {
     background-color: #eef2ff; /* bg-indigo-50 ou blue-50 */
     border-color: #c7d2fe; /* border-indigo-200 ou blue-200 */
+}
+
+/* ======================= */
+/* MODO TV (Leitura à distância) */
+/* ======================= */
+.tv-mode .materiais-prontos-col h4 {
+    font-size: 1rem; /* text-base */
+}
+.tv-mode .materiais-prontos-col li {
+    padding: 1rem 1.25rem; /* p-4 */
+    font-size: 1rem; /* text-base */
+}
+.tv-mode .materiais-prontos-col li strong {
+    font-size: 1rem; /* text-base */
+}
+.tv-mode .badge {
+    font-size: 0.875rem; /* text-sm */
+}
+
+/* Lista de Materiais (sub-view) itens melhorados */
+.dashboard-list-item {
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+.tv-mode .dashboard-list-item {
+    font-size: 1rem; /* text-base */
+    padding: 1rem; /* p-4 */
 }
 
 /* Estado: Em Separação (implícito, app.js não põe classe) */

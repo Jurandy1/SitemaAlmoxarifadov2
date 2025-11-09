@@ -206,7 +206,17 @@ function renderDashboardMateriaisList() {
             const statusOrder = { 'requisitado': 1, 'separacao': 2, 'retirada': 3 }; 
             const statusCompare = (statusOrder[a.status] || 9) - (statusOrder[b.status] || 9);
             if (statusCompare !== 0) return statusCompare;
-            return (a.dataSeparacao?.toMillis() || 0) - (b.dataSeparacao?.toMillis() || 0); 
+            const tsA = (a.status === 'requisitado')
+                ? (a.registradoEm?.toMillis() || 0)
+                : (a.status === 'separacao')
+                    ? (a.dataSeparacao?.toMillis() || a.registradoEm?.toMillis() || 0)
+                    : (a.dataRetirada?.toMillis() || a.dataSeparacao?.toMillis() || 0);
+            const tsB = (b.status === 'requisitado')
+                ? (b.registradoEm?.toMillis() || 0)
+                : (b.status === 'separacao')
+                    ? (b.dataSeparacao?.toMillis() || b.registradoEm?.toMillis() || 0)
+                    : (b.dataRetirada?.toMillis() || b.dataSeparacao?.toMillis() || 0);
+            return tsA - tsB; 
         }); 
     
     if (pendentes.length === 0) { 
@@ -235,13 +245,15 @@ function renderDashboardMateriaisList() {
             borderColor = 'border-green-300';
         }
 
+        const separador = m.responsavelSeparador ? `<p class=\"text-xs text-slate-700 mt-1\"><strong>Separador:</strong> ${m.responsavelSeparador}</p>` : '';
         return ` 
-            <div class="p-3 ${bgColor} rounded-lg border ${borderColor}"> 
+            <div class="dashboard-list-item p-3 ${bgColor} rounded-lg border ${borderColor}"> 
                 <div class="flex justify-between items-center gap-2"> 
-                    <span class="font-medium text-slate-700 text-sm truncate" title="${m.unidadeNome || ''}">${m.unidadeNome || 'Unidade Desc.'}</span> 
+                    <span class="font-medium text-slate-700 text-sm break-words" title="${m.unidadeNome || ''}">${m.unidadeNome || 'Unidade Desc.'}</span> 
                     <span class="badge ${badgeClass} flex-shrink-0">${badgeText} (${formatTimestamp(m.dataSeparacao || m.registradoEm)})</span> 
                 </div> 
                 <p class="text-xs text-slate-600 capitalize mt-1">${m.tipoMaterial || 'N/D'}</p> 
+                ${separador}
                 ${m.itens ? `<p class="text-xs text-gray-500 mt-1 truncate" title="${m.itens}">Obs: ${m.itens}</p>` : ''} 
             </div> `
     }).join('');
@@ -370,7 +382,17 @@ export function renderDashboardMateriaisProntos(filterStatus = null) {
                     const statusOrder = { 'requisitado': 1, 'separacao': 2, 'retirada': 3 };
                     const statusCompare = (statusOrder[a.status] || 9) - (statusOrder[b.status] || 9);
                     if (statusCompare !== 0) return statusCompare;
-                    return (a.dataSeparacao?.toMillis() || 0) - (b.dataSeparacao?.toMillis() || 0);
+                    const tsA = (a.status === 'requisitado')
+                        ? (a.registradoEm?.toMillis() || 0)
+                        : (a.status === 'separacao')
+                            ? (a.dataSeparacao?.toMillis() || a.registradoEm?.toMillis() || 0)
+                            : (a.dataRetirada?.toMillis() || a.dataSeparacao?.toMillis() || 0);
+                    const tsB = (b.status === 'requisitado')
+                        ? (b.registradoEm?.toMillis() || 0)
+                        : (b.status === 'separacao')
+                            ? (b.dataSeparacao?.toMillis() || b.registradoEm?.toMillis() || 0)
+                            : (b.dataRetirada?.toMillis() || b.dataSeparacao?.toMillis() || 0);
+                    return tsA - tsB;
                  });
 
                  materiaisOrdenados.forEach(m => {
@@ -492,6 +514,24 @@ export function initDashboardListeners() {
              filterDashboardMateriais(null);
         });
     }
+    // Botão para alternar para a sub-view de Materiais (Lista)
+    const btnVerLista = document.getElementById('btn-dashboard-ver-lista');
+    if (btnVerLista) {
+        btnVerLista.addEventListener('click', () => switchDashboardView('materiais'));
+    }
+    // Botão para ativar/desativar Modo TV na visão geral
+    const btnTvMode = document.getElementById('btn-tv-mode');
+    if (btnTvMode) {
+        btnTvMode.addEventListener('click', () => {
+            const geralPane = document.getElementById('dashboard-view-geral');
+            if (geralPane) geralPane.classList.toggle('tv-mode');
+        });
+    }
+    // Botão para alternar de volta para a Grade na sub-view Materiais
+    const btnVerGrade = document.getElementById('btn-dashboard-ver-grade');
+    if (btnVerGrade) {
+        btnVerGrade.addEventListener('click', () => switchDashboardView('geral'));
+    }
     
     // Adiciona listeners para os cards de KPI (Em Separação e Retirada)
     const cardSeparacao = document.getElementById('dashboard-card-separacao');
@@ -500,4 +540,7 @@ export function initDashboardListeners() {
     // MANTIDO: O card "Em Separação" aciona o filtro 'separacao', que agora inclui 'requisitado' e 'separacao'
     if (cardSeparacao) cardSeparacao.addEventListener('click', () => filterDashboardMateriais('separacao')); 
     if (cardRetirada) cardRetirada.addEventListener('click', () => filterDashboardMateriais('retirada'));
+
+    // Atualiza ícones Lucide caso necessário
+    if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
 }
