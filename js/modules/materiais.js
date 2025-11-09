@@ -130,8 +130,8 @@ export function renderMateriaisStatus() {
     const materiais = getMateriais().filter(m => !m.deleted);
     
     const requisitado = materiais.filter(m => m.status === 'requisitado');
-    const separacao = materiais.filter(m => m.status === 'separacao');
-    const retirada = materiais.filter(m => m.status === 'retirada');
+    let separacao = materiais.filter(m => m.status === 'separacao');
+    let retirada = materiais.filter(m => m.status === 'retirada');
     let entregue = materiais.filter(m => m.status === 'entregue');
 
     // ---- Filtros de Histórico (Unidade e Período) ----
@@ -182,6 +182,32 @@ export function renderMateriaisStatus() {
     if (DOM_ELEMENTS.summaryMateriaisSeparacao) DOM_ELEMENTS.summaryMateriaisSeparacao.textContent = separacao.length;
     if (DOM_ELEMENTS.summaryMateriaisRetirada) DOM_ELEMENTS.summaryMateriaisRetirada.textContent = retirada.length;
     
+    // Ordenação por criticidade (SLA)
+    const nowMs = Timestamp.now().toMillis();
+    separacao = separacao.sort((a,b) => {
+        const aStart = a.dataInicioSeparacao?.toMillis() || 0;
+        const bStart = b.dataInicioSeparacao?.toMillis() || 0;
+        return (nowMs - bStart) - (nowMs - aStart);
+    });
+    retirada = retirada.sort((a,b) => {
+        const aReady = a.dataRetirada?.toMillis() || 0;
+        const bReady = b.dataRetirada?.toMillis() || 0;
+        return (nowMs - bReady) - (nowMs - aReady);
+    });
+
+    // Popular select de unidade para lote (Pronto p/ Entrega)
+    const batchSelect = document.getElementById('batch-unidade-select');
+    if (batchSelect) {
+        const atual = batchSelect.value || '';
+        const unidadesSet = new Set(retirada.map(m => (m.unidadeNome || '').trim()).filter(Boolean));
+        const unidades = Array.from(unidadesSet).sort((a,b) => a.localeCompare(b));
+        batchSelect.innerHTML = '<option value="">Selecione...</option>' +
+            unidades.map(u => `<option value="${u}">${u}</option>`).join('');
+        if (batchSelect.querySelector(`option[value="${atual}"]`)) {
+            batchSelect.value = atual;
+        }
+    }
+
     // Renderiza tabelas individuais
     renderMaterialSubTable(DOM_ELEMENTS.tableParaSeparar, requisitado, 'requisitado');
     renderMaterialSubTable(DOM_ELEMENTS.tableEmSeparacao, separacao, 'separacao');
@@ -213,6 +239,7 @@ function renderMaterialSubTable(tableBody, data, status) {
     const role = getUserRole();
     const isAdmin = role === 'admin';
     const isEditor = role === 'editor';
+    const nowMs = Timestamp.now().toMillis();
     
     data.forEach(m => {
         let acoesHtml = '';
@@ -257,7 +284,12 @@ function renderMaterialSubTable(tableBody, data, status) {
                 ? `<button class="btn-icon btn-start-separacao text-green-600 hover:text-green-800" data-id="${m.id}" title="Informar Separador e Iniciar"><i data-lucide="play-circle"></i></button>`
                 : `<span class="btn-icon text-gray-400" title="Apenas Admin/Editor pode iniciar"><i data-lucide="slash"></i></span>`;
 
-            acoesHtml = downloadBtn + startSeparacaoBtn + removeBtn;
+            // Badge de Downloads e Bloqueio
+            const dlInfo = m.downloadInfo || { count: 0, blockedUntil: null };
+            const isDlBlocked = dlInfo.blockedUntil && (dlInfo.blockedUntil.toMillis() > nowMs);
+            const dlBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] ${isDlBlocked ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-700'}" title="Downloads">DL ${dlInfo.count}${isDlBlocked ? ' • Bloqueado' : ''}</span>`;
+
+            acoesHtml = downloadBtn + dlBadge + startSeparacaoBtn + removeBtn;
             
             // Colunas para 'Para Separar'
             rowContent = `<td>${unidadeDisplay}</td>` +
@@ -274,8 +306,20 @@ function renderMaterialSubTable(tableBody, data, status) {
 
             acoesHtml = prontaRetiradaBtn + removeBtn;
                 
+            // SLA Badge (tempo em separação)
+            const sepStart = m.dataInicioSeparacao?.toMillis() || 0;
+            const hoursSep = sepStart ? Math.floor((nowMs - sepStart) / (60*60*1000)) : 0;
+            let slaBadge = '';
+            if (sepStart) {
+                if (hoursSep >= SLA_SEPARACAO_CRIT_HOURS) {
+                    slaBadge = `<span class="ml-2 inline-flex items-center px-2 py-0.5 rounded bg-red-100 text-red-700 text-[10px]" title="Atraso em separação">Atrasado ${hoursSep}h</span>`;
+                } else if (hoursSep >= SLA_SEPARACAO_WARN_HOURS) {
+                    slaBadge = `<span class="ml-2 inline-flex items-center px-2 py-0.5 rounded bg-yellow-100 text-yellow-800 text-[10px]" title="Em alerta">Alerta ${hoursSep}h</span>`;
+                }
+            }
+
             // Colunas para 'Em Separação'
-            rowContent = `<td>${unidadeDisplay}</td>` +
+            rowContent = `<td>${unidadeDisplay} ${slaBadge}</td>` +
                 `<td class="capitalize">${m.tipoMaterial}</td>` +
                 `<td>${separador}</td>` +
                 `<td class="text-xs">${dataInicioSeparacaoFormatada}</td>` +
@@ -290,8 +334,20 @@ function renderMaterialSubTable(tableBody, data, status) {
             
             acoesHtml = finalizarEntregaBtn + removeBtn;
             
+            // SLA Badge (tempo aguardando retirada/entrega)
+            const readyMs = m.dataRetirada?.toMillis() || 0;
+            const hoursRet = readyMs ? Math.floor((nowMs - readyMs) / (60*60*1000)) : 0;
+            let slaBadge = '';
+            if (readyMs) {
+                if (hoursRet >= SLA_RETIRADA_CRIT_HOURS) {
+                    slaBadge = `<span class="ml-2 inline-flex items-center px-2 py-0.5 rounded bg-red-100 text-red-700 text-[10px]" title="Atraso na entrega">Atrasado ${hoursRet}h</span>`;
+                } else if (hoursRet >= SLA_RETIRADA_WARN_HOURS) {
+                    slaBadge = `<span class="ml-2 inline-flex items-center px-2 py-0.5 rounded bg-yellow-100 text-yellow-800 text-[10px]" title="Em alerta">Alerta ${hoursRet}h</span>`;
+                }
+            }
+
             // Colunas para 'Pronto p/ Entrega'
-            rowContent = `<td>${unidadeDisplay}</td>` +
+            rowContent = `<td>${unidadeDisplay} ${slaBadge}</td>` +
                 `<td class="capitalize">${m.tipoMaterial}</td>` +
                 `<td>${separador}</td>` +
                 `<td>${dataRetiradaFormatada}</td>` + // Coluna Pronto Em
@@ -470,6 +526,77 @@ export async function handleFinalizarEntregaSubmit() {
         DOM_ELEMENTS.btnConfirmarFinalizacaoEntrega.disabled = false;
         DOM_ELEMENTS.btnConfirmarFinalizacaoEntrega.innerHTML = '<i data-lucide="check-circle"></i> Confirmar Finalização';
         if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
+    }
+}
+
+/**
+ * Finaliza em lote os materiais 'retirada' da unidade selecionada com dataRetirada de hoje.
+ */
+async function handleBatchFinalizarHoje() {
+    if (!isReady()) return;
+    const role = getUserRole();
+    if (role === 'anon' || role === 'unauthenticated') {
+        showAlert('alert-pronto-entrega', "Permissão negada. Apenas Administradores ou Editores podem finalizar em lote.", 'error');
+        return;
+    }
+
+    const unidadeNome = document.getElementById('batch-unidade-select')?.value || '';
+    const respAlmox = capitalizeString(document.getElementById('batch-resp-almox')?.value.trim() || '');
+    const respUnidade = capitalizeString(document.getElementById('batch-resp-unidade')?.value.trim() || '');
+
+    if (!unidadeNome) {
+        showAlert('alert-pronto-entrega', 'Selecione a unidade para finalizar em lote.', 'warning');
+        return;
+    }
+    if (!respAlmox || !respUnidade) {
+        showAlert('alert-pronto-entrega', 'Informe responsável do Almoxarifado e da Unidade para o lote.', 'warning');
+        return;
+    }
+
+    const hojeStr = getTodayDateString();
+    const materiais = getMateriais().filter(m => !m.deleted && m.status === 'retirada' && (m.unidadeNome || '').trim() === unidadeNome);
+    // Filtra por dataRetirada de hoje
+    const hojeInicio = new Date(hojeStr + 'T00:00:00');
+    const hojeFim = new Date(hojeStr + 'T23:59:59');
+    const toFinalize = materiais.filter(m => {
+        const ms = m.dataRetirada?.toMillis() || 0;
+        return ms >= hojeInicio.getTime() && ms <= hojeFim.getTime();
+    });
+
+    if (toFinalize.length === 0) {
+        showAlert('alert-pronto-entrega', 'Nenhum material pronto hoje para esta unidade.', 'info');
+        return;
+    }
+
+    // Desabilita botão enquanto processa
+    const btn = document.getElementById('btn-batch-finalizar-hoje');
+    if (btn) { btn.disabled = true; btn.textContent = 'Finalizando...'; }
+
+    try {
+        for (const m of toFinalize) {
+            const docRef = doc(COLLECTIONS.materiais, m.id);
+            await updateDoc(docRef, {
+                status: 'entregue',
+                dataEntrega: serverTimestamp(),
+                responsavelEntrega: respAlmox,
+                responsavelRecebimento: respUnidade,
+                registradoEm: serverTimestamp()
+            });
+            // Remove anexo se existir
+            if (m.storagePath) {
+                try {
+                    await deleteFile(m.storagePath);
+                    await updateDoc(docRef, { fileURL: null, storagePath: null });
+                } catch (err) { console.warn('Erro ao remover anexo em lote', m.id, err); }
+            }
+        }
+        showAlert('alert-pronto-entrega', `Entrega finalizada em lote para ${unidadeNome}: ${toFinalize.length} item(ns).`, 'success', 5000);
+        renderMateriaisStatus();
+    } catch (error) {
+        console.error('Erro na finalização em lote:', error);
+        showAlert('alert-pronto-entrega', `Erro na finalização em lote: ${error.message}`, 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Finalizar em lote (Hoje)'; }
     }
 }
 
@@ -683,6 +810,20 @@ export function initMateriaisListeners() {
     if (inicioHistorico) inicioHistorico.addEventListener('change', renderMateriaisStatus);
     if (fimHistorico) fimHistorico.addEventListener('change', renderMateriaisStatus);
 
+    const btnLimparFiltros = document.getElementById('btn-limpar-filtros-historico');
+    if (btnLimparFiltros) btnLimparFiltros.addEventListener('click', () => {
+        const filtroTexto = document.getElementById('filtro-historico-entregues');
+        if (filtroTexto) filtroTexto.value = '';
+        if (unidadeHistorico) unidadeHistorico.value = 'todas';
+        if (inicioHistorico) inicioHistorico.value = '';
+        if (fimHistorico) fimHistorico.value = '';
+        renderMateriaisStatus();
+    });
+
+    // Batch finalize (Hoje)
+    const btnBatchHoje = document.getElementById('btn-batch-finalizar-hoje');
+    if (btnBatchHoje) btnBatchHoje.addEventListener('click', handleBatchFinalizarHoje);
+
     // **** ADICIONADO: Listener para a sub-navegação ****
     const subNavMateriais = document.getElementById('sub-nav-materiais');
     if (subNavMateriais) {
@@ -711,3 +852,10 @@ export function onMateriaisTabChange() {
     // CORREÇÃO: DOM_ELEMENTS -> DOM_ELEMENTS
     if (DOM_ELEMENTS.inputDataSeparacao) DOM_ELEMENTS.inputDataSeparacao.value = getTodayDateString();
 }
+// ============================
+// Configurações de SLA
+// ============================
+const SLA_SEPARACAO_WARN_HOURS = 12;   // aviso
+const SLA_SEPARACAO_CRIT_HOURS = 24;   // crítico
+const SLA_RETIRADA_WARN_HOURS  = 12;   // aviso
+const SLA_RETIRADA_CRIT_HOURS  = 24;   // crítico
