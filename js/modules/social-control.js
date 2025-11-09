@@ -308,7 +308,7 @@ function renderCestaLancamentoControls() {
     selectUnidadeEl.innerHTML = getUnidadeOptionsHtml();
 
     // Adiciona listener para alternar visibilidade
-    selectTipoDestinatarioEl.onchange = () => {
+    const handleTipoChange = () => {
         const tipo = selectTipoDestinatarioEl.value;
         const isPersonalizado = tipo === 'personalizado';
         
@@ -326,9 +326,10 @@ function renderCestaLancamentoControls() {
              inputPersonalizadoEl.value = "";
         }
     };
+    selectTipoDestinatarioEl.onchange = handleTipoChange;
     
     // Garante que o estado inicial esteja correto
-    selectTipoDestinatarioEl.dispatchEvent(new Event('change'));
+    handleTipoChange();
 }
 
 /**
@@ -596,7 +597,7 @@ function renderEnxovalLancamentoControls() {
     selectUnidadeEl.innerHTML = getUnidadeOptionsHtml();
 
     // Adiciona listener para alternar visibilidade
-    selectTipoDestinatarioEl.onchange = () => {
+    const handleTipoChange = () => {
         const tipo = selectTipoDestinatarioEl.value;
         const isPersonalizado = tipo === 'personalizado';
         
@@ -613,9 +614,10 @@ function renderEnxovalLancamentoControls() {
              inputPersonalizadoEl.value = "";
         }
     };
+    selectTipoDestinatarioEl.onchange = handleTipoChange;
     
     // Garante que o estado inicial esteja correto
-    selectTipoDestinatarioEl.dispatchEvent(new Event('change'));
+    handleTipoChange();
 }
 
 /**

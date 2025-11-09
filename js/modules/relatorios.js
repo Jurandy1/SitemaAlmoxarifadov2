@@ -1,6 +1,6 @@
 // js/modules/relatorios.js
 import { Timestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-import { getAguaMovimentacoes, getGasMovimentacoes } from "../utils/cache.js";
+import { getAguaMovimentacoes, getGasMovimentacoes, getUnidades } from "../utils/cache.js";
 // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
 import { DOM_ELEMENTS, showAlert } from "../utils/dom-helpers.js";
 import { dateToTimestamp, formatTimestamp, getTodayDateString } from "../utils/formatters.js"; // Importa getTodayDateString
@@ -139,6 +139,25 @@ export async function handleGerarPdf() {
             responsavelMap.set(resp, (responsavelMap.get(resp) || 0) + qtd);
         });
 
+        // Mapa de tipos de unidade para ajustar recomendações (atendimento ao público)
+        const unidadesTipoMap = new Map();
+        try {
+            const unidadesList = getUnidades();
+            unidadesList.forEach(u => { if (u?.nome) unidadesTipoMap.set(u.nome, (u.tipo || '').toUpperCase()); });
+        } catch (_) { /* segue sem tipos se cache indisponível */ }
+
+        // Helper de quebra antes da tabela para evitar cabeçalho sozinho no fim da página
+        const ensureTableStartY = (docRef, currentY) => {
+            const pageH = docRef.internal.pageSize.getHeight();
+            const bottomMargin = 14; // mesmo da margem usada
+            const minNeeded = 20; // altura mínima para cabeçalho + 1 linha
+            if (currentY > pageH - bottomMargin - minNeeded) {
+                docRef.addPage();
+                return 20; // início confortável da nova página
+            }
+            return currentY;
+        };
+
         const diasPeriodo = Math.max(1, Math.ceil((dataFim - dataInicio + 1) / (1000 * 60 * 60 * 24)));
 
         // Função de gráfico diário (se Chart.js disponível)
@@ -191,11 +210,26 @@ export async function handleGerarPdf() {
                     filtroMes: custoMensalFiltroSimples,
                 };
                 let recomendacao = 'Galão 20L';
-                let justificativa = 'Consumo moderado, logística de galões é suficiente.';
-                if (litrosMensalEstimado <= limiteBaixo) {
-                    recomendacao = 'Filtro (rede)'; justificativa = 'Baixo consumo; filtro reduz custos e logística.';
-                } else if (litrosMensalEstimado > limiteAlto) {
-                    recomendacao = 'Bebedouro industrial'; justificativa = 'Alto consumo; equipamento contínuo e eficiente.';
+                let justificativa = 'Consumo moderado; galões atendem com boa logística.';
+                const tipoUnidade = (unidadesTipoMap.get(unidade) || '').toUpperCase();
+                const tiposAtendimentoPublico = ['CRAS','CREAS','ABRIGO','CENTRO POP','RESTAURANTE','ALBERGUE'];
+                const isAtendimentoPublico = tiposAtendimentoPublico.some(t => tipoUnidade.includes(t)) && !tipoUnidade.includes('SEDE');
+                if (isAtendimentoPublico) {
+                    // Em atendimento ao público, filtro na rede não atende
+                    if (litrosMensalEstimado > limiteAlto) {
+                        recomendacao = 'Bebedouro industrial';
+                        justificativa = 'Atendimento ao público e alto consumo; bebedouro garante oferta contínua.';
+                    } else {
+                        recomendacao = 'Galão 20L';
+                        justificativa = 'Atendimento ao público; filtro na rede não atende; galões são mais adequados.';
+                    }
+                } else {
+                    // Unidades internas/sem atendimento direto podem usar filtro na rede em baixo consumo
+                    if (litrosMensalEstimado <= limiteBaixo) {
+                        recomendacao = 'Filtro (rede)'; justificativa = 'Baixo consumo; filtro reduz custos e logística.';
+                    } else if (litrosMensalEstimado > limiteAlto) {
+                        recomendacao = 'Bebedouro industrial'; justificativa = 'Alto consumo; equipamento contínuo e eficiente.';
+                    }
                 }
                 return { unidade, galoesPeriodo, litrosPeriodo, litrosMensalEstimado, custos, recomendacao, justificativa };
             }).sort((a,b) => b.litrosMensalEstimado - a.litrosMensalEstimado);
@@ -223,6 +257,7 @@ export async function handleGerarPdf() {
             doc.setFontSize(12); doc.setTextColor(40);
             doc.text('Abastecimento por Unidade (Água)', MARGIN_LEFT, y);
             y += 6;
+            y = ensureTableStartY(doc, y);
             doc.autoTable({
                 startY: y,
                 head: [['Unidade', 'Galões (período)', 'Litros (período)', 'Consumo mensal (L)']],
@@ -240,6 +275,7 @@ export async function handleGerarPdf() {
             doc.setFontSize(12); doc.setTextColor(40);
             doc.text('Recomendações e Custos', MARGIN_LEFT, y);
             y += 6;
+            y = ensureTableStartY(doc, y);
             doc.autoTable({
                 startY: y,
                 head: [['Unidade', 'Recomendação', 'Custo Galão/mês', 'Custo Filtro/mês', 'Custo Industrial/mês']],
@@ -257,6 +293,7 @@ export async function handleGerarPdf() {
             const responsavelData = Array.from(responsavelMap.entries()).sort((a,b) => b[1] - a[1]).map(entry => [entry[0], entry[1]]);
             doc.setFontSize(12); doc.setTextColor(40); doc.text('Entregas por Responsável', MARGIN_LEFT, y);
             y += 6;
+            y = ensureTableStartY(doc, y);
             doc.autoTable({
                 startY: y,
                 head: [['Responsável', 'Entregas (galões)']],
@@ -275,6 +312,7 @@ export async function handleGerarPdf() {
                 .sort((a,b) => b.litrosMes - a.litrosMes).slice(0, 10);
             doc.setFontSize(12); doc.setTextColor(40); doc.text('Ranking de Consumo — Água (Top 10)', MARGIN_LEFT, y);
             y += 6;
+            y = ensureTableStartY(doc, y);
             doc.autoTable({
                 startY: y,
                 head: [['Posição', 'Unidade', 'Consumo mensal (L)']],
@@ -304,8 +342,9 @@ export async function handleGerarPdf() {
             doc.setFontSize(12); doc.setTextColor(40); doc.text('Recomendações Gerais', MARGIN_LEFT, y);
             y += 6; doc.setFontSize(10); doc.setTextColor(80);
             const pontos = [
-                'Padronizar filtros nas unidades de baixo volume para reduzir custos.',
-                'Avaliar fornecimento industrial nas unidades de alto consumo para ganho de escala.',
+                'Em unidades sem atendimento direto ao público, filtros na rede reduzem custos.',
+                'Em unidades de atendimento ao público, priorizar galão ou bebedouro industrial.',
+                'Avaliar bebedouro industrial quando o consumo mensal estimado for elevado.',
                 'Redistribuir rotas se houver picos de entregas por responsável.'
             ];
             pontos.forEach(p => { doc.text(`• ${p}`, MARGIN_LEFT, y); y += 5; });
@@ -344,8 +383,10 @@ export async function handleGerarPdf() {
                 tableWidth: CONTENT_WIDTH
             });
 
+            const nextY = (doc.lastAutoTable?.finalY || 74) + 8;
+            const startY2 = ensureTableStartY(doc, nextY);
             doc.autoTable({
-                startY: (doc.lastAutoTable?.finalY || 74) + 8,
+                startY: startY2,
                 head: [['Responsável', 'Quantidade Recebida']],
                 body: responsavelData,
                 theme: 'striped',
@@ -361,8 +402,10 @@ export async function handleGerarPdf() {
                 botijoesMes: Math.round((qtdPeriodo / diasPeriodo) * 30)
             })).sort((a,b) => b.botijoesMes - a.botijoesMes).slice(0, 10);
             doc.setFontSize(12); doc.setTextColor(40); doc.text('Ranking de Consumo — Gás (Top 10)', MARGIN_LEFT, (doc.lastAutoTable?.finalY || 74) + 16);
+            const nextY2 = (doc.lastAutoTable?.finalY || 74) + 22;
+            const startY3 = ensureTableStartY(doc, nextY2);
             doc.autoTable({
-                startY: (doc.lastAutoTable?.finalY || 74) + 22,
+                startY: startY3,
                 head: [['Posição', 'Unidade', 'Consumo mensal (botijões)']],
                 body: rankingGas.map((r, idx) => [idx + 1, r.unidade, r.botijoesMes]),
                 theme: 'striped',

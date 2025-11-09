@@ -44,7 +44,7 @@ export function renderGestaoUnidades() {
          let tipoDisplay = (unidade.tipo || 'N/A').toUpperCase();
          if (tipoDisplay === 'SEMCAS') tipoDisplay = 'SEDE';
          
-         const details = `${unidade.nome} (${tipoDisplay})`;
+         const details = `${unidade.nome}${unidade.sigla ? ' [' + unidade.sigla + ']' : ''} (${tipoDisplay})`;
 
          // DESABILITA/OCULTA os botões/inputs de ação para não-Admin
          const toggleDisabled = isAdmin ? '' : 'disabled';
@@ -58,6 +58,7 @@ export function renderGestaoUnidades() {
          html += `<tr data-unidade-id="${unidade.id}">
                 <td class="font-medium">
                     <span class="unidade-nome-display">${unidade.nome}</span>
+                    ${unidade.sigla ? `<span class="unidade-sigla-display ml-2 inline-block text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-700">${unidade.sigla}</span>` : ''}
                     ${editButtonHtml}
                 </td>
                 <td>${tipoDisplay}</td>
@@ -137,9 +138,15 @@ function handleEditUnidadeClick(e) {
     const nomeSpan = td.querySelector('.unidade-nome-display');
     const currentName = nomeSpan.textContent;
 
+    const rowDataId = row.dataset.unidadeId;
+    const unidade = getUnidades().find(u => u.id === rowDataId);
+    const currentSigla = unidade?.sigla || '';
     td.innerHTML = `
-        <input type="text" value="${currentName}" class="edit-input form-input w-full" placeholder="Novo nome da unidade">
-        <div class="mt-1 space-x-1">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+            <input type="text" value="${currentName}" class="edit-input-nome form-input md:col-span-2" placeholder="Novo nome da unidade">
+            <input type="text" value="${currentSigla}" class="edit-input-sigla form-input" placeholder="Sigla (opcional)">
+        </div>
+        <div class="mt-2 space-x-1">
             <button class="btn-icon btn-save-unidade text-green-600 hover:text-green-800" title="Salvar"><i data-lucide="save"></i></button>
             <button class="btn-icon btn-cancel-edit-unidade text-red-600 hover:text-red-800" title="Cancelar"><i data-lucide="x-circle"></i></button>
         </div>
@@ -165,7 +172,8 @@ function handleCancelEditUnidadeClick(e) {
     const unidade = getUnidades().find(u => u.id === unidadeId);
     
     td.innerHTML = `
-        <span class="unidade-nome-display">${unidade?.nome || 'Erro'}</span> 
+        <span class="unidade-nome-display">${unidade?.nome || 'Erro'}</span>
+        ${unidade?.sigla ? `<span class="unidade-sigla-display ml-2 inline-block text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-700">${unidade.sigla}</span>` : ''}
         <button class="btn-icon btn-edit-unidade ml-1" title="Editar nome"><i data-lucide="pencil"></i></button>
     `;
     row.classList.remove('editing-row'); 
@@ -189,12 +197,14 @@ async function handleSaveUnidadeClick(e) {
     const td = button.closest('td');
     const row = button.closest('tr');
     const unidadeId = row.dataset.unidadeId;
-    const input = td.querySelector('.edit-input');
-    const newName = capitalizeString(input.value.trim()); 
+    const inputNome = td.querySelector('.edit-input-nome');
+    const inputSigla = td.querySelector('.edit-input-sigla');
+    const newName = capitalizeString(inputNome.value.trim()); 
+    const newSigla = (inputSigla?.value || '').trim().toUpperCase();
 
     if (!newName) {
         showAlert('alert-gestao', 'O nome da unidade não pode ser vazio.', 'warning');
-        input.focus();
+        inputNome.focus();
         return;
     }
 
@@ -205,10 +215,11 @@ async function handleSaveUnidadeClick(e) {
 
     try {
         const docRef = doc(COLLECTIONS.unidades, unidadeId);
-        await updateDoc(docRef, { nome: newName });
+        await updateDoc(docRef, { nome: newName, sigla: newSigla });
         
         td.innerHTML = `
             <span class="unidade-nome-display">${newName}</span>
+            ${newSigla ? `<span class="unidade-sigla-display ml-2 inline-block text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-700">${newSigla}</span>` : ''}
             <button class="btn-icon btn-edit-unidade ml-1" title="Editar nome"><i data-lucide="pencil"></i></button>
         `;
          row.classList.remove('editing-row'); 
@@ -249,10 +260,11 @@ export async function handleBulkAddUnidades() {
      
      lines.forEach((line, index) => {
          const parts = line.split('\t');
-         if (parts.length === 2) {
+         if (parts.length === 2 || parts.length === 3) {
              let tipo = parts[0].trim().toUpperCase(); 
              if (tipo === 'SEMCAS') tipo = 'SEDE';
              const nome = capitalizeString(parts[1].trim()); 
+             const sigla = (parts[2] || '').trim().toUpperCase();
              
              if (tipo && nome) {
                  const existe = unidades.some(u => {
@@ -261,13 +273,15 @@ export async function handleBulkAddUnidades() {
                      return normalizeString(u.nome) === normalizeString(nome) && uTipo === tipo;
                  });
                  if (!existe) {
-                     unidadesParaAdd.push({ nome, tipo, atendeAgua: true, atendeGas: true, atendeMateriais: true });
+                     const novaUnidade = { nome, tipo, atendeAgua: true, atendeGas: true, atendeMateriais: true };
+                     if (sigla) novaUnidade.sigla = sigla;
+                     unidadesParaAdd.push(novaUnidade);
                  } else {
                      console.log(`Unidade já existe (ignorada): ${tipo} - ${nome}`);
                  }
              } else { erros.push(`Linha ${index + 1}: Tipo ou Nome vazio.`); }
          } else if (line.trim()) { 
-             erros.push(`Linha ${index + 1}: Formato inválido (use TIPO [TAB] NOME).`);
+             erros.push(`Linha ${index + 1}: Formato inválido (use TIPO [TAB] NOME [TAB] SIGLA(opcional)).`);
          }
      });
 
