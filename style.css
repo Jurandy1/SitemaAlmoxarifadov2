@@ -1209,6 +1209,11 @@ button .loading-spinner-small {
 .accordion-content.collapsed {
   display: none;
 }
+/* TV Mode: altura e overflow para rolagem automática na Visão Geral */
+.tv-mode #dashboard-view-geral .accordion-content {
+  max-height: 64vh;
+  overflow-y: auto;
+}
 
 .compact-card {
   background: #fff;

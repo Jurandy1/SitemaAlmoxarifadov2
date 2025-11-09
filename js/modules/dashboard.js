@@ -12,6 +12,7 @@ let materiaisAutoPagerInterval = null;
 // Estado de paginação da grade da Visão Geral (Materiais do Almoxarifado)
 let geralPagerState = { page: 1, pageSize: 5, pages: 1, maxItems: 0 };
 let geralAutoPagerInterval = null;
+let geralAutoScrollTimers = [];
 // Filtros globais e busca da Visão Geral (agrupamento)
 let geralFilterStatus = 'todos'; // 'todos' | 'separacao' | 'pronto' | 'pendente'
 let geralSearchQuery = '';
@@ -405,14 +406,9 @@ export function renderDashboardMateriaisProntos(filterStatus = null) {
         return a.localeCompare(b);
     });
 
-    // Atualiza paginação para Modo TV da Visão Geral com base no maior grupo
-    const maxItensPorGrupo = tiposOrdenados.reduce((max, t) => Math.max(max, (grupos[t] || []).length), 0);
-    geralPagerState.maxItems = maxItensPorGrupo;
-    geralPagerState.pages = Math.max(1, Math.ceil(maxItensPorGrupo / geralPagerState.pageSize));
-    if (geralPagerState.page > geralPagerState.pages) geralPagerState.page = geralPagerState.pages;
-
-    const inicio = (geralPagerState.page - 1) * geralPagerState.pageSize;
-    const fim = inicio + geralPagerState.pageSize;
+    // Exibir todos os itens por tipo (sem paginação por grupo)
+    geralPagerState.pages = 1;
+    geralPagerState.page = 1;
 
     const sectionsHtml = tiposOrdenados.map(tipo => {
         const lista = grupos[tipo] || [];
@@ -434,9 +430,7 @@ export function renderDashboardMateriaisProntos(filterStatus = null) {
                     : (b.dataRetirada?.toMillis() || b.dataSeparacao?.toMillis() || 0);
                 return tsA - tsB;
             });
-
-        const paginaItens = materiaisOrdenados.slice(inicio, fim);
-        const cardsHtml = paginaItens.map(m => {
+        const cardsHtml = materiaisOrdenados.map(m => {
             const unidade = m.unidadeNome || 'Unidade';
             const item = m.tipoMaterial || 'Item';
             const status = m.status;
@@ -467,13 +461,13 @@ export function renderDashboardMateriaisProntos(filterStatus = null) {
 
     container.innerHTML = sectionsHtml || '<p class=\"text-sm text-slate-500\">Nenhum material encontrado.</p>';
     if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
-    // Atualiza UI do pager e auto-avançar no modo TV
+    // Atualiza UI e rolagem automática em Modo TV
     atualizarGeralPagerUI();
     const geralPane = document.getElementById('dashboard-view-geral');
-    if (geralPane && geralPane.classList.contains('tv-mode') && geralPagerState.pages > 1) {
-        iniciarAutoPagerGeralTV();
+    if (geralPane && geralPane.classList.contains('tv-mode')) {
+        startAutoScrollGeralTV();
     } else {
-        pararAutoPagerGeralTV();
+        stopAutoScrollGeralTV();
     }
     return; // impede a execução do layout antigo
     
@@ -692,6 +686,8 @@ export function initDashboardListeners() {
                 if (mainEl) mainEl.classList.toggle('tv-wide');
                 // Re-render para aplicar auto-pager se necessário
                 renderDashboardMateriaisProntos(getCurrentDashboardMaterialFilter());
+                // Iniciar ou parar rolagem automática conforme estado
+                if (geralPane.classList.contains('tv-mode')) startAutoScrollGeralTV(); else stopAutoScrollGeralTV();
             }
         });
     }
@@ -820,12 +816,12 @@ export function initDashboardListeners() {
     if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
     // Atualiza UI do pager geral
     atualizarGeralPagerUI();
-    // Auto-avança páginas no Modo TV da visão geral
+    // Rolagem automática no Modo TV da visão geral
     const geralPane = document.getElementById('dashboard-view-geral');
-    if (geralPane && geralPane.classList.contains('tv-mode') && geralPagerState.pages > 1) {
-        iniciarAutoPagerGeralTV();
+    if (geralPane && geralPane.classList.contains('tv-mode')) {
+        startAutoScrollGeralTV();
     } else {
-        pararAutoPagerGeralTV();
+        stopAutoScrollGeralTV();
     }
 }
 
@@ -887,6 +883,54 @@ function pararAutoPagerGeralTV() {
         clearInterval(geralAutoPagerInterval);
         geralAutoPagerInterval = null;
     }
+}
+
+// =====================
+// Auto-rolagem Visão Geral (Modo TV)
+// =====================
+function startAutoScrollGeralTV() {
+    stopAutoScrollGeralTV();
+    const sections = document.querySelectorAll('#dashboard-view-geral .accordion-content');
+    sections.forEach((content) => {
+        // Define altura mínima para habilitar scroll
+        if (content.scrollHeight <= content.clientHeight + 2) return; // nada a rolar
+        const stepPx = 1; // velocidade
+        const tickMs = 80; // intervalo
+
+        const timer = setInterval(() => {
+            const pane = document.getElementById('dashboard-view-geral');
+            if (!pane || !pane.classList.contains('tv-mode')) return; // só em TV Mode
+            const atBottom = (content.scrollTop + content.clientHeight) >= (content.scrollHeight - 2);
+            if (atBottom) {
+                content.scrollTop = 0; // reinicia do topo
+            } else {
+                content.scrollTop = content.scrollTop + stepPx;
+            }
+        }, tickMs);
+
+        // Pausa ao passar mouse e retoma ao sair
+        const pause = () => { if (timer) clearInterval(timer); };
+        const resume = () => {
+            // reinicia apenas se ainda em tv-mode e não existe novo timer
+            if (!document.getElementById('dashboard-view-geral')?.classList.contains('tv-mode')) return;
+        };
+        content.addEventListener('mouseenter', pause);
+        // Não recriamos timer aqui para evitar múltiplos; o próximo render restabelece
+        content.addEventListener('mouseleave', () => {});
+
+        geralAutoScrollTimers.push({ timer, content });
+    });
+}
+
+function stopAutoScrollGeralTV() {
+    geralAutoScrollTimers.forEach(({ timer, content }) => {
+        try { if (timer) clearInterval(timer); } catch {}
+        if (content) {
+            content.removeEventListener('mouseenter', () => {});
+            content.removeEventListener('mouseleave', () => {});
+        }
+    });
+    geralAutoScrollTimers = [];
 }
 
 // Helper para destacar o filtro ativo na UI (Visão Geral)
