@@ -357,7 +357,8 @@ function renderMaterialSubTable(tableBody, data, status) {
             const dataEntregaFormatada = formatTimestamp(m.dataEntrega);
             const respUnidade = m.responsavelRecebimento || m.responsavelLancamento || 'N/A';
             const respAlmox = m.responsavelEntrega || m.responsavelSeparador || 'N/A';
-            const dataLancamentoFormatada = formatTimestampComTempo(m.registradoEm);
+            // Usa a data da requisição como "Lançado em"; cai para registradoEm se necessário
+            const dataLancamentoFormatada = formatTimestampComTempo(m.dataRequisicao || m.registradoEm);
 
             // Colunas para 'Histórico'
             rowContent = `<td>${unidadeDisplay}</td>` +
@@ -496,9 +497,7 @@ export async function handleFinalizarEntregaSubmit() {
             status: 'entregue', 
             dataEntrega: serverTimestamp(),
             responsavelEntrega: respAlmox,
-            responsavelRecebimento: respUnidade,
-            // Atualiza registradoEm para refletir a data da finalização
-            registradoEm: serverTimestamp() 
+            responsavelRecebimento: respUnidade
         });
         // Alerta na subview correta
         showAlert('alert-pronto-entrega', `Material entregue para ${respUnidade}! Processo finalizado.`, 'success', 3000); 
@@ -579,8 +578,7 @@ async function handleBatchFinalizarHoje() {
                 status: 'entregue',
                 dataEntrega: serverTimestamp(),
                 responsavelEntrega: respAlmox,
-                responsavelRecebimento: respUnidade,
-                registradoEm: serverTimestamp()
+                responsavelRecebimento: respUnidade
             });
             // Remove anexo se existir
             if (m.storagePath) {
