@@ -501,11 +501,21 @@ export function renderAguaMovimentacoesHistory() {
 function populateAguaFilterUnidades() {
     const sel = document.getElementById('filtro-unidade-agua');
     if (!sel) return;
-    const unidades = getUnidades();
-    const existingValues = Array.from(sel.options).map(o => o.value);
-    const needsPopulate = existingValues.length <= 1 || unidades.some(u => !existingValues.includes(u.id));
-    if (!needsPopulate) return;
+    const tipoSelecionado = document.getElementById('filtro-tipo-agua')?.value || '';
+    const tipoUnidadeSelecionado = (document.getElementById('filtro-unidade-tipo-agua')?.value || '').toUpperCase();
 
+    // Unidades permitidas conforme o Tipo selecionado (Entrega/Retorno)
+    const movs = getAguaMovimentacoes().filter(m => (m.tipo === 'entrega' || m.tipo === 'retorno') && (!tipoSelecionado || m.tipo === tipoSelecionado));
+    const unidadeIdsPermitidas = new Set(movs.map(m => m.unidadeId).filter(Boolean));
+    const unidades = getUnidades().filter(u => {
+        let uTipo = (u.tipo || 'N/A').toUpperCase();
+        if (uTipo === 'SEMCAS') uTipo = 'SEDE';
+        const matchTipoMov = (!tipoSelecionado || unidadeIdsPermitidas.has(u.id));
+        const matchTipoUnidade = (!tipoUnidadeSelecionado || uTipo === tipoUnidadeSelecionado);
+        return matchTipoMov && matchTipoUnidade;
+    });
+
+    const valorAnterior = sel.value;
     sel.innerHTML = '<option value="">Todas</option>';
     unidades
         .sort((a, b) => a.nome.localeCompare(b.nome))
@@ -515,17 +525,25 @@ function populateAguaFilterUnidades() {
             opt.textContent = u.nome;
             sel.appendChild(opt);
         });
+    // Mantém seleção se ainda for válida; caso contrário, zera
+    if (valorAnterior && (!tipoSelecionado || unidadeIdsPermitidas.has(valorAnterior))) {
+        sel.value = valorAnterior;
+    } else {
+        sel.value = '';
+    }
 }
 
 function getFilteredAguaMovimentacoes() {
     const tipoEl = document.getElementById('filtro-tipo-agua');
     const unidadeEl = document.getElementById('filtro-unidade-agua');
+    const unidadeTipoEl = document.getElementById('filtro-unidade-tipo-agua');
     const respEl = document.getElementById('filtro-responsavel-agua');
-    const dataIniEl = document.getElementById('filtro-data-ini-agua');
-    const dataFimEl = document.getElementById('filtro-data-fim-agua');
+    const dataIniEl = document.getElementById('filtro-data-ini-agua') || document.getElementById('filtro-data-inicio-agua');
+    const dataFimEl = document.getElementById('filtro-data-fim-agua') || document.getElementById('filtro-data-fim-agua');
 
     const tipo = tipoEl?.value || '';
     const unidadeId = unidadeEl?.value || '';
+    const unidadeTipoSelecionado = (unidadeTipoEl?.value || '').toUpperCase();
     const respQuery = (respEl?.value || '').trim().toLowerCase();
     const dataIniStr = dataIniEl?.value || '';
     const dataFimStr = dataFimEl?.value || '';
@@ -534,9 +552,19 @@ function getFilteredAguaMovimentacoes() {
     const dataIniMs = dataIniStr ? dateToTimestamp(dataIniStr)?.toMillis() : null;
     const dataFimMs = dataFimStr ? dateToTimestamp(dataFimStr)?.toMillis() : null;
 
+    const unidadesMap = new Map(getUnidades().map(u => {
+        let uTipo = (u.tipo || 'N/A').toUpperCase();
+        if (uTipo === 'SEMCAS') uTipo = 'SEDE';
+        return [u.id, { tipo: uTipo }];
+    }));
+
     return base.filter(m => {
         if (tipo && m.tipo !== tipo) return false;
         if (unidadeId && m.unidadeId !== unidadeId) return false;
+        if (unidadeTipoSelecionado) {
+            const info = unidadesMap.get(m.unidadeId);
+            if (!info || info.tipo !== unidadeTipoSelecionado) return false;
+        }
         if (respQuery) {
             const ru = (m.responsavel || '').toLowerCase();
             const ra = (m.responsavelAlmoxarifado || '').toLowerCase();
@@ -630,10 +658,19 @@ export function initAguaListeners() {
                 if (free && free.value) filterTable(free, 'table-historico-agua-all');
             });
         });
+    // Atualiza opções de Unidade conforme o Tipo selecionado
+    const tipoAgua = document.getElementById('filtro-tipo-agua');
+    if (tipoAgua) tipoAgua.addEventListener('input', populateAguaFilterUnidades);
+    const tipoUnidadeAgua = document.getElementById('filtro-unidade-tipo-agua');
+    if (tipoUnidadeAgua) tipoUnidadeAgua.addEventListener('input', () => {
+        populateAguaFilterUnidades();
+        renderAguaMovimentacoesHistory();
+    });
     const btnClear = document.getElementById('btn-limpar-filtros-agua');
     if (btnClear) btnClear.addEventListener('click', () => {
-        ['filtro-tipo-agua','filtro-unidade-agua','filtro-responsavel-agua','filtro-data-ini-agua','filtro-data-fim-agua']
+        ['filtro-tipo-agua','filtro-unidade-tipo-agua','filtro-unidade-agua','filtro-responsavel-agua','filtro-data-ini-agua','filtro-data-fim-agua']
             .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+        populateAguaFilterUnidades();
         renderAguaMovimentacoesHistory();
         const free = document.getElementById('filtro-historico-agua');
         if (free && free.value) filterTable(free, 'table-historico-agua-all');

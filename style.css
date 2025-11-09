@@ -226,6 +226,28 @@ header p {
     padding: 1rem; /* p-4 */
 }
 
+/* TV Mode: ampliar área útil em telas grandes */
+.tv-wide {
+  max-width: 100% !important;
+}
+
+/* TV Mode: mais colunas na grade de cards compactos */
+.tv-mode .accordion-content .grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+@media (min-width: 1280px) { /* xl */
+  .tv-mode .accordion-content .grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+}
+@media (min-width: 1536px) { /* 2xl */
+  .tv-mode .accordion-content .grid { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+}
+
+/* TV Mode: aumentar legibilidade dos cards compactos */
+.tv-mode .compact-card { padding: 12px; }
+.tv-mode .compact-title { font-size: 15px; }
+.tv-mode .compact-sub { font-size: 13px; }
+.tv-mode .compact-status { font-size: 12px; }
+
 /* Estado: Em Separação (implícito, app.js não põe classe) */
 /* Vamos usar um padrão para o 'li' que não é nem requisitado nem retirada */
 .materiais-prontos-col li:not(.item-requisitado):not(.item-retirada) {

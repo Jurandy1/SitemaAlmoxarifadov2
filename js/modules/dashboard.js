@@ -405,6 +405,15 @@ export function renderDashboardMateriaisProntos(filterStatus = null) {
         return a.localeCompare(b);
     });
 
+    // Atualiza paginação para Modo TV da Visão Geral com base no maior grupo
+    const maxItensPorGrupo = tiposOrdenados.reduce((max, t) => Math.max(max, (grupos[t] || []).length), 0);
+    geralPagerState.maxItems = maxItensPorGrupo;
+    geralPagerState.pages = Math.max(1, Math.ceil(maxItensPorGrupo / geralPagerState.pageSize));
+    if (geralPagerState.page > geralPagerState.pages) geralPagerState.page = geralPagerState.pages;
+
+    const inicio = (geralPagerState.page - 1) * geralPagerState.pageSize;
+    const fim = inicio + geralPagerState.pageSize;
+
     const sectionsHtml = tiposOrdenados.map(tipo => {
         const lista = grupos[tipo] || [];
         const prontos = lista.filter(m => m.status === 'retirada').length;
@@ -412,7 +421,7 @@ export function renderDashboardMateriaisProntos(filterStatus = null) {
         const pendente = lista.filter(m => m.status === 'requisitado').length;
         const total = lista.length;
 
-        const cardsHtml = lista
+        const materiaisOrdenados = lista
             .sort((a,b) => {
                 const statusOrder = { 'requisitado': 1, 'separacao': 2, 'retirada': 3 };
                 const statusCompare = (statusOrder[a.status] || 9) - (statusOrder[b.status] || 9);
@@ -424,23 +433,25 @@ export function renderDashboardMateriaisProntos(filterStatus = null) {
                     : (b.status === 'separacao') ? (b.dataSeparacao?.toMillis() || b.registradoEm?.toMillis() || 0)
                     : (b.dataRetirada?.toMillis() || b.dataSeparacao?.toMillis() || 0);
                 return tsA - tsB;
-            })
-            .map(m => {
-                const unidade = m.unidadeNome || 'Unidade';
-                const item = m.tipoMaterial || 'Item';
-                const status = m.status;
-                const borderCls = status === 'retirada' ? 'border-green-500' : status === 'separacao' ? 'border-yellow-400' : 'border-purple-500';
-                const statusText = status === 'retirada' ? '✅ Pronto' : status === 'separacao' ? '⚙️ Em separação' : '📝 Pendente';
-                const statusCls = status === 'retirada' ? 'status-green' : status === 'separacao' ? 'status-yellow' : 'status-purple';
-                const separadorInfo = m.responsavelSeparador ? `<p class=\"text-[11px] text-yellow-700 mt-1\">Separador: ${m.responsavelSeparador}</p>` : '';
-                return `
+            });
+
+        const paginaItens = materiaisOrdenados.slice(inicio, fim);
+        const cardsHtml = paginaItens.map(m => {
+            const unidade = m.unidadeNome || 'Unidade';
+            const item = m.tipoMaterial || 'Item';
+            const status = m.status;
+            const borderCls = status === 'retirada' ? 'border-green-500' : status === 'separacao' ? 'border-yellow-400' : 'border-purple-500';
+            const statusText = status === 'retirada' ? '✅ Pronto' : status === 'separacao' ? '⚙️ Em separação' : '📝 Pendente';
+            const statusCls = status === 'retirada' ? 'status-green' : status === 'separacao' ? 'status-yellow' : 'status-purple';
+            const separadorInfo = m.responsavelSeparador ? `<p class=\"text-[11px] text-yellow-700 mt-1\">Separador: ${m.responsavelSeparador}</p>` : '';
+            return `
                 <div class=\"compact-card ${borderCls}\">\n
                     <h3 class=\"compact-title\">${unidade}</h3>
                     <p class=\"compact-sub\">${item}</p>
                     ${separadorInfo}
                     <p class=\"compact-status ${statusCls}\">${statusText}</p>
                 </div>`;
-            }).join('');
+        }).join('');
 
         return `
         <section class=\"accordion-section\">
@@ -456,6 +467,14 @@ export function renderDashboardMateriaisProntos(filterStatus = null) {
 
     container.innerHTML = sectionsHtml || '<p class=\"text-sm text-slate-500\">Nenhum material encontrado.</p>';
     if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
+    // Atualiza UI do pager e auto-avançar no modo TV
+    atualizarGeralPagerUI();
+    const geralPane = document.getElementById('dashboard-view-geral');
+    if (geralPane && geralPane.classList.contains('tv-mode') && geralPagerState.pages > 1) {
+        iniciarAutoPagerGeralTV();
+    } else {
+        pararAutoPagerGeralTV();
+    }
     return; // impede a execução do layout antigo
     
     // Agrupamento
@@ -668,6 +687,9 @@ export function initDashboardListeners() {
             const geralPane = document.getElementById('dashboard-view-geral');
             if (geralPane) {
                 geralPane.classList.toggle('tv-mode');
+                // Expandir largura para TVs/monitores grandes
+                const mainEl = document.querySelector('main');
+                if (mainEl) mainEl.classList.toggle('tv-wide');
                 // Re-render para aplicar auto-pager se necessário
                 renderDashboardMateriaisProntos(getCurrentDashboardMaterialFilter());
             }
@@ -685,6 +707,9 @@ export function initDashboardListeners() {
             const materiaisPane = document.getElementById('dashboard-view-materiais');
             if (materiaisPane) {
                 materiaisPane.classList.toggle('tv-mode');
+                // Expandir largura para TVs/monitores grandes
+                const mainEl = document.querySelector('main');
+                if (mainEl) mainEl.classList.toggle('tv-wide');
                 // Reinicia render para aplicar auto-pager se necessário
                 renderDashboardMateriaisList();
             }
