@@ -9,6 +9,12 @@ let dashboardRefreshInterval = null;
 // Estado de paginação da lista de Materiais
 let materiaisPagerState = { page: 1, pageSize: 20, total: 0, pages: 1, data: [] };
 let materiaisAutoPagerInterval = null;
+// Estado de paginação da grade da Visão Geral (Materiais do Almoxarifado)
+let geralPagerState = { page: 1, pageSize: 5, pages: 1, maxItems: 0 };
+let geralAutoPagerInterval = null;
+// Filtros globais e busca da Visão Geral (agrupamento)
+let geralFilterStatus = 'todos'; // 'todos' | 'separacao' | 'pronto' | 'pendente'
+let geralSearchQuery = '';
 
 // =========================================================================
 // FUNÇÕES DE UTILIDADE DO DASHBOARD
@@ -104,6 +110,10 @@ function switchDashboardView(viewName) {
     if(viewName === 'geral') {
         // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
         if (DOM_ELEMENTS.dashboardMateriaisSeparacaoCountEl) renderDashboardMateriaisCounts(); 
+        if (DOM_ELEMENTS.dashboardMateriaisProntosPager) DOM_ELEMENTS.dashboardMateriaisProntosPager.classList.remove('hidden');
+        if (DOM_ELEMENTS.geralPagerInfo) {
+            DOM_ELEMENTS.geralPagerInfo.textContent = `Página ${geralPagerState.page} de ${geralPagerState.pages} • até ${geralPagerState.pageSize} itens/coluna`;
+        }
     }
     if(viewName === 'materiais') {
         renderDashboardMateriaisList();
@@ -111,6 +121,11 @@ function switchDashboardView(viewName) {
     } else {
         if (DOM_ELEMENTS.dashboardMateriaisPagerContainer) DOM_ELEMENTS.dashboardMateriaisPagerContainer.classList.add('hidden');
         if (materiaisAutoPagerInterval) { clearInterval(materiaisAutoPagerInterval); materiaisAutoPagerInterval = null; }
+    }
+
+    if (viewName !== 'geral') {
+        if (DOM_ELEMENTS.dashboardMateriaisProntosPager) DOM_ELEMENTS.dashboardMateriaisProntosPager.classList.add('hidden');
+        if (geralAutoPagerInterval) { clearInterval(geralAutoPagerInterval); geralAutoPagerInterval = null; }
     }
 }
 
@@ -351,6 +366,97 @@ export function renderDashboardMateriaisProntos(filterStatus = null) {
              titleEl.textContent = 'Materiais do Almoxarifado';
         }
     }
+
+    // --- NOVO: filtros globais e busca da Visão Geral ---
+    if (geralFilterStatus === 'separacao') {
+        pendentes = pendentes.filter(m => m.status === 'separacao');
+    } else if (geralFilterStatus === 'pronto') {
+        pendentes = pendentes.filter(m => m.status === 'retirada');
+    } else if (geralFilterStatus === 'pendente') {
+        pendentes = pendentes.filter(m => m.status === 'requisitado');
+    }
+
+    const q = (geralSearchQuery || '').trim().toLowerCase();
+    if (q) {
+        pendentes = pendentes.filter(m => {
+            const u = (m.unidadeNome || '').toLowerCase();
+            const item = (m.tipoMaterial || '').toLowerCase();
+            const obs = (m.itens || '').toLowerCase();
+            return u.includes(q) || item.includes(q) || obs.includes(q);
+        });
+    }
+
+    // --- NOVO: agrupamento por tipo de unidade com acordeão ---
+    const grupos = pendentes.reduce((acc, m) => {
+        let tipoUnidade = (m.tipoUnidade || 'OUTROS').toUpperCase();
+        if (tipoUnidade === 'SEMCAS') tipoUnidade = 'SEDE';
+        if (!acc[tipoUnidade]) acc[tipoUnidade] = [];
+        acc[tipoUnidade].push(m);
+        return acc;
+    }, {});
+
+    const ordemPrioridade = ['CRAS','CREAS','SEDE','CT','CONSELHO','POP','ABRIGO'];
+    const tiposOrdenados = Object.keys(grupos).sort((a,b) => {
+        const ia = ordemPrioridade.indexOf(a);
+        const ib = ordemPrioridade.indexOf(b);
+        if (ia !== -1 && ib !== -1) return ia - ib;
+        if (ia !== -1) return -1;
+        if (ib !== -1) return 1;
+        return a.localeCompare(b);
+    });
+
+    const sectionsHtml = tiposOrdenados.map(tipo => {
+        const lista = grupos[tipo] || [];
+        const prontos = lista.filter(m => m.status === 'retirada').length;
+        const separacao = lista.filter(m => m.status === 'separacao').length;
+        const pendente = lista.filter(m => m.status === 'requisitado').length;
+        const total = lista.length;
+
+        const cardsHtml = lista
+            .sort((a,b) => {
+                const statusOrder = { 'requisitado': 1, 'separacao': 2, 'retirada': 3 };
+                const statusCompare = (statusOrder[a.status] || 9) - (statusOrder[b.status] || 9);
+                if (statusCompare !== 0) return statusCompare;
+                const tsA = (a.status === 'requisitado') ? (a.registradoEm?.toMillis() || 0)
+                    : (a.status === 'separacao') ? (a.dataSeparacao?.toMillis() || a.registradoEm?.toMillis() || 0)
+                    : (a.dataRetirada?.toMillis() || a.dataSeparacao?.toMillis() || 0);
+                const tsB = (b.status === 'requisitado') ? (b.registradoEm?.toMillis() || 0)
+                    : (b.status === 'separacao') ? (b.dataSeparacao?.toMillis() || b.registradoEm?.toMillis() || 0)
+                    : (b.dataRetirada?.toMillis() || b.dataSeparacao?.toMillis() || 0);
+                return tsA - tsB;
+            })
+            .map(m => {
+                const unidade = m.unidadeNome || 'Unidade';
+                const item = m.tipoMaterial || 'Item';
+                const status = m.status;
+                const borderCls = status === 'retirada' ? 'border-green-500' : status === 'separacao' ? 'border-yellow-400' : 'border-purple-500';
+                const statusText = status === 'retirada' ? '✅ Pronto' : status === 'separacao' ? '⚙️ Em separação' : '📝 Pendente';
+                const statusCls = status === 'retirada' ? 'status-green' : status === 'separacao' ? 'status-yellow' : 'status-purple';
+                const separadorInfo = m.responsavelSeparador ? `<p class=\"text-[11px] text-yellow-700 mt-1\">Separador: ${m.responsavelSeparador}</p>` : '';
+                return `
+                <div class=\"compact-card ${borderCls}\">\n
+                    <h3 class=\"compact-title\">${unidade}</h3>
+                    <p class=\"compact-sub\">${item}</p>
+                    ${separadorInfo}
+                    <p class=\"compact-status ${statusCls}\">${statusText}</p>
+                </div>`;
+            }).join('');
+
+        return `
+        <section class=\"accordion-section\">
+          <button class=\"accordion-header\" data-grupo=\"${tipo}\"> 
+            <span>${tipo} <span class=\"text-gray-500\">(${total})</span></span>
+            <span class=\"accordion-counts\">🟢 Prontos: ${prontos} | ⚙️ Em separação: ${separacao} | ⏳ Pendentes: ${pendente}</span>
+          </button>
+          <div id=\"grupo-${tipo}\" class=\"accordion-content\">
+            <div class=\"grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3\">${cardsHtml || '<p class=\"text-sm text-slate-500\">Sem registros.</p>'}</div>
+          </div>
+        </section>`;
+    }).join('');
+
+    container.innerHTML = sectionsHtml || '<p class=\"text-sm text-slate-500\">Nenhum material encontrado.</p>';
+    if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
+    return; // impede a execução do layout antigo
     
     // Agrupamento
     const gruposPendentes = pendentes.reduce((acc, m) => {
@@ -387,7 +493,13 @@ export function renderDashboardMateriaisProntos(filterStatus = null) {
         }
     }
     
-    // Renderiza o DOM
+    // Atualiza páginas com base na maior coluna e renderiza o DOM
+    const contagensPorTipo = mapeamentoColunas.map(tipo => (tipo ? (gruposPendentes[tipo]?.length || 0) : 0));
+    const maxItens = contagensPorTipo.reduce((max,v) => Math.max(max,v), 0);
+    geralPagerState.maxItems = maxItens;
+    geralPagerState.pages = Math.max(1, Math.ceil(maxItens / geralPagerState.pageSize));
+    if (geralPagerState.page > geralPagerState.pages) geralPagerState.page = geralPagerState.pages;
+
     colunaDOMElements.forEach((colunaDiv, index) => {
         const tipoExibido = mapeamentoColunas[index];
         const ulDestino = colunaDiv.querySelector('ul');
@@ -422,7 +534,10 @@ export function renderDashboardMateriaisProntos(filterStatus = null) {
                     return tsA - tsB;
                  });
 
-                 materiaisOrdenados.forEach(m => {
+                 const inicio = (geralPagerState.page - 1) * geralPagerState.pageSize;
+                 const fim = inicio + geralPagerState.pageSize;
+                 const paginaItens = materiaisOrdenados.slice(inicio, fim);
+                 paginaItens.forEach(m => {
                     const tiposMateriais = m.tipoMaterial || 'N/D';
                     
                     let liClass = '';
@@ -455,7 +570,7 @@ export function renderDashboardMateriaisProntos(filterStatus = null) {
                         ${separadorInfo}
                         <div><span class="${spanClass}">${spanText}</span></div>
                     `;
-                    ulDestino.appendChild(li);
+                 ulDestino.appendChild(li);
                  });
             } else {
                  ulDestino.innerHTML = `<li class="text-sm text-slate-500 text-center py-4">Nenhum material pendente para ${tipoExibido}.</li>`;
@@ -551,7 +666,11 @@ export function initDashboardListeners() {
     if (btnTvMode) {
         btnTvMode.addEventListener('click', () => {
             const geralPane = document.getElementById('dashboard-view-geral');
-            if (geralPane) geralPane.classList.toggle('tv-mode');
+            if (geralPane) {
+                geralPane.classList.toggle('tv-mode');
+                // Re-render para aplicar auto-pager se necessário
+                renderDashboardMateriaisProntos(getCurrentDashboardMaterialFilter());
+            }
         });
     }
     // Botão para alternar de volta para a Grade na sub-view Materiais
@@ -607,8 +726,82 @@ export function initDashboardListeners() {
     if (cardSeparacao) cardSeparacao.addEventListener('click', () => filterDashboardMateriais('separacao')); 
     if (cardRetirada) cardRetirada.addEventListener('click', () => filterDashboardMateriais('retirada'));
 
+    // Filtros globais (Visão Geral agrupada)
+    if (DOM_ELEMENTS.btnFilterTodos) DOM_ELEMENTS.btnFilterTodos.addEventListener('click', () => {
+        geralFilterStatus = 'todos';
+        marcarFiltroAtivo('todos');
+        renderDashboardMateriaisProntos(getCurrentDashboardMaterialFilter());
+    });
+    if (DOM_ELEMENTS.btnFilterSeparacao) DOM_ELEMENTS.btnFilterSeparacao.addEventListener('click', () => {
+        geralFilterStatus = 'separacao';
+        marcarFiltroAtivo('separacao');
+        renderDashboardMateriaisProntos(getCurrentDashboardMaterialFilter());
+    });
+    if (DOM_ELEMENTS.btnFilterPronto) DOM_ELEMENTS.btnFilterPronto.addEventListener('click', () => {
+        geralFilterStatus = 'pronto';
+        marcarFiltroAtivo('pronto');
+        renderDashboardMateriaisProntos(getCurrentDashboardMaterialFilter());
+    });
+    if (DOM_ELEMENTS.btnFilterPendente) DOM_ELEMENTS.btnFilterPendente.addEventListener('click', () => {
+        geralFilterStatus = 'pendente';
+        marcarFiltroAtivo('pendente');
+        renderDashboardMateriaisProntos(getCurrentDashboardMaterialFilter());
+    });
+    if (DOM_ELEMENTS.inputBuscaMateriaisGeral) DOM_ELEMENTS.inputBuscaMateriaisGeral.addEventListener('input', (e) => {
+        geralSearchQuery = e.target.value || '';
+        renderDashboardMateriaisProntos(getCurrentDashboardMaterialFilter());
+    });
+
+    // Delegação para recolher/expandir grupos
+    if (DOM_ELEMENTS.dashboardMateriaisProntosContainer) {
+        DOM_ELEMENTS.dashboardMateriaisProntosContainer.addEventListener('click', (e) => {
+            const btn = e.target.closest('button.accordion-header[data-grupo]');
+            if (!btn) return;
+            const tipo = btn.dataset.grupo;
+            const content = document.getElementById(`grupo-${tipo}`);
+            if (content) content.classList.toggle('collapsed');
+        });
+    }
+
+    // Listeners do pager da Visão Geral
+    if (DOM_ELEMENTS.btnGeralPrevPage) {
+        DOM_ELEMENTS.btnGeralPrevPage.addEventListener('click', () => {
+            if (geralPagerState.page > 1) {
+                geralPagerState.page -= 1;
+                renderDashboardMateriaisProntos(getCurrentDashboardMaterialFilter());
+            }
+        });
+    }
+    if (DOM_ELEMENTS.btnGeralNextPage) {
+        DOM_ELEMENTS.btnGeralNextPage.addEventListener('click', () => {
+            if (geralPagerState.page < geralPagerState.pages) {
+                geralPagerState.page += 1;
+                renderDashboardMateriaisProntos(getCurrentDashboardMaterialFilter());
+            }
+        });
+    }
+    if (DOM_ELEMENTS.geralPageSizeSelect) {
+        DOM_ELEMENTS.geralPageSizeSelect.addEventListener('change', (e) => {
+            const val = parseInt(e.target.value, 10);
+            if (!isNaN(val) && val > 0) {
+                geralPagerState.pageSize = val;
+                geralPagerState.page = 1;
+                renderDashboardMateriaisProntos(getCurrentDashboardMaterialFilter());
+            }
+        });
+    }
+
     // Atualiza ícones Lucide caso necessário
     if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
+    // Atualiza UI do pager geral
+    atualizarGeralPagerUI();
+    // Auto-avança páginas no Modo TV da visão geral
+    const geralPane = document.getElementById('dashboard-view-geral');
+    if (geralPane && geralPane.classList.contains('tv-mode') && geralPagerState.pages > 1) {
+        iniciarAutoPagerGeralTV();
+    } else {
+        pararAutoPagerGeralTV();
+    }
 }
 
 // =====================
@@ -640,4 +833,46 @@ function pararAutoPagerTV() {
         clearInterval(materiaisAutoPagerInterval);
         materiaisAutoPagerInterval = null;
     }
+}
+
+// =====================
+// Helpers: Pager Visão Geral
+// =====================
+function atualizarGeralPagerUI() {
+    if (!DOM_ELEMENTS.dashboardMateriaisProntosPager || !DOM_ELEMENTS.geralPagerInfo) return;
+    const page = geralPagerState.page;
+    const pages = geralPagerState.pages;
+    const pageSize = geralPagerState.pageSize;
+    DOM_ELEMENTS.geralPagerInfo.textContent = `Página ${page} de ${pages} • até ${pageSize} itens/coluna`;
+    if (DOM_ELEMENTS.btnGeralPrevPage) DOM_ELEMENTS.btnGeralPrevPage.disabled = page <= 1;
+    if (DOM_ELEMENTS.btnGeralNextPage) DOM_ELEMENTS.btnGeralNextPage.disabled = page >= pages;
+}
+
+function iniciarAutoPagerGeralTV() {
+    pararAutoPagerGeralTV();
+    geralAutoPagerInterval = setInterval(() => {
+        if (geralPagerState.pages <= 1) return;
+        geralPagerState.page = geralPagerState.page >= geralPagerState.pages ? 1 : geralPagerState.page + 1;
+        renderDashboardMateriaisProntos(getCurrentDashboardMaterialFilter());
+    }, 10000);
+}
+
+function pararAutoPagerGeralTV() {
+    if (geralAutoPagerInterval) {
+        clearInterval(geralAutoPagerInterval);
+        geralAutoPagerInterval = null;
+    }
+}
+
+// Helper para destacar o filtro ativo na UI (Visão Geral)
+function marcarFiltroAtivo(chave) {
+    const map = {
+        todos: DOM_ELEMENTS.btnFilterTodos,
+        separacao: DOM_ELEMENTS.btnFilterSeparacao,
+        pronto: DOM_ELEMENTS.btnFilterPronto,
+        pendente: DOM_ELEMENTS.btnFilterPendente,
+    };
+    Object.values(map).forEach(el => { if (el) el.classList?.remove('active'); });
+    const el = map[chave];
+    if (el) el.classList?.add('active');
 }

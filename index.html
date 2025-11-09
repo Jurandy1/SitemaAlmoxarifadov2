@@ -311,50 +311,40 @@
                                 </div>
                             </div>
 
-                            <!-- Container para o grid dinâmico de materiais -->
-                            <div id="dashboard-materiais-prontos" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
-
-                                <!-- Coluna CT -->
-                                <div class="materiais-prontos-col">
-                                    <h4 class="font-bold text-sm mb-3 text-semcas-blue border-b-2 border-blue-300 pb-2">CT</h4>
-                                    <ul class="space-y-3" id="coluna-CT">
-                                        <!-- JS preenche aqui -->
-                                        <li class="text-sm text-slate-500 p-3"><div class="loading-spinner-small mx-auto"></div></li>
-                                    </ul>
+                            <!-- Filtros globais e busca -->
+                            <div id="dashboard-materiais-prontos-controls" class="flex flex-wrap items-center gap-2 mb-4">
+                                <div class="flex flex-wrap gap-2">
+                                    <button id="btn-filter-todos" class="badge-filter active">Todos</button>
+                                    <button id="btn-filter-separacao" class="badge-filter">Em separação</button>
+                                    <button id="btn-filter-pronto" class="badge-filter">Prontos</button>
+                                    <button id="btn-filter-pendente" class="badge-filter">Pendentes</button>
                                 </div>
-
-                                <!-- Coluna SEDE -->
-                                <div class="materiais-prontos-col">
-                                    <h4 class="font-bold text-sm mb-3 text-semcas-blue border-b-2 border-blue-300 pb-2">SEDE</h4>
-                                    <ul class="space-y-3" id="coluna-SEDE">
-                                        <!-- JS preenche aqui -->
-                                    </ul>
+                                <div class="ml-auto w-full sm:w-auto">
+                                    <input id="input-busca-materiais-geral" type="text" placeholder="🔍 Buscar unidade ou item" class="border rounded-md px-3 py-2 text-sm w-full sm:w-64" />
                                 </div>
+                            </div>
 
-                                <!-- Coluna CRAS -->
-                                <div class="materiais-prontos-col">
-                                    <h4 class="font-bold text-sm mb-3 text-semcas-blue border-b-2 border-blue-300 pb-2">CRAS</h4>
-                                    <ul class="space-y-3" id="coluna-CRAS">
-                                        <!-- JS preenche aqui -->
-                                    </ul>
+                            <!-- Pager da Visão Geral (Materiais do Almoxarifado) -->
+                            <div id="dashboard-materiais-prontos-pager" class="dashboard-materiais-pager hidden" aria-label="Paginação da grade de materiais">
+                                <div class="pager-left flex items-center gap-2">
+                                    <button id="btn-geral-prev-page" class="btn-sm text-blue-600 hover:text-blue-800" aria-label="Página anterior">Anterior</button>
+                                    <span id="geral-pager-info" class="text-xs text-gray-600">Página 1 de 1 • até 5 itens/coluna</span>
+                                    <button id="btn-geral-next-page" class="btn-sm text-blue-600 hover:text-blue-800" aria-label="Próxima página">Próxima</button>
                                 </div>
-
-                                <!-- Coluna CREAS -->
-                                <div class="materiais-prontos-col">
-                                    <h4 class="font-bold text-sm mb-3 text-semcas-blue border-b-2 border-blue-300 pb-2">CREAS</h4>
-                                    <ul class="space-y-3" id="coluna-CREAS">
-                                        <!-- JS preenche aqui -->
-                                    </ul>
+                                <div class="pager-right flex items-center gap-2">
+                                    <label for="geral-page-size-select" class="text-xs text-gray-600">Itens/coluna</label>
+                                    <select id="geral-page-size-select" class="select-sm">
+                                        <option value="5" selected>5</option>
+                                        <option value="8">8</option>
+                                        <option value="12">12</option>
+                                    </select>
                                 </div>
+                            </div>
 
-                                <!-- Coluna ABRIGO -->
-                                <div class="materiais-prontos-col">
-                                    <h4 class="font-bold text-sm mb-3 text-semcas-blue border-b-2 border-blue-300 pb-2">ABRIGO</h4>
-                                    <ul class="space-y-3" id="coluna-ABRIGO">
-                                        <!-- JS preenche aqui -->
-                                    </ul>
-                                </div>
-
+                            <!-- Container para os grupos recolhíveis -->
+                            <div id="dashboard-materiais-prontos" class="space-y-4">
+                                <!-- JS renderiza grupos com acordeão aqui -->
+                                <div class="text-sm text-slate-500 p-3"><div class="loading-spinner-small mx-auto"></div></div>
                             </div>
                             <!-- Fim do container modificado -->
                         </div>

@@ -1,6 +1,6 @@
 // js/services/firestore-service.js
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import { getFirestore, collection, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js"; 
+import { getFirestore, initializeFirestore, collection, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js"; 
 import { getStorage } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 import { firebaseConfig, APP_ID } from "../firebase-config.js";
@@ -21,7 +21,18 @@ function initializeFirebaseServices() {
     // setLogLevel('debug'); // Removido por padrão, mas útil para debug
 
     app = initializeApp(firebaseConfig);
-    db = getFirestore(app);
+    // Inicializa Firestore com opções mais compatíveis para ambientes com proxy/firewall
+    try {
+        db = initializeFirestore(app, {
+            experimentalForceLongPolling: true,
+            useFetchStreams: false
+        });
+    } catch (e) {
+        // Fallback seguro
+        db = getFirestore(app);
+    }
+    // Reduz verbosidade de logs do Firestore no navegador
+    setLogLevel('error');
     auth = getAuth(app);
     storage = getStorage(app); 
     
