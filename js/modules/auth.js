@@ -136,7 +136,16 @@ function initFirestoreListeners(renderDash, renderControls, renderModules) {
     console.log("Iniciando listeners do Firestore...");
 
     const addListener = (q, cb) => {
-        const unsub = onSnapshot(q, cb, err => console.error(err));
+        const unsub = onSnapshot(
+            q,
+            cb,
+            err => {
+                const msg = String(err?.message || '').toLowerCase();
+                // Silencia erros de canal abortado/queda de rede no preview
+                if (msg.includes('aborted') || msg.includes('network') || msg.includes('failed')) return;
+                console.error(err);
+            }
+        );
         unsubscribeListeners.push(unsub);
     };
 
@@ -242,7 +251,12 @@ async function initAuthAndListeners(renderDash, renderControls, renderModules) {
             if (DOM_ELEMENTS.userEmailDisplayEl) DOM_ELEMENTS.userEmailDisplayEl.textContent = user.email || 'Usuário';
 
             unsubscribeFirestoreListeners();
-            initFirestoreListeners(renderDash, renderControls, renderModules);
+            // Evita iniciar listeners se estiver offline (preview/local sem rede)
+            if (!navigator.onLine) {
+                console.warn('Offline detectado: listeners Firestore não serão iniciados até reconexão.');
+            } else {
+                initFirestoreListeners(renderDash, renderControls, renderModules);
+            }
 
             renderPermissionsUI();
             renderDash();

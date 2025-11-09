@@ -196,7 +196,7 @@ export async function handleGerarPdf() {
             const litrosPorGalao = parseOrDefault(DOM_ELEMENTS.relatorioLitrosPorGalao?.value, 20);
             const custoMensalIndustrialEnergia = parseOrDefault(DOM_ELEMENTS.relatorioCustoIndustrialEnergia?.value, 80);
             const custoMensalIndustrialFiltro = parseOrDefault(DOM_ELEMENTS.relatorioCustoIndustrialFiltro?.value, 50);
-            const custoMensalFiltroSimples = parseOrDefault(DOM_ELEMENTS.relatorioCustoFiltroRede?.value, 50);
+            const custoMensalFiltroSimples = parseOrDefault(DOM_ELEMENTS.relatorioCustoFiltroRede?.value, 50); // não usado (coluna = garrafão)
             const limiteBaixo = parseOrDefault(DOM_ELEMENTS.relatorioLimiteBaixoLitros?.value, 300);
             const limiteAlto = parseOrDefault(DOM_ELEMENTS.relatorioLimiteAltoLitros?.value, 1200);
             // Análise por unidade (objetos) para tabelas separadas
@@ -207,31 +207,20 @@ export async function handleGerarPdf() {
                 const custos = {
                     galoesMes: galoesMensaisEstimados * custoGalao,
                     industrialMes: custoMensalIndustrialEnergia + custoMensalIndustrialFiltro,
-                    filtroMes: custoMensalFiltroSimples,
                 };
-                let recomendacao = 'Galão 20L';
-                let justificativa = 'Consumo moderado; galões atendem com boa logística.';
-                const tipoUnidade = (unidadesTipoMap.get(unidade) || '').toUpperCase();
-                const tiposAtendimentoPublico = ['CRAS','CREAS','ABRIGO','CENTRO POP','RESTAURANTE','ALBERGUE'];
-                const isAtendimentoPublico = tiposAtendimentoPublico.some(t => tipoUnidade.includes(t)) && !tipoUnidade.includes('SEDE');
-                if (isAtendimentoPublico) {
-                    // Em atendimento ao público, filtro na rede não atende
-                    if (litrosMensalEstimado > limiteAlto) {
-                        recomendacao = 'Bebedouro industrial';
-                        justificativa = 'Atendimento ao público e alto consumo; bebedouro garante oferta contínua.';
-                    } else {
-                        recomendacao = 'Galão 20L';
-                        justificativa = 'Atendimento ao público; filtro na rede não atende; galões são mais adequados.';
-                    }
+                const tipoUnidade = (unidadesTipoMap.get(unidade) || '').toUpperCase() || 'SEM TIPO';
+                let recomendacao = 'Bebedouro de coluna (garrafão)';
+                let justificativa = 'Atendimento ao público; garrafão (coluna) atende com menor custo.';
+                if (litrosMensalEstimado > limiteAlto) {
+                    recomendacao = 'Bebedouro industrial';
+                    justificativa = 'Alto consumo; industrial garante oferta contínua e menor custo unitário.';
                 } else {
-                    // Unidades internas/sem atendimento direto podem usar filtro na rede em baixo consumo
-                    if (litrosMensalEstimado <= limiteBaixo) {
-                        recomendacao = 'Filtro (rede)'; justificativa = 'Baixo consumo; filtro reduz custos e logística.';
-                    } else if (litrosMensalEstimado > limiteAlto) {
-                        recomendacao = 'Bebedouro industrial'; justificativa = 'Alto consumo; equipamento contínuo e eficiente.';
-                    }
+                    recomendacao = 'Bebedouro de coluna (garrafão)';
+                    justificativa = litrosMensalEstimado > limiteBaixo
+                        ? 'Consumo moderado; coluna (garrafão) equilibra capacidade e custo.'
+                        : 'Consumo baixo; coluna (garrafão) é suficiente e econômica.';
                 }
-                return { unidade, galoesPeriodo, litrosPeriodo, litrosMensalEstimado, custos, recomendacao, justificativa };
+                return { unidade, tipo: tipoUnidade, galoesPeriodo, litrosPeriodo, litrosMensalEstimado, custos, recomendacao, justificativa };
             }).sort((a,b) => b.litrosMensalEstimado - a.litrosMensalEstimado);
 
             // KPIs
@@ -253,41 +242,33 @@ export async function handleGerarPdf() {
             drawKpiBox(MARGIN_LEFT + 120, y, 'Consumo mensal (L)', litrosMensalTotal);
             y += 30;
 
-            // Tabela 1: Abastecimento por Unidade
-            doc.setFontSize(12); doc.setTextColor(40);
-            doc.text('Abastecimento por Unidade (Água)', MARGIN_LEFT, y);
-            y += 6;
-            y = ensureTableStartY(doc, y);
-            doc.autoTable({
-                startY: y,
-                head: [['Unidade', 'Galões (período)', 'Litros (período)', 'Consumo mensal (L)']],
-                body: analiseAgua.map(a => [a.unidade, a.galoesPeriodo, a.litrosPeriodo, a.litrosMensalEstimado]),
-                theme: 'striped',
-                headStyles: { fillColor: [11, 61, 145], textColor: 255, fontSize: 10, halign: 'center', valign: 'middle' },
-                styles: { fontSize: 9, cellPadding: { top: 3, bottom: 3, left: 2, right: 2 }, overflow: 'linebreak', minCellHeight: 8 },
-                columnStyles: { 0: { cellWidth: 50 }, 1: { cellWidth: 35, halign: 'right' }, 2: { cellWidth: 35, halign: 'right' }, 3: { cellWidth: 38, halign: 'right' } },
-                margin: { left: MARGIN_LEFT, right: MARGIN_RIGHT },
-                tableWidth: CONTENT_WIDTH
+            // Agrupamento por tipo de unidade e tabelas por tipo
+            const gruposPorTipo = new Map();
+            analiseAgua.forEach((a) => {
+                const tipo = a.tipo || 'SEM TIPO';
+                if (!gruposPorTipo.has(tipo)) gruposPorTipo.set(tipo, []);
+                gruposPorTipo.get(tipo).push(a);
             });
-            y = (doc.lastAutoTable?.finalY || y) + 8;
-
-            // Tabela 2: Recomendações e Custos
-            doc.setFontSize(12); doc.setTextColor(40);
-            doc.text('Recomendações e Custos', MARGIN_LEFT, y);
-            y += 6;
-            y = ensureTableStartY(doc, y);
-            doc.autoTable({
-                startY: y,
-                head: [['Unidade', 'Recomendação', 'Custo Galão/mês', 'Custo Filtro/mês', 'Custo Industrial/mês']],
-                body: analiseAgua.map(a => [a.unidade, a.recomendacao, moedaBRL(a.custos.galoesMes), moedaBRL(a.custos.filtroMes), moedaBRL(a.custos.industrialMes)]),
-                theme: 'striped',
-                headStyles: { fillColor: [11, 61, 145], textColor: 255, fontSize: 10, halign: 'center', valign: 'middle' },
-                styles: { fontSize: 9, cellPadding: { top: 3, bottom: 3, left: 2, right: 2 }, overflow: 'linebreak', minCellHeight: 8 },
-                columnStyles: { 0: { cellWidth: 40 }, 1: { cellWidth: 60, overflow: 'linebreak' }, 2: { cellWidth: 28, halign: 'right' }, 3: { cellWidth: 28, halign: 'right' }, 4: { cellWidth: 28, halign: 'right' } },
-                margin: { left: MARGIN_LEFT, right: MARGIN_RIGHT },
-                tableWidth: CONTENT_WIDTH
-            });
-            y = (doc.lastAutoTable?.finalY || y) + 8;
+            const sumLitros = (arr) => arr.reduce((s, x) => s + x.litrosMensalEstimado, 0);
+            const gruposOrdenados = Array.from(gruposPorTipo.entries()).sort((g1, g2) => sumLitros(g2[1]) - sumLitros(g1[1]));
+            for (const [tipo, itens] of gruposOrdenados) {
+                doc.setFontSize(12); doc.setTextColor(40);
+                doc.text(`Unidades por Tipo — ${tipo}`, MARGIN_LEFT, y);
+                y += 6;
+                y = ensureTableStartY(doc, y);
+                doc.autoTable({
+                    startY: y,
+                    head: [['Unidade', 'Consumo mensal (L)', 'Recomendação', 'Custo Garrafão/mês', 'Custo Industrial/mês']],
+                    body: itens.map(a => [a.unidade, a.litrosMensalEstimado, a.recomendacao, moedaBRL(a.custos.galoesMes), moedaBRL(a.custos.industrialMes)]),
+                    theme: 'striped',
+                    headStyles: { fillColor: [11, 61, 145], textColor: 255, fontSize: 10, halign: 'center', valign: 'middle' },
+                    styles: { fontSize: 9, cellPadding: { top: 3, bottom: 3, left: 2, right: 2 }, overflow: 'linebreak', minCellHeight: 8 },
+                    columnStyles: { 0: { cellWidth: 65 }, 1: { cellWidth: 35, halign: 'right' }, 2: { cellWidth: 45 }, 3: { cellWidth: 30, halign: 'right' }, 4: { cellWidth: 30, halign: 'right' } },
+                    margin: { left: MARGIN_LEFT, right: MARGIN_RIGHT },
+                    tableWidth: CONTENT_WIDTH
+                });
+                y = (doc.lastAutoTable?.finalY || y) + 10;
+            }
 
             // Tabela 3: Entregas por Responsável
             const responsavelData = Array.from(responsavelMap.entries()).sort((a,b) => b[1] - a[1]).map(entry => [entry[0], entry[1]]);
@@ -307,20 +288,20 @@ export async function handleGerarPdf() {
             });
             y = (doc.lastAutoTable?.finalY || y) + 8;
 
-            // Ranking Top 10 — Água
-            const rankingAgua = analiseAgua.map(a => ({ unidade: a.unidade, litrosMes: a.litrosMensalEstimado }))
-                .sort((a,b) => b.litrosMes - a.litrosMes).slice(0, 10);
-            doc.setFontSize(12); doc.setTextColor(40); doc.text('Ranking de Consumo — Água (Top 10)', MARGIN_LEFT, y);
+            // Ranking Geral — Água
+            const rankingAgua = analiseAgua.map(a => ({ unidade: a.unidade, tipo: a.tipo, litrosMes: a.litrosMensalEstimado }))
+                .sort((a,b) => b.litrosMes - a.litrosMes);
+            doc.setFontSize(12); doc.setTextColor(40); doc.text('Ranking Geral — Água', MARGIN_LEFT, y);
             y += 6;
             y = ensureTableStartY(doc, y);
             doc.autoTable({
                 startY: y,
-                head: [['Posição', 'Unidade', 'Consumo mensal (L)']],
-                body: rankingAgua.map((r, idx) => [idx + 1, r.unidade, r.litrosMes]),
+                head: [['Posição', 'Unidade', 'Tipo', 'Consumo mensal (L)']],
+                body: rankingAgua.map((r, idx) => [idx + 1, r.unidade, r.tipo, r.litrosMes]),
                 theme: 'striped',
                 headStyles: { fillColor: [11, 61, 145], textColor: 255, fontSize: 10, halign: 'center' },
                 styles: { fontSize: 10, cellPadding: { top: 3, bottom: 3, left: 2, right: 2 } },
-                columnStyles: { 0: { cellWidth: 22, halign: 'center' }, 1: { cellWidth: 95 }, 2: { halign: 'right' } },
+                columnStyles: { 0: { cellWidth: 18, halign: 'center' }, 1: { cellWidth: 78 }, 2: { cellWidth: 35 }, 3: { halign: 'right' } },
                 didParseCell: (data) => {
                     if (data.section === 'body' && data.row.index <= 2) { data.cell.styles.fillColor = [253, 247, 228]; }
                 },
@@ -342,10 +323,10 @@ export async function handleGerarPdf() {
             doc.setFontSize(12); doc.setTextColor(40); doc.text('Recomendações Gerais', MARGIN_LEFT, y);
             y += 6; doc.setFontSize(10); doc.setTextColor(80);
             const pontos = [
-                'Em unidades sem atendimento direto ao público, filtros na rede reduzem custos.',
-                'Em unidades de atendimento ao público, priorizar galão ou bebedouro industrial.',
-                'Avaliar bebedouro industrial quando o consumo mensal estimado for elevado.',
-                'Redistribuir rotas se houver picos de entregas por responsável.'
+                'Todas as unidades atendem ao público: considerar garrafão (coluna) ou industrial.',
+                'Preferir bebedouro de coluna (garrafão) para consumo baixo/moderado.',
+                'Preferir bebedouro industrial para consumo alto e demanda contínua.',
+                'Comparar custos mensais do garrafão versus industrial para reduzir gastos.'
             ];
             pontos.forEach(p => { doc.text(`• ${p}`, MARGIN_LEFT, y); y += 5; });
         } else {
