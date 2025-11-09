@@ -226,6 +226,7 @@ function renderDashboardMateriaisList() {
     DOM_ELEMENTS.loadingMateriaisDashboard.style.display = 'none'; 
      
     const pendentes = getMateriais()
+        .filter(m => !m.deleted)
         .filter(m => m.status === 'requisitado' || m.status === 'separacao' || m.status === 'retirada')
         .sort((a,b) => { 
             const statusOrder = { 'requisitado': 1, 'separacao': 2, 'retirada': 3 }; 
@@ -311,7 +312,7 @@ function renderDashboardMateriaisCounts() {
     // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (!DOM_ELEMENTS.summaryMateriaisRequisitado) return;
     
-    const materiais = getMateriais();
+    const materiais = getMateriais().filter(m => !m.deleted);
 
     const requisitadoCount = materiais.filter(m => m.status === 'requisitado').length;
     const separacaoCount = materiais.filter(m => m.status === 'separacao').length;
@@ -345,7 +346,7 @@ export function renderDashboardMateriaisProntos(filterStatus = null) {
     
     const COLUNAS_DOM = ['CT', 'SEDE', 'CRAS', 'CREAS', 'ABRIGO'];
     const colunaDOMElements = Array.from(container.querySelectorAll('.materiais-prontos-col'));
-    const materiais = getMateriais();
+    const materiais = getMateriais().filter(m => !m.deleted);
     
     // --- Lógica de filtragem ---
     let pendentes = materiais.filter(m => m.status === 'requisitado' || m.status === 'separacao' || m.status === 'retirada');

@@ -127,12 +127,55 @@ export async function handleMateriaisSubmit(e) {
  */
 export function renderMateriaisStatus() {
     
-    const materiais = getMateriais();
+    const materiais = getMateriais().filter(m => !m.deleted);
     
     const requisitado = materiais.filter(m => m.status === 'requisitado');
     const separacao = materiais.filter(m => m.status === 'separacao');
     const retirada = materiais.filter(m => m.status === 'retirada');
-    const entregue = materiais.filter(m => m.status === 'entregue');
+    let entregue = materiais.filter(m => m.status === 'entregue');
+
+    // ---- Filtros de Histórico (Unidade e Período) ----
+    const unidadeSelect = document.getElementById('select-historico-unidade');
+    const inicioInput = document.getElementById('historico-inicio');
+    const fimInput = document.getElementById('historico-fim');
+
+    // Popular select de unidades com base no histórico (entregues)
+    if (unidadeSelect) {
+        const atual = unidadeSelect.value || 'todas';
+        const unidadesSet = new Set(entregue.map(m => (m.unidadeNome || '').trim()).filter(Boolean));
+        const unidades = Array.from(unidadesSet).sort((a,b) => a.localeCompare(b));
+        // Reconstrói opções preservando seleção atual
+        unidadeSelect.innerHTML = '<option value="todas">Todas as unidades</option>' +
+            unidades.map(u => `<option value="${u}">${u}</option>`).join('');
+        // Restaura seleção se ainda existir
+        if (unidadeSelect.querySelector(`option[value="${atual}"]`)) {
+            unidadeSelect.value = atual;
+        }
+    }
+
+    // Aplica filtro por unidade
+    const unidadeFiltro = (unidadeSelect && unidadeSelect.value && unidadeSelect.value !== 'todas') ? unidadeSelect.value : null;
+    if (unidadeFiltro) {
+        entregue = entregue.filter(m => (m.unidadeNome || '').trim() === unidadeFiltro);
+    }
+
+    // Aplica filtro por período (dataEntrega)
+    const inicioVal = inicioInput?.value || '';
+    const fimVal = fimInput?.value || '';
+    const inicioMs = inicioVal ? dateToTimestamp(inicioVal)?.toMillis() : null;
+    // Para fim, considera fim do dia
+    let fimMs = null;
+    if (fimVal) {
+        const d = new Date(fimVal);
+        d.setHours(23,59,59,999);
+        fimMs = d.getTime();
+    }
+    if (inicioMs) {
+        entregue = entregue.filter(m => (m.dataEntrega?.toMillis() || 0) >= inicioMs);
+    }
+    if (fimMs) {
+        entregue = entregue.filter(m => (m.dataEntrega?.toMillis() || 0) <= fimMs);
+    }
     
     // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS (Atualiza os resumos)
     if (DOM_ELEMENTS.summaryMateriaisRequisitado) DOM_ELEMENTS.summaryMateriaisRequisitado.textContent = requisitado.length;
@@ -631,6 +674,14 @@ export function initMateriaisListeners() {
     if (document.getElementById('filtro-historico-entregues')) {
         document.getElementById('filtro-historico-entregues').addEventListener('input', () => filterTable(document.getElementById('filtro-historico-entregues'), 'table-historico-entregues'));
     }
+
+    // Novos filtros de Histórico: Unidade e Período
+    const unidadeHistorico = document.getElementById('select-historico-unidade');
+    const inicioHistorico = document.getElementById('historico-inicio');
+    const fimHistorico = document.getElementById('historico-fim');
+    if (unidadeHistorico) unidadeHistorico.addEventListener('change', renderMateriaisStatus);
+    if (inicioHistorico) inicioHistorico.addEventListener('change', renderMateriaisStatus);
+    if (fimHistorico) fimHistorico.addEventListener('change', renderMateriaisStatus);
 
     // **** ADICIONADO: Listener para a sub-navegação ****
     const subNavMateriais = document.getElementById('sub-nav-materiais');

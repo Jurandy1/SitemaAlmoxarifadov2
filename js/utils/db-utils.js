@@ -7,6 +7,8 @@ import {
   where,
   getDocs,
   writeBatch,
+  updateDoc,
+  serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { deleteFile } from "../services/storage-service.js";
 import { db, COLLECTIONS, auth } from "../services/firestore-service.js";
@@ -62,15 +64,22 @@ async function executeDelete() {
   const alertId = info.alertElementId || "alert-gestao";
 
   try {
-    // Lógica para exclusão de anexo de materiais
+    // Lógica para exclusão de anexo de materiais (libera espaço) antes do soft delete
     if (info.type === "materiais") {
       const matDoc = await getDoc(doc(ref, info.id));
       if (matDoc.exists() && matDoc.data().storagePath) {
         await deleteFile(matDoc.data().storagePath);
       }
+      // Soft delete: preserva histórico no Firestore
+      await updateDoc(doc(ref, info.id), {
+        deleted: true,
+        deletedAt: serverTimestamp(),
+        deletedBy: auth?.currentUser?.email || "system",
+      });
+    } else {
+      // Demais coleções continuam com exclusão real
+      await deleteDoc(doc(ref, info.id));
     }
-
-    await deleteDoc(doc(ref, info.id));
 
     if (info.type === "unidade") {
       // Se for unidade, exclui também todo o histórico relacionado
@@ -109,9 +118,9 @@ async function deleteUnitHistory(uid) {
   const collections = [
     COLLECTIONS.aguaMov,
     COLLECTIONS.gasMov,
-    COLLECTIONS.materiais,
+    // Materiais preservados: não remover
     COLLECTIONS.estoqueAgua,
-    COLLECTIONS.estoqueGas
+    COLLECTIONS.estoqueGas,
   ];
 
   for (const col of collections) {
@@ -122,7 +131,21 @@ async function deleteUnitHistory(uid) {
   }
 
   await batch.commit();
-  console.log(`Histórico da unidade ${uid} excluído.`);
+
+  // Opcional: desvincula materiais da unidade (preservando o histórico)
+  try {
+    const qMat = query(COLLECTIONS.materiais, where("unidadeId", "==", uid));
+    const snapMat = await getDocs(qMat);
+    const updates = snapMat.docs.map(d => updateDoc(d.ref, {
+      unidadeId: null,
+      unidadeRemovidaEm: serverTimestamp(),
+    }));
+    await Promise.all(updates);
+  } catch (e) {
+    console.warn("Falha ao desvincular materiais da unidade (preservado)", e);
+  }
+
+  console.log(`Histórico da unidade ${uid} excluído (materiais preservados).`);
 }
 
 export { executeDelete, getCollectionRef };

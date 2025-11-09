@@ -755,7 +755,7 @@
                             <button id="btn-limpar-filtros-agua" class="btn-secondary">Limpar filtros</button>
                         </div>
 
-                        <div class="overflow-x-auto border border-gray-200 rounded-lg max-h-96">
+                        <div class="overflow-x-auto border border-gray-200 rounded-lg">
                             <table class="table w-full text-sm">
                                 <thead class="bg-gray-50">
                                     <tr>
@@ -1706,12 +1706,30 @@
                         <p class="text-sm text-gray-600 mb-4">Detalhes de todos os materiais que já foram finalizados e entregues.</p>
                         <div id="alert-historico-entregues" class="alert mb-4"></div>
 
-                        <div class="mb-4">
-                            <label for="filtro-historico-entregues" class="form-label text-xs">Buscar no Histórico:</label>
-                            <input type="text" id="filtro-historico-entregues" data-table="table-historico-entregues" class="form-input" placeholder="Buscar por unidade, responsável, data...">
+                        <div class="mb-4 grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+                            <div class="md:col-span-2">
+                                <label for="filtro-historico-entregues" class="form-label text-xs">Buscar no Histórico:</label>
+                                <input type="text" id="filtro-historico-entregues" data-table="table-historico-entregues" class="form-input" placeholder="Buscar por unidade, responsável, data...">
+                            </div>
+                            <div>
+                                <label for="select-historico-unidade" class="form-label text-xs">Filtrar por Unidade:</label>
+                                <select id="select-historico-unidade" class="form-select">
+                                    <option value="todas">Todas as unidades</option>
+                                </select>
+                            </div>
+                            <div class="flex gap-2">
+                                <div class="flex-1">
+                                    <label for="historico-inicio" class="form-label text-xs">Início</label>
+                                    <input type="date" id="historico-inicio" class="form-input" />
+                                </div>
+                                <div class="flex-1">
+                                    <label for="historico-fim" class="form-label text-xs">Fim</label>
+                                    <input type="date" id="historico-fim" class="form-input" />
+                                </div>
+                            </div>
                         </div>
 
-                        <div class="overflow-x-auto border border-gray-200 rounded-lg max-h-96">
+                        <div class="overflow-x-auto border border-gray-200 rounded-lg">
                             <table class="table w-full text-sm">
                                 <thead class="bg-gray-50">
                                     <tr>
