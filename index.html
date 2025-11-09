@@ -42,6 +42,18 @@
 </head>
 <body class="bg-gray-50 text-slate-700 antialiased font-sans h-full flex flex-col">
 
+    <!-- Barra Institucional da Prefeitura de São Luís -->
+    <div class="gov-header-top">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <img src="SaoLuis.png" alt="Brasão de São Luís" class="h-6 w-auto" onerror="this.style.display='none'">
+                <span class="gov-brand">Prefeitura de São Luís</span>
+                <span class="gov-separator">•</span>
+                <span class="gov-secretaria">SEMCAS</span>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal de Autenticação - Mostra primeiro se não houver login -->
     <div id="auth-modal" class="modal auth-modal" style="display: flex;">
         <div class="modal-content auth-modal-content">
@@ -90,7 +102,7 @@
     <div id="app-content-wrapper" class="hidden h-full flex flex-col">
 
         <!-- 1) CABEÇALHO (HERO / BRAND BAR) - NOVO VISUAL -->
-        <header class="bg-white border-b border-gray-200 shadow-sm w-full">
+        <header class="bg-white brand-bar border-b border-gray-200 shadow-sm w-full">
 
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <!-- Removido h-24 para ajuste automático da altura -->
@@ -243,7 +255,7 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
 
                             <!-- Card Estoque de Água -->
-                            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col">
+                            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col gov-card">
                                 <div class="flex items-center gap-3 mb-4">
                                     <div class="p-2 bg-sky-100 rounded-full">
                                         <i data-lucide="droplet" class="w-6 h-6 text-sky-600"></i>
@@ -255,7 +267,7 @@
                             </div>
 
                             <!-- Card Estoque de Gás -->
-                            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col">
+                            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col gov-card">
                                 <div class="flex items-center gap-3 mb-4">
                                     <div class="p-2 bg-emerald-100 rounded-full">
                                         <i data-lucide="flame" class="w-6 h-6 text-emerald-600"></i>
@@ -267,7 +279,7 @@
                             </div>
 
                             <!-- Card Em Separação (Agora soma Requisitado + Em Separação) -->
-                            <div id="dashboard-card-separacao" class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col cursor-pointer transition-all hover:shadow-md hover:border-amber-300">
+                            <div id="dashboard-card-separacao" class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col cursor-pointer transition-all hover:shadow-md hover:border-amber-300 gov-card">
                                 <div class="flex items-center gap-3 mb-4">
                                     <div class="p-2 bg-amber-100 rounded-full">
                                         <i data-lucide="archive" class="w-6 h-6 text-amber-600"></i>
@@ -279,7 +291,7 @@
                             </div>
 
                             <!-- Card Disponível p/ Retirada -->
-                            <div id="dashboard-card-retirada" class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col cursor-pointer transition-all hover:shadow-md hover:border-green-300">
+                            <div id="dashboard-card-retirada" class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col cursor-pointer transition-all hover:shadow-md hover:border-green-300 gov-card">
                                 <div class="flex items-center gap-3 mb-4">
                                     <div class="p-2 bg-green-100 rounded-full">
                                         <i data-lucide="check-square" class="w-6 h-6 text-green-600"></i>
@@ -292,7 +304,7 @@
                         </div>
 
                         <!-- 6) SEÇÃO "MATERIAIS DO ALMOXARIFADO" -->
-                        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 gov-card">
                             <div class="flex justify-between items-center mb-4 flex-wrap gap-3">
                                 <h3 id="dashboard-materiais-title" class="text-xl font-semibold text-gray-900">Materiais do Almoxarifado</h3>
                                 <div class="flex items-center gap-2">
@@ -687,12 +699,45 @@
                  <div id="subview-historico-agua" class="hidden">
                      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
                         <h2 class="text-xl font-bold text-gray-800 mb-4"><i data-lucide="archive" class="inline-block -mt-1 mr-2"></i> Histórico Geral de Movimentações (Água)</h2>
-                        <p class="text-sm text-gray-600 mb-4">Detalhes de **todas** as entregas e retornos de galões nas unidades, incluindo responsáveis e datas.</p>
+                        <p class="text-sm text-gray-600 mb-4">Visão completa de entregas e retornos de galões nas unidades, com filtros por tipo, unidade, responsável e período para facilitar auditorias e conferências.</p>
                         <div id="alert-historico-agua" class="alert mb-4"></div>
 
                         <div class="mb-4">
                             <label for="filtro-historico-agua" class="form-label text-xs">Buscar no Histórico:</label>
                             <input type="text" id="filtro-historico-agua" data-table="table-historico-agua-all" class="form-input" placeholder="Buscar por unidade, responsável, data...">
+                        </div>
+
+                        <!-- Filtros avançados (Água) -->
+                        <div class="grid grid-cols-1 md:grid-cols-5 gap-3 mb-4">
+                            <div>
+                                <label for="filtro-tipo-agua" class="form-label text-xs">Tipo</label>
+                                <select id="filtro-tipo-agua" class="form-select">
+                                    <option value="">Todos</option>
+                                    <option value="entrega">Entrega</option>
+                                    <option value="retorno">Retorno</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="filtro-unidade-agua" class="form-label text-xs">Unidade</label>
+                                <select id="filtro-unidade-agua" class="form-select">
+                                    <option value="">Todas</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="filtro-responsavel-agua" class="form-label text-xs">Responsável</label>
+                                <input type="text" id="filtro-responsavel-agua" class="form-input" placeholder="Nome do responsável">
+                            </div>
+                            <div>
+                                <label for="filtro-data-inicio-agua" class="form-label text-xs">Data Início</label>
+                                <input type="date" id="filtro-data-inicio-agua" class="form-input">
+                            </div>
+                            <div>
+                                <label for="filtro-data-fim-agua" class="form-label text-xs">Data Fim</label>
+                                <input type="date" id="filtro-data-fim-agua" class="form-input">
+                            </div>
+                        </div>
+                        <div class="flex justify-end mb-4">
+                            <button id="btn-limpar-filtros-agua" class="btn-secondary">Limpar filtros</button>
                         </div>
 
                         <div class="overflow-x-auto border border-gray-200 rounded-lg max-h-96">
@@ -1151,12 +1196,45 @@
                 <div id="subview-historico-gas" class="hidden">
                      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
                         <h2 class="text-xl font-bold text-gray-800 mb-4"><i data-lucide="archive" class="inline-block -mt-1 mr-2"></i> Histórico Geral de Movimentações (Gás)</h2>
-                        <p class="text-sm text-gray-600 mb-4">Detalhes de **todas** as entregas e retornos de botijões nas unidades, incluindo responsáveis e datas.</p>
+                        <p class="text-sm text-gray-600 mb-4">Visão completa de entregas e retornos de botijões nas unidades, com filtros por tipo, unidade, responsável e período para facilitar auditorias e conferências.</p>
                         <div id="alert-historico-gas" class="alert mb-4"></div>
 
                         <div class="mb-4">
                             <label for="filtro-historico-gas" class="form-label text-xs">Buscar no Histórico:</label>
                             <input type="text" id="filtro-historico-gas" data-table="table-historico-gas-all" class="form-input" placeholder="Buscar por unidade, responsável, data...">
+                        </div>
+
+                        <!-- Filtros avançados (Gás) -->
+                        <div class="grid grid-cols-1 md:grid-cols-5 gap-3 mb-4">
+                            <div>
+                                <label for="filtro-tipo-gas" class="form-label text-xs">Tipo</label>
+                                <select id="filtro-tipo-gas" class="form-select">
+                                    <option value="">Todos</option>
+                                    <option value="entrega">Entrega</option>
+                                    <option value="retorno">Retorno</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="filtro-unidade-gas" class="form-label text-xs">Unidade</label>
+                                <select id="filtro-unidade-gas" class="form-select">
+                                    <option value="">Todas</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="filtro-responsavel-gas" class="form-label text-xs">Responsável</label>
+                                <input type="text" id="filtro-responsavel-gas" class="form-input" placeholder="Nome do responsável">
+                            </div>
+                            <div>
+                                <label for="filtro-data-inicio-gas" class="form-label text-xs">Data Início</label>
+                                <input type="date" id="filtro-data-inicio-gas" class="form-input">
+                            </div>
+                            <div>
+                                <label for="filtro-data-fim-gas" class="form-label text-xs">Data Fim</label>
+                                <input type="date" id="filtro-data-fim-gas" class="form-input">
+                            </div>
+                        </div>
+                        <div class="flex justify-end mb-4">
+                            <button id="btn-limpar-filtros-gas" class="btn-secondary">Limpar filtros</button>
                         </div>
 
                         <div class="overflow-x-auto border border-gray-200 rounded-lg max-h-96">
@@ -2256,6 +2334,21 @@
 
 
         </main>
+        <!-- Rodapé Institucional -->
+        <footer class="gov-footer">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between flex-wrap gap-2">
+                <div class="flex items-center gap-2">
+                    <img src="SaoLuis.png" alt="Brasão de São Luís" class="h-5 w-auto" onerror="this.style.display='none'">
+                    <span class="gov-brand">Prefeitura de São Luís</span>
+                    <span class="gov-separator">•</span>
+                    <span class="gov-secretaria">SEMCAS</span>
+                </div>
+                <div class="text-xs sm:text-sm gov-footer-text">
+                    © <span id="gov-footer-year"></span> — Secretaria Municipal da Criança e Assistência Social. Todos os direitos reservados. — Site Desenvolvido por Jurandy
+                </div>
+            </div>
+            <script>document.getElementById('gov-footer-year').textContent = new Date().getFullYear();</script>
+        </footer>
         <!-- Fim do Conteúdo Principal -->
 
         <!-- Elementos ocultos para Modais de Fluxo -->

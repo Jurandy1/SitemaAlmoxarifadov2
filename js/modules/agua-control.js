@@ -438,12 +438,10 @@ export function renderAguaMovimentacoesHistory() {
     // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (!DOM_ELEMENTS.tableHistoricoAguaAll) return;
     
-    const movimentacoes = getAguaMovimentacoes();
     const role = getUserRole();
     const isAdmin = role === 'admin';
 
-    const historicoOrdenado = [...movimentacoes]
-        .filter(m => m.tipo === 'entrega' || m.tipo === 'retorno')
+    const historicoOrdenado = getFilteredAguaMovimentacoes()
         .sort((a, b) => (b.registradoEm?.toMillis() || 0) - (a.registradoEm?.toMillis() || 0));
 
     if (historicoOrdenado.length === 0) {
@@ -490,8 +488,104 @@ export function renderAguaMovimentacoesHistory() {
     const filtroEl = document.getElementById(`filtro-historico-agua`);
     // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (filtroEl && filtroEl.value) { filterTable(filtroEl, DOM_ELEMENTS.tableHistoricoAguaAll.id); }
+
+    // Checagem de integridade após renderização
+    checkAguaHistoryIntegrity();
 }
 
+
+// =====================================================
+// Filtros avançados e verificação de integridade (helpers)
+// =====================================================
+
+function populateAguaFilterUnidades() {
+    const sel = document.getElementById('filtro-unidade-agua');
+    if (!sel) return;
+    const unidades = getUnidades();
+    const existingValues = Array.from(sel.options).map(o => o.value);
+    const needsPopulate = existingValues.length <= 1 || unidades.some(u => !existingValues.includes(u.id));
+    if (!needsPopulate) return;
+
+    sel.innerHTML = '<option value="">Todas</option>';
+    unidades
+        .sort((a, b) => a.nome.localeCompare(b.nome))
+        .forEach(u => {
+            const opt = document.createElement('option');
+            opt.value = u.id;
+            opt.textContent = u.nome;
+            sel.appendChild(opt);
+        });
+}
+
+function getFilteredAguaMovimentacoes() {
+    const tipoEl = document.getElementById('filtro-tipo-agua');
+    const unidadeEl = document.getElementById('filtro-unidade-agua');
+    const respEl = document.getElementById('filtro-responsavel-agua');
+    const dataIniEl = document.getElementById('filtro-data-ini-agua');
+    const dataFimEl = document.getElementById('filtro-data-fim-agua');
+
+    const tipo = tipoEl?.value || '';
+    const unidadeId = unidadeEl?.value || '';
+    const respQuery = (respEl?.value || '').trim().toLowerCase();
+    const dataIniStr = dataIniEl?.value || '';
+    const dataFimStr = dataFimEl?.value || '';
+
+    const base = getAguaMovimentacoes().filter(m => m.tipo === 'entrega' || m.tipo === 'retorno');
+    const dataIniMs = dataIniStr ? dateToTimestamp(dataIniStr)?.toMillis() : null;
+    const dataFimMs = dataFimStr ? dateToTimestamp(dataFimStr)?.toMillis() : null;
+
+    return base.filter(m => {
+        if (tipo && m.tipo !== tipo) return false;
+        if (unidadeId && m.unidadeId !== unidadeId) return false;
+        if (respQuery) {
+            const ru = (m.responsavel || '').toLowerCase();
+            const ra = (m.responsavelAlmoxarifado || '').toLowerCase();
+            if (!ru.includes(respQuery) && !ra.includes(respQuery)) return false;
+        }
+        const movMs = m.data?.toMillis?.() || null;
+        if (dataIniMs && movMs && movMs < dataIniMs) return false;
+        if (dataFimMs && movMs && movMs > dataFimMs) return false;
+        return true;
+    });
+}
+
+function checkAguaHistoryIntegrity() {
+    const movs = getAguaMovimentacoes().filter(m => m.tipo === 'entrega' || m.tipo === 'retorno');
+    const unidadesMap = new Map(getUnidades().map(u => [u.id, u]));
+    let inconsistenciasMov = 0;
+    movs.forEach(m => {
+        if (!m.id) inconsistenciasMov++;
+        if (!m.unidadeId || !unidadesMap.has(m.unidadeId)) inconsistenciasMov++;
+        if (!m.data || typeof m.data.toMillis !== 'function') inconsistenciasMov++;
+        if (!m.registradoEm || typeof m.registradoEm.toMillis !== 'function') inconsistenciasMov++;
+        if (!['entrega', 'retorno'].includes(m.tipo)) inconsistenciasMov++;
+        if (!m.quantidade || m.quantidade <= 0) inconsistenciasMov++;
+    });
+
+    const estoque = getEstoqueAgua();
+    let inconsistenciasEstoque = 0;
+    estoque.forEach(e => {
+        if (!e.id) inconsistenciasEstoque++;
+        if (!['inicial', 'entrada'].includes(e.tipo)) inconsistenciasEstoque++;
+        if (!e.data || typeof e.data.toMillis !== 'function') inconsistenciasEstoque++;
+        if (!e.registradoEm || typeof e.registradoEm.toMillis !== 'function') inconsistenciasEstoque++;
+        if (!e.quantidade || e.quantidade <= 0) inconsistenciasEstoque++;
+    });
+
+    const movMsg = inconsistenciasMov === 0
+        ? 'Nenhuma inconsistência detectada nas movimentações de Água.'
+        : `Foram encontradas ${inconsistenciasMov} possíveis inconsistências nas movimentações de Água. Revise os lançamentos mais antigos.`;
+    const estoqueMsg = inconsistenciasEstoque === 0
+        ? 'Nenhuma inconsistência detectada nas entradas de estoque de Água.'
+        : `Foram encontradas ${inconsistenciasEstoque} possíveis inconsistências nas entradas de estoque de Água. Verifique registros de NF e datas.`;
+
+    if (document.getElementById('alert-historico-agua')) {
+        showAlert('alert-historico-agua', movMsg, inconsistenciasMov === 0 ? 'info' : 'warning');
+    }
+    if (document.getElementById('alert-historico-estoque-agua')) {
+        showAlert('alert-historico-estoque-agua', estoqueMsg, inconsistenciasEstoque === 0 ? 'info' : 'warning');
+    }
+}
 
 // =========================================================================
 // INICIALIZAÇÃO DE LISTENERS DO DOM
@@ -526,6 +620,26 @@ export function initAguaListeners() {
     if (document.getElementById('filtro-historico-agua')) {
         document.getElementById('filtro-historico-agua').addEventListener('input', () => filterTable(document.getElementById('filtro-historico-agua'), 'table-historico-agua-all'));
     }
+    // Filtros avançados (Histórico Água)
+    ['filtro-tipo-agua','filtro-unidade-agua','filtro-responsavel-agua','filtro-data-ini-agua','filtro-data-fim-agua']
+        .forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('input', () => {
+                renderAguaMovimentacoesHistory();
+                const free = document.getElementById('filtro-historico-agua');
+                if (free && free.value) filterTable(free, 'table-historico-agua-all');
+            });
+        });
+    const btnClear = document.getElementById('btn-limpar-filtros-agua');
+    if (btnClear) btnClear.addEventListener('click', () => {
+        ['filtro-tipo-agua','filtro-unidade-agua','filtro-responsavel-agua','filtro-data-ini-agua','filtro-data-fim-agua']
+            .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+        renderAguaMovimentacoesHistory();
+        const free = document.getElementById('filtro-historico-agua');
+        if (free && free.value) filterTable(free, 'table-historico-agua-all');
+    });
+    // Popular unidades do filtro ao iniciar
+    populateAguaFilterUnidades();
     // NOVO PONTO 1: Listener para o filtro de Histórico de Estoque
     if (DOM_ELEMENTS.filtroHistoricoEstoqueAgua) {
         DOM_ELEMENTS.filtroHistoricoEstoqueAgua.addEventListener('input', () => filterTable(DOM_ELEMENTS.filtroHistoricoEstoqueAgua, DOM_ELEMENTS.tableHistoricoEstoqueAgua.id));
@@ -584,6 +698,9 @@ export function onAguaTabChange() {
     const filtroHistorico = document.getElementById('filtro-historico-agua');
     if (filtroHistorico) filtroHistorico.value = '';
 
+    // Popular filtros e checar integridade ao trocar para a aba
+    populateAguaFilterUnidades();
+    checkAguaHistoryIntegrity();
     // Aplica as permissões após a renderização
     renderPermissionsUI();
 }

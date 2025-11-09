@@ -15,6 +15,11 @@ body {
 /* MELHORIAS DO CABEÇALHO (NOVO)                 */
 /* ============================================= */
 
+/* Barra de marca sutil no cabeçalho */
+.brand-bar {
+  background: linear-gradient(180deg, #f8fafc 0%, #ffffff 60%);
+}
+
 /* ===== Faixa superior colorida SEMCAS (Corrigido para 3px) ===== */
 header .faixa-semcas {
   height: 3px; /* Reduzido para ser mais fino */
@@ -700,6 +705,13 @@ button .loading-spinner-small {
     color: #374151; /* text-gray-700 */
     vertical-align: middle;
 }
+/* Zebra e hover para melhor legibilidade */
+.table tbody tr:nth-child(odd) {
+    background-color: #fcfdff; /* leve zebra */
+}
+.table tbody tr:hover {
+    background-color: #eef2ff; /* destaque suave no hover */
+}
 /* Linhas de Observação e Separador */
 .table .obs-row td { padding-top: 0; padding-bottom: 0.75rem; font-size: 0.8125rem; line-height: 1.5; color: #6b7280; }
 .table .separador-row td { padding: 0.5rem 1rem; }
@@ -1195,3 +1207,49 @@ button .loading-spinner-small {
 .status-yellow { color: #92400e; }
 .status-green { color: #065f46; }
 .status-purple { color: #5b21b6; }
+
+/* ============================================= */
+/* ESTILO GOVERNAMENTAL (São Luís / SEMCAS)      */
+/* ============================================= */
+
+/* Barra Institucional Superior */
+.gov-header-top {
+  width: 100%;
+  background: linear-gradient(90deg, #0054a6 0%, #0070c0 50%, #0054a6 100%);
+  color: #eaf4ff;
+  border-bottom: 1px solid rgba(255,255,255,0.15);
+  box-shadow: 0 1px 0 rgba(0,0,0,0.06);
+  padding: 8px 0;
+}
+.gov-header-top .gov-brand { font-weight: 700; letter-spacing: 0.2px; }
+.gov-header-top .gov-secretaria { font-weight: 500; opacity: 0.95; }
+.gov-header-top .gov-separator { opacity: 0.7; }
+.gov-header-top .gov-slogan { font-size: 0.8125rem; font-weight: 600; opacity: 0.9; }
+
+/* Cartões com estética institucional */
+.gov-card {
+  border: 1px solid #e6edf7 !important;
+  box-shadow: 0 2px 8px rgba(0, 42, 90, 0.06) !important;
+  position: relative;
+}
+.gov-card:hover {
+  box-shadow: 0 4px 14px rgba(0, 42, 90, 0.10) !important;
+  border-color: #cfe0f3 !important;
+}
+.gov-card .section-title,
+.gov-card h2,
+.gov-card h3 {
+  color: #0b3d91;
+}
+
+/* Rodapé Institucional */
+.gov-footer {
+  margin-top: auto;
+  background: #0c2e5b;
+  color: #eaf4ff;
+  border-top: 2px solid #0b5ecf;
+}
+.gov-footer .gov-brand { font-weight: 700; }
+.gov-footer .gov-secretaria { font-weight: 500; opacity: 0.95; }
+.gov-footer .gov-separator { opacity: 0.6; }
+.gov-footer .gov-footer-text { opacity: 0.9; }

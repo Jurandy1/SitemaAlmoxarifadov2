@@ -437,12 +437,10 @@ export function renderGasMovimentacoesHistory() {
     // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (!DOM_ELEMENTS.tableHistoricoGasAll) return;
     
-    const movimentacoes = getGasMovimentacoes();
     const role = getUserRole();
     const isAdmin = role === 'admin';
 
-    const historicoOrdenado = [...movimentacoes]
-        .filter(m => m.tipo === 'entrega' || m.tipo === 'retorno')
+    const historicoOrdenado = getFilteredGasMovimentacoes()
         .sort((a, b) => (b.registradoEm?.toMillis() || 0) - (a.registradoEm?.toMillis() || 0));
 
     if (historicoOrdenado.length === 0) {
@@ -489,8 +487,104 @@ export function renderGasMovimentacoesHistory() {
     const filtroEl = document.getElementById(`filtro-historico-gas`);
     // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (filtroEl && filtroEl.value) { filterTable(filtroEl, DOM_ELEMENTS.tableHistoricoGasAll.id); }
+
+    // Checagem de integridade após renderização
+    checkGasHistoryIntegrity();
 }
 
+
+// =====================================================
+// Filtros avançados e verificação de integridade (helpers)
+// =====================================================
+
+function populateGasFilterUnidades() {
+    const sel = document.getElementById('filtro-unidade-gas');
+    if (!sel) return;
+    const unidades = getUnidades();
+    const existingValues = Array.from(sel.options).map(o => o.value);
+    const needsPopulate = existingValues.length <= 1 || unidades.some(u => !existingValues.includes(u.id));
+    if (!needsPopulate) return;
+
+    sel.innerHTML = '<option value="">Todas</option>';
+    unidades
+        .sort((a, b) => a.nome.localeCompare(b.nome))
+        .forEach(u => {
+            const opt = document.createElement('option');
+            opt.value = u.id;
+            opt.textContent = u.nome;
+            sel.appendChild(opt);
+        });
+}
+
+function getFilteredGasMovimentacoes() {
+    const tipoEl = document.getElementById('filtro-tipo-gas');
+    const unidadeEl = document.getElementById('filtro-unidade-gas');
+    const respEl = document.getElementById('filtro-responsavel-gas');
+    const dataIniEl = document.getElementById('filtro-data-ini-gas');
+    const dataFimEl = document.getElementById('filtro-data-fim-gas');
+
+    const tipo = tipoEl?.value || '';
+    const unidadeId = unidadeEl?.value || '';
+    const respQuery = (respEl?.value || '').trim().toLowerCase();
+    const dataIniStr = dataIniEl?.value || '';
+    const dataFimStr = dataFimEl?.value || '';
+
+    const base = getGasMovimentacoes().filter(m => m.tipo === 'entrega' || m.tipo === 'retorno');
+    const dataIniMs = dataIniStr ? dateToTimestamp(dataIniStr)?.toMillis() : null;
+    const dataFimMs = dataFimStr ? dateToTimestamp(dataFimStr)?.toMillis() : null;
+
+    return base.filter(m => {
+        if (tipo && m.tipo !== tipo) return false;
+        if (unidadeId && m.unidadeId !== unidadeId) return false;
+        if (respQuery) {
+            const ru = (m.responsavel || '').toLowerCase();
+            const ra = (m.responsavelAlmoxarifado || '').toLowerCase();
+            if (!ru.includes(respQuery) && !ra.includes(respQuery)) return false;
+        }
+        const movMs = m.data?.toMillis?.() || null;
+        if (dataIniMs && movMs && movMs < dataIniMs) return false;
+        if (dataFimMs && movMs && movMs > dataFimMs) return false;
+        return true;
+    });
+}
+
+function checkGasHistoryIntegrity() {
+    const movs = getGasMovimentacoes().filter(m => m.tipo === 'entrega' || m.tipo === 'retorno');
+    const unidadesMap = new Map(getUnidades().map(u => [u.id, u]));
+    let inconsistenciasMov = 0;
+    movs.forEach(m => {
+        if (!m.id) inconsistenciasMov++;
+        if (!m.unidadeId || !unidadesMap.has(m.unidadeId)) inconsistenciasMov++;
+        if (!m.data || typeof m.data.toMillis !== 'function') inconsistenciasMov++;
+        if (!m.registradoEm || typeof m.registradoEm.toMillis !== 'function') inconsistenciasMov++;
+        if (!['entrega', 'retorno'].includes(m.tipo)) inconsistenciasMov++;
+        if (!m.quantidade || m.quantidade <= 0) inconsistenciasMov++;
+    });
+
+    const estoque = getEstoqueGas();
+    let inconsistenciasEstoque = 0;
+    estoque.forEach(e => {
+        if (!e.id) inconsistenciasEstoque++;
+        if (!['inicial', 'entrada'].includes(e.tipo)) inconsistenciasEstoque++;
+        if (!e.data || typeof e.data.toMillis !== 'function') inconsistenciasEstoque++;
+        if (!e.registradoEm || typeof e.registradoEm.toMillis !== 'function') inconsistenciasEstoque++;
+        if (!e.quantidade || e.quantidade <= 0) inconsistenciasEstoque++;
+    });
+
+    const movMsg = inconsistenciasMov === 0
+        ? 'Nenhuma inconsistência detectada nas movimentações de Gás.'
+        : `Foram encontradas ${inconsistenciasMov} possíveis inconsistências nas movimentações de Gás. Revise os lançamentos mais antigos.`;
+    const estoqueMsg = inconsistenciasEstoque === 0
+        ? 'Nenhuma inconsistência detectada nas entradas de estoque de Gás.'
+        : `Foram encontradas ${inconsistenciasEstoque} possíveis inconsistências nas entradas de estoque de Gás. Verifique registros de NF e datas.`;
+
+    if (document.getElementById('alert-historico-gas')) {
+        showAlert('alert-historico-gas', movMsg, inconsistenciasMov === 0 ? 'info' : 'warning');
+    }
+    if (document.getElementById('alert-historico-estoque-gas')) {
+        showAlert('alert-historico-estoque-gas', estoqueMsg, inconsistenciasEstoque === 0 ? 'info' : 'warning');
+    }
+}
 
 // =========================================================================
 // INICIALIZAÇÃO DE LISTENERS DO DOM
@@ -530,6 +624,26 @@ export function initGasListeners() {
     if (document.getElementById('filtro-historico-gas')) {
         document.getElementById('filtro-historico-gas').addEventListener('input', () => filterTable(document.getElementById('filtro-historico-gas'), 'table-historico-gas-all'));
     }
+    // Filtros avançados (Histórico Gás)
+    ['filtro-tipo-gas','filtro-unidade-gas','filtro-responsavel-gas','filtro-data-ini-gas','filtro-data-fim-gas']
+        .forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('input', () => {
+                renderGasMovimentacoesHistory();
+                const free = document.getElementById('filtro-historico-gas');
+                if (free && free.value) filterTable(free, 'table-historico-gas-all');
+            });
+        });
+    const btnClear = document.getElementById('btn-limpar-filtros-gas');
+    if (btnClear) btnClear.addEventListener('click', () => {
+        ['filtro-tipo-gas','filtro-unidade-gas','filtro-responsavel-gas','filtro-data-ini-gas','filtro-data-fim-gas']
+            .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+        renderGasMovimentacoesHistory();
+        const free = document.getElementById('filtro-historico-gas');
+        if (free && free.value) filterTable(free, 'table-historico-gas-all');
+    });
+    // Popular unidades do filtro ao iniciar
+    populateGasFilterUnidades();
     // NOVO PONTO 1: Listener para o filtro de Histórico de Estoque
     if (DOM_ELEMENTS.filtroHistoricoEstoqueGas) {
         DOM_ELEMENTS.filtroHistoricoEstoqueGas.addEventListener('input', () => filterTable(DOM_ELEMENTS.filtroHistoricoEstoqueGas, DOM_ELEMENTS.tableHistoricoEstoqueGas.id));
@@ -586,6 +700,9 @@ export function onGasTabChange() {
     const filtroHistorico = document.getElementById('filtro-historico-gas');
     if (filtroHistorico) filtroHistorico.value = '';
 
+    // Popular filtros e checar integridade ao entrar na aba
+    populateGasFilterUnidades();
+    checkGasHistoryIntegrity();
     // Aplica as permissões após a renderização
     renderPermissionsUI();
 }
