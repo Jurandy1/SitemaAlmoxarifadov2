@@ -75,19 +75,21 @@ export async function handleGerarPdf() {
         }
         const logoDataUrl = await toDataURL('SaoLuis.png');
 
-        // Cabeçalho institucional
-        if (logoDataUrl) {
-            try { doc.addImage(logoDataUrl, 'PNG', 14, 10, 28, 14); } catch {}
-        }
-        doc.setFontSize(12);
-        doc.setTextColor(11, 61, 145); // azul institucional
-        doc.text('Prefeitura de São Luís — SEMCAS', 44, 16);
+        // Cabeçalho institucional aprimorado
+        const MARGIN_LEFT = 14;
+        const MARGIN_RIGHT = 14;
+        const CONTENT_WIDTH = doc.internal.pageSize.getWidth() - MARGIN_LEFT - MARGIN_RIGHT;
+        if (logoDataUrl) { try { doc.addImage(logoDataUrl, 'PNG', MARGIN_LEFT, 10, 22, 22); } catch {} }
+        doc.setFillColor(11, 61, 145);
+        doc.roundedRect(MARGIN_LEFT + 26, 10, CONTENT_WIDTH - 26, 14, 3, 3, 'F');
+        doc.setTextColor(255);
+        doc.setFontSize(14);
+        doc.text('Relatório de Consumo e Custos', MARGIN_LEFT + 32, 20);
         doc.setTextColor(51, 65, 85);
         doc.setFontSize(10);
         const userEmail = (auth?.currentUser?.email) || 'Operador Anônimo';
-        doc.text(`Relatório Técnico — ${tipoLabel} (Almoxarifado)`, 14, 30);
-        doc.text(`Período: ${formatTimestamp(Timestamp.fromMillis(dataInicio))} a ${formatTimestamp(Timestamp.fromMillis(dataFim))}`, 14, 35);
-        doc.text(`Emitido por: ${userEmail} em ${new Date().toLocaleString('pt-BR')}`, 14, 40);
+        doc.text(`Tipo: ${tipoLabel} | Período: ${formatTimestamp(Timestamp.fromMillis(dataInicio))} a ${formatTimestamp(Timestamp.fromMillis(dataFim))}`, MARGIN_LEFT, 36);
+        doc.text(`Emitido por: ${userEmail} em ${new Date().toLocaleString('pt-BR')}`, MARGIN_LEFT, 41);
 
         // Dados agregados básicos
         const abastecimentoMap = new Map();
@@ -102,6 +104,32 @@ export async function handleGerarPdf() {
 
         const diasPeriodo = Math.max(1, Math.ceil((dataFim - dataInicio + 1) / (1000 * 60 * 60 * 24)));
 
+        // Função de gráfico diário (se Chart.js disponível)
+        const makeDailyChartImage = (movs, label) => {
+            try {
+                if (!window.Chart) return null;
+                const canvas = document.createElement('canvas');
+                canvas.width = 800; canvas.height = 300;
+                const ctx = canvas.getContext('2d');
+                const dias = {};
+                movs.forEach((m) => {
+                    const d = new Date(m.data?.toMillis ? m.data.toMillis() : m.data);
+                    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                    dias[key] = (dias[key] || 0) + 1;
+                });
+                const labels = Object.keys(dias).sort();
+                const dataVals = labels.map((k) => dias[k]);
+                const chart = new window.Chart(ctx, {
+                    type: 'line',
+                    data: { labels, datasets: [{ label, data: dataVals, borderColor: '#0B3D91', backgroundColor: 'rgba(11,61,145,0.15)', tension: 0.35 }] },
+                    options: { plugins: { legend: { display: true } }, scales: { y: { beginAtZero: true } } }
+                });
+                const url = canvas.toDataURL('image/png');
+                chart.destroy();
+                return url;
+            } catch (_) { return null; }
+        };
+
         if (tipo === 'agua') {
             // Parâmetros de custo (lidos da UI com defaults)
             const parseOrDefault = (value, fallback) => {
@@ -115,118 +143,135 @@ export async function handleGerarPdf() {
             const custoMensalFiltroSimples = parseOrDefault(DOM_ELEMENTS.relatorioCustoFiltroRede?.value, 50);
             const limiteBaixo = parseOrDefault(DOM_ELEMENTS.relatorioLimiteBaixoLitros?.value, 300);
             const limiteAlto = parseOrDefault(DOM_ELEMENTS.relatorioLimiteAltoLitros?.value, 1200);
-
-            // Tabela detalhada por unidade com análise
-            const analiseData = Array.from(abastecimentoMap.entries())
-                .map(([unidade, galoesPeriodo]) => {
-                    const litrosPeriodo = galoesPeriodo * litrosPorGalao;
-                    const litrosMensalEstimado = Math.round((litrosPeriodo / diasPeriodo) * 30);
-                    const galoesMensaisEstimados = Math.ceil(litrosMensalEstimado / litrosPorGalao);
-                    const custoGalaoMensal = galoesMensaisEstimados * custoGalao;
-                    const custoIndustrialMensal = custoMensalIndustrialEnergia + custoMensalIndustrialFiltro;
-                    const custoFiltroMensal = custoMensalFiltroSimples;
-
-                    let recomendacao = 'Galão 20L';
-                    let justificativa = 'Consumo moderado, logística de galões é suficiente.';
-                    if (litrosMensalEstimado <= limiteBaixo) {
-                        recomendacao = 'Bebedouro com filtro (rede)';
-                        justificativa = 'Baixo consumo; solução com filtro reduz custos e logística.';
-                    } else if (litrosMensalEstimado > limiteAlto) {
-                        recomendacao = 'Bebedouro industrial';
-                        justificativa = 'Alto consumo; equipamento industrial é mais eficiente e contínuo.';
-                    }
-
-                    return [
-                        unidade,
-                        galoesPeriodo,
-                        `${litrosPeriodo} L`,
-                        `${litrosMensalEstimado} L/mês`,
-                        moedaBRL(custoGalaoMensal),
-                        moedaBRL(custoFiltroMensal),
-                        moedaBRL(custoIndustrialMensal),
-                        recomendacao,
-                        justificativa
-                    ];
-                })
-                .sort((a, b) => {
-                    // ordena por litros/mês desc
-                    const lA = parseInt(String(a[3]).replace(/\D/g, '')) || 0;
-                    const lB = parseInt(String(b[3]).replace(/\D/g, '')) || 0;
-                    return lB - lA;
-                });
-
-            // Seção: Análise por Unidade
-            doc.autoTable({
-                startY: 46,
-                head: [[
-                    'Unidade', 'Galões (período)', 'Litros (período)', 'Consumo médio mensal',
-                    'Custo com Galão', 'Custo com Filtro', 'Custo Industrial', 'Recomendação', 'Justificativa'
-                ]],
-                body: analiseData,
-                theme: 'striped',
-                headStyles: { fillColor: [11, 61, 145], textColor: 255 },
-                styles: { fontSize: 9, cellPadding: 2 },
-                columnStyles: {
-                    0: { cellWidth: 35 },
-                    1: { halign: 'right' },
-                    2: { halign: 'right' },
-                    3: { halign: 'right' },
-                    4: { halign: 'right' },
-                    5: { halign: 'right' },
-                    6: { halign: 'right' },
-                    7: { cellWidth: 30 },
-                    8: { cellWidth: 52 }
+            // Análise por unidade (objetos) para tabelas separadas
+            const analiseAgua = Array.from(abastecimentoMap.entries()).map(([unidade, galoesPeriodo]) => {
+                const litrosPeriodo = galoesPeriodo * litrosPorGalao;
+                const litrosMensalEstimado = Math.round((litrosPeriodo / diasPeriodo) * 30);
+                const galoesMensaisEstimados = Math.ceil(litrosMensalEstimado / litrosPorGalao);
+                const custos = {
+                    galoesMes: galoesMensaisEstimados * custoGalao,
+                    industrialMes: custoMensalIndustrialEnergia + custoMensalIndustrialFiltro,
+                    filtroMes: custoMensalFiltroSimples,
+                };
+                let recomendacao = 'Galão 20L';
+                let justificativa = 'Consumo moderado, logística de galões é suficiente.';
+                if (litrosMensalEstimado <= limiteBaixo) {
+                    recomendacao = 'Filtro (rede)'; justificativa = 'Baixo consumo; filtro reduz custos e logística.';
+                } else if (litrosMensalEstimado > limiteAlto) {
+                    recomendacao = 'Bebedouro industrial'; justificativa = 'Alto consumo; equipamento contínuo e eficiente.';
                 }
-            });
+                return { unidade, galoesPeriodo, litrosPeriodo, litrosMensalEstimado, custos, recomendacao, justificativa };
+            }).sort((a,b) => b.litrosMensalEstimado - a.litrosMensalEstimado);
 
-            // Sumário e recomendações gerais
+            // KPIs
             const totalGaloes = Array.from(abastecimentoMap.values()).reduce((s, v) => s + v, 0);
             const totalLitrosPeriodo = totalGaloes * litrosPorGalao;
             const litrosMensalTotal = Math.round((totalLitrosPeriodo / diasPeriodo) * 30);
-            const custoGalaoTotal = Math.ceil(litrosMensalTotal / litrosPorGalao) * custoGalao;
-            const custoIndustrialTotal = custoMensalIndustrialEnergia + custoMensalIndustrialFiltro;
-            const custoFiltroTotal = custoMensalFiltroSimples;
+            const drawKpiBox = (x, y, title, value, color = [11, 61, 145]) => {
+                doc.setDrawColor(color[0], color[1], color[2]);
+                doc.setFillColor(color[0], color[1], color[2]);
+                doc.roundedRect(x, y, 55, 22, 3, 3, 'FD');
+                doc.setTextColor(255);
+                doc.setFontSize(9); doc.text(title, x + 6, y + 9);
+                doc.setFontSize(13); doc.text(String(value), x + 6, y + 16);
+                doc.setTextColor(40);
+            };
+            let y = 48;
+            drawKpiBox(MARGIN_LEFT, y, 'Galões entregues', totalGaloes);
+            drawKpiBox(MARGIN_LEFT + 60, y, 'Litros entregues', totalLitrosPeriodo);
+            drawKpiBox(MARGIN_LEFT + 120, y, 'Consumo mensal (L)', litrosMensalTotal);
+            y += 30;
 
-            const startY = (doc.lastAutoTable?.finalY || 46) + 6;
-            doc.setFontSize(10); doc.setTextColor(11, 61, 145);
-            doc.text('Sumário Executivo', 14, startY);
-            doc.setTextColor(51, 65, 85);
+            // Tabela 1: Abastecimento por Unidade
+            doc.setFontSize(12); doc.setTextColor(40);
+            doc.text('Abastecimento por Unidade (Água)', MARGIN_LEFT, y);
+            y += 6;
             doc.autoTable({
-                startY: startY + 2,
-                theme: 'plain',
-                body: [
-                    [`Dias no período: ${diasPeriodo}`],
-                    [`Consumo total estimado: ${litrosMensalTotal} L/mês`],
-                    [`Custo mensal (Galões): ${moedaBRL(custoGalaoTotal)}`],
-                    [`Custo mensal (Filtro rede): ${moedaBRL(custoFiltroTotal)}`],
-                    [`Custo mensal (Industrial): ${moedaBRL(custoIndustrialTotal)}`]
-                ],
-                styles: { fontSize: 10 }
+                startY: y,
+                head: [['Unidade', 'Galões (período)', 'Litros (período)', 'Consumo mensal (L)']],
+                body: analiseAgua.map(a => [a.unidade, a.galoesPeriodo, a.litrosPeriodo, a.litrosMensalEstimado]),
+                theme: 'striped',
+                headStyles: { fillColor: [11, 61, 145], textColor: 255, fontSize: 10, halign: 'center', valign: 'middle' },
+                styles: { fontSize: 9, cellPadding: { top: 3, bottom: 3, left: 2, right: 2 }, overflow: 'linebreak', minCellHeight: 8 },
+                columnStyles: { 0: { cellWidth: 50 }, 1: { cellWidth: 35, halign: 'right' }, 2: { cellWidth: 35, halign: 'right' }, 3: { cellWidth: 38, halign: 'right' } },
+                margin: { left: MARGIN_LEFT, right: MARGIN_RIGHT },
+                tableWidth: CONTENT_WIDTH
             });
+            y = (doc.lastAutoTable?.finalY || y) + 8;
 
-            const recomendacaoGeral = litrosMensalTotal > limiteAlto ? 'Investir em bebedouros industriais nas unidades de maior consumo.'
-                : (litrosMensalTotal <= limiteBaixo ? 'Adotar bebedouros com filtro (rede) nas unidades de baixo consumo.'
-                : 'Manter/otimizar abastecimento por galões nas unidades com consumo moderado.');
+            // Tabela 2: Recomendações e Custos
+            doc.setFontSize(12); doc.setTextColor(40);
+            doc.text('Recomendações e Custos', MARGIN_LEFT, y);
+            y += 6;
             doc.autoTable({
-                startY: (doc.lastAutoTable?.finalY || startY) + 4,
-                theme: 'plain',
-                head: [['Recomendação Geral']],
-                body: [[recomendacaoGeral]],
-                styles: { fontSize: 10, cellPadding: 2 }
+                startY: y,
+                head: [['Unidade', 'Recomendação', 'Custo Galão/mês', 'Custo Filtro/mês', 'Custo Industrial/mês']],
+                body: analiseAgua.map(a => [a.unidade, a.recomendacao, moedaBRL(a.custos.galoesMes), moedaBRL(a.custos.filtroMes), moedaBRL(a.custos.industrialMes)]),
+                theme: 'striped',
+                headStyles: { fillColor: [11, 61, 145], textColor: 255, fontSize: 10, halign: 'center', valign: 'middle' },
+                styles: { fontSize: 9, cellPadding: { top: 3, bottom: 3, left: 2, right: 2 }, overflow: 'linebreak', minCellHeight: 8 },
+                columnStyles: { 0: { cellWidth: 40 }, 1: { cellWidth: 60, overflow: 'linebreak' }, 2: { cellWidth: 28, halign: 'right' }, 3: { cellWidth: 28, halign: 'right' }, 4: { cellWidth: 28, halign: 'right' } },
+                margin: { left: MARGIN_LEFT, right: MARGIN_RIGHT },
+                tableWidth: CONTENT_WIDTH
             });
+            y = (doc.lastAutoTable?.finalY || y) + 8;
 
-            // Seção adicional: Entregas por Responsável
-            const responsavelData = Array.from(responsavelMap.entries())
-                .sort((a,b) => b[1] - a[1])
-                .map(entry => [entry[0], entry[1]]);
+            // Tabela 3: Entregas por Responsável
+            const responsavelData = Array.from(responsavelMap.entries()).sort((a,b) => b[1] - a[1]).map(entry => [entry[0], entry[1]]);
+            doc.setFontSize(12); doc.setTextColor(40); doc.text('Entregas por Responsável', MARGIN_LEFT, y);
+            y += 6;
             doc.autoTable({
-                startY: (doc.lastAutoTable?.finalY || startY) + 8,
+                startY: y,
                 head: [['Responsável', 'Entregas (galões)']],
                 body: responsavelData,
                 theme: 'striped',
-                headStyles: { fillColor: [41, 128, 185] },
-                styles: { fontSize: 9 }
+                headStyles: { fillColor: [41, 128, 185], fontSize: 10, halign: 'center' },
+                styles: { fontSize: 9, cellPadding: { top: 3, bottom: 3, left: 2, right: 2 } },
+                columnStyles: { 0: { cellWidth: 120 }, 1: { halign: 'right' } },
+                margin: { left: MARGIN_LEFT, right: MARGIN_RIGHT },
+                tableWidth: CONTENT_WIDTH
             });
+            y = (doc.lastAutoTable?.finalY || y) + 8;
+
+            // Ranking Top 10 — Água
+            const rankingAgua = analiseAgua.map(a => ({ unidade: a.unidade, litrosMes: a.litrosMensalEstimado }))
+                .sort((a,b) => b.litrosMes - a.litrosMes).slice(0, 10);
+            doc.setFontSize(12); doc.setTextColor(40); doc.text('Ranking de Consumo — Água (Top 10)', MARGIN_LEFT, y);
+            y += 6;
+            doc.autoTable({
+                startY: y,
+                head: [['Posição', 'Unidade', 'Consumo mensal (L)']],
+                body: rankingAgua.map((r, idx) => [idx + 1, r.unidade, r.litrosMes]),
+                theme: 'striped',
+                headStyles: { fillColor: [11, 61, 145], textColor: 255, fontSize: 10, halign: 'center' },
+                styles: { fontSize: 10, cellPadding: { top: 3, bottom: 3, left: 2, right: 2 } },
+                columnStyles: { 0: { cellWidth: 22, halign: 'center' }, 1: { cellWidth: 95 }, 2: { halign: 'right' } },
+                didParseCell: (data) => {
+                    if (data.section === 'body' && data.row.index <= 2) { data.cell.styles.fillColor = [253, 247, 228]; }
+                },
+                margin: { left: MARGIN_LEFT, right: MARGIN_RIGHT },
+                tableWidth: CONTENT_WIDTH
+            });
+            y = (doc.lastAutoTable?.finalY || y) + 8;
+
+            // Gráfico diário
+            const chartImg = makeDailyChartImage(movsFiltradas, 'Entregas por dia');
+            if (chartImg) {
+                doc.setFontSize(12); doc.setTextColor(40); doc.text('Tendência de Entregas (diária)', MARGIN_LEFT, y);
+                y += 6;
+                doc.addImage(chartImg, 'PNG', MARGIN_LEFT, y, CONTENT_WIDTH, 60);
+                y += 68;
+            }
+
+            // Recomendações gerais
+            doc.setFontSize(12); doc.setTextColor(40); doc.text('Recomendações Gerais', MARGIN_LEFT, y);
+            y += 6; doc.setFontSize(10); doc.setTextColor(80);
+            const pontos = [
+                'Padronizar filtros nas unidades de baixo volume para reduzir custos.',
+                'Avaliar fornecimento industrial nas unidades de alto consumo para ganho de escala.',
+                'Redistribuir rotas se houver picos de entregas por responsável.'
+            ];
+            pontos.forEach(p => { doc.text(`• ${p}`, MARGIN_LEFT, y); y += 5; });
         } else {
             // Relatório de Gás (mantém estrutura anterior com melhorias de cabeçalho)
             const abastecimentoData = Array.from(abastecimentoMap.entries())
@@ -236,23 +281,71 @@ export async function handleGerarPdf() {
                 .sort((a,b) => b[1] - a[1])
                 .map(entry => [entry[0], entry[1]]);
 
+            // KPIs de gás
+            const totalBotijoes = Array.from(abastecimentoMap.values()).reduce((s, v) => s + v, 0);
+            const consumoMensalEstimado = Math.round((totalBotijoes / diasPeriodo) * 30);
+            const drawKpiBox = (x, y, title, value, color = [11, 61, 145]) => {
+                doc.setDrawColor(color[0], color[1], color[2]);
+                doc.setFillColor(color[0], color[1], color[2]);
+                doc.roundedRect(x, 48, 55, 22, 3, 3, 'FD');
+                doc.setTextColor(255);
+                doc.setFontSize(9); doc.text(title, x + 6, 57);
+                doc.setFontSize(13); doc.text(String(value), x + 6, 64);
+                doc.setTextColor(40);
+            };
+            drawKpiBox(MARGIN_LEFT, 48, 'Botijões entregues', totalBotijoes);
+            drawKpiBox(MARGIN_LEFT + 60, 48, 'Consumo mensal (botijões)', consumoMensalEstimado);
+
             doc.autoTable({
-                startY: 46,
+                startY: 74,
                 head: [['Unidade', 'Quantidade Fornecida']],
                 body: abastecimentoData,
                 theme: 'striped',
-                headStyles: { fillColor: [22, 160, 133] },
-                styles: { fontSize: 9 }
+                headStyles: { fillColor: [22, 160, 133], fontSize: 10, halign: 'center' },
+                styles: { fontSize: 9, cellPadding: { top: 3, bottom: 3, left: 2, right: 2 } },
+                margin: { left: MARGIN_LEFT, right: MARGIN_RIGHT },
+                tableWidth: CONTENT_WIDTH
             });
 
             doc.autoTable({
-                startY: (doc.lastAutoTable?.finalY || 46) + 8,
+                startY: (doc.lastAutoTable?.finalY || 74) + 8,
                 head: [['Responsável', 'Quantidade Recebida']],
                 body: responsavelData,
                 theme: 'striped',
-                headStyles: { fillColor: [41, 128, 185] },
-                styles: { fontSize: 9 }
+                headStyles: { fillColor: [41, 128, 185], fontSize: 10, halign: 'center' },
+                styles: { fontSize: 9, cellPadding: { top: 3, bottom: 3, left: 2, right: 2 } },
+                margin: { left: MARGIN_LEFT, right: MARGIN_RIGHT },
+                tableWidth: CONTENT_WIDTH
             });
+
+            // Ranking Top 10 — Gás
+            const rankingGas = Array.from(abastecimentoMap.entries()).map(([unidade, qtdPeriodo]) => ({
+                unidade,
+                botijoesMes: Math.round((qtdPeriodo / diasPeriodo) * 30)
+            })).sort((a,b) => b.botijoesMes - a.botijoesMes).slice(0, 10);
+            doc.setFontSize(12); doc.setTextColor(40); doc.text('Ranking de Consumo — Gás (Top 10)', MARGIN_LEFT, (doc.lastAutoTable?.finalY || 74) + 16);
+            doc.autoTable({
+                startY: (doc.lastAutoTable?.finalY || 74) + 22,
+                head: [['Posição', 'Unidade', 'Consumo mensal (botijões)']],
+                body: rankingGas.map((r, idx) => [idx + 1, r.unidade, r.botijoesMes]),
+                theme: 'striped',
+                headStyles: { fillColor: [11, 61, 145], textColor: 255, fontSize: 10, halign: 'center' },
+                styles: { fontSize: 10, cellPadding: { top: 3, bottom: 3, left: 2, right: 2 } },
+                columnStyles: { 0: { cellWidth: 22, halign: 'center' }, 1: { cellWidth: 95 }, 2: { halign: 'right' } },
+                didParseCell: (data) => {
+                    if (data.section === 'body' && data.row.index <= 2) { data.cell.styles.fillColor = [253, 247, 228]; }
+                },
+                margin: { left: MARGIN_LEFT, right: MARGIN_RIGHT },
+                tableWidth: CONTENT_WIDTH
+            });
+        }
+
+        // Rodapé com paginação
+        const pageCount = doc.getNumberOfPages();
+        for (let i = 1; i <= pageCount; i++) {
+            doc.setPage(i);
+            doc.setFontSize(9); doc.setTextColor(130);
+            doc.text(`Página ${i} de ${pageCount}`, doc.internal.pageSize.getWidth() - MARGIN_RIGHT, doc.internal.pageSize.getHeight() - 10, { align: 'right' });
         }
 
         doc.save(`Relatorio_${tipoLabel}_${dataInicioStr}_a_${dataFimStr}.pdf`);
