@@ -27,6 +27,43 @@ async function toDataURL(url) {
     }
 }
 
+// Reencode de imagem via Canvas para evitar PNGs inválidos
+async function loadImageDataUrl(url) {
+    try {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.src = `${url}?v=${Date.now()}`;
+        await new Promise((resolve, reject) => {
+            img.onload = resolve;
+            img.onerror = () => reject(new Error('Falha ao carregar imagem'));
+        });
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth || img.width;
+        canvas.height = img.naturalHeight || img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        return canvas.toDataURL('image/png', 0.92);
+    } catch (e) {
+        // Fallback para leitor de blob
+        try { return await toDataURL(url); } catch { return null; }
+    }
+}
+
+// Inserção segura de imagem no jsPDF sem abortar o relatório
+function safeAddImage(doc, dataUrl, defaultFormat, x, y, w, h) {
+    if (!dataUrl) return false;
+    try {
+        const fmt = dataUrl.startsWith('data:image/png') ? 'PNG'
+            : dataUrl.startsWith('data:image/jpeg') ? 'JPEG'
+            : (defaultFormat || 'PNG');
+        doc.addImage(dataUrl, fmt, x, y, w, h);
+        return true;
+    } catch (e) {
+        console.warn('Imagem inválida ao inserir no PDF, seguindo sem imagem.', e);
+        return false;
+    }
+}
+
 function moedaBRL(valor) {
     try { return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor || 0); }
     catch { return `R$ ${(valor || 0).toFixed(2)}`; }
@@ -73,13 +110,13 @@ export async function handleGerarPdf() {
             showAlert('alert-relatorio', 'Erro: Módulo AutoTable não carregado. Verifique a internet ou recarregue a página.', 'error');
             return;
         }
-        const logoDataUrl = await toDataURL('SaoLuis.png');
+        const logoDataUrl = await loadImageDataUrl('SaoLuis.png');
 
         // Cabeçalho institucional aprimorado
         const MARGIN_LEFT = 14;
         const MARGIN_RIGHT = 14;
         const CONTENT_WIDTH = doc.internal.pageSize.getWidth() - MARGIN_LEFT - MARGIN_RIGHT;
-        if (logoDataUrl) { try { doc.addImage(logoDataUrl, 'PNG', MARGIN_LEFT, 10, 22, 22); } catch {} }
+        safeAddImage(doc, logoDataUrl, 'PNG', MARGIN_LEFT, 10, 22, 22);
         doc.setFillColor(11, 61, 145);
         doc.roundedRect(MARGIN_LEFT + 26, 10, CONTENT_WIDTH - 26, 14, 3, 3, 'F');
         doc.setTextColor(255);
@@ -259,8 +296,8 @@ export async function handleGerarPdf() {
             if (chartImg) {
                 doc.setFontSize(12); doc.setTextColor(40); doc.text('Tendência de Entregas (diária)', MARGIN_LEFT, y);
                 y += 6;
-                doc.addImage(chartImg, 'PNG', MARGIN_LEFT, y, CONTENT_WIDTH, 60);
-                y += 68;
+                const ok = safeAddImage(doc, chartImg, 'PNG', MARGIN_LEFT, y, CONTENT_WIDTH, 60);
+                y += ok ? 68 : 0;
             }
 
             // Recomendações gerais
