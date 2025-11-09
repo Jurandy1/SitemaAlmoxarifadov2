@@ -1097,3 +1097,34 @@ button .loading-spinner-small {
         font-size: 0.75rem;
     }
 }
+/* Pager - Materiais (Lista) */
+.dashboard-materiais-pager {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-top: 1px solid #eee;
+  border-bottom: 1px solid #f3f4f6;
+  background: #fafafa;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+.dashboard-materiais-pager .btn-sm {
+  font-size: 12px;
+  padding: 6px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: white;
+}
+.dashboard-materiais-pager .btn-sm[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.dashboard-materiais-pager .select-sm {
+  font-size: 12px;
+  padding: 6px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: white;
+}

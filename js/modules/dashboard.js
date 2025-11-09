@@ -6,6 +6,9 @@ import { formatTimestamp } from "../utils/formatters.js";
 
 let dashboardAguaChartInstance, dashboardGasChartInstance;
 let dashboardRefreshInterval = null;
+// Estado de paginação da lista de Materiais
+let materiaisPagerState = { page: 1, pageSize: 20, total: 0, pages: 1, data: [] };
+let materiaisAutoPagerInterval = null;
 
 // =========================================================================
 // FUNÇÕES DE UTILIDADE DO DASHBOARD
@@ -102,7 +105,13 @@ function switchDashboardView(viewName) {
         // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
         if (DOM_ELEMENTS.dashboardMateriaisSeparacaoCountEl) renderDashboardMateriaisCounts(); 
     }
-    if(viewName === 'materiais') renderDashboardMateriaisList();
+    if(viewName === 'materiais') {
+        renderDashboardMateriaisList();
+        if (DOM_ELEMENTS.dashboardMateriaisPagerContainer) DOM_ELEMENTS.dashboardMateriaisPagerContainer.classList.remove('hidden');
+    } else {
+        if (DOM_ELEMENTS.dashboardMateriaisPagerContainer) DOM_ELEMENTS.dashboardMateriaisPagerContainer.classList.add('hidden');
+        if (materiaisAutoPagerInterval) { clearInterval(materiaisAutoPagerInterval); materiaisAutoPagerInterval = null; }
+    }
 }
 
 /**
@@ -218,13 +227,23 @@ function renderDashboardMateriaisList() {
                     : (b.dataRetirada?.toMillis() || b.dataSeparacao?.toMillis() || 0);
             return tsA - tsB; 
         }); 
-    
+
+    // Atualiza estado de paginação
+    materiaisPagerState.total = pendentes.length;
+    materiaisPagerState.pages = Math.max(1, Math.ceil(materiaisPagerState.total / materiaisPagerState.pageSize));
+    if (materiaisPagerState.page > materiaisPagerState.pages) materiaisPagerState.page = materiaisPagerState.pages;
+    materiaisPagerState.data = pendentes;
+
     if (pendentes.length === 0) { 
         DOM_ELEMENTS.dashboardMateriaisListContainer.innerHTML = '<p class="text-sm text-slate-500 text-center py-4">Nenhum material pendente.</p>'; 
+        atualizarPagerUI();
         return; 
     }
+    const inicio = (materiaisPagerState.page - 1) * materiaisPagerState.pageSize;
+    const fim = inicio + materiaisPagerState.pageSize;
+    const paginaItems = pendentes.slice(inicio, fim);
     
-    const html = pendentes.map(m => {
+    const html = paginaItems.map(m => {
         const isSeparacao = m.status === 'separacao';
         const isRetirada = m.status === 'retirada';
         
@@ -259,6 +278,14 @@ function renderDashboardMateriaisList() {
     }).join('');
 
     DOM_ELEMENTS.dashboardMateriaisListContainer.innerHTML = html;
+    atualizarPagerUI();
+    // Auto-avançar páginas no Modo TV da sub-view Materiais
+    const materiaisPane = document.getElementById('dashboard-view-materiais');
+    if (materiaisPane && materiaisPane.classList.contains('tv-mode') && materiaisPagerState.pages > 1) {
+        iniciarAutoPagerTV();
+    } else {
+        pararAutoPagerTV();
+    }
 }
 
 /**
@@ -532,6 +559,45 @@ export function initDashboardListeners() {
     if (btnVerGrade) {
         btnVerGrade.addEventListener('click', () => switchDashboardView('geral'));
     }
+    // Botão Modo TV na sub-view Materiais
+    const btnMateriaisTvMode = document.getElementById('btn-dashboard-materiais-tvmode');
+    if (btnMateriaisTvMode) {
+        btnMateriaisTvMode.addEventListener('click', () => {
+            const materiaisPane = document.getElementById('dashboard-view-materiais');
+            if (materiaisPane) {
+                materiaisPane.classList.toggle('tv-mode');
+                // Reinicia render para aplicar auto-pager se necessário
+                renderDashboardMateriaisList();
+            }
+        });
+    }
+    // Listeners da paginação
+    if (DOM_ELEMENTS.btnMateriaisPrevPage) {
+        DOM_ELEMENTS.btnMateriaisPrevPage.addEventListener('click', () => {
+            if (materiaisPagerState.page > 1) {
+                materiaisPagerState.page -= 1;
+                renderDashboardMateriaisList();
+            }
+        });
+    }
+    if (DOM_ELEMENTS.btnMateriaisNextPage) {
+        DOM_ELEMENTS.btnMateriaisNextPage.addEventListener('click', () => {
+            if (materiaisPagerState.page < materiaisPagerState.pages) {
+                materiaisPagerState.page += 1;
+                renderDashboardMateriaisList();
+            }
+        });
+    }
+    if (DOM_ELEMENTS.materiaisPageSizeSelect) {
+        DOM_ELEMENTS.materiaisPageSizeSelect.addEventListener('change', (e) => {
+            const val = parseInt(e.target.value, 10);
+            if (!isNaN(val) && val > 0) {
+                materiaisPagerState.pageSize = val;
+                materiaisPagerState.page = 1;
+                renderDashboardMateriaisList();
+            }
+        });
+    }
     
     // Adiciona listeners para os cards de KPI (Em Separação e Retirada)
     const cardSeparacao = document.getElementById('dashboard-card-separacao');
@@ -543,4 +609,35 @@ export function initDashboardListeners() {
 
     // Atualiza ícones Lucide caso necessário
     if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
+}
+
+// =====================
+// Helpers: Pager Materiais
+// =====================
+function atualizarPagerUI() {
+    if (!DOM_ELEMENTS.dashboardMateriaisPagerContainer || !DOM_ELEMENTS.materiaisPagerInfo) return;
+    const total = materiaisPagerState.total;
+    const page = materiaisPagerState.page;
+    const pages = materiaisPagerState.pages;
+    const pageSize = materiaisPagerState.pageSize;
+    const showing = Math.min(pageSize, Math.max(0, total - (page - 1) * pageSize));
+    DOM_ELEMENTS.materiaisPagerInfo.textContent = `Página ${page} de ${pages} • ${showing} itens de ${total}`;
+    if (DOM_ELEMENTS.btnMateriaisPrevPage) DOM_ELEMENTS.btnMateriaisPrevPage.disabled = page <= 1;
+    if (DOM_ELEMENTS.btnMateriaisNextPage) DOM_ELEMENTS.btnMateriaisNextPage.disabled = page >= pages;
+}
+
+function iniciarAutoPagerTV() {
+    pararAutoPagerTV();
+    materiaisAutoPagerInterval = setInterval(() => {
+        if (materiaisPagerState.pages <= 1) return;
+        materiaisPagerState.page = materiaisPagerState.page >= materiaisPagerState.pages ? 1 : materiaisPagerState.page + 1;
+        renderDashboardMateriaisList();
+    }, 10000); // troca a página a cada 10s
+}
+
+function pararAutoPagerTV() {
+    if (materiaisAutoPagerInterval) {
+        clearInterval(materiaisAutoPagerInterval);
+        materiaisAutoPagerInterval = null;
+    }
 }

@@ -419,10 +419,32 @@
                         <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
                             <div class="flex justify-between items-center mb-4 flex-wrap gap-3">
                                 <h3 class="text-lg font-semibold text-gray-900">Materiais Pendentes (Requisição, Separação e Retirada)</h3>
-                                <button id="btn-dashboard-ver-grade" class="text-sm font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1" title="Ver como Grade">
-                                    <i data-lucide="grid" class="w-4 h-4"></i>
-                                    Ver Grade
-                                </button>
+                                <div class="flex items-center gap-3">
+                                    <button id="btn-dashboard-materiais-tvmode" class="text-sm font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1" title="Modo TV (auto-paginar)">
+                                        <i data-lucide="monitor" class="w-4 h-4"></i>
+                                        Modo TV
+                                    </button>
+                                    <button id="btn-dashboard-ver-grade" class="text-sm font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1" title="Ver como Grade">
+                                        <i data-lucide="grid" class="w-4 h-4"></i>
+                                        Ver Grade
+                                    </button>
+                                </div>
+                            </div>
+                            <!-- Pager de Materiais (Lista) -->
+                            <div id="dashboard-materiais-pager" class="dashboard-materiais-pager hidden" aria-label="Paginação da lista de materiais">
+                                <div class="pager-left flex items-center gap-2">
+                                    <button id="btn-materiais-prev-page" class="btn-sm text-blue-600 hover:text-blue-800" aria-label="Página anterior">Anterior</button>
+                                    <span id="materiais-pager-info" class="text-xs text-gray-600">Página 1 de 1 • 0 itens</span>
+                                    <button id="btn-materiais-next-page" class="btn-sm text-blue-600 hover:text-blue-800" aria-label="Próxima página">Próxima</button>
+                                </div>
+                                <div class="pager-right flex items-center gap-2">
+                                    <label for="materiais-page-size-select" class="text-xs text-gray-600">Itens/página</label>
+                                    <select id="materiais-page-size-select" class="select-sm">
+                                        <option value="10">10</option>
+                                        <option value="20" selected>20</option>
+                                        <option value="50">50</option>
+                                    </select>
+                                </div>
                             </div>
                             <div id="dashboard-materiais-list" class="space-y-3 dashboard-list">
                                  <div class="text-center p-10" id="loading-materiais-dashboard">
