@@ -5,6 +5,8 @@
 */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
+/* (Revert) Removendo variáveis customizadas do menu para voltar ao estilo original */
+
 /* Fontes base (fallback caso o Tailwind não pegue) */
 body {
     font-family: 'Inter', sans-serif;
@@ -60,61 +62,6 @@ header p {
 /* ============================================= */
 /* 3) NAVEGAÇÃO PRINCIPAL (ABAS)                 */
 /* ============================================= */
-.main-nav-container {
-    /* CORREÇÃO: Re-habilitando o scrollbar horizontal */
-    -ms-overflow-style: auto;  /* IE and Edge */
-    scrollbar-width: auto;  /* Firefox */
-    
-    /* Adicionando uma sombra sutil para indicar que há mais conteúdo */
-    box-shadow: inset 0 -4px 6px -1px rgba(0, 0, 0, 0.05);
-    padding-bottom: 0.5rem; 
-}
-.main-nav-container::-webkit-scrollbar {
-    display: block; /* Chrome, Safari, Opera */
-    height: 8px; /* Mostrar o scrollbar */
-}
-
-/* NOVO: Estiliza o scrollbar para ser sutil, mas visível */
-.main-nav-container::-webkit-scrollbar-thumb {
-    background-color: #cbd5e1; /* slate-300 */
-    border-radius: 4px;
-}
-.main-nav-container::-webkit-scrollbar-track {
-    background-color: #f1f5f9; /* slate-100 */
-}
-
-.nav-btn {
-    /* Estilo Inativo (Spec 3) */
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem; /* gap-2 */
-    padding: 0.5rem 1rem; /* px-4 py-2 */
-    font-size: 0.875rem; /* text-sm */
-    font-weight: 500; /* font-medium */
-    border-radius: 9999px; /* rounded-full */
-    background-color: #f3f4f6; /* bg-gray-100 */
-    color: #374151; /* text-gray-700 */
-    white-space: nowrap;
-    transition: all 0.2s ease-in-out;
-    border: 2px solid transparent;
-}
-.nav-btn:hover {
-    background-color: #e5e7eb; /* hover:bg-gray-200 */
-}
-.nav-btn.active {
-    /* Estilo Ativo (Spec 3) */
-    background-color: #2563eb; /* bg-blue-600 */
-    color: #ffffff; /* text-white */
-    font-weight: 600;
-}
-/* Ajusta a cor do ícone quando inativo */
-.nav-btn .lucide {
-    width: 1rem; /* w-4 */
-    height: 1rem; /* h-4 */
-}
-.nav-btn.active .lucide {
-    color: #ffffff !important; /* Força o ícone a ser branco */
-}
 
 
 /* ============================================= */
@@ -1180,6 +1127,77 @@ button .loading-spinner-small {
   background: #dbeafe;
   color: #1d4ed8;
 }
+
+/* ================================ */
+/* Navegação Principal (Top Nav)    */
+/* ================================ */
+/* ============================================= */
+/* 3) NAVEGAÇÃO PRINCIPAL (ABAS) (Original)      */
+/* ============================================= */
+.main-nav-container {
+    /* CORREÇÃO: Re-habilitando o scrollbar horizontal */
+    -ms-overflow-style: auto;  /* IE and Edge */
+    scrollbar-width: auto;  /* Firefox */
+    
+    /* Adicionando uma sombra sutil para indicar que há mais conteúdo */
+    box-shadow: inset 0 -4px 6px -1px rgba(0, 0, 0, 0.05);
+    padding-bottom: 0.5rem; 
+}
+.main-nav-container::-webkit-scrollbar {
+    display: block; /* Chrome, Safari, Opera */
+    height: 8px; /* Mostrar o scrollbar */
+}
+
+/* NOVO: Estiliza o scrollbar para ser sutil, mas visível */
+.main-nav-container::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1; /* slate-300 */
+    border-radius: 4px;
+}
+.main-nav-container::-webkit-scrollbar-track {
+    background-color: #f1f5f9; /* slate-100 */
+}
+
+/* Container interno que faz o scroll horizontal das abas */
+/* Container interno antigo usa utilitários no HTML (flex/space-x/overflow-x)
+   Por isso não precisamos de uma classe separada aqui. */
+
+.nav-btn {
+    /* Estilo Inativo (Original pills) */
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem; /* gap-2 */
+    padding: 0.5rem 1rem; /* px-4 py-2 */
+    font-size: 0.875rem; /* text-sm */
+    font-weight: 500; /* font-medium */
+    border-radius: 9999px; /* rounded-full */
+    background-color: #f3f4f6; /* bg-gray-100 */
+    color: #374151; /* text-gray-700 */
+    white-space: nowrap;
+    transition: all 0.2s ease-in-out;
+    border: 2px solid transparent;
+}
+.nav-btn .lucide { width: 1.125rem; height: 1.125rem; }
+.nav-btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(96,165,250,0.45);
+    border-color: #60a5fa;
+}
+.nav-btn:hover {
+    background-color: #e5e7eb; /* hover:bg-gray-200 */
+}
+.nav-btn.active {
+    /* Estilo Ativo (Original pills) */
+    background-color: #2563eb; /* bg-blue-600 */
+    color: #ffffff; /* text-white */
+    font-weight: 600;
+}
+.nav-btn.active .lucide { color: #ffffff !important; }
+
+/* Header (brand bar) refinado */
+.brand-bar { background: #ffffff; }
+.brand-bar .faixa-semcas { height: 3px; }
+.brand-bar h1 { letter-spacing: 0.2px; }
+.brand-bar img { filter: saturate(1.05); }
 
 .accordion-section {
   background: #fff;

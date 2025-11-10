@@ -7,10 +7,12 @@ import {
   setDoc,
   serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-import { createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { createUserWithEmailAndPassword, getAuth, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { DOM_ELEMENTS, showAlert } from "../utils/dom-helpers.js";
 import { getUserRole } from "../utils/cache.js";
 import { db, COLLECTIONS, auth } from "../services/firestore-service.js";
+import { firebaseConfig } from "../firebase-config.js";
 import { isReady } from "./auth.js";
 
 let allUsers = [];
@@ -140,7 +142,11 @@ async function handleCreateUser(e) {
   btn.innerHTML = '<div class="loading-spinner-small mx-auto"></div>';
 
   try {
-    const cred = await createUserWithEmailAndPassword(auth, email, password);
+    // Usa uma instância Auth secundária para não trocar a sessão atual do admin
+    const secondaryApp = initializeApp(firebaseConfig, "SecondaryAuthApp");
+    const secondaryAuth = getAuth(secondaryApp);
+
+    const cred = await createUserWithEmailAndPassword(secondaryAuth, email, password);
     const uid = cred.user.uid;
 
     await setDoc(doc(COLLECTIONS.userRoles, uid), {
@@ -150,10 +156,23 @@ async function handleCreateUser(e) {
       createdAt: serverTimestamp(),
     });
 
-    showAlert("alert-add-user", `Usuário '${email}' criado como '${role}'.`, "success");
+    // Tenta enviar o e-mail de redefinição de senha para o novo usuário
+    let resetMsg = "";
+    try {
+      await sendPasswordResetEmail(auth, email);
+      resetMsg = " E-mail de redefinição de senha enviado.";
+    } catch (mailErr) {
+      console.warn("Falha ao enviar e-mail de redefinição:", mailErr);
+      resetMsg = " (Não foi possível enviar o e-mail de redefinição agora.)";
+    }
+
+    showAlert("alert-add-user", `Usuário '${email}' criado como '${role}'.${resetMsg}`, "success");
     DOM_ELEMENTS.formAddUser.reset();
     // MELHORIA UX: Renderiza a tabela imediatamente.
-    renderUsuariosTable(); 
+    renderUsuariosTable();
+
+    // Encerra a app secundária para liberar recursos
+    try { await deleteApp(secondaryApp); } catch (_) {}
   } catch (err) {
     console.error("Erro ao criar usuário:", err);
     showAlert("alert-add-user", `Erro: ${err.message}`, "error");

@@ -92,6 +92,7 @@ export async function handleGerarPdf() {
 
     const movimentacoes = (tipo === 'agua' ? getAguaMovimentacoes() : getGasMovimentacoes());
     const tipoLabel = (tipo === 'agua' ? 'Água' : 'Gás');
+    const nomenclatura = (tipo === 'agua' ? 'Água (Galão 20L)' : 'Gás (Botijão)');
 
     const movsFiltradas = movimentacoes.filter(m => { 
         const mData = m.data?.toMillis(); 
@@ -121,12 +122,21 @@ export async function handleGerarPdf() {
         doc.roundedRect(MARGIN_LEFT + 26, 10, CONTENT_WIDTH - 26, 14, 3, 3, 'F');
         doc.setTextColor(255);
         doc.setFontSize(14);
-        doc.text('Relatório de Consumo e Custos', MARGIN_LEFT + 32, 20);
+        doc.text(`Relatório de Consumo e Custos — ${nomenclatura}`, MARGIN_LEFT + 32, 20);
         doc.setTextColor(51, 65, 85);
         doc.setFontSize(10);
         const userEmail = (auth?.currentUser?.email) || 'Operador Anônimo';
         doc.text(`Tipo: ${tipoLabel} | Período: ${formatTimestamp(Timestamp.fromMillis(dataInicio))} a ${formatTimestamp(Timestamp.fromMillis(dataFim))}`, MARGIN_LEFT, 36);
         doc.text(`Emitido por: ${userEmail} em ${new Date().toLocaleString('pt-BR')}`, MARGIN_LEFT, 41);
+        // Nota sobre margem aplicada nas previsões
+        try {
+            const margemAgua = parseInt(document.getElementById('margem-seguranca-agua')?.value || '5', 10);
+            const margemGas = parseInt(document.getElementById('margem-seguranca-gas')?.value || '15', 10);
+            const margemAplicada = (tipo === 'agua') ? margemAgua : margemGas;
+            doc.setTextColor(100); doc.setFontSize(9);
+            doc.text(`Nota: Previsões e recomendações consideram margem de segurança de ${margemAplicada}%`, MARGIN_LEFT, 46);
+            doc.setTextColor(51); doc.setFontSize(10);
+        } catch (_) { /* se DOM indisponível, segue sem nota */ }
 
         // Dados agregados básicos
         const abastecimentoMap = new Map();

@@ -17,7 +17,7 @@ export function executeFinalMovimentacao(data) {
     // almoxTempFields = data; // Armazena os dados nos campos hidden em vez de uma variável global
 
     const { tipoMovimentacao, qtdEntregue, qtdRetorno, itemType } = data;
-    const itemLabel = itemType === 'agua' ? 'galão(ões)' : 'botijão(ões)';
+    const itemLabel = itemType === 'agua' ? 'galão(ões) 20L' : 'botijão(ões)';
 
     // ** Preenche os campos hidden do modal **
     const tempUnidadeIdEl = document.getElementById('almox-temp-unidadeId');
@@ -170,7 +170,7 @@ export async function handleFinalMovimentacaoSubmit() {
                     responsavelAlmoxarifado: nomeAlmoxarifado, // Salva quem fez a operação
                     registradoEm: timestamp
                 });
-                msgSucesso.push(`${qtdEntregue} ${itemType === 'agua' ? 'galão(ões)' : 'botijão(ões)'} entregue(s)`);
+                msgSucesso.push(`${qtdEntregue} ${itemLabel} entregue(s)`);
             } catch (error) {
                 console.error(`Erro ao salvar entrega (${itemType}):`, error);
                 operacoesComErro++;
@@ -192,7 +192,7 @@ export async function handleFinalMovimentacaoSubmit() {
                     responsavelAlmoxarifado: nomeAlmoxarifado, // Salva quem fez a operação
                     registradoEm: timestamp
                 });
-                msgSucesso.push(`${qtdRetorno} ${itemType === 'agua' ? 'galão(ões)' : 'botijão(ões)'} recebido(s)`);
+                msgSucesso.push(`${qtdRetorno} ${itemLabel} recebido(s)`);
              } catch (error) {
                  console.error(`Erro ao salvar retorno (${itemType}):`, error);
                  operacoesComErro++;

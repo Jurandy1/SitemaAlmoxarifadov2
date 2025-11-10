@@ -171,7 +171,7 @@
         </div>
 
         <!-- 3) NAVEGAÇÃO PRINCIPAL POR ABAS -->
-        <nav class="bg-white/95 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-40">
+    <nav class="bg-white/95 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-40">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <!-- main-nav-container é usado pelo CSS para o scroll -->
                 <div class="flex space-x-2 main-nav-container py-2 overflow-x-auto">
@@ -554,7 +554,10 @@
 
                             <!-- Formulário de Saída (Unidades) -->
                             <form id="form-agua" class="p-6 space-y-4">
-                                <h2 class="text-xl font-bold text-gray-800 mb-2">Lançar Movimentação (Água)</h2>
+                                <h2 class="text-xl font-bold text-gray-800 mb-2">Lançar Movimentação (Água)
+                                    <span title="Movimentação: entrega (saída) de galões 20L cheios e retorno (entrada) de galões 20L vazios nas unidades." class="inline-block align-middle ml-1 text-gray-400 cursor-help"><i data-lucide="info"></i></span>
+                                </h2>
+                                <p class="text-xs text-gray-500 mb-2">Movimentação refere-se às operações com as unidades (saída/retorno). Para compras/reposição no almoxarifado, utilize a aba Entrada (Estoque).</p>
                                 <div>
                                     <label for="select-unidade-agua" class="form-label">Unidade (Apenas habilitadas)</label>
                                     <select id="select-unidade-agua" class="form-select" required></select>
@@ -562,21 +565,21 @@
                                 <div id="unidade-saldo-alerta-agua" class="alert alert-warning mt-2" style="display:none;"></div>
 
                                 <div>
-                                    <label for="select-tipo-agua" class="form-label">Tipo de Movimentação</label>
+                                    <label for="select-tipo-agua" class="form-label" title="Troca combina saída de cheios e retorno de vazios; Entrega é apenas saída; Retorno é apenas entrada de vazios.">Tipo de Movimentação</label>
                                     <select id="select-tipo-agua" class="form-select" required>
-                                        <option value="troca">Troca (Entregar Cheio / Receber Vazio)</option>
-                                        <option value="entrega">Apenas Saída (Entregar Cheio)</option>
-                                        <option value="retorno">Apenas Retorno (Receber Vazio)</option>
+                                        <option value="troca">Troca (Entregar Galão 20L Cheio / Receber Galão 20L Vazio)</option>
+                                        <option value="entrega">Apenas Saída (Entregar Galão 20L Cheio)</option>
+                                        <option value="retorno">Apenas Retorno (Receber Galão 20L Vazio)</option>
                                     </select>
                                 </div>
 
                                 <div class="grid grid-cols-2 gap-4">
                                     <div id="form-group-qtd-entregue-agua">
-                                        <label for="input-qtd-entregue-agua" class="form-label">Qtd. Entregue (Galão Cheio)</label>
+                                        <label for="input-qtd-entregue-agua" class="form-label" title="Saída: galões 20L cheios enviados para a unidade.">Qtd. Entregue (Galão 20L Cheio)</label>
                                         <input type="number" id="input-qtd-entregue-agua" class="form-input" min="0" value="0" required>
                                     </div>
                                     <div id="form-group-qtd-retorno-agua" class="hidden">
-                                        <label for="input-qtd-retorno-agua" class="form-label">Qtd. Recebida (Galão Vazio)</label>
+                                        <label for="input-qtd-retorno-agua" class="form-label" title="Entrada de vazios: galões 20L vazios recebidos da unidade.">Qtd. Recebida (Galão 20L Vazio)</label>
                                         <input type="number" id="input-qtd-retorno-agua" class="form-input" min="0" value="0" required>
                                     </div>
                                 </div>
@@ -596,9 +599,12 @@
 
                             <!-- Formulário de Entrada (Estoque) -->
                             <form id="form-entrada-agua" class="p-6 space-y-4 hidden">
-                                <h2 class="text-xl font-bold text-gray-800 mb-2">Dar Entrada no Estoque (Água)</h2>
+                                <h2 class="text-xl font-bold text-gray-800 mb-2">Dar Entrada no Estoque (Água)
+                                    <span title="Entrada no estoque: compra/reposição de galões 20L cheios no almoxarifado (não confundir com retorno de vazios das unidades)." class="inline-block align-middle ml-1 text-gray-400 cursor-help"><i data-lucide="info"></i></span>
+                                </h2>
+                                <p class="text-xs text-gray-500">Entrada de estoque representa compra/reposição de galões 20L cheios no almoxarifado.</p>
                                 <div>
-                                    <label for="input-qtd-entrada-agua" class="form-label">Quantidade</label>
+                                    <label for="input-qtd-entrada-agua" class="form-label">Quantidade (Galões 20L Cheios)</label>
                                     <input type="number" id="input-qtd-entrada-agua" class="form-input" min="1" value="1" required>
                                 </div>
                                 <div>
@@ -936,7 +942,7 @@
                                 </div>
                                 <div>
                                     <label for="margem-seguranca-agua" class="form-label">Margem de Segurança (%):</label>
-                                    <input type="number" id="margem-seguranca-agua" class="form-input" min="0" max="100" value="15">
+                                    <input type="number" id="margem-seguranca-agua" class="form-input" min="0" max="100" value="5">
                                 </div>
                             </div>
                             <div class="mb-4" id="exclusao-container-agua">
@@ -1067,28 +1073,31 @@
                            </div>
 
                            <form id="form-gas" class="p-6 space-y-4">
-                               <h2 class="text-xl font-bold text-gray-800 mb-2">Lançar Movimentação (Gás)</h2>
+                               <h2 class="text-xl font-bold text-gray-800 mb-2">Lançar Movimentação (Gás)
+                                   <span title="Movimentação: entrega (saída) de botijões cheios e retorno (entrada) de botijões vazios nas unidades." class="inline-block align-middle ml-1 text-gray-400 cursor-help"><i data-lucide="info"></i></span>
+                               </h2>
+                               <p class="text-xs text-gray-500 mb-2">Movimentação refere-se às operações com as unidades (saída/retorno). Para compras/reposição no almoxarifado, utilize a aba Entrada (Estoque).</p>
                                <div>
                                    <label for="select-unidade-gas" class="form-label">Unidade (Apenas habilitadas)</label>
                                    <select id="select-unidade-gas" class="form-select" required></select>
                                </div>
                                <div id="unidade-saldo-alerta-gas" class="alert alert-warning mt-2" style="display:none;"></div>
                                <div>
-                                   <label for="select-tipo-gas" class="form-label">Tipo de Movimentação</label>
+                                   <label for="select-tipo-gas" class="form-label" title="Troca combina saída de cheios e retorno de vazios; Entrega é apenas saída; Retorno é apenas entrada de vazios.">Tipo de Movimentação</label>
                                    <select id="select-tipo-gas" class="form-select" required>
-                                       <option value="troca">Troca (Entregar Cheio / Receber Vazio)</option>
-                                       <option value="entrega">Apenas Saída (Entregar Cheio)</option>
-                                       <option value="retorno">Apenas Retorno (Receber Vazio)</option>
+                                       <option value="troca">Troca (Entregar Botijão Cheio / Receber Botijão Vazio)</option>
+                                       <option value="entrega">Apenas Saída (Entregar Botijão Cheio)</option>
+                                       <option value="retorno">Apenas Retorno (Receber Botijão Vazio)</option>
                                    </select>
                                </div>
 
                                <div class="grid grid-cols-2 gap-4">
                                    <div id="form-group-qtd-entregue-gas">
-                                       <label for="input-qtd-entregue-gas" class="form-label">Qtd. Entregue (Gás Cheio)</label>
+                                       <label for="input-qtd-entregue-gas" class="form-label" title="Saída: botijões cheios enviados para a unidade.">Qtd. Entregue (Botijão Cheio)</label>
                                        <input type="number" id="input-qtd-entregue-gas" class="form-input" min="0" value="0" required>
                                    </div>
                                    <div id="form-group-qtd-retorno-gas" class="hidden">
-                                       <label for="input-qtd-retorno-gas" class="form-label">Qtd. Recebida (Gás Vazio)</label>
+                                       <label for="input-qtd-retorno-gas" class="form-label" title="Entrada de vazios: botijões vazios recebidos da unidade.">Qtd. Recebida (Botijão Vazio)</label>
                                        <input type="number" id="input-qtd-retorno-gas" class="form-input" min="0" value="0" required>
                                    </div>
                                </div>
@@ -1108,8 +1117,9 @@
 
                            <form id="form-entrada-gas" class="p-6 space-y-4 hidden">
                                <h2 class="text-xl font-bold text-gray-800 mb-2">Dar Entrada no Estoque (Gás)</h2>
+                               <p class="text-xs text-gray-500">Entrada de estoque representa compra/reposição de botijões cheios no almoxarifado.</p>
                                <div>
-                                   <label for="input-qtd-entrada-gas" class="form-label">Quantidade</label>
+                                   <label for="input-qtd-entrada-gas" class="form-label">Quantidade (Botijões Cheios)</label>
                                    <input type="number" id="input-qtd-entrada-gas" class="form-input" min="1" value="1" required>
                                </div>
                                <div>
