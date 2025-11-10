@@ -685,6 +685,8 @@ export function initDashboardListeners() {
                 // Expandir largura para TVs/monitores grandes
                 const mainEl = document.querySelector('main');
                 if (mainEl) mainEl.classList.toggle('tv-wide');
+                // Atualiza classe global de Modo TV para banner/menus
+                updateGlobalTvModeClass();
                 // Re-render para aplicar auto-pager se necessário
                 renderDashboardMateriaisProntos(getCurrentDashboardMaterialFilter());
                 // Iniciar ou parar rolagem automática conforme estado
@@ -707,6 +709,8 @@ export function initDashboardListeners() {
                 // Expandir largura para TVs/monitores grandes
                 const mainEl = document.querySelector('main');
                 if (mainEl) mainEl.classList.toggle('tv-wide');
+                // Atualiza classe global de Modo TV para banner/menus
+                updateGlobalTvModeClass();
                 // Reinicia render para aplicar auto-pager se necessário
                 renderDashboardMateriaisList();
             }
@@ -824,6 +828,16 @@ export function initDashboardListeners() {
     } else {
         stopAutoScrollGeralTV();
     }
+}
+
+// Atualiza a classe global 'tv-mode' no body, conforme panes ativos
+function updateGlobalTvModeClass() {
+    const geralActive = document.getElementById('dashboard-view-geral')?.classList.contains('tv-mode');
+    const matActive = document.getElementById('dashboard-view-materiais')?.classList.contains('tv-mode');
+    const anyActive = Boolean(geralActive || matActive);
+    document.body.classList.toggle('tv-mode', anyActive);
+    const mainEl = document.querySelector('main');
+    if (mainEl) mainEl.classList.toggle('tv-wide', anyActive);
 }
 
 // =====================

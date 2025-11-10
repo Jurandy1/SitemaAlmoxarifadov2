@@ -195,6 +195,36 @@ header p {
 .tv-mode .compact-sub { font-size: 13px; }
 .tv-mode .compact-status { font-size: 12px; }
 
+/* ======================= */
+/* MODO TV: Banner e Menus */
+/* ======================= */
+/* Banner institucional (topo) */
+.tv-mode .gov-header-top { padding: 12px 0; }
+.tv-mode .gov-header-top .gov-brand { font-size: 1.0625rem; }
+.tv-mode .gov-header-top .gov-secretaria { font-size: 0.9375rem; }
+.tv-mode .gov-header-top .gov-slogan { font-size: 0.9rem; }
+
+/* Header com marca (brand bar) */
+.tv-mode .brand-bar { padding-top: 10px; padding-bottom: 10px; }
+.tv-mode .brand-bar h1 { font-size: clamp(1.25rem, 2.2vw, 2rem); }
+.tv-mode .brand-bar p { font-size: clamp(0.875rem, 1.6vw, 1.125rem); }
+.tv-mode .brand-bar .faixa-semcas { height: 4px; }
+
+/* Navegação principal (abas) */
+.tv-mode .main-nav-container { padding-top: 8px; padding-bottom: 8px; }
+.tv-mode .nav-btn { padding: 0.75rem 1.25rem; font-size: 1rem; }
+.tv-mode .nav-btn .lucide { width: 1.25rem; height: 1.25rem; }
+
+/* Sub-navegação e botões internos do dashboard */
+.tv-mode .sub-nav-btn { padding: 0.5rem 0.75rem; font-size: 0.9375rem; }
+.tv-mode .dashboard-nav-btn { padding: 0.5rem 0.75rem; font-size: 0.9375rem; }
+
+/* Ajustes adicionais para telas grandes em Modo TV */
+@media (min-width: 1280px) { /* xl */
+  .tv-mode .brand-bar h1 { font-size: 2.25rem; }
+  .tv-mode .nav-btn { font-size: 1.0625rem; }
+}
+
 /* Estado: Em Separação (implícito, app.js não põe classe) */
 /* Vamos usar um padrão para o 'li' que não é nem requisitado nem retirada */
 .materiais-prontos-col li:not(.item-requisitado):not(.item-retirada) {
