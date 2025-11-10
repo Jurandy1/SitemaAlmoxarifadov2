@@ -719,7 +719,7 @@ button .loading-spinner-small {
 }
 
 
-/* ======= ENTREGA DE MATERIAIS MODERNA ======= */ 
+/* ======= ENTREGA DE MATERIAIS MODERNA ======= */
 .subtab-btn { 
     
   background-color: #ffffff;
@@ -807,6 +807,8 @@ button .loading-spinner-small {
     padding: 0.5rem; /* p-2 */
     transition: all 0.2s ease-in-out; 
     border: 1px solid transparent; 
+    font-size: 1rem; /* Emoji e texto dimensionam corretamente */
+    line-height: 1; /* Evita salto vertical */
 } 
 .btn-icon:hover { 
     background-color: #f3f4f6; /* hover:bg-gray-100 */
@@ -819,7 +821,7 @@ button .loading-spinner-small {
 }
 
 
-/* Botões de ação no módulo Materiais */ 
+/* Botões de ação no módulo Materiais */
 .action-btn { 
   border-radius: 0.375rem; /* rounded-md */
   padding: 0.5rem; /* p-2 */
@@ -831,7 +833,7 @@ button .loading-spinner-small {
 }
 
 /* =================================== 
-  MELHORIAS PARA ENTREGA DE MATERIAIS   
+MELHORIAS PARA ENTREGA DE MATERIAIS
   Aplicar nos 4 submenus (exceto Registrar Requisição)   
   =================================== */
 
@@ -1091,6 +1093,53 @@ button .loading-spinner-small {
   border-radius: 8px;
   margin-bottom: 8px;
 }
+
+/* Responsividade: célula de ações com agrupamento e quebra segura */
+.actions-cell {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Garante que ícones de ação tenham área clicável mínima e não quebrem layout */
+.actions-cell .btn-icon {
+  min-width: 2rem; /* ~32px */
+  min-height: 2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Tabelas de Materiais: cabeçalhos e células com nowrap onde aplicável */
+#subview-para-separar thead th:nth-last-child(1),
+#subview-em-separacao thead th:nth-last-child(1),
+#subview-pronto-entrega thead th:nth-last-child(1),
+#subview-historico-entregues thead th:nth-last-child(1) {
+  width: 8rem; /* coluna Ações */
+}
+
+#subview-para-separar tbody td:nth-child(3), /* Lançado Em */
+#subview-em-separacao tbody td:nth-child(4), /* Iniciado Em */
+#subview-pronto-entrega tbody td:nth-child(4), /* Pronto Em */
+#subview-historico-entregues tbody td:nth-child(3), /* Data Entrega */
+#subview-historico-entregues tbody td:nth-child(6) /* Lançado Em */ {
+  white-space: nowrap;
+}
+
+/* Em telas pequenas, permite que a linha de observação ocupe toda a largura sem estourar */
+@media (max-width: 640px) {
+  #subview-para-separar .table,
+  #subview-em-separacao .table,
+  #subview-pronto-entrega .table,
+  #subview-historico-entregues .table {
+    font-size: 0.85rem;
+  }
+  .actions-cell {
+    gap: 0.35rem;
+  }
+}
 .dashboard-materiais-pager .btn-sm {
   font-size: 12px;
   padding: 6px 10px;
@@ -1298,3 +1347,47 @@ button .loading-spinner-small {
 .gov-footer .gov-secretaria { font-weight: 500; opacity: 0.95; }
 .gov-footer .gov-separator { opacity: 0.6; }
 .gov-footer .gov-footer-text { opacity: 0.9; }
+
+/* ==========================================
+   Utilitários básicos de layout (grid/flex)
+   Corrige quebras nas caixas dos filtros em Materiais
+   ========================================== */
+/* Box sizing global para evitar estouro por padding/borda */
+*, *::before, *::after { box-sizing: border-box; }
+
+/* Grid/Flex base */
+.grid { display: grid; }
+.flex { display: flex; }
+.flex-wrap { flex-wrap: wrap; }
+.items-center { align-items: center; }
+.items-end { 
+  /* Suporte a Grid e Flex sem conflitar com Tailwind */
+  align-items: end;        /* Grid: valores válidos -> start | end | center | stretch */
+  align-items: flex-end;   /* Flex: valores válidos -> flex-start | flex-end | center | baseline | stretch */
+}
+.justify-center { justify-content: center; }
+.justify-end { justify-content: flex-end; }
+
+/* Gaps e espaçamentos comuns */
+.gap-2 { gap: 0.5rem; }
+.gap-3 { gap: 0.75rem; }
+.gap-4 { gap: 1rem; }
+.mb-4 { margin-bottom: 1rem; }
+.mb-6 { margin-bottom: 1.5rem; }
+
+/* Flex utilitário */
+.flex-1 { flex: 1 1 0%; }
+
+/* Colunas de grid */
+.grid-cols-1 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+
+/* Responsivo (md ≥ 768px) */
+@media (min-width: 768px) {
+  .md\:grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .md\:grid-cols-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .md\:col-span-2 { grid-column: span 2 / span 2; }
+  .md\:col-span-4 { grid-column: span 4 / span 4; }
+}
+
+/* Texto pequeno utilizado em labels de filtros */
+.text-xs { font-size: 0.75rem; }

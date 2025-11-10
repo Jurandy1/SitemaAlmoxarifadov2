@@ -268,21 +268,22 @@ function renderMaterialSubTable(tableBody, data, status) {
         const dataRetiradaFormatada = formatTimestamp(m.dataRetirada); // Data que ficou pronto
         const hasFile = m.fileURL;
         const downloadBtn = hasFile 
-            ? `<button class="btn-icon btn-download-pedido text-blue-600 hover:text-blue-800" data-id="${m.id}" data-url="${m.fileURL}" title="Baixar Pedido"><i data-lucide="download-cloud"></i></button>`
-            : '<span class="btn-icon text-gray-400" title="Sem anexo"><i data-lucide="file-x"></i></span>';
+            ? `<button class="btn-icon btn-download-pedido text-blue-600 hover:text-blue-800" data-id="${m.id}" data-url="${m.fileURL}" title="Baixar Pedido" aria-label="Baixar Pedido">📥</button>`
+            : '<span class="btn-icon text-gray-400" title="Sem anexo" aria-hidden="true">🚫</span>';
         
         // Botão de remoção é Admin-Only
+        // Botão de remoção é Admin-Only; para não-admin, não renderizamos nada para evitar poluir a UI
         const removeBtn = isAdmin
-            ? `<button class="btn-icon btn-remove text-red-600 hover:text-red-800" data-id="${m.id}" data-type="materiais" data-details="${m.unidadeNome} - ${status}" title="Remover Requisição"><i data-lucide="trash-2"></i></button>`
-            : `<span class="btn-icon text-gray-400" title="Apenas Admin pode excluir"><i data-lucide="slash"></i></span>`;
+            ? `<button class="btn-icon btn-remove text-red-600 hover:text-red-800" data-id="${m.id}" data-type="materiais" data-details="${m.unidadeNome} - ${status}" title="Remover Requisição" aria-label="Remover">🗑️</button>`
+            : '';
         
         // Determina se os botões de ação do fluxo devem ser visíveis/ativos
         const canEditFlow = isAdmin || isEditor;
         
         if (status === 'requisitado') {
             const startSeparacaoBtn = canEditFlow
-                ? `<button class="btn-icon btn-start-separacao text-green-600 hover:text-green-800" data-id="${m.id}" title="Informar Separador e Iniciar"><i data-lucide="play-circle"></i></button>`
-                : `<span class="btn-icon text-gray-400" title="Apenas Admin/Editor pode iniciar"><i data-lucide="slash"></i></span>`;
+                ? `<button class="btn-icon btn-start-separacao text-green-600 hover:text-green-800" data-id="${m.id}" title="Informar Separador e Iniciar" aria-label="Iniciar separação">▶️</button>`
+                : `<span class="btn-icon text-gray-400" title="Apenas Admin/Editor pode iniciar" aria-hidden="true">⛔</span>`;
 
             // Badge de Downloads e Bloqueio
             const dlInfo = m.downloadInfo || { count: 0, blockedUntil: null };
@@ -294,15 +295,15 @@ function renderMaterialSubTable(tableBody, data, status) {
             // Colunas para 'Para Separar'
             rowContent = `<td>${unidadeDisplay}</td>` +
                 `<td class="capitalize">${m.tipoMaterial}</td>` +
-                `<td class="whitespace-nowrap">${dataRequisicaoFormatada}</td>` + // Coluna Data Requisição com TEMPO
+                `<td class="whitespace-nowrap">${dataRequisicaoFormatada}</td>` +
                 `<td>${responsavelLancamento}</td>` +
-                `<td class="text-center space-x-2">${acoesHtml}</td>`;
+                `<td class="text-center"><div class="actions-cell">${acoesHtml}</div></td>`;
             
         } else if (status === 'separacao') {
              // Editor PODE marcar como pronto para entrega
             const prontaRetiradaBtn = canEditFlow
-                ? `<button class="btn-icon btn-retirada text-teal-600 hover:text-teal-800" data-id="${m.id}" title="Marcar como pronto para entrega"><i data-lucide="package-check"></i></button>`
-                : `<span class="btn-icon text-gray-400" title="Apenas Admin/Editor pode marcar como pronto"><i data-lucide="slash"></i></span>`;
+                ? `<button class="btn-icon btn-retirada text-teal-600 hover:text-teal-800" data-id="${m.id}" title="Marcar como pronto para entrega" aria-label="Pronto para entrega">📦</button>`
+                : `<span class="btn-icon text-gray-400" title="Apenas Admin/Editor pode marcar como pronto" aria-hidden="true">⛔</span>`;
 
             acoesHtml = prontaRetiradaBtn + removeBtn;
                 
@@ -322,15 +323,15 @@ function renderMaterialSubTable(tableBody, data, status) {
             rowContent = `<td>${unidadeDisplay} ${slaBadge}</td>` +
                 `<td class="capitalize">${m.tipoMaterial}</td>` +
                 `<td>${separador}</td>` +
-                `<td class="text-xs">${dataInicioSeparacaoFormatada}</td>` +
-                `<td class="text-center space-x-2">${acoesHtml}</td>`;
+                `<td class="text-xs whitespace-nowrap">${dataInicioSeparacaoFormatada}</td>` +
+                `<td class="text-center"><div class="actions-cell">${acoesHtml}</div></td>`;
             
         } else if (status === 'retirada') {
              // FINALIZAÇÃO DE ENTREGA: Agora Admin/Editor
             const canFinalize = isAdmin || isEditor;
             const finalizarEntregaBtn = canFinalize
-                ? `<button class="btn-icon btn-entregue text-blue-600 hover:text-blue-800" data-id="${m.id}" title="Finalizar entrega e registrar responsáveis"><i data-lucide="check-circle"></i></button>`
-                : `<span class="btn-icon text-gray-400" title="Apenas Admin/Editor pode finalizar a entrega"><i data-lucide="slash"></i></span>`;
+                ? `<button class="btn-icon btn-entregue text-blue-600 hover:text-blue-800" data-id="${m.id}" title="Finalizar entrega e registrar responsáveis" aria-label="Finalizar entrega">✅</button>`
+                : `<span class="btn-icon text-gray-400" title="Apenas Admin/Editor pode finalizar a entrega" aria-hidden="true">⛔</span>`;
             
             acoesHtml = finalizarEntregaBtn + removeBtn;
             
@@ -350,8 +351,8 @@ function renderMaterialSubTable(tableBody, data, status) {
             rowContent = `<td>${unidadeDisplay} ${slaBadge}</td>` +
                 `<td class="capitalize">${m.tipoMaterial}</td>` +
                 `<td>${separador}</td>` +
-                `<td>${dataRetiradaFormatada}</td>` + // Coluna Pronto Em
-                `<td class="text-center space-x-2">${acoesHtml}</td>`;
+                `<td class="whitespace-nowrap">${dataRetiradaFormatada}</td>` +
+                `<td class="text-center"><div class="actions-cell">${acoesHtml}</div></td>`;
             
         } else if (status === 'entregue') {
             const dataEntregaFormatada = formatTimestamp(m.dataEntrega);
@@ -363,10 +364,10 @@ function renderMaterialSubTable(tableBody, data, status) {
             // Colunas para 'Histórico'
             rowContent = `<td>${unidadeDisplay}</td>` +
                 `<td class="capitalize">${m.tipoMaterial}</td>` +
-                `<td>${dataEntregaFormatada}</td>` +
+                `<td class="whitespace-nowrap">${dataEntregaFormatada}</td>` +
                 `<td>${respUnidade}</td>` +
                 `<td>${respAlmox}</td>` +
-                `<td class="text-center text-xs">${dataLancamentoFormatada}</td>` +
+                `<td class="text-center text-xs whitespace-nowrap">${dataLancamentoFormatada}</td>` +
                 `<td class="text-center">${removeBtn}</td>`; // Exclusão de histórico é Admin-Only
         }
         
@@ -820,7 +821,11 @@ export function initMateriaisListeners() {
 
     // Batch finalize (Hoje)
     const btnBatchHoje = document.getElementById('btn-batch-finalizar-hoje');
-    if (btnBatchHoje) btnBatchHoje.addEventListener('click', handleBatchFinalizarHoje);
+    if (btnBatchHoje) {
+        const role = getUserRole();
+        btnBatchHoje.classList.toggle('hidden', role !== 'admin');
+        btnBatchHoje.addEventListener('click', handleBatchFinalizarHoje);
+    }
 
     // **** ADICIONADO: Listener para a sub-navegação ****
     const subNavMateriais = document.getElementById('sub-nav-materiais');

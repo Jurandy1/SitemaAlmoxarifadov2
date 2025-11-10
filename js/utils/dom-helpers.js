@@ -650,6 +650,8 @@ function renderPermissionsUI() {
     if (lancarMateriaisView) {
         const canRegister = isAdmin;
         lancarMateriaisView.classList.toggle('disabled-by-role', !canRegister);
+        // Oculta completamente para quem não pode registrar (Editor/Anon)
+        lancarMateriaisView.classList.toggle('hidden', !canRegister);
         lancarMateriaisView.querySelectorAll('input, select, textarea, button[type="submit"]').forEach(el => el.disabled = !canRegister);
     }
     
