@@ -1,4 +1,4 @@
-// js/modules/gas-control.js
+// js/modules/gas-control.js// js/modules/gas-control.js
 import { Timestamp, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { getUnidades, getGasMovimentacoes, isEstoqueInicialDefinido, getCurrentStatusFilter, setCurrentStatusFilter, getEstoqueGas, getUserRole } from "../utils/cache.js"; 
 // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
@@ -211,19 +211,24 @@ export function checkUnidadeSaldoAlertGas() {
     let type = 'info';
     
     if (saldo > 0) {
-        message = `⚠️ Atenção! A unidade **${unidadeNome}** está devendo **${saldo}** ${itemLabel}${saldo > 1 ? 's' : ''} vazio${saldo > 1 ? 's' : ''}. Confirme se o saldo está correto antes de entregar mais.`;
-        type = 'warning';
+        message = `<i data-lucide="alert-triangle" class="w-5 h-5 inline-block -mt-1 mr-2"></i> <strong>ALERTA DE DÉBITO:</strong> A unidade **${unidadeNome}** está devendo **${saldo}** ${itemLabel}${saldo > 1 ? 's' : ''} vazio${saldo > 1 ? 's' : ''}.<br><strong>Ação:</strong> Ao fazer a entrega, certifique-se de pegar os vazios pendentes.`;
+        type = 'error'; // Mudar de 'warning' (amarelo) para 'error' (vermelho) para ser mais forte
     } else if (saldo < 0) {
-        message = `👍 A unidade **${unidadeNome}** tem um crédito de **${Math.abs(saldo)}** ${itemLabel}${Math.abs(saldo) > 1 ? 's' : ''} (recebeu a mais). Lançamento OK para troca/saída.`;
-        type = 'success';
+        const credito = Math.abs(saldo);
+        message = `<i data-lucide="check-circle" class="w-5 h-5 inline-block -mt-1 mr-2"></i> <strong>SALDO POSITIVO (CRÉDITO):</strong> A unidade **${unidadeNome}** tem um crédito de **${credito}** ${itemLabel}${credito > 1 ? 's' : ''}.<br><strong>Motivo:</strong> Ela devolveu mais vasilhames vazios do que recebeu cheios. O saldo está negativo (em crédito).`;
+        type = 'success'; // Manter 'success' (verde)
     } else {
-        message = `✅ A unidade **${unidadeNome}** tem saldo zero. Perfeito para uma troca 1:1.`;
-        type = 'info';
+        message = `<i data-lucide="thumbs-up" class="w-5 h-5 inline-block -mt-1 mr-2"></i> <strong>SALDO ZERADO:</strong> A unidade **${unidadeNome}** está com o saldo quite (0).<br><strong>Ação:</strong> Situação ideal para uma troca (entregar 1, receber 1).`;
+        type = 'info'; // Manter 'info' (azul)
     }
 
     saldoAlertaEl.className = `alert alert-${type} mt-2`;
     saldoAlertaEl.innerHTML = message.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
     saldoAlertaEl.style.display = 'block';
+    // Força a renderização do ícone lucide
+    if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') {
+        lucide.createIcons();
+    }
 }
 
 /**
