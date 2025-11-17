@@ -280,6 +280,7 @@
                                 <p class="text-sm text-gray-500 mt-1">Botijões Disponíveis</p>
                             </div>
 
+
                             <!-- Card Em Separação (Agora soma Requisitado + Em Separação) -->
                             <div id="dashboard-card-separacao" class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col cursor-pointer transition-all hover:shadow-md hover:border-amber-300 gov-card">
                                 <div class="flex items-center gap-3 mb-4">
@@ -492,7 +493,50 @@
 
                 <!-- Sub-view: Movimentação (Lançamento) -->
                 <div id="subview-movimentacao-agua" class="space-y-6">
-                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="module-inner-subnav">
+                        <button id="btn-inner-agua-resumo" class="sub-nav-btn active" data-inner="resumo"><i data-lucide="alert-triangle"></i><span>Resumo</span></button>
+                        <button id="btn-inner-agua-lancamento" class="sub-nav-btn" data-inner="lancamento"><i data-lucide="edit-3"></i><span>Lançamento</span></button>
+                    </div>
+                    <div id="inner-agua-resumo" class="bg-white rounded-xl border border-amber-300 shadow-sm gov-card">
+                        <div class="section-header-modern">
+                            <div class="header-main">
+                                <span class="icon-chip icon-amber">
+                                    <i data-lucide="alert-triangle"></i>
+                                </span>
+                                <div>
+                                    <div class="header-title">Débitos de galões vazios • Água</div>
+                                    <div class="header-subtitle">Antes de lançar, verifique quem está devendo vazios.</div>
+                                </div>
+                            </div>
+                            <div class="header-actions">
+                                <button id="btn-debito-agua" class="badge-filter active">Devendo</button>
+                                <button id="btn-credito-agua" class="badge-filter">Crédito</button>
+                                <button id="btn-ver-status-agua" class="btn-secondary btn-sm"><i data-lucide="list"></i> Ver status completo</button>
+                            </div>
+                        </div>
+                        <div class="p-6">
+                            <div class="mb-3">
+                                <label for="filtro-debito-agua" class="form-label text-xs">Buscar Unidade:</label>
+                                <input type="text" id="filtro-debito-agua" data-table="table-debito-agua-resumo" class="form-input" placeholder="Digite o nome da unidade...">
+                            </div>
+                            <div class="overflow-x-auto border border-gray-200 rounded-lg max-h-64 resumo-table-container">
+                                <table class="table w-full text-sm">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th>Unidade</th>
+                                            <th>Tipo</th>
+                                            <th class="text-center">Vazios Pendentes</th>
+                                            <th>Última Movimentação</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="table-debito-agua-resumo" class="divide-y divide-gray-100">
+                                        <tr><td colspan="4" class="text-center py-6"><div class="loading-spinner-small mx-auto"></div></td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="inner-agua-lancamento" class="grid grid-cols-1 lg:grid-cols-3 gap-6 hidden">
 
                         <!-- Coluna de Estoque -->
                         <div class="lg:col-span-1 bg-white rounded-xl border border-gray-200 shadow-sm p-6">
@@ -1013,6 +1057,49 @@
 
                 <!-- Sub-view: Movimentação (Lançamento) -->
                 <div id="subview-movimentacao-gas" class="space-y-6">
+                    <div class="module-inner-subnav">
+                        <button id="btn-inner-gas-resumo" class="sub-nav-btn active" data-inner="resumo"><i data-lucide="alert-triangle"></i><span>Resumo</span></button>
+                        <button id="btn-inner-gas-lancamento" class="sub-nav-btn" data-inner="lancamento"><i data-lucide="edit-3"></i><span>Lançamento</span></button>
+                    </div>
+                    <div id="inner-gas-resumo" class="bg-white rounded-xl border border-red-300 shadow-sm gov-card">
+                        <div class="section-header-modern">
+                            <div class="header-main">
+                                <span class="icon-chip icon-amber">
+                                    <i data-lucide="alert-triangle"></i>
+                                </span>
+                                <div>
+                                    <div class="header-title">Débitos de botijões vazios • Gás</div>
+                                    <div class="header-subtitle">Antes de lançar, verifique quem está devendo vazios.</div>
+                                </div>
+                            </div>
+                            <div class="header-actions">
+                                <button id="btn-debito-gas" class="badge-filter active">Devendo</button>
+                                <button id="btn-credito-gas" class="badge-filter">Crédito</button>
+                                <button id="btn-ver-status-gas" class="btn-secondary btn-sm"><i data-lucide="list"></i> Ver status completo</button>
+                            </div>
+                        </div>
+                        <div class="p-6">
+                            <div class="mb-3">
+                                <label for="filtro-debito-gas" class="form-label text-xs">Buscar Unidade:</label>
+                                <input type="text" id="filtro-debito-gas" data-table="table-debito-gas-resumo" class="form-input" placeholder="Digite o nome da unidade...">
+                            </div>
+                            <div class="overflow-x-auto border border-gray-200 rounded-lg max-h-64 resumo-table-container">
+                                <table class="table w-full text-sm">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th>Unidade</th>
+                                            <th>Tipo</th>
+                                            <th class="text-center">Vazios Pendentes</th>
+                                            <th>Última Movimentação</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="table-debito-gas-resumo" class="divide-y divide-gray-100">
+                                        <tr><td colspan="4" class="text-center py-6"><div class="loading-spinner-small mx-auto"></div></td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
                        <!-- Coluna de Estoque -->

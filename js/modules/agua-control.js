@@ -8,6 +8,8 @@ import { isReady, getUserId } from "./auth.js";
 import { COLLECTIONS } from "../services/firestore-service.js";
 import { executeFinalMovimentacao } from "./movimentacao-modal-handler.js";
 
+let debitoAguaMode = 'devendo';
+
 // =========================================================================
 // LÓGICA DE ESTOQUE (Movido de app.js)
 // =========================================================================
@@ -378,6 +380,58 @@ export function renderAguaStatus(newFilter = null) {
     }
 }
 
+/**
+ * Renderiza um resumo compacto das unidades devendo galões vazios
+ * para exibir no topo da subview de movimentação.
+ */
+export function renderAguaDebitosResumo() {
+    if (!DOM_ELEMENTS.tableDebitoAguaResumo) return;
+    const statusMap = new Map();
+    getUnidades().forEach(u => {
+        let tipo = (u.tipo || 'N/A').toUpperCase();
+        if (tipo === 'SEMCAS') tipo = 'SEDE';
+        statusMap.set(u.id, { id: u.id, nome: u.nome, tipo, entregues: 0, recebidos: 0, ultimo: null });
+    });
+
+    const movsOrdenadas = [...getAguaMovimentacoes()].sort((a, b) => (b.data?.toMillis() || 0) - (a.data?.toMillis() || 0));
+    movsOrdenadas.forEach(m => {
+        const s = statusMap.get(m.unidadeId);
+        if (!s) return;
+        if (m.tipo === 'entrega') s.entregues += m.quantidade; else if (m.tipo === 'retorno') s.recebidos += m.quantidade;
+        if (!s.ultimo) s.ultimo = { data: m.data, tipo: m.tipo, quantidade: m.quantidade, respUnidade: m.responsavel, respAlmox: m.responsavelAlmoxarifado || 'N/A' };
+    });
+
+    const listaBase = Array.from(statusMap.values()).map(s => ({ ...s, pendentes: s.entregues - s.recebidos }));
+    const lista = (debitoAguaMode === 'credito')
+        ? listaBase.filter(s => s.pendentes < 0).sort((a, b) => (Math.abs(b.pendentes) - Math.abs(a.pendentes)) || a.nome.localeCompare(b.nome))
+        : listaBase.filter(s => s.pendentes > 0).sort((a, b) => (b.pendentes - a.pendentes) || a.nome.localeCompare(b.nome));
+
+    if (lista.length === 0) {
+        const vazioMsg = debitoAguaMode === 'credito' ? 'Nenhuma unidade com crédito no momento.' : 'Nenhuma unidade devendo vazios no momento.';
+        DOM_ELEMENTS.tableDebitoAguaResumo.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-slate-500">${vazioMsg}</td></tr>`;
+        return;
+    }
+
+    const grupos = lista.reduce((acc, s) => { (acc[s.tipo] ||= []).push(s); return acc; }, {});
+    const tiposOrdenados = Object.keys(grupos).sort();
+    const rows = [];
+    tiposOrdenados.forEach(tipo => {
+        rows.push(`<tr class="table-group-header"><td colspan="4">${tipo}</td></tr>`);
+        grupos[tipo].forEach(s => {
+            const ultimo = s.ultimo ? `${formatTimestampComTempo(s.ultimo.data)} • ${s.ultimo.tipo} (${s.ultimo.quantidade})` : 'N/A';
+            const pendText = debitoAguaMode === 'credito' ? Math.abs(s.pendentes) : s.pendentes;
+            const pendClass = debitoAguaMode === 'credito' ? 'text-blue-600' : 'text-red-600';
+            rows.push(`<tr>
+                <td class="font-medium">${s.nome}</td>
+                <td><span class="badge badge-gray">${s.tipo}</span></td>
+                <td class="text-center ${pendClass} font-extrabold">${pendText}</td>
+                <td class="text-xs text-gray-600">${ultimo}</td>
+            </tr>`);
+        });
+    });
+    DOM_ELEMENTS.tableDebitoAguaResumo.innerHTML = rows.join('');
+}
+
 // NOVO PONTO 1: Renderiza Histórico de Entradas (Estoque)
 export function renderAguaEstoqueHistory() {
     if (!DOM_ELEMENTS.tableHistoricoEstoqueAgua) return;
@@ -653,6 +707,31 @@ export function initAguaListeners() {
     if (document.getElementById('filtro-historico-agua')) {
         document.getElementById('filtro-historico-agua').addEventListener('input', () => filterTable(document.getElementById('filtro-historico-agua'), 'table-historico-agua-all'));
     }
+    if (DOM_ELEMENTS.filtroDebitoAgua) {
+        DOM_ELEMENTS.filtroDebitoAgua.addEventListener('input', () => filterTable(DOM_ELEMENTS.filtroDebitoAgua, 'table-debito-agua-resumo'));
+    }
+    if (DOM_ELEMENTS.btnDebitoAgua) {
+        DOM_ELEMENTS.btnDebitoAgua.addEventListener('click', () => {
+            debitoAguaMode = 'devendo';
+            DOM_ELEMENTS.btnDebitoAgua?.classList.add('active');
+            DOM_ELEMENTS.btnCreditoAgua?.classList.remove('active');
+            renderAguaDebitosResumo();
+        });
+    }
+    if (DOM_ELEMENTS.btnCreditoAgua) {
+        DOM_ELEMENTS.btnCreditoAgua.addEventListener('click', () => {
+            debitoAguaMode = 'credito';
+            DOM_ELEMENTS.btnCreditoAgua?.classList.add('active');
+            DOM_ELEMENTS.btnDebitoAgua?.classList.remove('active');
+            renderAguaDebitosResumo();
+        });
+    }
+    if (DOM_ELEMENTS.btnVerStatusAgua) {
+        DOM_ELEMENTS.btnVerStatusAgua.addEventListener('click', () => switchSubTabView('agua', 'status-agua'));
+    }
+    if (DOM_ELEMENTS.filtroDebitoAgua) {
+        DOM_ELEMENTS.filtroDebitoAgua.addEventListener('input', () => filterTable(DOM_ELEMENTS.filtroDebitoAgua, 'table-debito-agua-resumo'));
+    }
     // Filtros avançados (Histórico Água)
     ['filtro-tipo-agua','filtro-unidade-agua','filtro-responsavel-agua','filtro-data-ini-agua','filtro-data-fim-agua']
         .forEach(id => {
@@ -726,6 +805,7 @@ export function onAguaTabChange() {
     toggleAguaFormInputs(); 
     checkUnidadeSaldoAlertAgua();
     renderEstoqueAgua();
+    renderAguaDebitosResumo();
     renderAguaEstoqueHistory(); // NOVO PONTO 1: Adicionado para carregar o histórico
     renderAguaStatus();
     renderAguaMovimentacoesHistory();
@@ -745,4 +825,42 @@ export function onAguaTabChange() {
     checkAguaHistoryIntegrity();
     // Aplica as permissões após a renderização
     renderPermissionsUI();
+    const innerNavAgua = document.querySelector('#subview-movimentacao-agua .module-inner-subnav');
+    if (innerNavAgua) {
+        innerNavAgua.addEventListener('click', (e) => {
+            const btn = e.target.closest('button.sub-nav-btn[data-inner]');
+            if (!btn) return;
+            const target = btn.dataset.inner;
+            document.querySelectorAll('#subview-movimentacao-agua .module-inner-subnav .sub-nav-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            if (target === 'resumo') {
+                DOM_ELEMENTS.innerAguaResumo?.classList.remove('hidden');
+                DOM_ELEMENTS.innerAguaLancamento?.classList.add('hidden');
+            } else {
+                DOM_ELEMENTS.innerAguaLancamento?.classList.remove('hidden');
+                DOM_ELEMENTS.innerAguaResumo?.classList.add('hidden');
+            }
+            if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') {
+                setTimeout(() => lucide.createIcons(), 50);
+            }
+        });
+    }
+    if (DOM_ELEMENTS.btnInnerAguaResumo) {
+        DOM_ELEMENTS.btnInnerAguaResumo.addEventListener('click', () => {
+            DOM_ELEMENTS.btnInnerAguaResumo.classList.add('active');
+            DOM_ELEMENTS.btnInnerAguaLancamento?.classList.remove('active');
+            DOM_ELEMENTS.innerAguaResumo?.classList.remove('hidden');
+            DOM_ELEMENTS.innerAguaLancamento?.classList.add('hidden');
+            if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { setTimeout(() => lucide.createIcons(), 50); }
+        });
+    }
+    if (DOM_ELEMENTS.btnInnerAguaLancamento) {
+        DOM_ELEMENTS.btnInnerAguaLancamento.addEventListener('click', () => {
+            DOM_ELEMENTS.btnInnerAguaLancamento.classList.add('active');
+            DOM_ELEMENTS.btnInnerAguaResumo?.classList.remove('active');
+            DOM_ELEMENTS.innerAguaLancamento?.classList.remove('hidden');
+            DOM_ELEMENTS.innerAguaResumo?.classList.add('hidden');
+            if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { setTimeout(() => lucide.createIcons(), 50); }
+        });
+    }
 }

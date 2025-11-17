@@ -291,6 +291,7 @@ header p {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
+    cursor: pointer;
 }
 .sub-nav-btn:hover {
     background-color: #e2e8f0; /* slate-200 */
@@ -1421,3 +1422,31 @@ MELHORIAS PARA ENTREGA DE MATERIAIS
 
 /* Texto pequeno utilizado em labels de filtros */
 .text-xs { font-size: 0.75rem; }
+.resumo-table-container thead { position: sticky; top: 0; z-index: 1; }
+.resumo-table-container tbody tr:nth-child(even) { background-color: #f8fafc; }
+.table-group-header td { background-color: #eef2ff; color: #1e40af; font-weight: 600; font-size: 0.75rem; padding: 0.5rem 0.75rem; border-top: 1px solid #c7d2fe; }
+.resumo-table-container .table { border-collapse: separate; border-spacing: 0; }
+.resumo-table-container .table th { position: sticky; top: 0; background: #f9fafb; box-shadow: inset 0 -1px 0 #e5e7eb; }
+.resumo-table-container .table td { vertical-align: middle; }
+.section-header-modern {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e7eb;
+  background: linear-gradient(180deg, #ffffff 0%, #f9fafb 100%);
+}
+.section-header-modern .lucide { width: 18px; height: 18px; }
+.header-main { display: flex; align-items: center; gap: 12px; }
+.icon-chip {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; border-radius: 10px;
+  border: 1px solid #fcd34d; background: #fffbeb; color: #92400e;
+}
+.icon-chip.icon-amber { border-color: #fcd34d; background: #fffbeb; color: #92400e; }
+.header-title { font-size: 1.0625rem; font-weight: 700; color: #0b3d91; }
+.header-subtitle { font-size: 0.8125rem; color: #64748b; margin-top: 2px; }
+.header-actions { display: flex; align-items: center; gap: 8px; }
+.module-inner-subnav { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
+.module-inner-subnav .sub-nav-btn { padding: 8px 12px; }

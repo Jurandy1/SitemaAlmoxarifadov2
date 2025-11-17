@@ -1,6 +1,6 @@
 // js/modules/gas-control.js// js/modules/gas-control.js
 import { Timestamp, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-import { getUnidades, getGasMovimentacoes, isEstoqueInicialDefinido, getCurrentStatusFilter, setCurrentStatusFilter, getEstoqueGas, getUserRole } from "../utils/cache.js"; 
+import { getUnidades, getGasMovimentacoes, isEstoqueInicialDefinido, getCurrentStatusFilter, setCurrentStatusFilter, getEstoqueGas, getUserRole } from "../utils/cache.js";
 // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
 import { DOM_ELEMENTS, showAlert, switchSubTabView, handleSaldoFilterUI, filterTable, renderPermissionsUI } from "../utils/dom-helpers.js";
 import { getTodayDateString, dateToTimestamp, capitalizeString, formatTimestampComTempo } from "../utils/formatters.js";
@@ -377,6 +377,58 @@ export function renderGasStatus(newFilter = null) {
     }
 }
 
+/**
+ * Renderiza um resumo compacto das unidades devendo botijões vazios
+ * para exibir no topo da subview de movimentação.
+ */
+export function renderGasDebitosResumo() {
+    if (!DOM_ELEMENTS.tableDebitoGasResumo) return;
+    const statusMap = new Map();
+    getUnidades().forEach(u => {
+        let tipo = (u.tipo || 'N/A').toUpperCase();
+        if (tipo === 'SEMCAS') tipo = 'SEDE';
+        statusMap.set(u.id, { id: u.id, nome: u.nome, tipo, entregues: 0, recebidos: 0, ultimo: null });
+    });
+
+    const movsOrdenadas = [...getGasMovimentacoes()].sort((a, b) => (b.data?.toMillis() || 0) - (a.data?.toMillis() || 0));
+    movsOrdenadas.forEach(m => {
+        const s = statusMap.get(m.unidadeId);
+        if (!s) return;
+        if (m.tipo === 'entrega') s.entregues += m.quantidade; else if (m.tipo === 'retorno') s.recebidos += m.quantidade;
+        if (!s.ultimo) s.ultimo = { data: m.data, tipo: m.tipo, quantidade: m.quantidade, respUnidade: m.responsavel, respAlmox: m.responsavelAlmoxarifado || 'N/A' };
+    });
+
+    const listaBase = Array.from(statusMap.values()).map(s => ({ ...s, pendentes: s.entregues - s.recebidos }));
+    const lista = (debitoGasMode === 'credito')
+        ? listaBase.filter(s => s.pendentes < 0).sort((a, b) => (Math.abs(b.pendentes) - Math.abs(a.pendentes)) || a.nome.localeCompare(b.nome))
+        : listaBase.filter(s => s.pendentes > 0).sort((a, b) => (b.pendentes - a.pendentes) || a.nome.localeCompare(b.nome));
+
+    if (lista.length === 0) {
+        const vazioMsg = debitoGasMode === 'credito' ? 'Nenhuma unidade com crédito no momento.' : 'Nenhuma unidade devendo vazios no momento.';
+        DOM_ELEMENTS.tableDebitoGasResumo.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-slate-500">${vazioMsg}</td></tr>`;
+        return;
+    }
+
+    const grupos = lista.reduce((acc, s) => { (acc[s.tipo] ||= []).push(s); return acc; }, {});
+    const tiposOrdenados = Object.keys(grupos).sort();
+    const rows = [];
+    tiposOrdenados.forEach(tipo => {
+        rows.push(`<tr class="table-group-header"><td colspan="4">${tipo}</td></tr>`);
+        grupos[tipo].forEach(s => {
+            const ultimo = s.ultimo ? `${formatTimestampComTempo(s.ultimo.data)} • ${s.ultimo.tipo} (${s.ultimo.quantidade})` : 'N/A';
+            const pendText = debitoGasMode === 'credito' ? Math.abs(s.pendentes) : s.pendentes;
+            const pendClass = debitoGasMode === 'credito' ? 'text-blue-600' : 'text-red-600';
+            rows.push(`<tr>
+                <td class="font-medium">${s.nome}</td>
+                <td><span class="badge badge-gray">${s.tipo}</span></td>
+                <td class="text-center ${pendClass} font-extrabold">${pendText}</td>
+                <td class="text-xs text-gray-600">${ultimo}</td>
+            </tr>`);
+        });
+    });
+    DOM_ELEMENTS.tableDebitoGasResumo.innerHTML = rows.join('');
+}
+
 // NOVO PONTO 1: Renderiza Histórico de Entradas (Estoque)
 export function renderGasEstoqueHistory() {
     if (!DOM_ELEMENTS.tableHistoricoEstoqueGas) return;
@@ -657,6 +709,28 @@ export function initGasListeners() {
     if (document.getElementById('filtro-historico-gas')) {
         document.getElementById('filtro-historico-gas').addEventListener('input', () => filterTable(document.getElementById('filtro-historico-gas'), 'table-historico-gas-all'));
     }
+    if (DOM_ELEMENTS.filtroDebitoGas) {
+        DOM_ELEMENTS.filtroDebitoGas.addEventListener('input', () => filterTable(DOM_ELEMENTS.filtroDebitoGas, 'table-debito-gas-resumo'));
+    }
+    if (DOM_ELEMENTS.btnDebitoGas) {
+        DOM_ELEMENTS.btnDebitoGas.addEventListener('click', () => {
+            debitoGasMode = 'devendo';
+            DOM_ELEMENTS.btnDebitoGas?.classList.add('active');
+            DOM_ELEMENTS.btnCreditoGas?.classList.remove('active');
+            renderGasDebitosResumo();
+        });
+    }
+    if (DOM_ELEMENTS.btnCreditoGas) {
+        DOM_ELEMENTS.btnCreditoGas.addEventListener('click', () => {
+            debitoGasMode = 'credito';
+            DOM_ELEMENTS.btnCreditoGas?.classList.add('active');
+            DOM_ELEMENTS.btnDebitoGas?.classList.remove('active');
+            renderGasDebitosResumo();
+        });
+    }
+    if (DOM_ELEMENTS.btnVerStatusGas) {
+        DOM_ELEMENTS.btnVerStatusGas.addEventListener('click', () => switchSubTabView('gas', 'status-gas'));
+    }
     // Filtros avançados (Histórico Gás)
     ['filtro-tipo-gas','filtro-unidade-gas','filtro-responsavel-gas','filtro-data-ini-gas','filtro-data-fim-gas']
         .forEach(id => {
@@ -714,6 +788,45 @@ export function initGasListeners() {
         // Re-aplica as permissões aqui para garantir que o formulário de Entrada seja desabilitado para Editor
         renderPermissionsUI(); 
     }));
+
+    const innerNavGas = document.querySelector('#subview-movimentacao-gas .module-inner-subnav');
+    if (innerNavGas) {
+        innerNavGas.addEventListener('click', (e) => {
+            const btn = e.target.closest('button.sub-nav-btn[data-inner]');
+            if (!btn) return;
+            const target = btn.dataset.inner;
+            document.querySelectorAll('#subview-movimentacao-gas .module-inner-subnav .sub-nav-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            if (target === 'resumo') {
+                DOM_ELEMENTS.innerGasResumo?.classList.remove('hidden');
+                DOM_ELEMENTS.innerGasLancamento?.classList.add('hidden');
+            } else {
+                DOM_ELEMENTS.innerGasLancamento?.classList.remove('hidden');
+                DOM_ELEMENTS.innerGasResumo?.classList.add('hidden');
+            }
+            if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') {
+                setTimeout(() => lucide.createIcons(), 50);
+            }
+        });
+    }
+    if (DOM_ELEMENTS.btnInnerGasResumo) {
+        DOM_ELEMENTS.btnInnerGasResumo.addEventListener('click', () => {
+            DOM_ELEMENTS.btnInnerGasResumo.classList.add('active');
+            DOM_ELEMENTS.btnInnerGasLancamento?.classList.remove('active');
+            DOM_ELEMENTS.innerGasResumo?.classList.remove('hidden');
+            DOM_ELEMENTS.innerGasLancamento?.classList.add('hidden');
+            if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { setTimeout(() => lucide.createIcons(), 50); }
+        });
+    }
+    if (DOM_ELEMENTS.btnInnerGasLancamento) {
+        DOM_ELEMENTS.btnInnerGasLancamento.addEventListener('click', () => {
+            DOM_ELEMENTS.btnInnerGasLancamento.classList.add('active');
+            DOM_ELEMENTS.btnInnerGasResumo?.classList.remove('active');
+            DOM_ELEMENTS.innerGasLancamento?.classList.remove('hidden');
+            DOM_ELEMENTS.innerGasResumo?.classList.add('hidden');
+            if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { setTimeout(() => lucide.createIcons(), 50); }
+        });
+    }
 }
 
 /**
@@ -729,6 +842,7 @@ export function onGasTabChange() {
     toggleGasFormInputs(); 
     checkUnidadeSaldoAlertGas();
     renderEstoqueGas();
+    renderGasDebitosResumo();
     renderGasEstoqueHistory(); // NOVO PONTO 1: Adicionado para carregar o histórico
     renderGasStatus();
     renderGasMovimentacoesHistory();
@@ -748,3 +862,4 @@ export function onGasTabChange() {
     // Aplica as permissões após a renderização
     renderPermissionsUI();
 }
+let debitoGasMode = 'devendo';
