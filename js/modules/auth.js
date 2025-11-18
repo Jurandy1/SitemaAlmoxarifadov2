@@ -6,7 +6,8 @@ import {
     signOut,
     signInWithEmailAndPassword,
     setPersistence,
-    browserSessionPersistence // ALTERADO: de browserLocalPersistence para browserSessionPersistence
+    browserSessionPersistence,
+    sendPasswordResetEmail
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 import {
     onSnapshot,
@@ -93,8 +94,25 @@ async function signInEmailPassword(email, password) {
         let msg = "Erro ao fazer login. Verifique suas credenciais.";
         if (['auth/user-not-found', 'auth/wrong-password', 'auth/invalid-credential'].includes(err.code)) msg = "E-mail ou senha incorretos.";
         if (err.code === 'auth/invalid-email') msg = "Formato de e-mail inválido.";
-        showAlert('alert-login', msg, 'error');
+        showAlert('alert-login', `${msg} (${err.code || 'erro'})`, 'error');
         throw err;
+    }
+}
+
+async function sendResetPassword(email) {
+    if (!email) {
+        showAlert('alert-login', 'Informe o e-mail para redefinir a senha.', 'warning');
+        return;
+    }
+    try {
+        await sendPasswordResetEmail(auth, email);
+        showAlert('alert-login', 'E-mail de redefinição de senha enviado.', 'success');
+    } catch (err) {
+        console.error('Erro reset senha:', err);
+        let msg = 'Não foi possível enviar o e-mail de redefinição.';
+        if (err.code === 'auth/invalid-email') msg = 'Formato de e-mail inválido.';
+        if (err.code === 'auth/user-not-found') msg = 'Usuário não encontrado.';
+        showAlert('alert-login', `${msg} (${err.code || 'erro'})`, 'error');
     }
 }
 
@@ -301,5 +319,6 @@ export {
     isReady,
     signInEmailPassword,
     signOutUser,
-    signInAnonUser
+    signInAnonUser,
+    sendResetPassword
 };

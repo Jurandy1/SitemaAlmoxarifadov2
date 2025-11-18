@@ -1450,3 +1450,4 @@ MELHORIAS PARA ENTREGA DE MATERIAIS
 .header-actions { display: flex; align-items: center; gap: 8px; }
 .module-inner-subnav { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
 .module-inner-subnav .sub-nav-btn { padding: 8px 12px; }
+.filter-toolbar { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; }

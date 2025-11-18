@@ -86,6 +86,7 @@
                     <div>
                         <label for="input-login-password" class="form-label">Senha</label>
                         <input type="password" id="input-login-password" class="form-input" placeholder="••••••••" required>
+                        <button type="button" id="btn-reset-password" class="btn-link text-xs mt-2">Esqueci minha senha</button>
                     </div>
                     <button type="submit" id="btn-submit-login" class="btn-primary w-full !mt-6">
                         <i data-lucide="log-in"></i> Entrar
@@ -515,9 +516,27 @@
                             </div>
                         </div>
                         <div class="p-6">
-                            <div class="mb-3">
-                                <label for="filtro-debito-agua" class="form-label text-xs">Buscar Unidade:</label>
-                                <input type="text" id="filtro-debito-agua" data-table="table-debito-agua-resumo" class="form-input" placeholder="Digite o nome da unidade...">
+                            <div class="filter-toolbar grid grid-cols-1 md:grid-cols-5 gap-3 mb-4">
+                                <div>
+                                    <label for="filtro-debito-agua" class="form-label text-xs">Unidade</label>
+                                    <input type="text" id="filtro-debito-agua" class="form-input" placeholder="Nome da unidade">
+                                </div>
+                                <div>
+                                    <label for="filtro-resumo-agua-tipo" class="form-label text-xs">Tipo</label>
+                                    <select id="filtro-resumo-agua-tipo" class="form-select"><option value="">Todos</option></select>
+                                </div>
+                                <div>
+                                    <label for="filtro-resumo-agua-pend-min" class="form-label text-xs">Vazios pendentes mín.</label>
+                                    <input type="number" id="filtro-resumo-agua-pend-min" class="form-input" min="0" placeholder="Ex.: 1">
+                                </div>
+                                <div>
+                                    <label for="filtro-resumo-agua-data-ini" class="form-label text-xs">Última mov. desde</label>
+                                    <input type="date" id="filtro-resumo-agua-data-ini" class="form-input">
+                                </div>
+                                <div>
+                                    <label for="filtro-resumo-agua-data-fim" class="form-label text-xs">Última mov. até</label>
+                                    <input type="date" id="filtro-resumo-agua-data-fim" class="form-input">
+                                </div>
                             </div>
                             <div class="overflow-x-auto border border-gray-200 rounded-lg max-h-64 resumo-table-container">
                                 <table class="table w-full text-sm">
@@ -599,7 +618,7 @@
                             <!-- Formulário de Saída (Unidades) -->
                             <form id="form-agua" class="p-6 space-y-4">
                                 <h2 class="text-xl font-bold text-gray-800 mb-2">Lançar Movimentação (Água)
-                                    <span title="Movimentação: entrega (saída) de galões 20L cheios e retorno (entrada) de galões 20L vazios nas unidades." class="inline-block align-middle ml-1 text-gray-400 cursor-help"><i data-lucide="info"></i></span>
+                                    <span title="Movimentação: cheios (saída para unidade) e vazios (retorno da unidade)." class="inline-block align-middle ml-1 text-gray-400 cursor-help"><i data-lucide="info"></i></span>
                                 </h2>
                                 <p class="text-xs text-gray-500 mb-2">Movimentação refere-se às operações com as unidades (saída/retorno). Para compras/reposição no almoxarifado, utilize a aba Entrada (Estoque).</p>
                                 <div>
@@ -629,11 +648,11 @@
                                 </div>
 
                                 <div>
-                                    <label for="input-data-agua" class="form-label">Data da Entrega/Retirada</label>
+                                    <label for="input-data-agua" class="form-label">Data da Movimentação (Cheio/Vazio)</label>
                                     <input type="date" id="input-data-agua" class="form-input" required>
                                 </div>
                                 <div>
-                                     <label for="input-responsavel-agua" class="form-label">Nome de quem Recebeu/Devolveu (Unidade)</label>
+                                     <label for="input-responsavel-agua" class="form-label">Responsável na Unidade (Cheio/Vazio)</label>
                                      <input type="text" id="input-responsavel-agua" class="form-input" placeholder="Nome do Responsável da Unidade (quem recebeu ou devolveu)" required>
                                 </div>
                                 <button type="submit" id="btn-submit-agua" class="btn-primary w-full !mt-6">
@@ -733,10 +752,10 @@
                                      <tr>
                                          <th>Unidade</th>
                                          <th>Tipo</th>
-                                         <th class="text-center">Entregues</th>
-                                         <th class="text-center">Recebidos</th>
+                                         <th class="text-center">Entregue vazio</th>
+                                         <th class="text-center">Recebido cheio</th>
                                          <th class="text-center">Saldo</th>
-                                         <th>Último Lançamento (Entrega/Retirada)</th>
+                                         <th>Último Lançamento (Cheio/Vazio)</th>
                                      </tr>
                                  </thead>
                                  <tbody id="table-status-agua" class="divide-y divide-gray-100">
@@ -809,6 +828,7 @@
                             <table class="table w-full text-sm">
                                 <thead class="bg-gray-50">
                                     <tr>
+                                        <th>ID</th>
                                         <th>Unidade</th>
                                         <th>Tipo</th>
                                         <th>Qtd.</th>
@@ -820,7 +840,7 @@
                                     </tr>
                                 </thead>
                                 <tbody id="table-historico-agua-all" class="divide-y divide-gray-100">
-                                    <tr><td colspan="8" class="text-center py-10"><div class="loading-spinner-small mx-auto"></div></td></tr>
+                                    <tr><td colspan="9" class="text-center py-10"><div class="loading-spinner-small mx-auto"></div></td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -1079,9 +1099,27 @@
                             </div>
                         </div>
                         <div class="p-6">
-                            <div class="mb-3">
-                                <label for="filtro-debito-gas" class="form-label text-xs">Buscar Unidade:</label>
-                                <input type="text" id="filtro-debito-gas" data-table="table-debito-gas-resumo" class="form-input" placeholder="Digite o nome da unidade...">
+                            <div class="filter-toolbar grid grid-cols-1 md:grid-cols-5 gap-3 mb-4">
+                                <div>
+                                    <label for="filtro-debito-gas" class="form-label text-xs">Unidade</label>
+                                    <input type="text" id="filtro-debito-gas" class="form-input" placeholder="Nome da unidade">
+                                </div>
+                                <div>
+                                    <label for="filtro-resumo-gas-tipo" class="form-label text-xs">Tipo</label>
+                                    <select id="filtro-resumo-gas-tipo" class="form-select"><option value="">Todos</option></select>
+                                </div>
+                                <div>
+                                    <label for="filtro-resumo-gas-pend-min" class="form-label text-xs">Vazios pendentes mín.</label>
+                                    <input type="number" id="filtro-resumo-gas-pend-min" class="form-input" min="0" placeholder="Ex.: 1">
+                                </div>
+                                <div>
+                                    <label for="filtro-resumo-gas-data-ini" class="form-label text-xs">Última mov. desde</label>
+                                    <input type="date" id="filtro-resumo-gas-data-ini" class="form-input">
+                                </div>
+                                <div>
+                                    <label for="filtro-resumo-gas-data-fim" class="form-label text-xs">Última mov. até</label>
+                                    <input type="date" id="filtro-resumo-gas-data-fim" class="form-input">
+                                </div>
                             </div>
                             <div class="overflow-x-auto border border-gray-200 rounded-lg max-h-64 resumo-table-container">
                                 <table class="table w-full text-sm">
@@ -1161,7 +1199,7 @@
 
                            <form id="form-gas" class="p-6 space-y-4">
                                <h2 class="text-xl font-bold text-gray-800 mb-2">Lançar Movimentação (Gás)
-                                   <span title="Movimentação: entrega (saída) de botijões cheios e retorno (entrada) de botijões vazios nas unidades." class="inline-block align-middle ml-1 text-gray-400 cursor-help"><i data-lucide="info"></i></span>
+                                   <span title="Movimentação: cheios (saída para unidade) e vazios (retorno da unidade)." class="inline-block align-middle ml-1 text-gray-400 cursor-help"><i data-lucide="info"></i></span>
                                </h2>
                                <p class="text-xs text-gray-500 mb-2">Movimentação refere-se às operações com as unidades (saída/retorno). Para compras/reposição no almoxarifado, utilize a aba Entrada (Estoque).</p>
                                <div>
@@ -1190,12 +1228,12 @@
                                </div>
 
                                <div>
-                                   <label for="input-data-gas" class="form-label">Data da Entrega/Retirada</label>
+                                   <label for="input-data-gas" class="form-label">Data da Movimentação (Cheio/Vazio)</label>
                                    <input type="date" id="input-data-gas" class="form-input" required>
                                </div>
                                <div>
-                                    <label for="input-responsavel-gas" class="form-label">Nome de quem Recebeu/Devolveu (Unidade)</label>
-                                    <input type="text" id="input-responsavel-gas" class="form-input" placeholder="Nome do Responsável da Unidade (quem recebeu ou devolveu)" required>
+                                    <label for="input-responsavel-gas" class="form-label">Responsável na Unidade (Cheio/Vazio)</label>
+                                    <input type="text" id="input-responsavel-gas" class="form-input" placeholder="Nome do responsável na unidade" required>
                                </div>
                                <button type="submit" id="btn-submit-gas" class="btn-primary w-full !mt-6">
                                    <i data-lucide="save"></i> <span>Salvar Movimentação</span>
@@ -1290,10 +1328,10 @@
                                      <tr>
                                          <th>Unidade</th>
                                          <th>Tipo</th>
-                                         <th class="text-center">Entregues</th>
-                                         <th class="text-center">Recebidos</th>
+                                         <th class="text-center">Entregue vazio</th>
+                                         <th class="text-center">Recebido cheio</th>
                                          <th class="text-center">Saldo</th>
-                                         <th>Último Lançamento (Entrega/Retirada)</th>
+                                         <th>Último Lançamento (Cheio/Vazio)</th>
                                      </tr>
                                  </thead>
                                  <tbody id="table-status-gas" class="divide-y divide-gray-100">
@@ -1366,6 +1404,7 @@
                             <table class="table w-full text-sm">
                                 <thead class="bg-gray-50">
                                     <tr>
+                                        <th>ID</th>
                                         <th>Unidade</th>
                                         <th>Tipo</th>
                                         <th>Qtd.</th>
@@ -1377,7 +1416,7 @@
                                     </tr>
                                 </thead>
                                 <tbody id="table-historico-gas-all" class="divide-y divide-gray-100">
-                                    <tr><td colspan="8" class="text-center py-10"><div class="loading-spinner-small mx-auto"></div></td></tr>
+                                    <tr><td colspan="9" class="text-center py-10"><div class="loading-spinner-small mx-auto"></div></td></tr>
                                 </tbody>
                             </table>
                         </div>

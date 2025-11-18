@@ -8,6 +8,8 @@ import { isReady } from "./auth.js";
 import { COLLECTIONS } from "../services/firestore-service.js";
 import { executeFinalMovimentacao } from "./movimentacao-modal-handler.js";
 
+function _normName(x) { return (x || '').toLowerCase().replace(/\s+/g, ' ').trim(); }
+
 // =========================================================================
 // LÓGICA DE ESTOQUE (Movido de app.js)
 // =========================================================================
@@ -299,26 +301,35 @@ export function renderGasStatus(newFilter = null) {
     if (newFilter) setCurrentStatusFilter('gas', newFilter);
     
     const statusMap = new Map();
+    const nameIndex = new Map();
      getUnidades().forEach(u => { 
         let tipoNormalizado = (u.tipo || 'N/A').toUpperCase();
         if (tipoNormalizado === 'SEMCAS') tipoNormalizado = 'SEDE';
-        statusMap.set(u.id, { id: u.id, nome: u.nome, tipo: tipoNormalizado, entregues: 0, recebidos: 0, ultimosLancamentos: [] }); 
+        const obj = { id: u.id, nome: u.nome, tipo: tipoNormalizado, entregues: 0, recebidos: 0, ultimosLancamentos: [] };
+        statusMap.set(u.id, obj);
+        nameIndex.set(_normName(u.nome), obj);
     });
 
-     const movsOrdenadas = [...getGasMovimentacoes()].sort((a, b) => (b.data?.toMillis() || 0) - (a.data?.toMillis() || 0));
+     const movsOrdenadas = [...getGasMovimentacoes()].sort((a, b) => {
+         const ad = a.data?.toMillis() || 0;
+         const bd = b.data?.toMillis() || 0;
+         if (bd !== ad) return bd - ad;
+         const ar = a.registradoEm?.toMillis?.() || 0;
+         const br = b.registradoEm?.toMillis?.() || 0;
+         return br - ar;
+     });
      
      movsOrdenadas.forEach(m => {
-         if (statusMap.has(m.unidadeId)) {
-             const unidadeStatus = statusMap.get(m.unidadeId);
-             if (m.tipo === 'entrega') unidadeStatus.entregues += m.quantidade;
-             else if (m.tipo === 'retorno') unidadeStatus.recebidos += m.quantidade;
-              
-             if (unidadeStatus.ultimosLancamentos.length === 0) {
-                 unidadeStatus.ultimosLancamentos.push({
-                     id: m.id, respUnidade: m.responsavel, respAlmox: m.responsavelAlmoxarifado || 'N/A', 
-                     data: m.data, registradoEm: m.registradoEm, tipo: m.tipo, quantidade: m.quantidade
-                });
-             }
+         let unidadeStatus = statusMap.get(m.unidadeId) || nameIndex.get(_normName(m.unidadeNome));
+         if (!unidadeStatus) return;
+         if (m.tipo === 'entrega') unidadeStatus.entregues += m.quantidade;
+         else if (m.tipo === 'retorno' || m.tipo === 'retirada') unidadeStatus.recebidos += m.quantidade;
+          
+         if (unidadeStatus.ultimosLancamentos.length === 0) {
+             unidadeStatus.ultimosLancamentos.push({
+                 id: m.id, respUnidade: m.responsavel, respAlmox: m.responsavelAlmoxarifado || 'N/A', 
+                 data: m.data, registradoEm: m.registradoEm, tipo: m.tipo, quantidade: m.quantidade
+            });
          }
      });
 
@@ -384,24 +395,66 @@ export function renderGasStatus(newFilter = null) {
 export function renderGasDebitosResumo() {
     if (!DOM_ELEMENTS.tableDebitoGasResumo) return;
     const statusMap = new Map();
+    const nameIndex = new Map();
     getUnidades().forEach(u => {
         let tipo = (u.tipo || 'N/A').toUpperCase();
         if (tipo === 'SEMCAS') tipo = 'SEDE';
-        statusMap.set(u.id, { id: u.id, nome: u.nome, tipo, entregues: 0, recebidos: 0, ultimo: null });
+        const obj = { id: u.id, nome: u.nome, tipo, entregues: 0, recebidos: 0, ultimo: null };
+        statusMap.set(u.id, obj);
+        nameIndex.set(_normName(u.nome), obj);
     });
 
-    const movsOrdenadas = [...getGasMovimentacoes()].sort((a, b) => (b.data?.toMillis() || 0) - (a.data?.toMillis() || 0));
+    const movsOrdenadas = [...getGasMovimentacoes()].sort((a, b) => {
+        const ad = a.data?.toMillis() || 0;
+        const bd = b.data?.toMillis() || 0;
+        if (bd !== ad) return bd - ad;
+        const ar = a.registradoEm?.toMillis?.() || 0;
+        const br = b.registradoEm?.toMillis?.() || 0;
+        return br - ar;
+    });
     movsOrdenadas.forEach(m => {
-        const s = statusMap.get(m.unidadeId);
+        let s = statusMap.get(m.unidadeId) || nameIndex.get(_normName(m.unidadeNome));
         if (!s) return;
-        if (m.tipo === 'entrega') s.entregues += m.quantidade; else if (m.tipo === 'retorno') s.recebidos += m.quantidade;
-        if (!s.ultimo) s.ultimo = { data: m.data, tipo: m.tipo, quantidade: m.quantidade, respUnidade: m.responsavel, respAlmox: m.responsavelAlmoxarifado || 'N/A' };
+        if (m.tipo === 'entrega') s.entregues += m.quantidade; else if (m.tipo === 'retorno' || m.tipo === 'retirada') s.recebidos += m.quantidade;
+        if (!s.ultimo) s.ultimo = { id: m.id, data: m.data, tipo: m.tipo, quantidade: m.quantidade, respUnidade: m.responsavel, respAlmox: m.responsavelAlmoxarifado || 'N/A' };
     });
 
     const listaBase = Array.from(statusMap.values()).map(s => ({ ...s, pendentes: s.entregues - s.recebidos }));
-    const lista = (debitoGasMode === 'credito')
-        ? listaBase.filter(s => s.pendentes < 0).sort((a, b) => (Math.abs(b.pendentes) - Math.abs(a.pendentes)) || a.nome.localeCompare(b.nome))
-        : listaBase.filter(s => s.pendentes > 0).sort((a, b) => (b.pendentes - a.pendentes) || a.nome.localeCompare(b.nome));
+    let lista = (debitoGasMode === 'credito')
+        ? listaBase.filter(s => s.pendentes < 0)
+        : listaBase.filter(s => s.pendentes > 0);
+
+    const nomeFiltro = (DOM_ELEMENTS.filtroDebitoGas?.value || '').trim().toLowerCase();
+    if (nomeFiltro) lista = lista.filter(s => s.nome.toLowerCase().includes(nomeFiltro));
+
+    const tipoFiltro = DOM_ELEMENTS.filtroResumoGasTipo?.value || '';
+    if (tipoFiltro) lista = lista.filter(s => s.tipo === tipoFiltro);
+
+    const pendMinStr = DOM_ELEMENTS.filtroResumoGasPendMin?.value || '';
+    const pendMin = pendMinStr ? parseInt(pendMinStr, 10) : null;
+    if (pendMin !== null && !isNaN(pendMin)) {
+        lista = lista.filter(s => (debitoGasMode === 'credito' ? Math.abs(s.pendentes) : s.pendentes) >= pendMin);
+    }
+
+    const dataIniStr = DOM_ELEMENTS.filtroResumoGasDataIni?.value || '';
+    const dataFimStr = DOM_ELEMENTS.filtroResumoGasDataFim?.value || '';
+    let iniMillis = null, fimMillis = null;
+    if (dataIniStr) iniMillis = dateToTimestamp(dataIniStr)?.toMillis();
+    if (dataFimStr) fimMillis = dateToTimestamp(dataFimStr)?.toMillis();
+    if (iniMillis || fimMillis) {
+        lista = lista.filter(s => {
+            const t = s.ultimo?.data?.toMillis() || 0;
+            if (iniMillis && t < iniMillis) return false;
+            if (fimMillis && t > fimMillis) return false;
+            return true;
+        });
+    }
+
+    lista = lista.sort((a, b) => {
+        const pa = debitoGasMode === 'credito' ? Math.abs(a.pendentes) : a.pendentes;
+        const pb = debitoGasMode === 'credito' ? Math.abs(b.pendentes) : b.pendentes;
+        return pb - pa || a.nome.localeCompare(b.nome);
+    });
 
     if (lista.length === 0) {
         const vazioMsg = debitoGasMode === 'credito' ? 'Nenhuma unidade com crédito no momento.' : 'Nenhuma unidade devendo vazios no momento.';
@@ -410,19 +463,35 @@ export function renderGasDebitosResumo() {
     }
 
     const grupos = lista.reduce((acc, s) => { (acc[s.tipo] ||= []).push(s); return acc; }, {});
-    const tiposOrdenados = Object.keys(grupos).sort();
+    const tiposOrdenadosSrc = Object.keys(grupos).sort();
+    const tiposUnicos = tiposOrdenadosSrc;
+    if (DOM_ELEMENTS.filtroResumoGasTipo && DOM_ELEMENTS.filtroResumoGasTipo.options.length <= 1) {
+        const html = ['<option value="">Todos</option>'].concat(tiposUnicos.map(t => `<option value="${t}">${t}</option>`)).join('');
+        DOM_ELEMENTS.filtroResumoGasTipo.innerHTML = html;
+    }
+    const tiposOrdenados = tiposOrdenadosSrc;
     const rows = [];
     tiposOrdenados.forEach(tipo => {
         rows.push(`<tr class="table-group-header"><td colspan="4">${tipo}</td></tr>`);
         grupos[tipo].forEach(s => {
-            const ultimo = s.ultimo ? `${formatTimestampComTempo(s.ultimo.data)} • ${s.ultimo.tipo} (${s.ultimo.quantidade})` : 'N/A';
+            const ultimoData = s.ultimo ? formatTimestampComTempo(s.ultimo.data) : 'N/A';
+            const ultimoTipo = s.ultimo?.tipo || '';
+            const ultimoQtd = s.ultimo?.quantidade || '';
+            const ultimoResp = s.ultimo ? `Almox: ${s.ultimo.respAlmox} • Unid: ${s.ultimo.respUnidade}` : '';
             const pendText = debitoGasMode === 'credito' ? Math.abs(s.pendentes) : s.pendentes;
             const pendClass = debitoGasMode === 'credito' ? 'text-blue-600' : 'text-red-600';
             rows.push(`<tr>
                 <td class="font-medium">${s.nome}</td>
                 <td><span class="badge badge-gray">${s.tipo}</span></td>
                 <td class="text-center ${pendClass} font-extrabold">${pendText}</td>
-                <td class="text-xs text-gray-600">${ultimo}</td>
+                <td class="text-xs text-gray-700">
+                    <div class="flex flex-col">
+                        <span class="font-medium">${ultimoData}</span>
+                        <span class="mt-1 flex items-center gap-2"><span class="badge ${(ultimoTipo==='retorno' || ultimoTipo==='retirada') ? 'badge-green' : 'badge-blue'}">${(ultimoTipo==='retorno' || ultimoTipo==='retirada') ? 'vazio' : 'cheio'}</span><span>${ultimoQtd}</span></span>
+                        <span class="text-gray-500">${ultimoResp}</span>
+                        <span class="text-gray-400 text-xs">ID: ${s.ultimo?.id || 'N/A'}</span>
+                    </div>
+                </td>
             </tr>`);
         });
     });
@@ -525,7 +594,8 @@ export function renderGasMovimentacoesHistory() {
             ? `<button class="btn-danger btn-remove btn-icon" data-id="${m.id}" data-type="gas" data-details="${details}" title="Remover este lançamento"><i data-lucide="trash-2"></i></button>`
             : `<span class="text-gray-400 btn-icon" title="Apenas Admin pode excluir"><i data-lucide="slash"></i></span>`;
 
-        html += `<tr title="Lançado por: ${respAlmox}">
+        html += `<tr title="ID: ${m.id} • Lançado por: ${respAlmox}">
+            <td class="text-xs text-gray-500">${m.id}</td>
             <td>${m.unidadeNome || 'N/A'}</td>
             <td><span class="badge ${tipoClass}">${tipoText}</span></td>
             <td class="text-center font-medium">${m.quantidade}</td>
@@ -561,7 +631,7 @@ function populateGasFilterUnidades() {
     const tipoUnidadeSelecionado = (document.getElementById('filtro-unidade-tipo-gas')?.value || '').toUpperCase();
 
     // Unidades permitidas conforme o Tipo selecionado (Entrega/Retorno)
-    const movs = getGasMovimentacoes().filter(m => (m.tipo === 'entrega' || m.tipo === 'retorno') && (!tipoSelecionado || m.tipo === tipoSelecionado));
+    const movs = getGasMovimentacoes().filter(m => (m.tipo === 'entrega' || m.tipo === 'retorno' || m.tipo === 'retirada') && (!tipoSelecionado || m.tipo === tipoSelecionado));
     const unidadeIdsPermitidas = new Set(movs.map(m => m.unidadeId).filter(Boolean));
     const unidades = getUnidades().filter(u => {
         let uTipo = (u.tipo || 'N/A').toUpperCase();
@@ -604,7 +674,7 @@ function getFilteredGasMovimentacoes() {
     const dataIniStr = dataIniEl?.value || '';
     const dataFimStr = dataFimEl?.value || '';
 
-    const base = getGasMovimentacoes().filter(m => m.tipo === 'entrega' || m.tipo === 'retorno');
+    const base = getGasMovimentacoes().filter(m => (m.tipo === 'entrega' || m.tipo === 'retorno' || m.tipo === 'retirada'));
     const dataIniMs = dataIniStr ? dateToTimestamp(dataIniStr)?.toMillis() : null;
     const dataFimMs = dataFimStr ? dateToTimestamp(dataFimStr)?.toMillis() : null;
 
@@ -642,7 +712,7 @@ function checkGasHistoryIntegrity() {
         if (!m.unidadeId || !unidadesMap.has(m.unidadeId)) inconsistenciasMov++;
         if (!m.data || typeof m.data.toMillis !== 'function') inconsistenciasMov++;
         if (!m.registradoEm || typeof m.registradoEm.toMillis !== 'function') inconsistenciasMov++;
-        if (!['entrega', 'retorno'].includes(m.tipo)) inconsistenciasMov++;
+        if (!['entrega', 'retorno', 'retirada'].includes(m.tipo)) inconsistenciasMov++;
         if (!m.quantidade || m.quantidade <= 0) inconsistenciasMov++;
     });
 
@@ -710,8 +780,12 @@ export function initGasListeners() {
         document.getElementById('filtro-historico-gas').addEventListener('input', () => filterTable(document.getElementById('filtro-historico-gas'), 'table-historico-gas-all'));
     }
     if (DOM_ELEMENTS.filtroDebitoGas) {
-        DOM_ELEMENTS.filtroDebitoGas.addEventListener('input', () => filterTable(DOM_ELEMENTS.filtroDebitoGas, 'table-debito-gas-resumo'));
+        DOM_ELEMENTS.filtroDebitoGas.addEventListener('input', () => renderGasDebitosResumo());
     }
+    if (DOM_ELEMENTS.filtroResumoGasTipo) DOM_ELEMENTS.filtroResumoGasTipo.addEventListener('change', renderGasDebitosResumo);
+    if (DOM_ELEMENTS.filtroResumoGasPendMin) DOM_ELEMENTS.filtroResumoGasPendMin.addEventListener('input', renderGasDebitosResumo);
+    if (DOM_ELEMENTS.filtroResumoGasDataIni) DOM_ELEMENTS.filtroResumoGasDataIni.addEventListener('change', renderGasDebitosResumo);
+    if (DOM_ELEMENTS.filtroResumoGasDataFim) DOM_ELEMENTS.filtroResumoGasDataFim.addEventListener('change', renderGasDebitosResumo);
     if (DOM_ELEMENTS.btnDebitoGas) {
         DOM_ELEMENTS.btnDebitoGas.addEventListener('click', () => {
             debitoGasMode = 'devendo';

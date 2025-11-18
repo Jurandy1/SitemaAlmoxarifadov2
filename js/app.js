@@ -2,7 +2,7 @@
 
 import { initializeFirebaseServices } from "./services/firestore-service.js";
 // Adicionado signInAnonUser e signInEmailPassword para o formulário de login no DOM
-import { initAuthAndListeners, signOutUser, signInAnonUser, signInEmailPassword } from "./modules/auth.js"; 
+import { initAuthAndListeners, signOutUser, signInAnonUser, signInEmailPassword, sendResetPassword } from "./modules/auth.js"; 
 import { renderDashboard, startDashboardRefresh, stopDashboardRefresh, renderDashboardAguaChart, renderDashboardGasChart } from "./modules/dashboard.js";
 // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
 // NOTA: showAlert foi importado aqui. Certifique-se de que ele está corretamente exportado em control-helpers.js
@@ -50,12 +50,12 @@ function setupApp() {
     initSocialListeners();
     
     // 8. ADICIONADO: Listeners do Modal de Login
-    if (DOM_ELEMENTS.formLogin) {
-        DOM_ELEMENTS.formLogin.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = DOM_ELEMENTS.inputLoginEmail.value;
-            const password = DOM_ELEMENTS.inputLoginPassword.value;
-            const btn = document.getElementById('btn-submit-login');
+    if (DOM_ELEMENTS.formLogin) {
+        DOM_ELEMENTS.formLogin.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = DOM_ELEMENTS.inputLoginEmail.value;
+            const password = DOM_ELEMENTS.inputLoginPassword.value;
+            const btn = document.getElementById('btn-submit-login');
             
             try {
                 // Desabilita o botão enquanto tenta logar
@@ -76,8 +76,16 @@ function setupApp() {
                 btn.innerHTML = '<i data-lucide="log-in"></i> Entrar';
                 if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
             }
-        });
-    }
+        });
+        const btnReset = document.getElementById('btn-reset-password');
+        if (btnReset) {
+            btnReset.addEventListener('click', async () => {
+                const email = DOM_ELEMENTS.inputLoginEmail.value;
+                btnReset.disabled = true;
+                try { await sendResetPassword(email); } finally { btnReset.disabled = false; }
+            });
+        }
+    }
     
     if (DOM_ELEMENTS.btnLoginAnonimo) {
         DOM_ELEMENTS.btnLoginAnonimo.addEventListener('click', async () => {

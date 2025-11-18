@@ -173,11 +173,11 @@ function renderDashboardAguaSummary() {
     const estoqueAtual = estoqueInicial + totalEntradas - totalSaidas;
 
     const totalEntregueGeral = movs.filter(m => m.tipo === 'entrega').reduce((sum, m) => sum + m.quantidade, 0);
-    const totalRecebidoGeral = movs.filter(m => m.tipo === 'retorno').reduce((sum, m) => sum + m.quantidade, 0);
+    const totalRecebidoGeral = movs.filter(m => (m.tipo === 'retorno' || m.tipo === 'retirada')).reduce((sum, m) => sum + m.quantidade, 0);
     
     const movs30Dias = filterLast30Days(movs);
     const totalEntregue30d = movs30Dias.filter(m => m.tipo === 'entrega').reduce((sum, m) => sum + m.quantidade, 0);
-    const totalRecebido30d = movs30Dias.filter(m => m.tipo === 'retorno').reduce((sum, m) => sum + m.quantidade, 0);
+    const totalRecebido30d = movs30Dias.filter(m => (m.tipo === 'retorno' || m.tipo === 'retirada')).reduce((sum, m) => sum + m.quantidade, 0);
 
     // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (DOM_ELEMENTS.summaryAguaPendente) DOM_ELEMENTS.summaryAguaPendente.textContent = totalEntregueGeral - totalRecebidoGeral; 
@@ -201,11 +201,11 @@ function renderDashboardGasSummary() {
     const estoqueAtual = estoqueInicial + totalEntradas - totalSaidas;
     
     const totalEntregueGeral = movs.filter(m => m.tipo === 'entrega').reduce((sum, m) => sum + m.quantidade, 0);
-    const totalRecebidoGeral = movs.filter(m => m.tipo === 'retorno').reduce((sum, m) => sum + m.quantidade, 0);
+    const totalRecebidoGeral = movs.filter(m => (m.tipo === 'retorno' || m.tipo === 'retirada')).reduce((sum, m) => sum + m.quantidade, 0);
     
     const movs30Dias = filterLast30Days(movs);
     const totalEntregue30d = movs30Dias.filter(m => m.tipo === 'entrega').reduce((sum, m) => sum + m.quantidade, 0);
-    const totalRecebido30d = movs30Dias.filter(m => m.tipo === 'retorno').reduce((sum, m) => sum + m.quantidade, 0);
+    const totalRecebido30d = movs30Dias.filter(m => (m.tipo === 'retorno' || m.tipo === 'retirada')).reduce((sum, m) => sum + m.quantidade, 0);
 
     // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (DOM_ELEMENTS.summaryGasPendente) DOM_ELEMENTS.summaryGasPendente.textContent = totalEntregueGeral - totalRecebidoGeral; 
