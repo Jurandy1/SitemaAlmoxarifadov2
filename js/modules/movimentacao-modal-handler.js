@@ -132,6 +132,10 @@ export async function handleFinalMovimentacaoSubmit() {
     const qtdRetorno = parseInt(qtdRetornoStr, 10);
     const dataMillis = parseInt(dataMillisStr, 10);
 
+    // -- CORREÇÃO: Definindo itemLabel aqui para evitar ReferenceError --
+    const itemLabel = itemType === 'agua' ? 'galão(ões) 20L' : 'botijão(ões)';
+    // -------------------------------------------------------------------
+
     if (isNaN(qtdEntregue) || isNaN(qtdRetorno) || isNaN(dataMillis)) {
          console.error("Erro: Falha ao converter quantidades ou data.", { qtdEntregueStr, qtdRetornoStr, dataMillisStr });
          showAlert('alert-almox-responsavel', 'Erro interno nos dados numéricos da movimentação. Tente novamente.', 'error');
