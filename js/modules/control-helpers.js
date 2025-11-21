@@ -1,6 +1,6 @@
-// js/modules/control-helpers.js// js/modules/control-helpers.js
+// js/modules/control-helpers.js
 import { getUnidades } from "../utils/cache.js";
-// CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
+// CORREÇÃO: Adicionado 'showAlert' na importação abaixo
 import {
     DOM_ELEMENTS,
     switchTab,
@@ -9,7 +9,8 @@ import {
     filterTable,
     updateLastUpdateTime,
     handleSaldoFilterUI,
-    openConfirmDeleteModal
+    openConfirmDeleteModal,
+    showAlert 
 } from "../utils/dom-helpers.js";
 
 import { onAguaTabChange, initAguaListeners } from "./agua-control.js";
