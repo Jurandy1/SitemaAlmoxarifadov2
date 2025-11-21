@@ -1,6 +1,6 @@
 // js/modules/control-helpers.js
 import { getUnidades } from "../utils/cache.js";
-// CORREÇÃO: Adicionado 'showAlert' na importação abaixo
+// CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
 import {
     DOM_ELEMENTS,
     switchTab,
@@ -33,17 +33,36 @@ import { getTodayDateString } from "../utils/formatters.js";
 // FUNÇÕES DE CONTROLE GERAL
 // ======================================================================
 
+// Variável para controlar o debounce (atraso na renderização)
+let renderTimeout = null;
+
 /**
  * Renderiza todos os módulos da UI que estão ativos.
+ * AGORA COM DEBOUNCE: Evita travamentos aglomerando múltiplas chamadas em uma só.
  */
 function renderUIModules() {
-    // Otimização: Renderizar controles de unidade é pesado e reseta formulários.
-    // O ideal seria chamar isso apenas quando a lista de unidades mudar, 
-    // mas como salvaguarda, vamos manter aqui com preservação de valor (ver renderUnidadeControls).
+    // Se já houver uma renderização agendada, cancela ela para agendar uma nova no final da fila
+    if (renderTimeout) {
+        clearTimeout(renderTimeout);
+    }
+
+    // Agenda a execução para daqui a 150ms.
+    // Se novas atualizações chegarem nesse tempo, este timer reinicia.
+    renderTimeout = setTimeout(() => {
+        executeRenderUIModules();
+    }, 150);
+}
+
+/**
+ * Função real que executa a renderização (chamada pelo renderUIModules após o delay).
+ */
+function executeRenderUIModules() {
+    console.log("Executando atualização da UI (Debounced)...");
+    
+    // Otimização: Renderizar controles de unidade é pesado.
     renderUnidadeControls();
     
     // Configura o filtro de análise de consumo
-    // OBS: setupAnaliseUnidadeControls deve ser inteligente para não recriar listeners desnecessariamente
     setupAnaliseUnidadeControls('agua');
     setupAnaliseUnidadeControls('gas');
 
@@ -51,7 +70,6 @@ function renderUIModules() {
         DOM_ELEMENTS.contentPanes.forEach(pane => {
             if (!pane.classList.contains("hidden")) {
                 const tabName = pane.id.replace("content-", "");
-                // console.log(`renderUIModules calling for tab: ${tabName}`); // Log reduzido
                 switch (tabName) {
                     case "dashboard":
                         renderDashboard();
@@ -81,6 +99,9 @@ function renderUIModules() {
             }
         });
     }
+    
+    // Limpa o timeout após execução
+    renderTimeout = null;
 }
 
 /**
@@ -89,6 +110,9 @@ function renderUIModules() {
  */
 function renderUnidadeControls() {
     const unidades = getUnidades();
+    // Se não houver unidades carregadas ainda, não faz nada para economizar processamento
+    if (!unidades || unidades.length === 0) return;
+
     const selectsToPopulate = [
         { el: DOM_ELEMENTS.selectUnidadeAgua, service: "atendeAgua", includeAll: false, includeSelecione: true },
         { el: DOM_ELEMENTS.selectUnidadeGas, service: "atendeGas", includeAll: false, includeSelecione: true },
@@ -109,13 +133,14 @@ function renderUnidadeControls() {
         // 1. Salva o valor atual selecionado pelo usuário
         const currentValue = el.value;
 
-        let unidadesFiltradas = unidades.filter(u => {
+        // Micro-otimização: Filtragem apenas se necessário
+        let unidadesFiltradas = service || filterType ? unidades.filter(u => {
             const atendeServico = service ? (u[service] ?? true) : true;
             let tipoUnidadeNormalizado = (u.tipo || "").toUpperCase();
             if (tipoUnidadeNormalizado === "SEMCAS") tipoUnidadeNormalizado = "SEDE";
             const tipoCorreto = !filterType || tipoUnidadeNormalizado === (filterType || "").toUpperCase();
             return atendeServico && tipoCorreto;
-        });
+        }) : unidades;
 
         const grupos = unidadesFiltradas.reduce((acc, unidade) => {
             let tipo = (unidade.tipo || "Sem Tipo").toUpperCase();
