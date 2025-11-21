@@ -1,11 +1,10 @@
-// js/modules/control-helpers.js
+// js/modules/control-helpers.js// js/modules/control-helpers.js
 import { getUnidades } from "../utils/cache.js";
 // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
 import {
     DOM_ELEMENTS,
     switchTab,
     findDOMElements,
-    showAlert,
     switchSubTabView,
     filterTable,
     updateLastUpdateTime,
@@ -18,9 +17,9 @@ import { onGasTabChange, initGasListeners } from "./gas-control.js";
 import { onMateriaisTabChange, initMateriaisListeners } from "./materiais.js";
 import { onGestaoTabChange, initGestaoListeners } from "./gestao.js";
 import { onRelatorioTabChange, initRelatoriosListeners } from "./relatorios.js";
-import { onUsuariosTabChange, initUsuariosListeners } from "./usuarios.js"; // ADICIONADO
-import { onSocialTabChange, initSocialListeners } from "./social-control.js"; // NOVO MÓDULO
-import { setupAnaliseUnidadeControls } from "./previsao.js"; // IMPORTADO
+import { onUsuariosTabChange, initUsuariosListeners } from "./usuarios.js"; 
+import { onSocialTabChange, initSocialListeners } from "./social-control.js"; 
+import { setupAnaliseUnidadeControls } from "./previsao.js"; 
 import {
     initDashboardListeners,
     renderDashboard,
@@ -37,33 +36,35 @@ import { getTodayDateString } from "../utils/formatters.js";
  * Renderiza todos os módulos da UI que estão ativos.
  */
 function renderUIModules() {
+    // Otimização: Renderizar controles de unidade é pesado e reseta formulários.
+    // O ideal seria chamar isso apenas quando a lista de unidades mudar, 
+    // mas como salvaguarda, vamos manter aqui com preservação de valor (ver renderUnidadeControls).
     renderUnidadeControls();
     
-    // Configura o filtro de análise de consumo (Novo)
+    // Configura o filtro de análise de consumo
+    // OBS: setupAnaliseUnidadeControls deve ser inteligente para não recriar listeners desnecessariamente
     setupAnaliseUnidadeControls('agua');
     setupAnaliseUnidadeControls('gas');
 
-    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (DOM_ELEMENTS.contentPanes) {
         DOM_ELEMENTS.contentPanes.forEach(pane => {
-            // Verifica se o painel não está 'hidden', pois só precisa renderizar o que está visível
             if (!pane.classList.contains("hidden")) {
                 const tabName = pane.id.replace("content-", "");
-                console.log(`renderUIModules calling for tab: ${tabName}`);
+                // console.log(`renderUIModules calling for tab: ${tabName}`); // Log reduzido
                 switch (tabName) {
                     case "dashboard":
                         renderDashboard();
                         break;
                     case "agua":
-                        onAguaTabChange(); // Chama a orquestração da tab Água
+                        onAguaTabChange(); 
                         break;
                     case "gas":
-                        onGasTabChange(); // Chama a orquestração da tab Gás
+                        onGasTabChange(); 
                         break;
                     case "materiais":
                         onMateriaisTabChange();
                         break;
-                    case "social": // NOVO MÓDULO SOCIAL
+                    case "social": 
                         onSocialTabChange();
                         break;
                     case "gestao":
@@ -83,11 +84,11 @@ function renderUIModules() {
 
 /**
  * Renderiza os controles de unidade (selects) em todas as abas.
+ * CORREÇÃO APLICADA: Preserva o valor selecionado para evitar reset durante updates em tempo real.
  */
 function renderUnidadeControls() {
     const unidades = getUnidades();
     const selectsToPopulate = [
-        // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
         { el: DOM_ELEMENTS.selectUnidadeAgua, service: "atendeAgua", includeAll: false, includeSelecione: true },
         { el: DOM_ELEMENTS.selectUnidadeGas, service: "atendeGas", includeAll: false, includeSelecione: true },
         { el: DOM_ELEMENTS.selectUnidadeMateriais, service: "atendeMateriais", includeAll: false, includeSelecione: true },
@@ -96,11 +97,16 @@ function renderUnidadeControls() {
         { el: document.getElementById("select-exclusao-agua"), service: "atendeAgua", useIdAsValue: true },
         { el: document.getElementById("select-exclusao-gas"), service: "atendeGas", useIdAsValue: true },
         
-        // Novos selects de filtro por tipo/unidade para Previsão (agora populados por setupAnaliseUnidadeControls)
+        // Novos selects sociais
+        { el: document.getElementById("cesta-select-unidade"), service: null, useIdAsValue: false, includeSelecione: true, filterType: null, customFormat: "TIPO: NOME" },
+        { el: document.getElementById("enxoval-select-unidade"), service: null, useIdAsValue: false, includeSelecione: true, filterType: null, customFormat: "TIPO: NOME" }
     ];
 
-    selectsToPopulate.forEach(({ el, service, includeAll, includeSelecione, filterType, useIdAsValue }) => {
+    selectsToPopulate.forEach(({ el, service, includeAll, includeSelecione, filterType, useIdAsValue, customFormat }) => {
         if (!el) return;
+
+        // 1. Salva o valor atual selecionado pelo usuário
+        const currentValue = el.value;
 
         let unidadesFiltradas = unidades.filter(u => {
             const atendeServico = service ? (u[service] ?? true) : true;
@@ -129,15 +135,35 @@ function renderUnidadeControls() {
             grupos[tipo]
                 .sort((a, b) => a.nome.localeCompare(b.nome))
                 .forEach(unidade => {
-                    const optionValue = useIdAsValue ? unidade.id : `${unidade.id}|${unidade.nome}|${unidade.tipo}`;
+                    let optionValue;
+                    if (useIdAsValue) {
+                        optionValue = unidade.id;
+                    } else if (customFormat === "TIPO: NOME") {
+                        optionValue = `${tipo}: ${unidade.nome}`;
+                    } else {
+                        optionValue = `${unidade.id}|${unidade.nome}|${unidade.tipo}`;
+                    }
+                    
                     html += `<option value="${optionValue}">${unidade.nome}</option>`;
                 });
             html += `</optgroup>`;
         });
-        el.innerHTML = html;
+        
+        // Só atualiza o HTML se ele mudou (evita reflows desnecessários)
+        if (el.innerHTML !== html) {
+            el.innerHTML = html;
+            // 2. Restaura o valor selecionado se ele ainda existir nas novas opções
+            if (currentValue) {
+                el.value = currentValue;
+                // Se o valor antigo não existir mais (ex: unidade removida), volta para o default
+                if (el.value !== currentValue) {
+                    el.value = ""; 
+                }
+            }
+        }
     });
 
-    // População para os selects de TIPO na Previsão (Mantida, mas a nova lógica de análise usa uma função diferente)
+    // População para os selects de TIPO na Previsão
     const selectTipoAgua = document.getElementById("select-previsao-tipo-agua");
     const selectTipoGas = document.getElementById("select-previsao-tipo-gas");
 
@@ -152,8 +178,17 @@ function renderUnidadeControls() {
             html += `<option value="${tipo}">${tipo}</option>`;
         });
 
-        if (selectTipoAgua) selectTipoAgua.innerHTML = html;
-        if (selectTipoGas) selectTipoGas.innerHTML = html;
+        const updateSelect = (sel) => {
+            if (sel) {
+                const currentVal = sel.value;
+                if (sel.innerHTML !== html) {
+                    sel.innerHTML = html;
+                    if (currentVal) sel.value = currentVal;
+                }
+            }
+        }
+        updateSelect(selectTipoAgua);
+        updateSelect(selectTipoGas);
     }
 }
 
@@ -164,91 +199,74 @@ function initAllListeners() {
     // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     DOM_ELEMENTS.navButtons.forEach(button => button.addEventListener("click", () => {
         stopDashboardRefresh();
-        switchTab(button.dataset.tab); // This logs "Switching to tab: ..."
+        switchTab(button.dataset.tab); 
 
-        // Chama a função de orquestração correta ao trocar de aba
         switch (button.dataset.tab) {
             case "dashboard":
-                console.log("Calling initDashboardListeners, startDashboardRefresh, renderDashboard...");
                 startDashboardRefresh();
                 renderDashboard();
                 break;
             case "agua":
-                console.log("Calling onAguaTabChange...");
                 onAguaTabChange();
                 break;
             case "gas":
-                console.log("Calling onGasTabChange...");
                 onGasTabChange();
                 break;
             case "materiais":
-                console.log("Calling onMateriaisTabChange...");
                 onMateriaisTabChange();
                 break;
-            case "social": // NOVO MÓDULO
-                console.log("Calling onSocialTabChange...");
+            case "social": 
                 onSocialTabChange();
                 break;
             case "gestao":
-                console.log("Calling onGestaoTabChange...");
                 onGestaoTabChange();
                 break;
             case "relatorio":
-                console.log("Calling onRelatorioTabChange...");
                 onRelatorioTabChange();
                 break;
             case "usuarios":
-                console.log("Calling onUsuariosTabChange...");
                 onUsuariosTabChange();
                 break;
         }
     }));
 
-    // Listener delegado para remoção em todas as abas
     document.querySelector("main").addEventListener("click", (e) => {
         const removeBtn = e.target.closest("button.btn-remove[data-id]");
         if (removeBtn) {
-             // Determina o alertId com base no tipo
-             let alertId = 'alert-gestao'; // Default para gestão
+             let alertId = 'alert-gestao'; 
              const type = removeBtn.dataset.type;
-             // Lógica de alerta para movimentações de unidade
              if (type === 'agua') alertId = 'alert-historico-agua'; 
              else if (type === 'gas') alertId = 'alert-historico-gas'; 
-             // Lógica de alerta para entradas de estoque (NOVO PONTO 1)
              else if (type === 'entrada-agua') alertId = 'alert-historico-estoque-agua'; 
              else if (type === 'entrada-gas') alertId = 'alert-historico-estoque-gas'; 
-             // Lógica de alerta para materiais (usa o ID da subview)
              else if (type === 'materiais') {
                 const subview = removeBtn.closest('[id^="subview-"]');
                 if (subview) {
-                    // Pega a parte do meio da ID da subview (ex: subview-para-separar -> para)
                     alertId = `alert-${subview.id.split('-')[1]}`;
                 }
              }
-             // Lógica de alerta para unidade
              else if (type === 'unidade') alertId = 'alert-gestao'; 
-             // Lógica de alerta para Social (Cesta/Enxoval)
-             else if (type === 'cesta' || type === 'enxoval') alertId = `${type}-relatorio`; 
-
-             console.log(`openConfirmDeleteModal called with type: ${type}, alertId: ${alertId}`);
+             // Lógica específica para estoque social
+             else if (type === 'estoque-cesta') alertId = 'alert-cesta-estoque';
+             else if (type === 'estoque-enxoval') alertId = 'alert-enxoval-estoque';
+             // Lógica para movimentação social
+             else if (type === 'mov-cesta') alertId = 'cesta-relatorio'; // Alerta está na aba relatório?
+             else if (type === 'mov-enxoval') alertId = 'enxoval-relatorio';
 
              openConfirmDeleteModal(
                 removeBtn.dataset.id,
                 type,
                 removeBtn.dataset.details,
-                alertId // Passa o ID do alerta correto
+                alertId 
              );
         }
     });
 
-    // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (DOM_ELEMENTS.btnCancelDelete)
         DOM_ELEMENTS.btnCancelDelete.addEventListener("click", () => {
-             // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
              if(DOM_ELEMENTS.confirmDeleteModal) DOM_ELEMENTS.confirmDeleteModal.style.display = "none";
          });
 
-    // Inicialização de listeners específicos de módulo (executados apenas uma vez)
     console.log("Initializing listeners for all modules...");
     initDashboardListeners();
     initAguaListeners();
@@ -256,18 +274,14 @@ function initAllListeners() {
     initMateriaisListeners();
     initGestaoListeners();
     initRelatoriosListeners();
-    initUsuariosListeners(); // Inicializa listeners de Usuários
-    initSocialListeners(); // NOVO: Inicializa listeners de Assistência Social
+    initUsuariosListeners(); 
+    initSocialListeners(); 
 }
 
-// ================================================================
-// EXPORTAÇÕES
-// ================================================================
 export {
     renderUIModules,
     renderUnidadeControls,
     initAllListeners,
-    // Exportações de utilidades do DOM usadas pelo app.js
     DOM_ELEMENTS,
     findDOMElements,
     updateLastUpdateTime,
