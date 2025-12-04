@@ -1,4 +1,4 @@
-// js/modules/previsao.js
+// js/modules/previsao.js// js/modules/previsao.js
 import { Timestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import {
     getAguaMovimentacoes,
@@ -16,7 +16,7 @@ import { formatTimestamp, formatTimestampComTempo } from "../utils/formatters.js
 
 let graficoAnaliseConsumo = { agua: null, gas: null };
 
-// Estado local para evitar recriação desnecessária de listeners
+// Estado local para evitar recriação desnecessária de listeners (Bugfix de UI)
 let analiseListenersInitialized = { agua: false, gas: false };
 
 function normalizeUnidadeType(tipo) {
@@ -28,8 +28,6 @@ function normalizeUnidadeType(tipo) {
 
 /**
  * Configura os controles de seleção de unidades para a análise de consumo.
- * CORREÇÃO: Evita recriar o nó DOM se ele já existe, apenas atualiza as opções.
- * @param {string} itemType 'agua' ou 'gas'.
  */
 export function setupAnaliseUnidadeControls(itemType) {
     const unidades = getUnidades();
@@ -42,7 +40,7 @@ export function setupAnaliseUnidadeControls(itemType) {
 
     if (!selectTipo || !selectUnidade) return;
 
-    // Salva valores atuais
+    // Salva valores atuais para não perder seleção ao atualizar
     const currentTipoVal = selectTipo.value;
     const currentUnidadeVal = selectUnidade.value;
 
@@ -82,8 +80,7 @@ export function setupAnaliseUnidadeControls(itemType) {
         if (currentUnidadeVal) selectUnidade.value = currentUnidadeVal;
     }
 
-    // 3. Adicionar Listener para o Agrupamento Principal
-    // CORREÇÃO: Adiciona o listener apenas uma vez usando flag de controle
+    // 3. Adicionar Listener para o Agrupamento Principal (apenas uma vez)
     const selectModoAgrupamento = DOM_ELEMENTS[`selectModoAgrupamento${capType}`];
     const tipoContainer = DOM_ELEMENTS[`analiseAgrupamentoTipoContainer${capType}`];
     const unidadeContainer = DOM_ELEMENTS[`analiseAgrupamentoUnidadeContainer${capType}`];
@@ -96,18 +93,14 @@ export function setupAnaliseUnidadeControls(itemType) {
                 unidadeContainer.classList.toggle('hidden', modo !== 'unidade');
             });
             analiseListenersInitialized[itemType] = true;
-            // console.log(`[Previsão] Listener inicializado para ${itemType}`);
         }
 
-        // Garante UI correta (idempotente)
+        // Garante estado inicial da UI
         const initialMode = selectModoAgrupamento.value;
         tipoContainer.classList.toggle('hidden', initialMode !== 'tipo');
         unidadeContainer.classList.toggle('hidden', initialMode !== 'unidade');
     }
 }
-
-// ... [RESTO DO ARQUIVO PERMANECE IGUAL, APENAS A FUNÇÃO ACIMA FOI OTIMIZADA]
-// Mantenha o restante das funções (analisarConsumoPorPeriodo, etc) inalteradas abaixo.
 
 function getPeriodoAnalise(movimentacoes) {
     if (movimentacoes.length === 0) return { dataInicial: null, dataFinal: null, totalDias: 0 };
@@ -612,19 +605,40 @@ function calcularPrevisaoInteligente(itemType) {
                 throw new Error("Dados insuficientes.");
             }
 
+            // =========================================================================
+            // CORREÇÃO MATEMÁTICA DA PREVISÃO: Lógica de Intervalo Real
+            // =========================================================================
             const primeiraMov = movsFiltradas[0].data.toMillis();
             const ultimaMov = movsFiltradas[movsFiltradas.length - 1].data.toMillis();
+            const qtdeUltimaEntrega = movsFiltradas[movsFiltradas.length - 1].quantidade;
 
-            const { totalDias: totalDiasHistorico } = getPeriodoAnalise(movsFiltradas);
-            const diasParaCalculo = totalDiasHistorico > 1 ? totalDiasHistorico : 1;
+            const totalConsumidoHistorico = movsFiltradas.reduce((sum, m) => sum + m.quantidade, 0);
+            
+            // Para calcular a MÉDIA DIÁRIA de consumo, não devemos contar a última entrega inteira,
+            // pois ela acabou de chegar e serve para o futuro. 
+            // Consideramos que o total consumido no período [PrimeiraData -> ÚltimaData] 
+            // é tudo o que foi entregue ANTES da última data.
+            const totalParaCalculoMedia = totalConsumidoHistorico - qtdeUltimaEntrega;
+            
+            // Cálculo preciso de dias entre a primeira e a última entrega
+            const diffMs = ultimaMov - primeiraMov;
+            const diasIntervalo = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24))); 
 
-            const totalConsumido = movsFiltradas.reduce((sum, m) => sum + m.quantidade, 0);
-            const mediaDiaria = totalConsumido / diasParaCalculo;
+            // Se só tivermos 2 entregas no mesmo dia ou muito próximas, usamos o total histórico como fallback seguro
+            // para não dividir por 1 um valor pequeno e subestimar, ou dividir 0 e dar erro.
+            let mediaDiaria;
+            if (totalParaCalculoMedia <= 0) {
+                // Fallback para casos de dados muito escassos (ex: 2 entregas no mesmo dia)
+                // Assume que a primeira entrega foi consumida em 1 dia.
+                mediaDiaria = movsFiltradas[0].quantidade; 
+            } else {
+                mediaDiaria = totalParaCalculoMedia / diasIntervalo;
+            }
 
-            if (totalDiasHistorico < 30) {
+            if (diasIntervalo < 30) {
                  const warningEl = document.createElement('div');
                  warningEl.className = 'alert alert-info mt-2';
-                 warningEl.textContent = `Aviso: O histórico de dados considerado é de apenas ${totalDiasHistorico.toFixed(0)} dias (${movsFiltradas.length} entregas). A previsão pode ser menos precisa.`;
+                 warningEl.textContent = `Aviso: O histórico de dados considerado é curto (${diasIntervalo.toFixed(0)} dias entre a primeira e última entrega). A previsão pode ser menos precisa.`;
                  if (alertEl) {
                      alertEl.appendChild(warningEl);
                      alertEl.style.display = 'block';
@@ -645,16 +659,16 @@ function calcularPrevisaoInteligente(itemType) {
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-center">
                     <div class="bg-white/10 p-4 rounded-lg">
                         <span class="block text-sm text-white/80 uppercase">Período Analisado</span>
-                        <span class="block text-2xl font-bold">${totalDiasHistorico.toFixed(0)} dias</span>
+                        <span class="block text-2xl font-bold">${diasIntervalo.toFixed(0)} dias</span>
                         <span class="block text-xs text-white/60">(${movsFiltradas.length} entregas)</span>
                     </div>
                     <div class="bg-white/10 p-4 rounded-lg">
-                        <span class="block text-sm text-white/80 uppercase">Total Consumido</span>
-                        <span class="block text-2xl font-bold">${totalConsumido} un.</span>
+                        <span class="block text-sm text-white/80 uppercase">Total Consumido (Histórico)</span>
+                        <span class="block text-2xl font-bold">${totalConsumidoHistorico} un.</span>
                     </div>
                 </div>
                 <div class="bg-white/20 p-4 rounded-lg mt-4">
-                    <span class="block text-center text-sm text-white/80 uppercase">Consumo Médio Diário</span>
+                    <span class="block text-center text-sm text-white/80 uppercase">Consumo Médio Diário Real</span>
                     <span class="block text-center text-4xl font-bold">${mediaDiaria.toFixed(2)} un./dia</span>
                 </div>
                 <hr class="border-white/20 my-4">
