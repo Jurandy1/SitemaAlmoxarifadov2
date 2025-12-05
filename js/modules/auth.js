@@ -34,10 +34,10 @@ import {
     setMateriais,
     setEstoqueAgua,
     setEstoqueGas,
-    setCestaMovimentacoes, // NOVO
-    setCestaEstoque, // NOVO
-    setEnxovalMovimentacoes, // NOVO
-    setEnxovalEstoque, // NOVO
+    setCestaMovimentacoes,
+    setCestaEstoque,
+    setEnxovalMovimentacoes,
+    setEnxovalEstoque,
     setEstoqueInicialDefinido,
     setUserRole
 } from "../utils/cache.js";
@@ -50,6 +50,11 @@ let isAuthReady = false;
 let userId = null;
 let unsubscribeListeners = [];
 let transitioning = false;
+
+// Callbacks globais para re-uso na reconexão
+let _globalRenderDash = null;
+let _globalRenderControls = null;
+let _globalRenderModules = null;
 
 // =======================================================================
 // UTILITÁRIOS
@@ -153,6 +158,11 @@ function initFirestoreListeners(renderDash, renderControls, renderModules) {
     unsubscribeFirestoreListeners();
     console.log("Iniciando listeners do Firestore...");
 
+    // Armazena referências globais para reconexão
+    _globalRenderDash = renderDash;
+    _globalRenderControls = renderControls;
+    _globalRenderModules = renderModules;
+
     const addListener = (q, cb) => {
         const unsub = onSnapshot(
             q,
@@ -160,49 +170,57 @@ function initFirestoreListeners(renderDash, renderControls, renderModules) {
             err => {
                 const msg = String(err?.message || '').toLowerCase();
                 // Silencia erros de canal abortado/queda de rede no preview
-                if (msg.includes('aborted') || msg.includes('network') || msg.includes('failed')) return;
-                console.error(err);
+                if (msg.includes('aborted') || msg.includes('network') || msg.includes('failed')) {
+                    console.warn("Conexão com Firestore perdida temporariamente.");
+                    return;
+                }
+                console.error("Erro no listener Firestore:", err);
             }
         );
         unsubscribeListeners.push(unsub);
     };
 
+    // Unidades
     addListener(query(COLLECTIONS.unidades), snap => {
         const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         setUnidades(data);
-        renderControls();
-        renderModules();
+        if(renderControls) renderControls();
+        if(renderModules) renderModules();
         renderPermissionsUI();
     });
 
+    // Água
     addListener(query(COLLECTIONS.aguaMov), snap => {
         const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         setAguaMovimentacoes(data);
-        renderDash();
-        renderModules();
+        if(renderDash) renderDash();
+        if(renderModules) renderModules();
     });
 
+    // Gás
     addListener(query(COLLECTIONS.gasMov), snap => {
         const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         setGasMovimentacoes(data);
-        renderDash();
-        renderModules();
+        if(renderDash) renderDash();
+        if(renderModules) renderModules();
     });
 
+    // Materiais
     addListener(query(COLLECTIONS.materiais), snap => {
         const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         setMateriais(data);
-        renderDash();
-        renderModules();
+        if(renderDash) renderDash();
+        if(renderModules) renderModules();
     });
 
+    // Estoques
     addListener(query(COLLECTIONS.estoqueAgua), snap => {
         const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         setEstoqueAgua(data);
         const inicial = data.some(e => e.tipo === 'inicial');
         setEstoqueInicialDefinido('agua', inicial);
-        renderDash();
-        renderModules();
+        if(renderDash) renderDash();
+        if(renderModules) renderModules();
     });
 
     addListener(query(COLLECTIONS.estoqueGas), snap => {
@@ -210,47 +228,53 @@ function initFirestoreListeners(renderDash, renderControls, renderModules) {
         setEstoqueGas(data);
         const inicial = data.some(e => e.tipo === 'inicial');
         setEstoqueInicialDefinido('gas', inicial);
-        renderDash();
-        renderModules();
+        if(renderDash) renderDash();
+        if(renderModules) renderModules();
     });
 
-    // NOVOS LISTENERS PARA ASSISTÊNCIA SOCIAL
+    // Assistência Social
     addListener(query(COLLECTIONS.cestaMov), snap => {
         const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         setCestaMovimentacoes(data);
-        renderModules();
+        if(renderModules) renderModules();
     });
 
     addListener(query(COLLECTIONS.cestaEstoque), snap => {
         const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         setCestaEstoque(data);
-        renderModules();
+        if(renderModules) renderModules();
     });
 
     addListener(query(COLLECTIONS.enxovalMov), snap => {
         const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         setEnxovalMovimentacoes(data);
-        renderModules();
+        if(renderModules) renderModules();
     });
 
     addListener(query(COLLECTIONS.enxovalEstoque), snap => {
         const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         setEnxovalEstoque(data);
-        renderModules();
+        if(renderModules) renderModules();
     });
-    // FIM NOVOS LISTENERS
 }
+
+// Listener de Reconexão Automática
+window.addEventListener('online', () => {
+    console.log("🔄 Conexão de rede detectada. Tentando reconectar listeners...");
+    if (auth.currentUser && _globalRenderDash) {
+        setTimeout(() => {
+            initFirestoreListeners(_globalRenderDash, _globalRenderControls, _globalRenderModules);
+            showAlert('connectionStatus', 'Conexão restabelecida. Atualizando...', 'success', 3000);
+        }, 2000); // Pequeno delay para garantir estabilidade
+    }
+});
 
 // =======================================================================
 // AUTH STATE HANDLER
 // =======================================================================
 async function initAuthAndListeners(renderDash, renderControls, renderModules) {
-    // ALTERADO: de browserLocalPersistence para browserSessionPersistence
-    // Isso força o Firebase a não usar o cache de dados local (IndexedDB),
-    // que é o que provavelmente está corrompendo na Smart TV.
-    // Ele ainda manterá o usuário logado durante a sessão (aba aberta).
     await setPersistence(auth, browserSessionPersistence);
-    console.log("Persistência de NAVEGADOR (session) ativada. Não usará cache local de dados."); // MENSAGEM ATUALIZADA
+    console.log("Persistência de NAVEGADOR (session) ativada.");
 
     if (window.authInitialized) return;
     window.authInitialized = true;
@@ -262,19 +286,21 @@ async function initAuthAndListeners(renderDash, renderControls, renderModules) {
             transitioning = true;
             isAuthReady = true;
             userId = user.uid;
-            const role = await getUserRoleFromFirestore(user);
+            
+            // Tenta obter role, fallback para anon se der erro
+            let role = 'anon';
+            try {
+                role = await getUserRoleFromFirestore(user);
+            } catch (e) { console.warn("Erro ao obter role, usando anon:", e); }
             setUserRole(role);
 
             console.log(`✅ Autenticado com UID: ${userId}, Role: ${role}`);
             if (DOM_ELEMENTS.userEmailDisplayEl) DOM_ELEMENTS.userEmailDisplayEl.textContent = user.email || 'Usuário';
 
             unsubscribeFirestoreListeners();
-            // Evita iniciar listeners se estiver offline (preview/local sem rede)
-            if (!navigator.onLine) {
-                console.warn('Offline detectado: listeners Firestore não serão iniciados até reconexão.');
-            } else {
-                initFirestoreListeners(renderDash, renderControls, renderModules);
-            }
+            
+            // Sempre tenta iniciar os listeners, mesmo se o navegador achar que está offline (pode ser falso positivo)
+            initFirestoreListeners(renderDash, renderControls, renderModules);
 
             renderPermissionsUI();
             renderDash();
