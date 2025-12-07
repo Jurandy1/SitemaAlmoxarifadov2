@@ -157,6 +157,21 @@ function analisarConsumoPorPeriodo(itemType) {
         }
     }
 
+    const dataInicioVal = DOM_ELEMENTS[`analiseDataInicio${itemType === 'agua' ? 'Agua' : 'Gas'}`]?.value;
+    const dataFimVal = DOM_ELEMENTS[`analiseDataFim${itemType === 'agua' ? 'Agua' : 'Gas'}`]?.value;
+    const movsGroupFull = [...movsEntrega];
+
+    if (dataInicioVal || dataFimVal) {
+        const inicio = dataInicioVal ? new Date(`${dataInicioVal}T00:00:00`) : null;
+        const fim = dataFimVal ? new Date(`${dataFimVal}T23:59:59`) : null;
+        movsEntrega = movsEntrega.filter(m => {
+            const d = m.data.toDate();
+            const okIni = inicio ? d >= inicio : true;
+            const okFim = fim ? d <= fim : true;
+            return okIni && okFim;
+        });
+    }
+
     if (movsEntrega.length === 0) {
         showAlert(alertId, 'Nenhum dado de consumo (entrega) encontrado para o filtro selecionado.', 'info');
         if (graficoAnaliseConsumo[itemType]) graficoAnaliseConsumo[itemType].destroy();
@@ -189,7 +204,7 @@ function analisarConsumoPorPeriodo(itemType) {
     const { chartLabels, chartDataSets } = formatDataForChart(consumoPorPeriodo, granularidade);
     renderGraficoAnalise(itemType, chartLabels, chartDataSets, granularidade, agruparPor, nomeFiltro);
     document.getElementById(`analise-resultado-container-${itemType}`).classList.remove('hidden');
-    renderAnaliseTextual(itemType, movsEntrega, unidades, dataInicial, dataFinal);
+    renderAnaliseTextual(itemType, movsEntrega, unidades, dataInicial, dataFinal, movsGroupFull);
     showAlert(alertId, `Análise concluída. Período: ${formatTimestamp(dataInicial)} a ${formatTimestamp(dataFinal)} (${totalDias} dias).`, 'success', 5000);
 }
 
@@ -313,9 +328,10 @@ function renderGraficoAnalise(itemType, labels, datasets, granularidade, agrupar
     });
 }
 
-function renderAnaliseTextual(itemType, movsEntrega, unidades, dataInicial, dataFinal) {
+function renderAnaliseTextual(itemType, movsEntrega, unidades, dataInicial, dataFinal, movsGroupFull) {
     const relatorioEl = document.getElementById(`analise-relatorio-textual-${itemType}`);
     const rankingEl = document.getElementById(`analise-ranking-${itemType}`);
+    const resumoExecEl = document.getElementById(`analise-resumo-executivo-${itemType}`);
     if (!relatorioEl || !rankingEl) return;
     const consumoPorUnidade = movsEntrega.reduce((acc, mov) => {
         const unidadeInfo = unidades.find(u => u.id === mov.unidadeId);
@@ -352,10 +368,25 @@ function renderAnaliseTextual(itemType, movsEntrega, unidades, dataInicial, data
          rankingEl.innerHTML = `<p class="text-gray-500 italic text-sm">Nenhum consumo registrado.</p>`;
     }
     const { totalDias } = getPeriodoAnalise(movsEntrega);
+    const mediaDiariaPeriodo = totalDias > 0 ? (totalConsumo / totalDias) : totalConsumo;
+
+    let mediaDiariaHistorica = 0;
+    if (Array.isArray(movsGroupFull) && movsGroupFull.length > 0) {
+        const { totalDias: diasHist } = getPeriodoAnalise(movsGroupFull);
+        const totalHist = movsGroupFull.reduce((sum, m) => sum + m.quantidade, 0);
+        mediaDiariaHistorica = diasHist > 0 ? (totalHist / diasHist) : totalHist;
+    }
+    const esperadoPeriodo = mediaDiariaHistorica * totalDias;
+    const desvioAbs = totalConsumo - esperadoPeriodo;
+    const desvioPerc = esperadoPeriodo > 0 ? ((desvioAbs / esperadoPeriodo) * 100) : 0;
+    const picoEntrega = movsEntrega.reduce((max, m) => Math.max(max, m.quantidade || 0), 0);
+
     let relatorioText = `
         <p>A análise abrange o período de <strong>${formatTimestamp(dataInicial)}</strong> a <strong>${formatTimestamp(dataFinal)}</strong>, totalizando <strong>${totalDias} dias</strong> de histórico de entregas.</p>
         <p>Neste período, o <strong>consumo total</strong> de ${itemLabelPlural} foi de <strong>${totalConsumo} unidades</strong>.</p>
         <p>A média de consumo por unidade considerada é de <strong>${mediaConsumo.toFixed(1)} unidades</strong> de ${itemLabel} por período analisado.</p>
+        <p>Comparativo: consumo diário no período <strong>${mediaDiariaPeriodo.toFixed(2)} un./dia</strong> vs histórico <strong>${mediaDiariaHistorica.toFixed(2)} un./dia</strong>.</p>
+        <p>Desvio frente à previsão histórica para o período: <strong>${desvioAbs.toFixed(1)} un.</strong> (${desvioPerc.toFixed(1)}%).</p>
     `;
     if (ranking.length > 0) {
         relatorioText += `<p>O maior consumidor foi a unidade <strong>${ranking[0].nome}</strong>, com <strong>${ranking[0].consumo} unidades</strong> de ${itemLabelPlural} (ou ${((ranking[0].consumo / totalConsumo) * 100).toFixed(1)}% do total).</p>`;
@@ -363,6 +394,26 @@ function renderAnaliseTextual(itemType, movsEntrega, unidades, dataInicial, data
         relatorioText += `<p>O menor consumidor foi a unidade <strong>${menorConsumo.nome}</strong>, com <strong>${menorConsumo.consumo} unidades</strong>.</p>`;
     }
     relatorioEl.innerHTML = relatorioText;
+
+    if (resumoExecEl) {
+        resumoExecEl.innerHTML = `
+            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+                <div class="text-xs text-gray-500">Consumo Total</div>
+                <div class="text-2xl font-bold text-gray-800">${totalConsumo}</div>
+                <div class="text-xs text-gray-500">${formatTimestamp(dataInicial)} — ${formatTimestamp(dataFinal)}</div>
+            </div>
+            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+                <div class="text-xs text-gray-500">Média Diária</div>
+                <div class="text-2xl font-bold text-gray-800">${mediaDiariaPeriodo.toFixed(2)} un./dia</div>
+                <div class="text-xs text-gray-500">Histórico: ${mediaDiariaHistorica.toFixed(2)} un./dia</div>
+            </div>
+            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+                <div class="text-xs text-gray-500">Desvio vs Previsão</div>
+                <div class="text-2xl font-bold ${desvioAbs >= 0 ? 'text-green-700' : 'text-red-700'}">${desvioAbs.toFixed(1)} un.</div>
+                <div class="text-xs text-gray-500">${desvioPerc.toFixed(1)}% • Pico: ${picoEntrega} un.</div>
+            </div>
+        `;
+    }
 }
 
 function selecionarModoPrevisao(itemType, modo) {

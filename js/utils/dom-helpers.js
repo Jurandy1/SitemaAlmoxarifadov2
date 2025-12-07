@@ -202,6 +202,9 @@ function findDOMElements() {
         ['#analise-granularidade-agua', 'analiseGranularidadeAgua'],
         ['#btn-analisar-consumo-agua', 'btnAnalisarConsumoAgua'],
         ['#alert-analise-consumo-agua', 'alertAnaliseConsumoAgua'],
+        ['#analise-data-inicio-agua', 'analiseDataInicioAgua'],
+        ['#analise-data-fim-agua', 'analiseDataFimAgua'],
+        ['#analise-resumo-executivo-agua', 'analiseResumoExecutivoAgua'],
         
         // CORRIGIDO/ADICIONADO: Análise de Consumo - Gás
         ['#select-modo-agrupamento-gas', 'selectModoAgrupamentoGas'],
@@ -212,6 +215,9 @@ function findDOMElements() {
         ['#analise-granularidade-gas', 'analiseGranularidadeGas'],
         ['#btn-analisar-consumo-gas', 'btnAnalisarConsumoGas'],
         ['#alert-analise-consumo-gas', 'alertAnaliseConsumoGas'],
+        ['#analise-data-inicio-gas', 'analiseDataInicioGas'],
+        ['#analise-data-fim-gas', 'analiseDataFimGas'],
+        ['#analise-resumo-executivo-gas', 'analiseResumoExecutivoGas'],
         
         // Materiais
         ['#form-materiais', 'formMateriais'],

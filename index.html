@@ -863,7 +863,7 @@
                                 <i data-lucide="pie-chart" class="w-5 h-5 text-blue-600"></i>
                                 Relatório de Análise de Consumo
                             </h3>
-                            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                            <div class="grid grid-cols-1 md:grid-cols-6 gap-4 mb-4">
 
                                 <!-- NOVO: Agrupamento Principal (Tipo ou Unidade) -->
                                 <div>
@@ -901,6 +901,18 @@
                                     </select>
                                 </div>
 
+                                <!-- Período: Data Início -->
+                                <div>
+                                    <label for="analise-data-inicio-agua" class="form-label">Início do Período</label>
+                                    <input type="date" id="analise-data-inicio-agua" class="form-input">
+                                </div>
+
+                                <!-- Período: Data Fim -->
+                                <div>
+                                    <label for="analise-data-fim-agua" class="form-label">Fim do Período</label>
+                                    <input type="date" id="analise-data-fim-agua" class="form-input">
+                                </div>
+
                                 <!-- Botão de Gerar Relatório -->
                                 <div class="col-span-1 flex items-end justify-end">
                                     <button id="btn-analisar-consumo-agua" class="btn-primary flex-shrink-0">
@@ -915,6 +927,9 @@
 
                         <!-- RESULTADOS DA ANÁLISE (Oculto até a execução) -->
                         <div id="analise-resultado-container-agua" class="hidden space-y-8">
+
+                            <!-- Resumo Executivo com Métricas Chave -->
+                            <div id="analise-resumo-executivo-agua" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
 
                             <!-- Resumo Textual e Ranking de Unidades -->
                             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -1439,7 +1454,7 @@
                                 <i data-lucide="pie-chart" class="w-5 h-5 text-blue-600"></i>
                                 Relatório de Análise de Consumo
                             </h3>
-                            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                            <div class="grid grid-cols-1 md:grid-cols-6 gap-4 mb-4">
 
                                 <!-- NOVO: Agrupamento Principal (Tipo ou Unidade) -->
                                 <div>
@@ -1477,6 +1492,18 @@
                                      </select>
                                 </div>
 
+                                <!-- Período: Data Início -->
+                                <div>
+                                    <label for="analise-data-inicio-gas" class="form-label">Início do Período</label>
+                                    <input type="date" id="analise-data-inicio-gas" class="form-input">
+                                </div>
+
+                                <!-- Período: Data Fim -->
+                                <div>
+                                    <label for="analise-data-fim-gas" class="form-label">Fim do Período</label>
+                                    <input type="date" id="analise-data-fim-gas" class="form-input">
+                                </div>
+
                                 <div class="col-span-1 flex items-end justify-end">
                                     <button id="btn-analisar-consumo-gas" class="btn-primary flex-shrink-0">
                                          <i data-lucide="bar-chart-2"></i> Gerar Relatório
@@ -1490,6 +1517,9 @@
 
                         <!-- RESULTADOS DA ANÁLISE (Oculto até a execução) -->
                         <div id="analise-resultado-container-gas" class="hidden space-y-8">
+
+                            <!-- Resumo Executivo com Métricas Chave -->
+                            <div id="analise-resumo-executivo-gas" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
 
                             <!-- Resumo Textual e Ranking de Unidades -->
                             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
