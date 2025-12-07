@@ -489,7 +489,7 @@ export function renderAguaDebitosResumo() {
                         <span class="mt-1 flex items-center gap-2"><span class="badge ${(origemTipo==='retorno' || origemTipo==='retirada') ? 'badge-green' : 'badge-blue'}">${(origemTipo==='retorno' || origemTipo==='retirada') ? 'vazio' : 'cheio'}</span><span>${origemQtd}</span></span>
                         <span class="text-gray-500">${origemResp}</span>
                         <span class="text-gray-400 text-xs">ID: ${origemMov?.id || 'N/A'}</span>
-                        ${origemMov ? `<button class="btn-info btn-sm mt-2 btn-ver-dia-divida" data-item="agua" data-unidade-id="${s.id}" data-date="${(new Date(origemMov.data.toDate())).toISOString().slice(0,10)}"><i data-lucide="calendar"></i> Ver dia da dívida</button>` : ''}
+                        ${origemMov ? `<button class="btn-primary btn-sm mt-2 rounded-full px-3 py-1 btn-ver-dia-divida" title="Abrir histórico do dia da origem" data-item="agua" data-unidade-id="${s.id}" data-date="${(new Date(origemMov.data.toDate())).toISOString().slice(0,10)}"><i data-lucide="calendar"></i> Ver histórico do dia</button>` : ''}
                     </div>
                 </td>
             </tr>`);

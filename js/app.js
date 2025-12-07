@@ -163,7 +163,16 @@ function setupDebitosPopupScheduler() {
             const btnClose = DOM_ELEMENTS.btnFecharAlertaDebitos;
             if (!modal || !content || !btnClose) return;
             if (msgs.length === 0) return; // Sem débitos
-            content.innerHTML = msgs.map(m => `<p class="text-xl md:text-2xl font-bold">${m}</p>`).join('');
+            content.innerHTML = msgs.map(m => `
+                <div class="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-xl">
+                    <div class="mt-1 text-red-600">
+                        <i data-lucide="alert-triangle"></i>
+                    </div>
+                    <div class="flex-1">
+                        <div class="text-base md:text-lg font-semibold text-gray-800">${m}</div>
+                    </div>
+                </div>
+            `).join('');
             modal.classList.remove('hidden');
             btnClose.onclick = () => { modal.classList.add('hidden'); };
             if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
