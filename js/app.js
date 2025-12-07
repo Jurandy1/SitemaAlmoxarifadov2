@@ -7,7 +7,8 @@ import { renderDashboard, startDashboardRefresh, stopDashboardRefresh, renderDas
 // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
 // NOTA: showAlert foi importado aqui. Certifique-se de que ele está corretamente exportado em control-helpers.js
 // OU remova-o daqui e importe-o de utils/dom-helpers.js (melhor prática).
-import { renderUIModules, renderUnidadeControls, initAllListeners, DOM_ELEMENTS, findDOMElements, updateLastUpdateTime, showAlert, switchTab, switchSubTabView } from "./modules/control-helpers.js";
+import { renderUIModules, renderUnidadeControls, initAllListeners, DOM_ELEMENTS, findDOMElements, updateLastUpdateTime, showAlert } from "./modules/control-helpers.js";
+import { switchTab, switchSubTabView } from "./utils/dom-helpers.js";
 import { executeDelete } from "./utils/db-utils.js";
 import { handleFinalMovimentacaoSubmit } from "./modules/movimentacao-modal-handler.js";
 import { getTodayDateString } from "./utils/formatters.js";

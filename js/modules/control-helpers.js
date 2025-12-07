@@ -311,5 +311,7 @@ export {
     DOM_ELEMENTS,
     findDOMElements,
     updateLastUpdateTime,
-    showAlert 
+    showAlert,
+    switchTab,
+    switchSubTabView
 };
