@@ -213,7 +213,7 @@ function analisarConsumoPorPeriodo(itemType) {
     const { chartLabels, chartDataSets } = formatDataForChart(consumoPorPeriodo, granularidade);
     renderGraficoAnalise(itemType, chartLabels, chartDataSets, granularidade, agruparPor, nomeFiltro);
     document.getElementById(`analise-resultado-container-${itemType}`).classList.remove('hidden');
-    renderAnaliseTextual(itemType, movsEntrega, unidades, dataInicial, dataFinal, movsGroupFull);
+    renderAnaliseTextual(itemType, movsEntrega, unidades, dataInicial, dataFinal, movsGroupFull, granularidade, mesRefVal || '');
     showAlert(alertId, `Análise concluída. Período: ${formatTimestamp(dataInicial)} a ${formatTimestamp(dataFinal)} (${totalDias} dias).`, 'success', 5000);
 }
 
@@ -350,7 +350,7 @@ function renderGraficoAnalise(itemType, labels, datasets, granularidade, agrupar
     });
 }
 
-function renderAnaliseTextual(itemType, movsEntrega, unidades, dataInicial, dataFinal, movsGroupFull) {
+function renderAnaliseTextual(itemType, movsEntrega, unidades, dataInicial, dataFinal, movsGroupFull, granularidade, mesRefVal) {
     const relatorioEl = document.getElementById(`analise-relatorio-textual-${itemType}`);
     const rankingEl = document.getElementById(`analise-ranking-${itemType}`);
     const resumoExecEl = document.getElementById(`analise-resumo-executivo-${itemType}`);
@@ -471,6 +471,50 @@ function renderAnaliseTextual(itemType, movsEntrega, unidades, dataInicial, data
                 relatorioText += `<li><strong>${a.nome}</strong>: ${a.atual} un. no período, esperado ${a.esperado.toFixed(1)} un. (Δ ${a.diff.toFixed(1)} • ${a.perc.toFixed(1)}%)</li>`;
             });
             relatorioText += `</ul>`;
+        }
+    }
+
+    if (granularidade === 'anual') {
+        const monthNames = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+        const monthKey = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+        const consumoPorMesUnidade = {};
+        movsEntrega.forEach(m => {
+            const d = m.data.toDate();
+            const k = monthKey(d);
+            const u = m.unidadeId;
+            consumoPorMesUnidade[k] ||= {};
+            consumoPorMesUnidade[k][u] = (consumoPorMesUnidade[k][u] || 0) + (m.quantidade || 0);
+        });
+        const mediaDiaHistPorUnidade = {};
+        const diasHistFull = Array.isArray(movsGroupFull) ? getPeriodoAnalise(movsGroupFull).totalDias : 0;
+        movsGroupFull.forEach(m => {
+            const u = m.unidadeId;
+            mediaDiaHistPorUnidade[u] = (mediaDiaHistPorUnidade[u] || 0) + (m.quantidade || 0);
+        });
+        Object.keys(mediaDiaHistPorUnidade).forEach(u => {
+            mediaDiaHistPorUnidade[u] = diasHistFull > 0 ? (mediaDiaHistPorUnidade[u] / diasHistFull) : 0;
+        });
+        const linhas = [];
+        Object.keys(consumoPorMesUnidade).sort().forEach(k => {
+            const [y, m] = k.split('-');
+            const diasNoMes = new Date(parseInt(y,10), parseInt(m,10), 0).getDate();
+            const etiquetaMes = `${monthNames[parseInt(m,10)-1]}/${y}`;
+            const porUnid = consumoPorMesUnidade[k];
+            Object.keys(porUnid).forEach(uid => {
+                const atual = porUnid[uid];
+                const mediaDia = mediaDiaHistPorUnidade[uid] || 0;
+                const esperado = mediaDia * diasNoMes;
+                const diff = atual - esperado;
+                if (Math.abs(diff) >= 1) {
+                    const unidade = unidades.find(u => u.id === uid);
+                    const nome = unidade ? unidade.nome : uid;
+                    const maisMenos = diff >= 0 ? 'a mais' : 'a menos';
+                    linhas.push(`📅 ${etiquetaMes}: <strong>${nome}</strong> consumiu <strong>${Math.abs(diff).toFixed(0)} un.</strong> ${maisMenos} do que costuma receber.`);
+                }
+            });
+        });
+        if (linhas.length > 0) {
+            relatorioText += `<div class="mt-3"><p><strong>Resumo anual por mês (variações por unidade):</strong></p>${linhas.map(l=>`<p>${l}</p>`).join('')}</div>`;
         }
     }
 
