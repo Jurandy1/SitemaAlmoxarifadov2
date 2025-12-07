@@ -496,7 +496,7 @@ function renderAnaliseTextual(itemType, movsEntrega, unidades, dataInicial, data
         Object.keys(mediaDiaHistPorUnidade).forEach(u => {
             mediaDiaHistPorUnidade[u] = diasHistFull > 0 ? (mediaDiaHistPorUnidade[u] / diasHistFull) : 0;
         });
-        const linhas = [];
+        const extremos = [];
         Object.keys(consumoPorMesUnidade).sort().forEach(k => {
             const [y, m] = k.split('-');
             const diasNoMes = new Date(parseInt(y,10), parseInt(m,10), 0).getDate();
@@ -507,16 +507,22 @@ function renderAnaliseTextual(itemType, movsEntrega, unidades, dataInicial, data
                 const mediaDia = mediaDiaHistPorUnidade[uid] || 0;
                 const esperado = mediaDia * diasNoMes;
                 const diff = atual - esperado;
-                if (Math.abs(diff) >= 1) {
+                const peso = Math.abs(diff);
+                if (peso >= 1) {
                     const unidade = unidades.find(u => u.id === uid);
                     const nome = unidade ? unidade.nome : uid;
-                    const maisMenos = diff >= 0 ? 'a mais' : 'a menos';
-                    linhas.push(`📅 ${etiquetaMes}: <strong>${nome}</strong> consumiu <strong>${Math.abs(diff).toFixed(0)} un.</strong> ${maisMenos} do que costuma receber.`);
+                    extremos.push({ etiquetaMes, uid, nome, atual, esperado, diff, peso });
                 }
             });
         });
-        if (linhas.length > 0) {
-            relatorioText += `<div class="mt-3"><p><strong>Resumo anual por mês (variações por unidade):</strong></p>${linhas.map(l=>`<p>${l}</p>`).join('')}</div>`;
+        extremos.sort((a, b) => b.peso - a.peso);
+        const top = extremos.slice(0, 5);
+        if (top.length > 0) {
+            relatorioText += `<div class="mt-3"><p><strong>Meses com maior variação no ano:</strong></p>${top.map(e => {
+                const maisMenos = e.diff >= 0 ? 'bem acima' : 'bem abaixo';
+                const emoji = e.diff >= 0 ? '🔥' : '⬇️';
+                return `<p>${emoji} ${e.etiquetaMes}: <strong>${e.nome}</strong> consumiu ${Math.abs(e.diff).toFixed(0)} un. ${maisMenos} do normal (atual ${e.atual} • esperado ${e.esperado.toFixed(1)}).</p>`;
+            }).join('')}</div>`;
         }
     }
 

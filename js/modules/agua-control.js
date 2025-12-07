@@ -2,7 +2,7 @@
 import { Timestamp, addDoc, updateDoc, serverTimestamp, query, where, getDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { getUnidades, getAguaMovimentacoes, isEstoqueInicialDefinido, getCurrentStatusFilter, setCurrentStatusFilter, getEstoqueAgua, getUserRole } from "../utils/cache.js";
 import { DOM_ELEMENTS, showAlert, switchSubTabView, handleSaldoFilterUI, openConfirmDeleteModal, filterTable, renderPermissionsUI } from "../utils/dom-helpers.js";
-import { getTodayDateString, dateToTimestamp, capitalizeString, formatTimestampComTempo } from "../utils/formatters.js";
+import { getTodayDateString, dateToTimestamp, capitalizeString, formatTimestampComTempo, formatTimestamp } from "../utils/formatters.js";
 import { isReady, getUserId } from "./auth.js";
 import { COLLECTIONS } from "../services/firestore-service.js";
 import { executeFinalMovimentacao } from "./movimentacao-modal-handler.js";
@@ -499,13 +499,13 @@ export function getDebitosAguaResumoList() {
         .sort((a, b) => b.pendentes - a.pendentes || a.nome.localeCompare(b.nome));
 
     const mensagens = lista.map(s => {
-        const ultimoData = s.ultimo ? formatTimestampComTempo(s.ultimo.data) : 'data não informada';
+        const ultimoData = s.ultimo ? formatTimestamp(s.ultimo.data) : 'data não informada';
         const ultimoTipo = s.ultimo?.tipo || '';
         const ultimoQtd = s.ultimo?.quantidade || 0;
         let detalhe = '';
-        if (ultimoTipo === 'entrega') detalhe = `pois na data ${ultimoData} já levou ${ultimoQtd} galão cheio`;
-        else if (ultimoTipo === 'retorno' || ultimoTipo === 'retirada') detalhe = `deixou ${ultimoQtd} galão vazio na data ${ultimoData}`;
-        return `CRAS ${s.nome} está devendo ${s.pendentes} galão vazio de água${detalhe ? `, ${detalhe}` : ''}.`;
+        if (ultimoTipo === 'entrega') detalhe = `última movimentação ${ultimoData}: levou ${ultimoQtd} galão cheio`;
+        else if (ultimoTipo === 'retorno' || ultimoTipo === 'retirada') detalhe = `última movimentação ${ultimoData}: deixou ${ultimoQtd} galão vazio`;
+        return `⚠️ CRAS ${s.nome}: devendo ${s.pendentes} galão vazio de água • ${detalhe}`;
     });
 
     return mensagens;

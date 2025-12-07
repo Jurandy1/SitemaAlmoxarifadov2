@@ -2,7 +2,7 @@
 import { Timestamp, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { getUnidades, getGasMovimentacoes, isEstoqueInicialDefinido, getCurrentStatusFilter, setCurrentStatusFilter, getEstoqueGas, getUserRole } from "../utils/cache.js";
 import { DOM_ELEMENTS, showAlert, switchSubTabView, handleSaldoFilterUI, filterTable, renderPermissionsUI } from "../utils/dom-helpers.js";
-import { getTodayDateString, dateToTimestamp, capitalizeString, formatTimestampComTempo } from "../utils/formatters.js";
+import { getTodayDateString, dateToTimestamp, capitalizeString, formatTimestampComTempo, formatTimestamp } from "../utils/formatters.js";
 import { isReady } from "./auth.js";
 import { COLLECTIONS } from "../services/firestore-service.js";
 import { executeFinalMovimentacao } from "./movimentacao-modal-handler.js";
@@ -486,13 +486,13 @@ export function getDebitosGasResumoList() {
         .sort((a, b) => b.pendentes - a.pendentes || a.nome.localeCompare(b.nome));
 
     const mensagens = lista.map(s => {
-        const ultimoData = s.ultimo ? formatTimestampComTempo(s.ultimo.data) : 'data não informada';
+        const ultimoData = s.ultimo ? formatTimestamp(s.ultimo.data) : 'data não informada';
         const ultimoTipo = s.ultimo?.tipo || '';
         const ultimoQtd = s.ultimo?.quantidade || 0;
         let detalhe = '';
-        if (ultimoTipo === 'entrega') detalhe = `pois na data ${ultimoData} já levou ${ultimoQtd} botijão cheio`;
-        else if (ultimoTipo === 'retorno' || ultimoTipo === 'retirada') detalhe = `deixou ${ultimoQtd} botijão vazio na data ${ultimoData}`;
-        return `CRAS ${s.nome} está devendo ${s.pendentes} botijão vazio de gás${detalhe ? `, ${detalhe}` : ''}.`;
+        if (ultimoTipo === 'entrega') detalhe = `última movimentação ${ultimoData}: levou ${ultimoQtd} botijão cheio`;
+        else if (ultimoTipo === 'retorno' || ultimoTipo === 'retirada') detalhe = `última movimentação ${ultimoData}: deixou ${ultimoQtd} botijão vazio`;
+        return `⚠️ CRAS ${s.nome}: devendo ${s.pendentes} botijão vazio de gás • ${detalhe}`;
     });
 
     return mensagens;
