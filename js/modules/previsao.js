@@ -159,9 +159,18 @@ function analisarConsumoPorPeriodo(itemType) {
 
     const dataInicioVal = DOM_ELEMENTS[`analiseDataInicio${itemType === 'agua' ? 'Agua' : 'Gas'}`]?.value;
     const dataFimVal = DOM_ELEMENTS[`analiseDataFim${itemType === 'agua' ? 'Agua' : 'Gas'}`]?.value;
+    const mesRefVal = DOM_ELEMENTS[`analiseMes${itemType === 'agua' ? 'Agua' : 'Gas'}`]?.value;
     const movsGroupFull = [...movsEntrega];
 
-    if (dataInicioVal || dataFimVal) {
+    if (mesRefVal) {
+        const [y, m] = mesRefVal.split('-').map(x => parseInt(x, 10));
+        const inicio = new Date(y, m - 1, 1, 0, 0, 0, 0);
+        const fim = new Date(y, m, 0, 23, 59, 59, 999);
+        movsEntrega = movsEntrega.filter(m => {
+            const d = m.data.toDate();
+            return d >= inicio && d <= fim;
+        });
+    } else if (dataInicioVal || dataFimVal) {
         const inicio = dataInicioVal ? new Date(`${dataInicioVal}T00:00:00`) : null;
         const fim = dataFimVal ? new Date(`${dataFimVal}T23:59:59`) : null;
         movsEntrega = movsEntrega.filter(m => {
@@ -225,6 +234,9 @@ function getPeriodKey(date, agrupamento) {
     if (agrupamento === 'diario') {
         return `${year}-${month}-${day}`; 
     }
+    if (agrupamento === 'anual') {
+        return `${year}`;
+    }
     const d = new Date(date);
     d.setHours(0, 0, 0, 0);
     d.setDate(d.getDate() + 4 - (d.getDay() || 7));
@@ -256,6 +268,9 @@ function formatDataForChart(consumoPorPeriodo, agrupamento) {
         if (agrupamento === 'diario') {
             const [year, month, day] = key.split('-');
             return `${day}/${month}`;
+        }
+        if (agrupamento === 'anual') {
+            return key;
         }
         const [year, week] = key.split('-W');
         return `Sem. ${parseInt(week)} (${year})`;
@@ -360,7 +375,7 @@ function renderAnaliseTextual(itemType, movsEntrega, unidades, dataInicial, data
         let rankingHtml = '';
         const top = ranking.slice(0, 5);
         const bottom = ranking.slice(-5).reverse();
-        rankingHtml += `<h4 class="font-semibold mb-2">Maiores consumidores</h4>`;
+        rankingHtml += `<h4 class="font-semibold mb-2">🏆 Maiores consumidores</h4>`;
         top.forEach((item, index) => {
             rankingHtml += `
                 <div class="ranking-item">
@@ -370,7 +385,7 @@ function renderAnaliseTextual(itemType, movsEntrega, unidades, dataInicial, data
                 </div>
             `;
         });
-        rankingHtml += `<h4 class="font-semibold mt-4 mb-2">Menores consumidores</h4>`;
+        rankingHtml += `<h4 class="font-semibold mt-4 mb-2">🌱 Menores consumidores</h4>`;
         bottom.forEach((item, index) => {
             rankingHtml += `
                 <div class="ranking-item">
@@ -399,16 +414,15 @@ function renderAnaliseTextual(itemType, movsEntrega, unidades, dataInicial, data
     const picoEntrega = movsEntrega.reduce((max, m) => Math.max(max, m.quantidade || 0), 0);
 
     let relatorioText = `
-        <p>A análise abrange o período de <strong>${formatTimestamp(dataInicial)}</strong> a <strong>${formatTimestamp(dataFinal)}</strong>, totalizando <strong>${totalDias} dias</strong> de histórico de entregas.</p>
-        <p>Neste período, o <strong>consumo total</strong> de ${itemLabelPlural} foi de <strong>${totalConsumo} unidades</strong>.</p>
-        <p>A média de consumo por unidade considerada é de <strong>${mediaConsumo.toFixed(1)} unidades</strong> de ${itemLabel} por período analisado.</p>
-        <p>Comparativo: consumo diário no período <strong>${mediaDiariaPeriodo.toFixed(2)} un./dia</strong> vs histórico <strong>${mediaDiariaHistorica.toFixed(2)} un./dia</strong>.</p>
-        <p>Desvio frente à previsão histórica para o período: <strong>${desvioAbs.toFixed(1)} un.</strong> (${desvioPerc.toFixed(1)}%).</p>
+        <p>📅 Período: <strong>${formatTimestamp(dataInicial)}</strong> a <strong>${formatTimestamp(dataFinal)}</strong> (<strong>${totalDias} dias</strong>).</p>
+        <p>📦 Consumo total de ${itemLabelPlural}: <strong>${totalConsumo} un.</strong></p>
+        <p>⚖️ Média diária: <strong>${mediaDiariaPeriodo.toFixed(2)} un./dia</strong> (histórico: <strong>${mediaDiariaHistorica.toFixed(2)} un./dia</strong>).</p>
+        <p>📈 Desvio vs previsão histórica no período: <strong>${desvioAbs.toFixed(1)} un.</strong> (${desvioPerc.toFixed(1)}%).</p>
     `;
     if (ranking.length > 0) {
-        relatorioText += `<p>O maior consumidor foi a unidade <strong>${ranking[0].nome}</strong>, com <strong>${ranking[0].consumo} unidades</strong> de ${itemLabelPlural} (ou ${((ranking[0].consumo / totalConsumo) * 100).toFixed(1)}% do total).</p>`;
+        relatorioText += `<p>🏅 Destaque: <strong>${ranking[0].nome}</strong> consumiu <strong>${ranking[0].consumo} un.</strong> (${((ranking[0].consumo / totalConsumo) * 100).toFixed(1)}% do total).</p>`;
         const menorConsumo = ranking[ranking.length - 1];
-        relatorioText += `<p>O menor consumidor foi a unidade <strong>${menorConsumo.nome}</strong>, com <strong>${menorConsumo.consumo} unidades</strong>.</p>`;
+        relatorioText += `<p>🔻 Menor consumo: <strong>${menorConsumo.nome}</strong> com <strong>${menorConsumo.consumo} un.</strong>.</p>`;
     }
     const diasHistFull = Array.isArray(movsGroupFull) ? getPeriodoAnalise(movsGroupFull).totalDias : 0;
     const consumoHistPorUnidade = Array.isArray(movsGroupFull) ? movsGroupFull.reduce((acc, m) => {
@@ -443,7 +457,7 @@ function renderAnaliseTextual(itemType, movsEntrega, unidades, dataInicial, data
     const destaqueBaixa = anomaliasBaixa.filter(a => a.esperado > 0 && Math.abs(a.perc) >= limiarPerc).slice(0, 5);
 
     if (destaqueAlta.length > 0 || destaqueBaixa.length > 0) {
-        relatorioText += `<p class="mt-3"><strong>Unidades fora do padrão histórico (${limiarPerc}%+):</strong></p>`;
+        relatorioText += `<p class="mt-3">🚨 <strong>Unidades fora do padrão histórico (${limiarPerc}%+):</strong></p>`;
         if (destaqueAlta.length > 0) {
             relatorioText += `<ul class="list-disc ml-5 text-sm text-gray-700">`;
             destaqueAlta.forEach(a => {

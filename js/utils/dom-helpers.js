@@ -205,6 +205,7 @@ function findDOMElements() {
         ['#analise-data-inicio-agua', 'analiseDataInicioAgua'],
         ['#analise-data-fim-agua', 'analiseDataFimAgua'],
         ['#analise-resumo-executivo-agua', 'analiseResumoExecutivoAgua'],
+        ['#analise-mes-agua', 'analiseMesAgua'],
         
         // CORRIGIDO/ADICIONADO: Análise de Consumo - Gás
         ['#select-modo-agrupamento-gas', 'selectModoAgrupamentoGas'],
@@ -218,6 +219,7 @@ function findDOMElements() {
         ['#analise-data-inicio-gas', 'analiseDataInicioGas'],
         ['#analise-data-fim-gas', 'analiseDataFimGas'],
         ['#analise-resumo-executivo-gas', 'analiseResumoExecutivoGas'],
+        ['#analise-mes-gas', 'analiseMesGas'],
         
         // Materiais
         ['#form-materiais', 'formMateriais'],
