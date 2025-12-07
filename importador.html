@@ -73,19 +73,11 @@
                     <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm">Passo 1</span>
                     Cole o código SQL
                 </h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                <div class="grid grid-cols-1 md:grid-cols-1 gap-6 mb-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Ano de Referência</label>
                         <input type="number" id="input-ano" class="w-full p-2 border rounded" value="2025">
-                        <p class="text-xs text-gray-500 mt-1">O mês será detectado automaticamente do SQL (ex: 'Fevereiro').</p>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Data de Lançamento</label>
-                        <select id="select-data-mode" class="w-full p-2 border rounded">
-                            <option value="last_day">Último dia do mês (Lançamento único)</option>
-                            <option value="first_day">Primeiro dia do mês (Lançamento único)</option>
-                        </select>
-                        <p class="text-xs text-gray-500 mt-1">Define qual data será registrada no histórico de movimentação.</p>
+                        <p class="text-xs text-gray-500 mt-1">Se o SQL tiver <strong>data_referencia</strong>, ele será usado. Caso contrário, usa o <strong>mes</strong> textual e este ano.</p>
                     </div>
                 </div>
                 <textarea id="sql-input" class="w-full h-48 p-3 border border-gray-300 rounded-lg font-mono text-xs bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none" 
@@ -115,8 +107,10 @@
                             <tr>
                                 <th class="p-3">Status</th>
                                 <th class="p-3">Nome no SQL (Origem)</th>
+                                <th class="p-3">Sugestão do Sistema</th>
                                 <th class="p-3">Unidade no Sistema (Destino)</th>
                                 <th class="p-3 text-center">Consumo Total</th>
+                                <th class="p-3 text-center">Confirmar?</th>
                                 <th class="p-3 text-center" title="Salvar associação para o futuro">Memorizar?</th>
                             </tr>
                         </thead>
@@ -131,6 +125,26 @@
                     <button id="btn-importar" class="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-bold flex items-center gap-2" disabled>
                         <i data-lucide="save"></i> Confirmar Importação
                     </button>
+                </div>
+            </section>
+
+            <!-- Backup e Restauração -->
+            <section class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <span class="bg-purple-100 text-purple-800 px-2 py-1 rounded text-sm">Backup</span>
+                    Segurança de Dados (Água + Gás)
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <button id="btn-export-backup" class="w-full bg-purple-600 text-white py-2 rounded hover:bg-purple-700 font-semibold">Baixar Backup (JSON)</button>
+                        <p class="text-xs text-gray-500 mt-2">Inclui movimentações de Água e Gás com metadados.</p>
+                    </div>
+                    <div>
+                        <input type="file" id="input-backup-file" accept="application/json" class="w-full border rounded p-2">
+                        <label class="flex items-center gap-2 mt-2 text-sm"><input type="checkbox" id="restore-force"> Forçar substituição de registros existentes</label>
+                        <button id="btn-import-backup" class="mt-2 w-full bg-emerald-600 text-white py-2 rounded hover:bg-emerald-700 font-semibold">Restaurar Backup</button>
+                        <p class="text-xs text-gray-500 mt-2">Restauração em massa a partir do JSON exportado.</p>
+                    </div>
                 </div>
             </section>
 

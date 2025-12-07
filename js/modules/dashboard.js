@@ -36,6 +36,7 @@ function filterLast30Days(movimentacoes) {
     const todayTimestamp = today.getTime();
     
     return movimentacoes.filter(m => {
+        if (m?.origem === 'importador_sql') return false; // não contar histórico importado no dashboard
         if (!m.data || typeof m.data.toDate !== 'function') return false; 
         const mTimestamp = m.data.toMillis();
         return mTimestamp >= thirtyDaysAgoTimestamp && mTimestamp <= todayTimestamp;
@@ -154,7 +155,7 @@ export function renderDashboardGasChart() {
 
 function renderDashboardAguaSummary() {
     try {
-        const movs = getAguaMovimentacoes() || [];
+        const movs = (getAguaMovimentacoes() || []).filter(m => m?.origem !== 'importador_sql');
         const estoqueAgua = getEstoqueAgua() || [];
 
         const estoqueInicial = estoqueAgua.filter(e => e.tipo === 'inicial').reduce((sum, e) => sum + (e.quantidade || 0), 0);
@@ -179,7 +180,7 @@ function renderDashboardAguaSummary() {
 
 function renderDashboardGasSummary() {
     try {
-        const movs = getGasMovimentacoes() || [];
+        const movs = (getGasMovimentacoes() || []).filter(m => m?.origem !== 'importador_sql');
         const estoqueGas = getEstoqueGas() || [];
 
         const estoqueInicial = estoqueGas.filter(e => e.tipo === 'inicial').reduce((sum, e) => sum + (e.quantidade || 0), 0);
