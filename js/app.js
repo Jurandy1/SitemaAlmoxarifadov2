@@ -147,6 +147,8 @@ function main() {
 }
 
 let __debitosIntervalId = null;
+let __debitosBootstrapId = null;
+let __debitosHasShown = false;
 function setupDebitosPopupScheduler() {
     if (__debitosIntervalId) clearInterval(__debitosIntervalId);
     const showNow = () => {
@@ -164,10 +166,19 @@ function setupDebitosPopupScheduler() {
             modal.classList.remove('hidden');
             btnClose.onclick = () => { modal.classList.add('hidden'); };
             if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
+            __debitosHasShown = true;
         } catch (e) { console.error('Erro ao mostrar alerta de débitos:', e); }
     };
-    // Mostra ao entrar
-    setTimeout(showNow, 300);
+    showNow();
+    if (__debitosBootstrapId) { clearInterval(__debitosBootstrapId); __debitosBootstrapId = null; }
+    __debitosBootstrapId = setInterval(() => {
+        if (isReady() && !__debitosHasShown) {
+            showNow();
+            __debitosHasShown = true;
+            clearInterval(__debitosBootstrapId);
+            __debitosBootstrapId = null;
+        }
+    }, 3000);
     // Repete a cada 10 minutos
     __debitosIntervalId = setInterval(showNow, 10 * 60 * 1000);
 }

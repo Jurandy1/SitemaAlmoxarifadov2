@@ -457,18 +457,20 @@ function renderAnaliseTextual(itemType, movsEntrega, unidades, dataInicial, data
     const destaqueBaixa = anomaliasBaixa.filter(a => a.esperado > 0 && Math.abs(a.perc) >= limiarPerc).slice(0, 5);
 
     if (destaqueAlta.length > 0 || destaqueBaixa.length > 0) {
-        relatorioText += `<p class="mt-3">🚨 <strong>Unidades fora do padrão histórico (${limiarPerc}%+):</strong></p>`;
+        relatorioText += `<p class="mt-3">🚨 <strong>Unidades fora do padrão (variação relevante):</strong></p>`;
         if (destaqueAlta.length > 0) {
             relatorioText += `<ul class="list-disc ml-5 text-sm text-gray-700">`;
             destaqueAlta.forEach(a => {
-                relatorioText += `<li><strong>${a.nome}</strong>: ${a.atual} un. no período, esperado ${a.esperado.toFixed(1)} un. (Δ ${a.diff.toFixed(1)} • ${a.perc.toFixed(1)}%)</li>`;
+                const maisMenos = a.diff >= 0 ? 'a mais' : 'a menos';
+                relatorioText += `<li><strong>${a.nome}</strong>: consumiu ${a.atual} un. no período. Normalmente consome cerca de ${a.esperado.toFixed(1)} un. nesse intervalo. Diferença: ${Math.abs(a.diff).toFixed(1)} un. ${maisMenos} (${a.perc.toFixed(1)}%).</li>`;
             });
             relatorioText += `</ul>`;
         }
         if (destaqueBaixa.length > 0) {
             relatorioText += `<ul class="list-disc ml-5 text-sm text-gray-700 mt-2">`;
             destaqueBaixa.forEach(a => {
-                relatorioText += `<li><strong>${a.nome}</strong>: ${a.atual} un. no período, esperado ${a.esperado.toFixed(1)} un. (Δ ${a.diff.toFixed(1)} • ${a.perc.toFixed(1)}%)</li>`;
+                const maisMenos = a.diff >= 0 ? 'a mais' : 'a menos';
+                relatorioText += `<li><strong>${a.nome}</strong>: consumiu ${a.atual} un. no período. Normalmente consome cerca de ${a.esperado.toFixed(1)} un. nesse intervalo. Diferença: ${Math.abs(a.diff).toFixed(1)} un. ${maisMenos} (${a.perc.toFixed(1)}%).</li>`;
             });
             relatorioText += `</ul>`;
         }
