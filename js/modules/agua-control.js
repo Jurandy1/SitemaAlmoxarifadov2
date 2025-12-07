@@ -12,6 +12,15 @@ let debitoAguaMode = 'devendo';
 
 function _normName(x) { return (x || '').toLowerCase().replace(/\s+/g, ' ').trim(); }
 
+function isHistoricoImportado(m) {
+    if (!m) return false;
+    if (m.origem === 'importador_sql') return true;
+    const obs = (m.observacao || '').toLowerCase();
+    if (obs.includes('importado de sql')) return true;
+    if (typeof m.referenciaAno === 'number' || typeof m.referenciaMes === 'number' || typeof m.referenciaSemana === 'number') return true;
+    return false;
+}
+
 // =========================================================================
 // LÓGICA DE ESTOQUE
 // =========================================================================
@@ -35,7 +44,7 @@ export function renderEstoqueAgua() {
     }
 
     const estoqueAgua = getEstoqueAgua();
-    const movs = getAguaMovimentacoes();
+    const movs = (getAguaMovimentacoes() || []).filter(m => !isHistoricoImportado(m));
 
     const estoqueInicial = estoqueAgua.filter(e => e.tipo === 'inicial').reduce((sum, e) => sum + e.quantidade, 0);
     const totalEntradas = estoqueAgua.filter(e => e.tipo === 'entrada').reduce((sum, e) => sum + e.quantidade, 0);
@@ -276,7 +285,7 @@ export function renderAguaStatus(newFilter = null) {
         nameIndex.set(_normName(u.nome), obj);
     });
 
-     const movsOrdenadas = [...getAguaMovimentacoes()].sort((a, b) => {
+     const movsOrdenadas = [...getAguaMovimentacoes()].filter(m => !isHistoricoImportado(m)).sort((a, b) => {
          const ad = a.data?.toMillis() || 0;
          const bd = b.data?.toMillis() || 0;
          if (bd !== ad) return bd - ad;
@@ -364,7 +373,7 @@ export function renderAguaDebitosResumo() {
         nameIndex.set(_normName(u.nome), obj);
     });
 
-    const movsOrdenadas = [...getAguaMovimentacoes()].sort((a, b) => {
+    const movsOrdenadas = [...getAguaMovimentacoes()].filter(m => !isHistoricoImportado(m)).sort((a, b) => {
         const ad = a.data?.toMillis() || 0;
         const bd = b.data?.toMillis() || 0;
         if (bd !== ad) return bd - ad;

@@ -307,7 +307,7 @@ function renderPreview() {
             <td class="p-3">${selectHtml}</td>
             <td class="p-3 text-center font-bold text-blue-800">${item.qtdTotal}</td>
             <td class="p-3 text-center">${confirmHtml}</td>
-            <td class="p-3 text-center">${checkboxHtml}</td>
+            <td class="p-3 text-center">${showMemorize ? checkboxHtml : '<span class="text-xs text-gray-400">—</span>'}</td>
         `;
 
         tbody.appendChild(tr);
@@ -349,7 +349,8 @@ function renderPreview() {
                 dadosProcessados[idx].confirmed = true;
                 // Atualiza visualmente o checkbox
                 const row = e.target.closest('tr');
-                row.querySelector('.checkbox-memorize').checked = true;
+                const chk = row.querySelector('.checkbox-memorize');
+                if (chk) chk.checked = true;
                 // Remove o estilo de erro
                 e.target.classList.remove('border-red-400', 'bg-red-50');
             } else {
