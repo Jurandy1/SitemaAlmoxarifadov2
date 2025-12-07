@@ -468,44 +468,65 @@ export function renderAguaDebitosResumo() {
 }
 
 export function getDebitosAguaResumoList() {
-    const statusMap = new Map();
-    const nameIndex = new Map();
-    getUnidades().forEach(u => {
-        let tipo = (u.tipo || 'N/A').toUpperCase();
-        if (tipo === 'SEMCAS') tipo = 'SEDE';
-        const obj = { id: u.id, nome: u.nome, tipo, entregues: 0, recebidos: 0, ultimo: null };
-        statusMap.set(u.id, obj);
-        nameIndex.set(_normName(u.nome), obj);
+    const unidades = getUnidades();
+    const movsOper = [...getAguaMovimentacoes()].filter(m => !isHistoricoImportado(m));
+
+    // Função auxiliar para saldo operacional por unidade (exclui importação)
+    const saldoPorUnidade = new Map();
+    unidades.forEach(u => saldoPorUnidade.set(u.id, 0));
+    movsOper.forEach(m => {
+        const atual = saldoPorUnidade.get(m.unidadeId) ?? 0;
+        if (m.tipo === 'entrega') saldoPorUnidade.set(m.unidadeId, atual + (m.quantidade || 0));
+        else if (m.tipo === 'retorno' || m.tipo === 'retirada') saldoPorUnidade.set(m.unidadeId, atual - (m.quantidade || 0));
     });
 
-    const movsOrdenadas = [...getAguaMovimentacoes()].filter(m => !isHistoricoImportado(m)).sort((a, b) => {
-        const ad = a.data?.toMillis() || 0;
-        const bd = b.data?.toMillis() || 0;
-        if (bd !== ad) return bd - ad;
-        const ar = a.registradoEm?.toMillis?.() || 0;
-        const br = b.registradoEm?.toMillis?.() || 0;
-        return br - ar;
-    });
-    movsOrdenadas.forEach(m => {
-        let s = statusMap.get(m.unidadeId) || nameIndex.get(_normName(m.unidadeNome));
-        if (!s) return;
-        if (m.tipo === 'entrega') s.entregues += m.quantidade; else if (m.tipo === 'retorno' || m.tipo === 'retirada') s.recebidos += m.quantidade;
-        if (!s.ultimo) s.ultimo = { id: m.id, data: m.data, tipo: m.tipo, quantidade: m.quantidade, respUnidade: m.responsavel, respAlmox: m.responsavelAlmoxarifado || 'N/A' };
+    // Agrupa por unidade para achar a última data e resumo do último dia
+    const porUnidade = new Map();
+    movsOper.forEach(m => {
+        const arr = porUnidade.get(m.unidadeId) || [];
+        arr.push(m);
+        porUnidade.set(m.unidadeId, arr);
     });
 
-    const lista = Array.from(statusMap.values())
-        .map(s => ({ ...s, pendentes: s.entregues - s.recebidos }))
-        .filter(s => s.pendentes > 0)
-        .sort((a, b) => b.pendentes - a.pendentes || a.nome.localeCompare(b.nome));
+    const lista = unidades.map(u => {
+        const saldoAtual = saldoPorUnidade.get(u.id) || 0;
+        const arrDesc = (porUnidade.get(u.id) || []).sort((a, b) => {
+            const ad = a.data?.toMillis() || 0;
+            const bd = b.data?.toMillis() || 0;
+            if (bd !== ad) return bd - ad;
+            const ar = a.registradoEm?.toMillis?.() || 0;
+            const br = b.registradoEm?.toMillis?.() || 0;
+            return br - ar;
+        });
+        const arrAsc = [...arrDesc].reverse();
+        // Determina quando a dívida atual começou (janela corrente >0)
+        let saldo = 0;
+        let debtStart = null;
+        arrAsc.forEach(m => {
+            const delta = (m.tipo === 'entrega') ? (m.quantidade || 0) : - (m.quantidade || 0);
+            const prev = saldo;
+            saldo += delta;
+            if (prev <= 0 && saldo > 0) debtStart = m.data; // cruzou para devedor
+            if (saldo <= 0) debtStart = null; // quitou, reinicia janela
+        });
+
+        let resumoUltimoDia = null;
+        if (arrDesc.length > 0) {
+            const lastDateMs = arrDesc[0].data?.toMillis() || 0;
+            const sameDay = arrDesc.filter(x => (x.data?.toMillis() || 0) === lastDateMs);
+            const entregou = sameDay.filter(x => x.tipo === 'entrega').reduce((s, x) => s + (x.quantidade || 0), 0);
+            const devolveu = sameDay.filter(x => (x.tipo === 'retorno' || x.tipo === 'retirada')).reduce((s, x) => s + (x.quantidade || 0), 0);
+            resumoUltimoDia = { data: arrDesc[0].data, entregou, devolveu };
+        }
+        return { id: u.id, nome: u.nome, pendentes: saldoAtual, inicioDivida: debtStart, ultimoResumo: resumoUltimoDia };
+    })
+    .filter(s => s.pendentes > 0)
+    .sort((a, b) => b.pendentes - a.pendentes || a.nome.localeCompare(b.nome));
 
     const mensagens = lista.map(s => {
-        const ultimoData = s.ultimo ? formatTimestamp(s.ultimo.data) : 'data não informada';
-        const ultimoTipo = s.ultimo?.tipo || '';
-        const ultimoQtd = s.ultimo?.quantidade || 0;
-        let detalhe = '';
-        if (ultimoTipo === 'entrega') detalhe = `última movimentação ${ultimoData}: levou ${ultimoQtd} galão cheio`;
-        else if (ultimoTipo === 'retorno' || ultimoTipo === 'retirada') detalhe = `última movimentação ${ultimoData}: deixou ${ultimoQtd} galão vazio`;
-        return `⚠️ CRAS ${s.nome}: devendo ${s.pendentes} galão vazio de água • ${detalhe}`;
+        const desde = s.inicioDivida ? formatTimestamp(s.inicioDivida) : 'data não definida';
+        const label = s.pendentes === 1 ? 'galão' : 'galões';
+        return `⚠️ CRAS ${s.nome}: devendo ${s.pendentes} ${label} vazio de água • desde ${desde}`;
     });
 
     return mensagens;
