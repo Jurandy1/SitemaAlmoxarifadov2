@@ -20,6 +20,15 @@ let geralSearchQuery = '';
 // FUNÇÕES DE UTILIDADE DO DASHBOARD
 // =========================================================================
 
+function isHistoricoImportado(m) {
+    if (!m) return false;
+    if (m.origem === 'importador_sql') return true;
+    const obs = (m.observacao || '').toLowerCase();
+    if (obs.includes('importado de sql')) return true;
+    if (typeof m.referenciaAno === 'number' || typeof m.referenciaMes === 'number' || typeof m.referenciaSemana === 'number') return true;
+    return false;
+}
+
 /**
  * Filtra movimentações dos últimos 30 dias.
  */
@@ -36,7 +45,7 @@ function filterLast30Days(movimentacoes) {
     const todayTimestamp = today.getTime();
     
     return movimentacoes.filter(m => {
-        if (m?.origem === 'importador_sql') return false; // não contar histórico importado no dashboard
+        if (isHistoricoImportado(m)) return false; // não contar histórico importado
         if (!m.data || typeof m.data.toDate !== 'function') return false; 
         const mTimestamp = m.data.toMillis();
         return mTimestamp >= thirtyDaysAgoTimestamp && mTimestamp <= todayTimestamp;
@@ -155,13 +164,13 @@ export function renderDashboardGasChart() {
 
 function renderDashboardAguaSummary() {
     try {
-        const movs = (getAguaMovimentacoes() || []).filter(m => m?.origem !== 'importador_sql');
+        const movs = (getAguaMovimentacoes() || []).filter(m => !isHistoricoImportado(m));
         const estoqueAgua = getEstoqueAgua() || [];
 
         const estoqueInicial = estoqueAgua.filter(e => e.tipo === 'inicial').reduce((sum, e) => sum + (e.quantidade || 0), 0);
         const totalEntradas = estoqueAgua.filter(e => e.tipo === 'entrada').reduce((sum, e) => sum + (e.quantidade || 0), 0);
         const totalSaidas = movs.filter(m => m.tipo === 'entrega').reduce((sum, m) => sum + (m.quantidade || 0), 0);
-        const estoqueAtual = estoqueInicial + totalEntradas - totalSaidas;
+        const estoqueAtual = Math.max(0, estoqueInicial + totalEntradas - totalSaidas);
 
         const totalEntregueGeral = movs.filter(m => m.tipo === 'entrega').reduce((sum, m) => sum + (m.quantidade || 0), 0);
         const totalRecebidoGeral = movs.filter(m => (m.tipo === 'retorno' || m.tipo === 'retirada')).reduce((sum, m) => sum + (m.quantidade || 0), 0);
@@ -180,13 +189,13 @@ function renderDashboardAguaSummary() {
 
 function renderDashboardGasSummary() {
     try {
-        const movs = (getGasMovimentacoes() || []).filter(m => m?.origem !== 'importador_sql');
+        const movs = (getGasMovimentacoes() || []).filter(m => !isHistoricoImportado(m));
         const estoqueGas = getEstoqueGas() || [];
 
         const estoqueInicial = estoqueGas.filter(e => e.tipo === 'inicial').reduce((sum, e) => sum + (e.quantidade || 0), 0);
         const totalEntradas = estoqueGas.filter(e => e.tipo === 'entrada').reduce((sum, e) => sum + (e.quantidade || 0), 0);
         const totalSaidas = movs.filter(m => m.tipo === 'entrega').reduce((sum, m) => sum + (m.quantidade || 0), 0);
-        const estoqueAtual = estoqueInicial + totalEntradas - totalSaidas;
+        const estoqueAtual = Math.max(0, estoqueInicial + totalEntradas - totalSaidas);
         
         const totalEntregueGeral = movs.filter(m => m.tipo === 'entrega').reduce((sum, m) => sum + (m.quantidade || 0), 0);
         const totalRecebidoGeral = movs.filter(m => (m.tipo === 'retorno' || m.tipo === 'retirada')).reduce((sum, m) => sum + (m.quantidade || 0), 0);
