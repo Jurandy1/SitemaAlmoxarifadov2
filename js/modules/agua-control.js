@@ -657,6 +657,7 @@ function getFilteredAguaMovimentacoes() {
     const unidadeEl = document.getElementById('filtro-unidade-agua');
     const unidadeTipoEl = document.getElementById('filtro-unidade-tipo-agua');
     const respEl = document.getElementById('filtro-responsavel-agua');
+    const origemEl = document.getElementById('filtro-origem-agua');
     const dataIniEl = document.getElementById('filtro-data-ini-agua') || document.getElementById('filtro-data-inicio-agua');
     const dataFimEl = document.getElementById('filtro-data-fim-agua') || document.getElementById('filtro-data-fim-agua');
 
@@ -664,6 +665,7 @@ function getFilteredAguaMovimentacoes() {
     const unidadeId = unidadeEl?.value || '';
     const unidadeTipoSelecionado = (unidadeTipoEl?.value || '').toUpperCase();
     const respQuery = (respEl?.value || '').trim().toLowerCase();
+    const origem = origemEl?.value || '';
     const dataIniStr = dataIniEl?.value || '';
     const dataFimStr = dataFimEl?.value || '';
 
@@ -684,6 +686,8 @@ function getFilteredAguaMovimentacoes() {
             const info = unidadesMap.get(m.unidadeId);
             if (!info || info.tipo !== unidadeTipoSelecionado) return false;
         }
+        if (origem === 'importacao' && !isHistoricoImportado(m)) return false;
+        if (origem === 'manual' && isHistoricoImportado(m)) return false;
         if (respQuery) {
             const ru = (m.responsavel || '').toLowerCase();
             const ra = (m.responsavelAlmoxarifado || '').toLowerCase();
@@ -796,7 +800,7 @@ export function initAguaListeners() {
     if (DOM_ELEMENTS.filtroResumoAguaDataIni) DOM_ELEMENTS.filtroResumoAguaDataIni.addEventListener('change', renderAguaDebitosResumo);
     if (DOM_ELEMENTS.filtroResumoAguaDataFim) DOM_ELEMENTS.filtroResumoAguaDataFim.addEventListener('change', renderAguaDebitosResumo);
     // Filtros avançados
-    ['filtro-tipo-agua','filtro-unidade-agua','filtro-responsavel-agua','filtro-data-ini-agua','filtro-data-fim-agua']
+    ['filtro-tipo-agua','filtro-unidade-agua','filtro-responsavel-agua','filtro-origem-agua','filtro-data-ini-agua','filtro-data-fim-agua']
         .forEach(id => {
             const el = document.getElementById(id);
             if (el) el.addEventListener('input', () => {
@@ -814,7 +818,7 @@ export function initAguaListeners() {
     });
     const btnClear = document.getElementById('btn-limpar-filtros-agua');
     if (btnClear) btnClear.addEventListener('click', () => {
-        ['filtro-tipo-agua','filtro-unidade-tipo-agua','filtro-unidade-agua','filtro-responsavel-agua','filtro-data-ini-agua','filtro-data-fim-agua']
+        ['filtro-tipo-agua','filtro-unidade-tipo-agua','filtro-unidade-agua','filtro-responsavel-agua','filtro-origem-agua','filtro-data-ini-agua','filtro-data-fim-agua']
             .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
         populateAguaFilterUnidades();
         renderAguaMovimentacoesHistory();

@@ -644,6 +644,7 @@ function getFilteredGasMovimentacoes() {
     const unidadeEl = document.getElementById('filtro-unidade-gas');
     const unidadeTipoEl = document.getElementById('filtro-unidade-tipo-gas');
     const respEl = document.getElementById('filtro-responsavel-gas');
+    const origemEl = document.getElementById('filtro-origem-gas');
     const dataIniEl = document.getElementById('filtro-data-ini-gas') || document.getElementById('filtro-data-inicio-gas');
     const dataFimEl = document.getElementById('filtro-data-fim-gas') || document.getElementById('filtro-data-fim-gas');
 
@@ -651,6 +652,7 @@ function getFilteredGasMovimentacoes() {
     const unidadeId = unidadeEl?.value || '';
     const unidadeTipoSelecionado = (unidadeTipoEl?.value || '').toUpperCase();
     const respQuery = (respEl?.value || '').trim().toLowerCase();
+    const origem = origemEl?.value || '';
     const dataIniStr = dataIniEl?.value || '';
     const dataFimStr = dataFimEl?.value || '';
 
@@ -671,6 +673,9 @@ function getFilteredGasMovimentacoes() {
             const info = unidadesMap.get(m.unidadeId);
             if (!info || info.tipo !== unidadeTipoSelecionado) return false;
         }
+        const isImport = ((m.responsavel || '').toLowerCase().includes('importa')) || ((m.observacao || '').toLowerCase().includes('importado'));
+        if (origem === 'importacao' && !isImport) return false;
+        if (origem === 'manual' && isImport) return false;
         if (respQuery) {
             const ru = (m.responsavel || '').toLowerCase();
             const ra = (m.responsavelAlmoxarifado || '').toLowerCase();
@@ -775,7 +780,7 @@ export function initGasListeners() {
     if (DOM_ELEMENTS.btnVerStatusGas) {
         DOM_ELEMENTS.btnVerStatusGas.addEventListener('click', () => switchSubTabView('gas', 'status-gas'));
     }
-    ['filtro-tipo-gas','filtro-unidade-gas','filtro-responsavel-gas','filtro-data-ini-gas','filtro-data-fim-gas']
+    ['filtro-tipo-gas','filtro-unidade-gas','filtro-responsavel-gas','filtro-origem-gas','filtro-data-ini-gas','filtro-data-fim-gas']
         .forEach(id => {
             const el = document.getElementById(id);
             if (el) el.addEventListener('input', () => {
@@ -793,7 +798,7 @@ export function initGasListeners() {
     });
     const btnClear = document.getElementById('btn-limpar-filtros-gas');
     if (btnClear) btnClear.addEventListener('click', () => {
-        ['filtro-tipo-gas','filtro-unidade-tipo-gas','filtro-unidade-gas','filtro-responsavel-gas','filtro-data-ini-gas','filtro-data-fim-gas']
+        ['filtro-tipo-gas','filtro-unidade-tipo-gas','filtro-unidade-gas','filtro-responsavel-gas','filtro-origem-gas','filtro-data-ini-gas','filtro-data-fim-gas']
             .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
         populateGasFilterUnidades();
         renderGasMovimentacoesHistory();
