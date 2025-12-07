@@ -454,6 +454,50 @@ export function renderGasDebitosResumo() {
     DOM_ELEMENTS.tableDebitoGasResumo.innerHTML = rows.join('');
 }
 
+export function getDebitosGasResumoList() {
+    const statusMap = new Map();
+    const nameIndex = new Map();
+    getUnidades().forEach(u => {
+        let tipo = (u.tipo || 'N/A').toUpperCase();
+        if (tipo === 'SEMCAS') tipo = 'SEDE';
+        const obj = { id: u.id, nome: u.nome, tipo, entregues: 0, recebidos: 0, ultimo: null };
+        statusMap.set(u.id, obj);
+        nameIndex.set(_normName(u.nome), obj);
+    });
+
+    const movsOrdenadas = [...getGasMovimentacoes()].sort((a, b) => {
+        const ad = a.data?.toMillis() || 0;
+        const bd = b.data?.toMillis() || 0;
+        if (bd !== ad) return bd - ad;
+        const ar = a.registradoEm?.toMillis?.() || 0;
+        const br = b.registradoEm?.toMillis?.() || 0;
+        return br - ar;
+    });
+    movsOrdenadas.forEach(m => {
+        let s = statusMap.get(m.unidadeId) || nameIndex.get(_normName(m.unidadeNome));
+        if (!s) return;
+        if (m.tipo === 'entrega') s.entregues += m.quantidade; else if (m.tipo === 'retorno' || m.tipo === 'retirada') s.recebidos += m.quantidade;
+        if (!s.ultimo) s.ultimo = { id: m.id, data: m.data, tipo: m.tipo, quantidade: m.quantidade, respUnidade: m.responsavel, respAlmox: m.responsavelAlmoxarifado || 'N/A' };
+    });
+
+    const lista = Array.from(statusMap.values())
+        .map(s => ({ ...s, pendentes: s.entregues - s.recebidos }))
+        .filter(s => s.pendentes > 0)
+        .sort((a, b) => b.pendentes - a.pendentes || a.nome.localeCompare(b.nome));
+
+    const mensagens = lista.map(s => {
+        const ultimoData = s.ultimo ? formatTimestampComTempo(s.ultimo.data) : 'data não informada';
+        const ultimoTipo = s.ultimo?.tipo || '';
+        const ultimoQtd = s.ultimo?.quantidade || 0;
+        let detalhe = '';
+        if (ultimoTipo === 'entrega') detalhe = `pois na data ${ultimoData} já levou ${ultimoQtd} botijão cheio`;
+        else if (ultimoTipo === 'retorno' || ultimoTipo === 'retirada') detalhe = `deixou ${ultimoQtd} botijão vazio na data ${ultimoData}`;
+        return `CRAS ${s.nome} está devendo ${s.pendentes} botijão vazio de gás${detalhe ? `, ${detalhe}` : ''}.`;
+    });
+
+    return mensagens;
+}
+
 export function renderGasEstoqueHistory() {
     if (!DOM_ELEMENTS.tableHistoricoEstoqueGas) return;
     

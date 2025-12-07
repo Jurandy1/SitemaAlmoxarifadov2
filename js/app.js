@@ -12,6 +12,9 @@ import { executeDelete } from "./utils/db-utils.js";
 import { handleFinalMovimentacaoSubmit } from "./modules/movimentacao-modal-handler.js";
 import { getTodayDateString } from "./utils/formatters.js";
 import { initPrevisaoListeners } from "./modules/previsao.js"; 
+import { getDebitosAguaResumoList } from "./modules/agua-control.js";
+import { getDebitosGasResumoList } from "./modules/gas-control.js";
+import { isReady } from "./modules/auth.js";
 import { initSocialListeners } from "./modules/social-control.js"; // NOVO
 
 // Variável de estado da UI local (para manter o dashboard na tela)
@@ -43,8 +46,8 @@ function setupApp() {
     // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (DOM_ELEMENTS.btnSalvarMovimentacaoFinal) DOM_ELEMENTS.btnSalvarMovimentacaoFinal.addEventListener('click', handleFinalMovimentacaoSubmit);
 
-    // 6. ADICIONADO: Inicializa os listeners da Previsão (globais)
-    initPrevisaoListeners();
+    // 6. ADICIONADO: Inicializa os listeners da Previsão (globais)
+    initPrevisaoListeners();
     
     // 7. ADICIONADO: Inicializa os listeners de Assistência Social (globais)
     initSocialListeners();
@@ -112,12 +115,14 @@ function setupApp() {
          DOM_ELEMENTS.btnLogout.addEventListener('click', signOutUser);
     }
 
-    console.log("Setup inicial do DOM concluído.");
-    
-    // 9. Configurar o estado inicial do dashboard (inicia o refresh ao entrar na aba)
-    const dashboardBtn = document.querySelector('.nav-btn[data-tab="dashboard"]');
+    // 10. Alerta de débitos recorrente (usuários logados)
+    setupDebitosPopupScheduler();
+
+    // 11. Configurar o estado inicial do dashboard (inicia o refresh ao entrar na aba)
+    const dashboardBtn = document.querySelector('.nav-btn[data-tab="dashboard"]');
     if (dashboardBtn) dashboardBtn.click();
 
+    console.log("Setup inicial do DOM concluído.");
 }
 
 /**
@@ -139,6 +144,32 @@ function main() {
         renderUIModules         // Callback para renderizar módulos (Água, Gás, etc.)
     );
 
+}
+
+let __debitosIntervalId = null;
+function setupDebitosPopupScheduler() {
+    if (__debitosIntervalId) clearInterval(__debitosIntervalId);
+    const showNow = () => {
+        try {
+            if (!isReady()) return;
+            const waterMsgs = getDebitosAguaResumoList();
+            const gasMsgs = getDebitosGasResumoList();
+            const msgs = [...waterMsgs, ...gasMsgs];
+            const modal = DOM_ELEMENTS.alertaDebitosModal;
+            const content = DOM_ELEMENTS.alertaDebitosContent;
+            const btnClose = DOM_ELEMENTS.btnFecharAlertaDebitos;
+            if (!modal || !content || !btnClose) return;
+            if (msgs.length === 0) return; // Sem débitos
+            content.innerHTML = msgs.map(m => `<p class="text-xl md:text-2xl font-bold">${m}</p>`).join('');
+            modal.classList.remove('hidden');
+            btnClose.onclick = () => { modal.classList.add('hidden'); };
+            if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
+        } catch (e) { console.error('Erro ao mostrar alerta de débitos:', e); }
+    };
+    // Mostra ao entrar
+    setTimeout(showNow, 300);
+    // Repete a cada 10 minutos
+    __debitosIntervalId = setInterval(showNow, 10 * 60 * 1000);
 }
 
 // Inicia a aplicação após o DOM estar completamente carregado

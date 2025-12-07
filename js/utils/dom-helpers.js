@@ -268,6 +268,10 @@ function findDOMElements() {
         ['#btn-confirmar-finalizacao-entrega', 'btnConfirmarFinalizacaoEntrega'],
         ['#finalizar-entrega-material-id', 'finalizarEntregaMaterialIdEl'],
         ['#alert-finalizar-entrega', 'alertFinalizarEntrega'],
+        // Modal de Alerta de Débitos
+        ['#alerta-debitos-modal', 'alertaDebitosModal'],
+        ['#alerta-debitos-content', 'alertaDebitosContent'],
+        ['#btn-fechar-alerta-debitos', 'btnFecharAlertaDebitos'],
         // Relatório
         ['#relatorio-tipo', 'relatorioTipo'],
         ['#relatorio-data-inicio', 'relatorioDataInicio'],
