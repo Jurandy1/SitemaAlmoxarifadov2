@@ -208,6 +208,13 @@ function analisarConsumoPorPeriodo(itemType) {
     showAlert(alertId, `Análise concluída. Período: ${formatTimestamp(dataInicial)} a ${formatTimestamp(dataFinal)} (${totalDias} dias).`, 'success', 5000);
 }
 
+function getItemLabel(itemType, qty) {
+    if (itemType === 'agua') {
+        return qty === 1 ? 'galão' : 'galões';
+    }
+    return qty === 1 ? 'botijão' : 'botijões';
+}
+
 function getPeriodKey(date, agrupamento) {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -346,12 +353,15 @@ function renderAnaliseTextual(itemType, movsEntrega, unidades, dataInicial, data
         .sort((a, b) => b.consumo - a.consumo);
     const totalConsumo = ranking.reduce((sum, item) => sum + item.consumo, 0);
     const mediaConsumo = totalConsumo / (ranking.length > 0 ? ranking.length : 1);
-    const itemLabel = itemType === 'agua' ? 'galão' : 'botijão';
-    const itemLabelPlural = itemLabel + (itemType === 'agua' ? 'ões' : 'ões'); 
+    const itemLabel = getItemLabel(itemType, 1);
+    const itemLabelPlural = getItemLabel(itemType, totalConsumo);
     rankingEl.innerHTML = '';
     if (ranking.length > 0) {
         let rankingHtml = '';
-        ranking.slice(0, 5).forEach((item, index) => {
+        const top = ranking.slice(0, 5);
+        const bottom = ranking.slice(-5).reverse();
+        rankingHtml += `<h4 class="font-semibold mb-2">Maiores consumidores</h4>`;
+        top.forEach((item, index) => {
             rankingHtml += `
                 <div class="ranking-item">
                     <span class="rank-number">${index + 1}º</span>
@@ -360,12 +370,19 @@ function renderAnaliseTextual(itemType, movsEntrega, unidades, dataInicial, data
                 </div>
             `;
         });
-        if (ranking.length > 5) {
-             rankingHtml += `<p class="text-xs text-gray-500 mt-2 text-center">Mais ${ranking.length - 5} unidades...</p>`;
-        }
+        rankingHtml += `<h4 class="font-semibold mt-4 mb-2">Menores consumidores</h4>`;
+        bottom.forEach((item, index) => {
+            rankingHtml += `
+                <div class="ranking-item">
+                    <span class="rank-number">${index + 1}º</span>
+                    <span class="rank-name">${item.nome}</span>
+                    <span class="rank-consumption text-green-600">${item.consumo} un.</span>
+                </div>
+            `;
+        });
         rankingEl.innerHTML = rankingHtml;
     } else {
-         rankingEl.innerHTML = `<p class="text-gray-500 italic text-sm">Nenhum consumo registrado.</p>`;
+        rankingEl.innerHTML = `<p class="text-gray-500 italic text-sm">Nenhum consumo registrado.</p>`;
     }
     const { totalDias } = getPeriodoAnalise(movsEntrega);
     const mediaDiariaPeriodo = totalDias > 0 ? (totalConsumo / totalDias) : totalConsumo;
@@ -393,6 +410,56 @@ function renderAnaliseTextual(itemType, movsEntrega, unidades, dataInicial, data
         const menorConsumo = ranking[ranking.length - 1];
         relatorioText += `<p>O menor consumidor foi a unidade <strong>${menorConsumo.nome}</strong>, com <strong>${menorConsumo.consumo} unidades</strong>.</p>`;
     }
+    const diasHistFull = Array.isArray(movsGroupFull) ? getPeriodoAnalise(movsGroupFull).totalDias : 0;
+    const consumoHistPorUnidade = Array.isArray(movsGroupFull) ? movsGroupFull.reduce((acc, m) => {
+        acc[m.unidadeId] = (acc[m.unidadeId] || 0) + (m.quantidade || 0);
+        return acc;
+    }, {}) : {};
+    const consumoAtualPorUnidadeId = movsEntrega.reduce((acc, m) => {
+        acc[m.unidadeId] = (acc[m.unidadeId] || 0) + (m.quantidade || 0);
+        return acc;
+    }, {});
+    const esperadoPorUnidade = {};
+    Object.keys(consumoHistPorUnidade).forEach(uid => {
+        const mediaHistDia = diasHistFull > 0 ? (consumoHistPorUnidade[uid] / diasHistFull) : 0;
+        esperadoPorUnidade[uid] = mediaHistDia * totalDias;
+    });
+    const anomaliasAlta = [];
+    const anomaliasBaixa = [];
+    Object.keys(consumoAtualPorUnidadeId).forEach(uid => {
+        const atual = consumoAtualPorUnidadeId[uid];
+        const esperado = esperadoPorUnidade[uid] || 0;
+        const diff = atual - esperado;
+        const perc = esperado > 0 ? ((diff / esperado) * 100) : (atual > 0 ? 100 : 0);
+        const unidade = unidades.find(u => u.id === uid);
+        const nome = unidade ? unidade.nome : uid;
+        const registro = { uid, nome, atual, esperado: Math.max(0, esperado), diff, perc };
+        if (diff >= 0) anomaliasAlta.push(registro); else anomaliasBaixa.push(registro);
+    });
+    anomaliasAlta.sort((a, b) => b.diff - a.diff);
+    anomaliasBaixa.sort((a, b) => a.diff - b.diff);
+    const limiarPerc = 25;
+    const destaqueAlta = anomaliasAlta.filter(a => a.esperado > 0 && a.perc >= limiarPerc).slice(0, 5);
+    const destaqueBaixa = anomaliasBaixa.filter(a => a.esperado > 0 && Math.abs(a.perc) >= limiarPerc).slice(0, 5);
+
+    if (destaqueAlta.length > 0 || destaqueBaixa.length > 0) {
+        relatorioText += `<p class="mt-3"><strong>Unidades fora do padrão histórico (${limiarPerc}%+):</strong></p>`;
+        if (destaqueAlta.length > 0) {
+            relatorioText += `<ul class="list-disc ml-5 text-sm text-gray-700">`;
+            destaqueAlta.forEach(a => {
+                relatorioText += `<li><strong>${a.nome}</strong>: ${a.atual} un. no período, esperado ${a.esperado.toFixed(1)} un. (Δ ${a.diff.toFixed(1)} • ${a.perc.toFixed(1)}%)</li>`;
+            });
+            relatorioText += `</ul>`;
+        }
+        if (destaqueBaixa.length > 0) {
+            relatorioText += `<ul class="list-disc ml-5 text-sm text-gray-700 mt-2">`;
+            destaqueBaixa.forEach(a => {
+                relatorioText += `<li><strong>${a.nome}</strong>: ${a.atual} un. no período, esperado ${a.esperado.toFixed(1)} un. (Δ ${a.diff.toFixed(1)} • ${a.perc.toFixed(1)}%)</li>`;
+            });
+            relatorioText += `</ul>`;
+        }
+    }
+
     relatorioEl.innerHTML = relatorioText;
 
     if (resumoExecEl) {
