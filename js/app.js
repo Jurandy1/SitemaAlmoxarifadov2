@@ -7,12 +7,12 @@ import { renderDashboard, startDashboardRefresh, stopDashboardRefresh, renderDas
 // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
 // NOTA: showAlert foi importado aqui. Certifique-se de que ele está corretamente exportado em control-helpers.js
 // OU remova-o daqui e importe-o de utils/dom-helpers.js (melhor prática).
-import { renderUIModules, renderUnidadeControls, initAllListeners, DOM_ELEMENTS, findDOMElements, updateLastUpdateTime, showAlert } from "./modules/control-helpers.js";
+import { renderUIModules, renderUnidadeControls, initAllListeners, DOM_ELEMENTS, findDOMElements, updateLastUpdateTime, showAlert, switchTab, switchSubTabView } from "./modules/control-helpers.js";
 import { executeDelete } from "./utils/db-utils.js";
 import { handleFinalMovimentacaoSubmit } from "./modules/movimentacao-modal-handler.js";
 import { getTodayDateString } from "./utils/formatters.js";
 import { initPrevisaoListeners } from "./modules/previsao.js"; 
-import { getDebitosAguaResumoList } from "./modules/agua-control.js";
+import { getDebitosAguaResumoList, renderAguaMovimentacoesHistory } from "./modules/agua-control.js";
 import { getDebitosGasResumoList } from "./modules/gas-control.js";
 import { isReady } from "./modules/auth.js";
 import { initSocialListeners } from "./modules/social-control.js"; // NOVO
@@ -166,6 +166,26 @@ function setupDebitosPopupScheduler() {
             modal.classList.remove('hidden');
             btnClose.onclick = () => { modal.classList.add('hidden'); };
             if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
+            // Ligações dos botões para ver o dia da dívida (água)
+            content.querySelectorAll('.btn-ver-dia-divida').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const unidadeId = btn.getAttribute('data-unidade-id');
+                    const dateStr = btn.getAttribute('data-date');
+                    if (!unidadeId || !dateStr) return;
+                    switchTab('agua');
+                    switchSubTabView('agua', 'historico-agua');
+                    const unidadeEl = document.getElementById('filtro-unidade-agua');
+                    const dataIniEl = document.getElementById('filtro-data-inicio-agua');
+                    const dataFimEl = document.getElementById('filtro-data-fim-agua');
+                    const origemEl = document.getElementById('filtro-origem-agua');
+                    if (unidadeEl) unidadeEl.value = unidadeId;
+                    if (dataIniEl) dataIniEl.value = dateStr;
+                    if (dataFimEl) dataFimEl.value = dateStr;
+                    if (origemEl) origemEl.value = '';
+                    renderAguaMovimentacoesHistory();
+                    modal.classList.add('hidden');
+                });
+            });
             __debitosHasShown = true;
         } catch (e) { console.error('Erro ao mostrar alerta de débitos:', e); }
     };

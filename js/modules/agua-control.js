@@ -1,7 +1,7 @@
 // js/modules/agua-control.js
 import { Timestamp, addDoc, updateDoc, serverTimestamp, query, where, getDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { getUnidades, getAguaMovimentacoes, isEstoqueInicialDefinido, getCurrentStatusFilter, setCurrentStatusFilter, getEstoqueAgua, getUserRole } from "../utils/cache.js";
-import { DOM_ELEMENTS, showAlert, switchSubTabView, handleSaldoFilterUI, openConfirmDeleteModal, filterTable, renderPermissionsUI } from "../utils/dom-helpers.js";
+import { DOM_ELEMENTS, showAlert, switchSubTabView, switchTab, openConfirmDeleteModal, filterTable, renderPermissionsUI } from "../utils/dom-helpers.js";
 import { getTodayDateString, dateToTimestamp, capitalizeString, formatTimestampComTempo, formatTimestamp } from "../utils/formatters.js";
 import { isReady, getUserId } from "./auth.js";
 import { COLLECTIONS } from "../services/firestore-service.js";
@@ -368,7 +368,7 @@ export function renderAguaDebitosResumo() {
     getUnidades().forEach(u => {
         let tipo = (u.tipo || 'N/A').toUpperCase();
         if (tipo === 'SEMCAS') tipo = 'SEDE';
-        const obj = { id: u.id, nome: u.nome, tipo, entregues: 0, recebidos: 0, ultimo: null };
+        const obj = { id: u.id, nome: u.nome, tipo, entregues: 0, recebidos: 0, ultimo: null, origemDivida: null };
         statusMap.set(u.id, obj);
         nameIndex.set(_normName(u.nome), obj);
     });
@@ -386,6 +386,35 @@ export function renderAguaDebitosResumo() {
         if (!s) return;
         if (m.tipo === 'entrega') s.entregues += m.quantidade; else if (m.tipo === 'retorno' || m.tipo === 'retirada') s.recebidos += m.quantidade;
         if (!s.ultimo) s.ultimo = { id: m.id, data: m.data, tipo: m.tipo, quantidade: m.quantidade, respUnidade: m.responsavel, respAlmox: m.responsavelAlmoxarifado || 'N/A' };
+    });
+
+    // Determina o movimento que iniciou a dívida atual (cruzamento do saldo para > 0)
+    const porUnidade = new Map();
+    movsOrdenadas.forEach(m => {
+        const arr = porUnidade.get(m.unidadeId) || [];
+        arr.push(m);
+        porUnidade.set(m.unidadeId, arr);
+    });
+    Array.from(statusMap.values()).forEach(s => {
+        const arrDesc = (porUnidade.get(s.id) || []).sort((a, b) => {
+            const ad = a.data?.toMillis() || 0;
+            const bd = b.data?.toMillis() || 0;
+            if (bd !== ad) return bd - ad;
+            const ar = a.registradoEm?.toMillis?.() || 0;
+            const br = b.registradoEm?.toMillis?.() || 0;
+            return br - ar;
+        });
+        const arrAsc = [...arrDesc].reverse();
+        let saldo = 0;
+        let origem = null;
+        arrAsc.forEach(m => {
+            const delta = (m.tipo === 'entrega') ? (m.quantidade || 0) : - (m.quantidade || 0);
+            const prev = saldo;
+            saldo += delta;
+            if (prev <= 0 && saldo > 0) origem = m;
+            if (saldo <= 0) origem = null;
+        });
+        s.origemDivida = origem ? { id: origem.id, data: origem.data, tipo: origem.tipo, quantidade: origem.quantidade, respUnidade: origem.responsavel, respAlmox: origem.responsavelAlmoxarifado || 'N/A' } : null;
     });
 
     const listaBase = Array.from(statusMap.values()).map(s => ({ ...s, pendentes: s.entregues - s.recebidos }));
@@ -443,10 +472,11 @@ export function renderAguaDebitosResumo() {
     tiposOrdenados.forEach(tipo => {
         rows.push(`<tr class="table-group-header"><td colspan="4">${tipo}</td></tr>`);
         grupos[tipo].forEach(s => {
-            const ultimoData = s.ultimo ? formatTimestampComTempo(s.ultimo.data) : 'N/A';
-            const ultimoTipo = s.ultimo?.tipo || '';
-            const ultimoQtd = s.ultimo?.quantidade || '';
-            const ultimoResp = s.ultimo ? `Almox: ${s.ultimo.respAlmox} • Unid: ${s.ultimo.respUnidade}` : '';
+            const origemMov = s.origemDivida;
+            const origemData = origemMov ? formatTimestampComTempo(origemMov.data) : 'N/A';
+            const origemTipo = origemMov?.tipo || '';
+            const origemQtd = origemMov?.quantidade || '';
+            const origemResp = origemMov ? `Almox: ${origemMov.respAlmox} • Unid: ${origemMov.respUnidade}` : '';
             const pendText = debitoAguaMode === 'credito' ? Math.abs(s.pendentes) : s.pendentes;
             const pendClass = debitoAguaMode === 'credito' ? 'text-blue-600' : 'text-red-600';
             rows.push(`<tr>
@@ -455,16 +485,37 @@ export function renderAguaDebitosResumo() {
                 <td class="text-center ${pendClass} font-extrabold">${pendText}</td>
                 <td class="text-xs text-gray-700">
                     <div class="flex flex-col">
-                        <span class="font-medium">${ultimoData}</span>
-                        <span class="mt-1 flex items-center gap-2"><span class="badge ${(ultimoTipo==='retorno' || ultimoTipo==='retirada') ? 'badge-green' : 'badge-blue'}">${(ultimoTipo==='retorno' || ultimoTipo==='retirada') ? 'vazio' : 'cheio'}</span><span>${ultimoQtd}</span></span>
-                        <span class="text-gray-500">${ultimoResp}</span>
-                        <span class="text-gray-400 text-xs">ID: ${s.ultimo?.id || 'N/A'}</span>
+                        <span class="font-medium">${origemData}</span>
+                        <span class="mt-1 flex items-center gap-2"><span class="badge ${(origemTipo==='retorno' || origemTipo==='retirada') ? 'badge-green' : 'badge-blue'}">${(origemTipo==='retorno' || origemTipo==='retirada') ? 'vazio' : 'cheio'}</span><span>${origemQtd}</span></span>
+                        <span class="text-gray-500">${origemResp}</span>
+                        <span class="text-gray-400 text-xs">ID: ${origemMov?.id || 'N/A'}</span>
+                        ${origemMov ? `<button class="btn-info btn-sm mt-2 btn-ver-dia-divida" data-item="agua" data-unidade-id="${s.id}" data-date="${(new Date(origemMov.data.toDate())).toISOString().slice(0,10)}"><i data-lucide="calendar"></i> Ver dia da dívida</button>` : ''}
                     </div>
                 </td>
             </tr>`);
         });
     });
     DOM_ELEMENTS.tableDebitoAguaResumo.innerHTML = rows.join('');
+    if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
+    // Listener para botões de "Ver dia da dívida" na tabela
+    DOM_ELEMENTS.tableDebitoAguaResumo.querySelectorAll('.btn-ver-dia-divida').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const unidadeId = btn.getAttribute('data-unidade-id');
+            const dateStr = btn.getAttribute('data-date');
+            if (!unidadeId || !dateStr) return;
+            switchTab('agua');
+            switchSubTabView('agua', 'historico-agua');
+            const unidadeEl = document.getElementById('filtro-unidade-agua');
+            const dataIniEl = document.getElementById('filtro-data-inicio-agua');
+            const dataFimEl = document.getElementById('filtro-data-fim-agua');
+            const origemEl = document.getElementById('filtro-origem-agua');
+            if (unidadeEl) unidadeEl.value = unidadeId;
+            if (dataIniEl) dataIniEl.value = dateStr;
+            if (dataFimEl) dataFimEl.value = dateStr;
+            if (origemEl) origemEl.value = '';
+            renderAguaMovimentacoesHistory();
+        });
+    });
 }
 
 export function getDebitosAguaResumoList() {
@@ -501,13 +552,13 @@ export function getDebitosAguaResumoList() {
         const arrAsc = [...arrDesc].reverse();
         // Determina quando a dívida atual começou (janela corrente >0)
         let saldo = 0;
-        let debtStart = null;
+        let debtStartMov = null;
         arrAsc.forEach(m => {
             const delta = (m.tipo === 'entrega') ? (m.quantidade || 0) : - (m.quantidade || 0);
             const prev = saldo;
             saldo += delta;
-            if (prev <= 0 && saldo > 0) debtStart = m.data; // cruzou para devedor
-            if (saldo <= 0) debtStart = null; // quitou, reinicia janela
+            if (prev <= 0 && saldo > 0) debtStartMov = m; // cruzou para devedor
+            if (saldo <= 0) debtStartMov = null; // quitou, reinicia janela
         });
 
         let resumoUltimoDia = null;
@@ -518,7 +569,7 @@ export function getDebitosAguaResumoList() {
             const devolveu = sameDay.filter(x => (x.tipo === 'retorno' || x.tipo === 'retirada')).reduce((s, x) => s + (x.quantidade || 0), 0);
             resumoUltimoDia = { data: arrDesc[0].data, entregou, devolveu };
         }
-        return { id: u.id, nome: u.nome, pendentes: saldoAtual, inicioDivida: debtStart, ultimoResumo: resumoUltimoDia };
+        return { id: u.id, nome: u.nome, pendentes: saldoAtual, inicioDivida: debtStartMov?.data || null, origemMov: debtStartMov || null, ultimoResumo: resumoUltimoDia };
     })
     .filter(s => s.pendentes > 0)
     .sort((a, b) => b.pendentes - a.pendentes || a.nome.localeCompare(b.nome));
@@ -526,7 +577,11 @@ export function getDebitosAguaResumoList() {
     const mensagens = lista.map(s => {
         const desde = s.inicioDivida ? formatTimestamp(s.inicioDivida) : 'data não definida';
         const label = s.pendentes === 1 ? 'galão' : 'galões';
-        return `⚠️ CRAS ${s.nome}: devendo ${s.pendentes} ${label} vazio de água • desde ${desde}`;
+        const mov = s.origemMov;
+        const detalhes = mov ? `Origem: ${formatTimestamp(mov.data)} • ${(mov.tipo==='retorno' || mov.tipo==='retirada') ? 'devolveu vazio' : 'recebeu cheio'} ${mov.quantidade} • Resp.: ${mov.responsavel || 'N/A'}` : 'Origem não determinada';
+        const dateStr = mov ? (new Date(mov.data.toDate())).toISOString().slice(0,10) : '';
+        const btn = mov ? `<button class="btn-info btn-sm btn-ver-dia-divida" data-item="agua" data-unidade-id="${s.id}" data-date="${dateStr}"><i data-lucide="calendar"></i> Ver dia da dívida</button>` : '';
+        return `⚠️ ${s.nome}: devendo ${s.pendentes} ${label} vazio de água • desde ${desde} • ${detalhes} ${btn}`;
     });
 
     return mensagens;
