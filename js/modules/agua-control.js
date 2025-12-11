@@ -14,10 +14,18 @@ function _normName(x) { return (x || '').toLowerCase().replace(/\s+/g, ' ').trim
 
 function isHistoricoImportado(m) {
     if (!m) return false;
-    if (m.origem === 'importador_sql') return true;
-    const obs = (m.observacao || '').toLowerCase();
-    if (obs.includes('importado de sql')) return true;
+    const idStr = String(m.id || '').toLowerCase();
+    const origemStr = String(m.origem || '').toLowerCase();
+    const obs = String(m.observacao || '').toLowerCase();
+    if (origemStr === 'importador_sql') return true;
+    if (origemStr === 'importacao' || origemStr === 'importacao_automatica' || origemStr === 'automatic_import') return true;
+    if (origemStr.includes('importa') || origemStr.includes('automatica')) return true;
+    if (idStr.includes('__sql') || idStr.endsWith('_sql')) return true;
+    if (obs.includes('importado de sql') || obs.includes('importação automática') || obs.includes('migração') || obs.includes('importado')) return true;
     if (typeof m.referenciaAno === 'number' || typeof m.referenciaMes === 'number' || typeof m.referenciaSemana === 'number') return true;
+    const d = m.data?.toDate?.();
+    const ra = (m.responsavelAlmoxarifado || '').toLowerCase();
+    if (d && d.getHours() === 0 && d.getMinutes() === 0 && (!m.responsavelAlmoxarifado || ra.includes('import'))) return true;
     return false;
 }
 
