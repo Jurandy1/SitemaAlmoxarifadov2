@@ -177,7 +177,7 @@ export function toggleAguaFormInputs() {
 
 export function getUnidadeSaldoAgua(unidadeId) {
     if (!unidadeId) return 0;
-    const movimentacoes = getAguaMovimentacoes();
+    const movimentacoes = getAguaMovimentacoes().filter(m => !isHistoricoImportado(m));
     const entregues = movimentacoes.filter(m => m.unidadeId === unidadeId && m.tipo === 'entrega').reduce((sum, m) => sum + m.quantidade, 0);
     const recebidos = movimentacoes.filter(m => m.unidadeId === unidadeId && (m.tipo === 'retorno' || m.tipo === 'retirada')).reduce((sum, m) => sum + m.quantidade, 0);
     return entregues - recebidos;

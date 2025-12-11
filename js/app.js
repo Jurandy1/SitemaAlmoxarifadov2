@@ -17,6 +17,7 @@ import { getDebitosAguaResumoList, renderAguaMovimentacoesHistory } from "./modu
 import { getDebitosGasResumoList } from "./modules/gas-control.js";
 import { isReady } from "./modules/auth.js";
 import { initSocialListeners } from "./modules/social-control.js"; // NOVO
+import { getUserRole } from "./utils/cache.js";
 
 // Variável de estado da UI local (para manter o dashboard na tela)
 let visaoAtiva = 'dashboard'; 
@@ -150,16 +151,18 @@ function main() {
 let __debitosIntervalId = null;
 let __debitosBootstrapId = null;
 let __debitosHasShown = false;
-function setupDebitosPopupScheduler() {
-    if (__debitosIntervalId) clearInterval(__debitosIntervalId);
-    const showNow = () => {
-        try {
-            if (!isReady()) return;
-            const waterMsgs = getDebitosAguaResumoList();
-            const gasMsgs = getDebitosGasResumoList();
-            const msgs = [...waterMsgs, ...gasMsgs];
-            const modal = DOM_ELEMENTS.alertaDebitosModal;
-            const content = DOM_ELEMENTS.alertaDebitosContent;
+    function setupDebitosPopupScheduler() {
+        if (__debitosIntervalId) clearInterval(__debitosIntervalId);
+        const showNow = () => {
+            try {
+                if (!isReady()) return;
+                const role = getUserRole();
+                if (!role || role === 'unauthenticated' || role === 'anon') return;
+                const waterMsgs = getDebitosAguaResumoList();
+                const gasMsgs = getDebitosGasResumoList();
+                const msgs = [...waterMsgs, ...gasMsgs];
+                const modal = DOM_ELEMENTS.alertaDebitosModal;
+                const content = DOM_ELEMENTS.alertaDebitosContent;
             const btnClose = DOM_ELEMENTS.btnFecharAlertaDebitos;
             if (!modal || !content || !btnClose) return;
             if (msgs.length === 0) return; // Sem débitos
