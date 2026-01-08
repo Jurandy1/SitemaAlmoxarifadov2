@@ -1,4 +1,3 @@
-// js/modules/agua-control.js
 import { Timestamp, addDoc, updateDoc, serverTimestamp, query, where, getDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { getUnidades, getAguaMovimentacoes, isEstoqueInicialDefinido, getCurrentStatusFilter, setCurrentStatusFilter, getEstoqueAgua, getUserRole } from "../utils/cache.js";
 import { DOM_ELEMENTS, showAlert, switchSubTabView, switchTab, openConfirmDeleteModal, filterTable, renderPermissionsUI } from "../utils/dom-helpers.js";
@@ -16,16 +15,28 @@ function isHistoricoImportado(m) {
     if (!m) return false;
     const idStr = String(m.id || '').toLowerCase();
     const origemStr = String(m.origem || '').toLowerCase();
-    const obs = String(m.observacao || '').toLowerCase();
+    // Verifica tanto 'observacao' quanto 'obs'
+    const obs = String(m.observacao || m.obs || '').toLowerCase();
+    
     if (origemStr === 'importador_sql') return true;
     if (origemStr === 'importacao' || origemStr === 'importacao_automatica' || origemStr === 'automatic_import') return true;
     if (origemStr.includes('importa') || origemStr.includes('automatica')) return true;
     if (idStr.includes('__sql') || idStr.endsWith('_sql')) return true;
-    if (obs.includes('importado de sql') || obs.includes('importação automática') || obs.includes('migração') || obs.includes('importado')) return true;
+    
+    // Verificações robustas para observações (com e sem acento)
+    if (obs.includes('importado de sql') || 
+        obs.includes('importação automática') || 
+        obs.includes('importacao automatica') || 
+        obs.includes('migração') || 
+        obs.includes('migracao') || 
+        obs.includes('importado')) return true;
+        
     if (typeof m.referenciaAno === 'number' || typeof m.referenciaMes === 'number' || typeof m.referenciaSemana === 'number') return true;
+    
     const d = m.data?.toDate?.();
     const ra = (m.responsavelAlmoxarifado || '').toLowerCase();
     if (d && d.getHours() === 0 && d.getMinutes() === 0 && (!m.responsavelAlmoxarifado || ra.includes('import'))) return true;
+    
     return false;
 }
 
