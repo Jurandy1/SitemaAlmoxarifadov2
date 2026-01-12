@@ -1,4 +1,5 @@
-import { Timestamp, addDoc, updateDoc, serverTimestamp, query, where, getDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { Timestamp, addDoc, updateDoc, serverTimestamp, query, where, getDoc, doc, getDocs, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { db } from "../firebase-config.js"; // Importando DB para a ferramenta de diagnóstico
 import { getUnidades, getAguaMovimentacoes, isEstoqueInicialDefinido, getCurrentStatusFilter, setCurrentStatusFilter, getEstoqueAgua, getUserRole } from "../utils/cache.js";
 import { DOM_ELEMENTS, showAlert, switchSubTabView, switchTab, openConfirmDeleteModal, filterTable, renderPermissionsUI } from "../utils/dom-helpers.js";
 import { getTodayDateString, dateToTimestamp, capitalizeString, formatTimestampComTempo, formatTimestamp } from "../utils/formatters.js";
@@ -8,6 +9,7 @@ import { executeFinalMovimentacao } from "./movimentacao-modal-handler.js";
 
 // VARIÁVEL DE ESTADO LOCAL
 let debitoAguaMode = 'devendo';
+let listenersInitialized = false; // Proteção contra duplicação de eventos
 
 function _normName(x) { return (x || '').toLowerCase().replace(/\s+/g, ' ').trim(); }
 
@@ -60,9 +62,9 @@ export function renderEstoqueAgua() {
     const estoqueAgua = getEstoqueAgua();
     const movs = (getAguaMovimentacoes() || []).filter(m => !isHistoricoImportado(m));
 
-    const estoqueInicial = estoqueAgua.filter(e => e.tipo === 'inicial').reduce((sum, e) => sum + e.quantidade, 0);
-    const totalEntradas = estoqueAgua.filter(e => e.tipo === 'entrada').reduce((sum, e) => sum + e.quantidade, 0);
-    const totalSaidas = movs.filter(m => m.tipo === 'entrega').reduce((sum, m) => sum + m.quantidade, 0);
+    const estoqueInicial = estoqueAgua.filter(e => e.tipo === 'inicial').reduce((sum, e) => sum + (parseInt(e.quantidade, 10) || 0), 0);
+    const totalEntradas = estoqueAgua.filter(e => e.tipo === 'entrada').reduce((sum, e) => sum + (parseInt(e.quantidade, 10) || 0), 0);
+    const totalSaidas = movs.filter(m => m.tipo === 'entrega').reduce((sum, m) => sum + (parseInt(m.quantidade, 10) || 0), 0);
     const estoqueAtual = estoqueInicial + totalEntradas - totalSaidas;
 
     if (DOM_ELEMENTS.estoqueAguaInicialEl) DOM_ELEMENTS.estoqueAguaInicialEl.textContent = estoqueInicial;
@@ -84,6 +86,7 @@ export async function handleInicialEstoqueSubmit(e) {
     const inputQtd = DOM_ELEMENTS.inputInicialQtdAgua.value;
     const inputResp = DOM_ELEMENTS.inputInicialResponsavelAgua.value;
     
+    // CORREÇÃO: parseInt com base 10 explícita
     const quantidade = parseInt(inputQtd, 10);
     const responsavel = capitalizeString(inputResp.trim());
 
@@ -132,6 +135,7 @@ export async function handleEntradaEstoqueSubmit(e) {
     const inputResp = DOM_ELEMENTS.inputResponsavelEntradaAgua.value;
     const inputNf = DOM_ELEMENTS.inputNfEntradaAgua.value;
     
+    // CORREÇÃO: parseInt com base 10 explícita
     const quantidade = parseInt(inputQtd, 10);
     const data = dateToTimestamp(inputData);
     const responsavel = capitalizeString(inputResp.trim());
@@ -192,8 +196,8 @@ export function toggleAguaFormInputs() {
 export function getUnidadeSaldoAgua(unidadeId) {
     if (!unidadeId) return 0;
     const movimentacoes = getAguaMovimentacoes().filter(m => !isHistoricoImportado(m));
-    const entregues = movimentacoes.filter(m => m.unidadeId === unidadeId && m.tipo === 'entrega').reduce((sum, m) => sum + m.quantidade, 0);
-    const recebidos = movimentacoes.filter(m => m.unidadeId === unidadeId && (m.tipo === 'retorno' || m.tipo === 'retirada')).reduce((sum, m) => sum + m.quantidade, 0);
+    const entregues = movimentacoes.filter(m => m.unidadeId === unidadeId && m.tipo === 'entrega').reduce((sum, m) => sum + (parseInt(m.quantidade, 10) || 0), 0);
+    const recebidos = movimentacoes.filter(m => m.unidadeId === unidadeId && (m.tipo === 'retorno' || m.tipo === 'retirada')).reduce((sum, m) => sum + (parseInt(m.quantidade, 10) || 0), 0);
     return entregues - recebidos;
 }
 
@@ -243,44 +247,55 @@ export async function handleAguaSubmit(e) {
         showAlert('alert-agua', "Permissão negada. Usuário Anônimo não pode lançar movimentações.", 'error'); return; 
     }
 
-    const selectValue = DOM_ELEMENTS.selectUnidadeAgua.value; 
-    if (!selectValue) { showAlert('alert-agua', 'Selecione uma unidade.', 'warning'); return; }
-    const [unidadeId, unidadeNome, tipoUnidadeRaw] = selectValue.split('|');
-    
-    const tipoMovimentacao = DOM_ELEMENTS.selectTipoAgua.value; 
-    const qtdEntregue = parseInt(DOM_ELEMENTS.inputQtdEntregueAgua.value, 10) || 0;
-    const qtdRetorno = parseInt(DOM_ELEMENTS.inputQtdRetornoAgua.value, 10) || 0;
-    const data = dateToTimestamp(DOM_ELEMENTS.inputDataAgua.value); 
-    const responsavelUnidade = capitalizeString(DOM_ELEMENTS.inputResponsavelAgua.value.trim()); 
-    
-    if (!unidadeId || !data || !responsavelUnidade) {
-        showAlert('alert-agua', 'Dados inválidos. Verifique Unidade, Data e Nome de quem Recebeu/Devolveu.', 'warning'); return;
-    }
-    if (tipoMovimentacao === 'troca' && qtdEntregue === 0 && qtdRetorno === 0) {
-         showAlert('alert-agua', 'Para "Troca", ao menos uma das quantidades deve ser maior que zero.', 'warning'); return;
-    }
-    if (tipoMovimentacao === 'entrega' && qtdEntregue <= 0) {
-         showAlert('alert-agua', 'Para "Apenas Saída", a quantidade deve ser maior que zero.', 'warning'); return;
-    }
-    if (tipoMovimentacao === 'retorno' && qtdRetorno <= 0) {
-         showAlert('alert-agua', 'Para "Apenas Retorno", a quantidade deve ser maior que zero.', 'warning'); return;
-    }
-    
-    if (qtdEntregue > 0) {
-        if (!isEstoqueInicialDefinido('agua')) {
-            showAlert('alert-agua', 'Defina o Estoque Inicial de Água antes de lançar saídas.', 'warning'); return;
+    // Desabilitar botão para evitar duplo clique
+    const submitBtn = e.submitter || e.target.querySelector('button[type="submit"]');
+    if(submitBtn) submitBtn.disabled = true;
+
+    try {
+        const selectValue = DOM_ELEMENTS.selectUnidadeAgua.value; 
+        if (!selectValue) { throw new Error('Selecione uma unidade.'); }
+        const [unidadeId, unidadeNome, tipoUnidadeRaw] = selectValue.split('|');
+        
+        const tipoMovimentacao = DOM_ELEMENTS.selectTipoAgua.value; 
+        // CORREÇÃO: parseInt para evitar erro de concatenação
+        const qtdEntregue = parseInt(DOM_ELEMENTS.inputQtdEntregueAgua.value, 10) || 0;
+        const qtdRetorno = parseInt(DOM_ELEMENTS.inputQtdRetornoAgua.value, 10) || 0;
+        const data = dateToTimestamp(DOM_ELEMENTS.inputDataAgua.value); 
+        const responsavelUnidade = capitalizeString(DOM_ELEMENTS.inputResponsavelAgua.value.trim()); 
+        
+        if (!unidadeId || !data || !responsavelUnidade) {
+            throw new Error('Dados inválidos. Verifique Unidade, Data e Nome de quem Recebeu/Devolveu.');
         }
-        const estoqueAtual = parseInt(DOM_ELEMENTS.estoqueAguaAtualEl.textContent) || 0;
-        if (qtdEntregue > estoqueAtual) {
-            showAlert('alert-agua', `Erro: Estoque insuficiente. Disponível: ${estoqueAtual}`, 'error'); return;
+        if (tipoMovimentacao === 'troca' && qtdEntregue === 0 && qtdRetorno === 0) {
+             throw new Error('Para "Troca", ao menos uma das quantidades deve ser maior que zero.');
         }
+        if (tipoMovimentacao === 'entrega' && qtdEntregue <= 0) {
+             throw new Error('Para "Apenas Saída", a quantidade deve ser maior que zero.');
+        }
+        if (tipoMovimentacao === 'retorno' && qtdRetorno <= 0) {
+             throw new Error('Para "Apenas Retorno", a quantidade deve ser maior que zero.');
+        }
+        
+        if (qtdEntregue > 0) {
+            if (!isEstoqueInicialDefinido('agua')) {
+                throw new Error('Defina o Estoque Inicial de Água antes de lançar saídas.');
+            }
+            const estoqueAtual = parseInt(DOM_ELEMENTS.estoqueAguaAtualEl.textContent) || 0;
+            if (qtdEntregue > estoqueAtual) {
+                throw new Error(`Erro: Estoque insuficiente. Disponível: ${estoqueAtual}`);
+            }
+        }
+        
+        await executeFinalMovimentacao({
+            unidadeId, unidadeNome, tipoUnidadeRaw,
+            tipoMovimentacao, qtdEntregue, qtdRetorno,
+            data, responsavelUnidade, itemType: 'agua'
+        });
+
+    } catch (error) {
+        showAlert('alert-agua', error.message, 'warning');
+        if(submitBtn) submitBtn.disabled = false;
     }
-    
-    executeFinalMovimentacao({
-        unidadeId, unidadeNome, tipoUnidadeRaw,
-        tipoMovimentacao, qtdEntregue, qtdRetorno,
-        data, responsavelUnidade, itemType: 'agua'
-    });
 }
 
 export function renderAguaStatus(newFilter = null) {
@@ -311,8 +326,8 @@ export function renderAguaStatus(newFilter = null) {
      movsOrdenadas.forEach(m => {
          let unidadeStatus = statusMap.get(m.unidadeId) || nameIndex.get(_normName(m.unidadeNome));
          if (!unidadeStatus) return;
-         if (m.tipo === 'entrega') unidadeStatus.entregues += m.quantidade;
-         else if (m.tipo === 'retorno' || m.tipo === 'retirada') unidadeStatus.recebidos += m.quantidade;
+         if (m.tipo === 'entrega') unidadeStatus.entregues += (parseInt(m.quantidade,10)||0);
+         else if (m.tipo === 'retorno' || m.tipo === 'retirada') unidadeStatus.recebidos += (parseInt(m.quantidade,10)||0);
          
          if (unidadeStatus.ultimosLancamentos.length === 0) {
              unidadeStatus.ultimosLancamentos.push({
@@ -398,7 +413,9 @@ export function renderAguaDebitosResumo() {
     movsOrdenadas.forEach(m => {
         let s = statusMap.get(m.unidadeId) || nameIndex.get(_normName(m.unidadeNome));
         if (!s) return;
-        if (m.tipo === 'entrega') s.entregues += m.quantidade; else if (m.tipo === 'retorno' || m.tipo === 'retirada') s.recebidos += m.quantidade;
+        if (m.tipo === 'entrega') s.entregues += (parseInt(m.quantidade,10)||0); 
+        else if (m.tipo === 'retorno' || m.tipo === 'retirada') s.recebidos += (parseInt(m.quantidade,10)||0);
+        
         if (!s.ultimo) s.ultimo = { id: m.id, data: m.data, tipo: m.tipo, quantidade: m.quantidade, respUnidade: m.responsavel, respAlmox: m.responsavelAlmoxarifado || 'N/A' };
     });
 
@@ -422,7 +439,7 @@ export function renderAguaDebitosResumo() {
         let saldo = 0;
         let origem = null;
         arrAsc.forEach(m => {
-            const delta = (m.tipo === 'entrega') ? (m.quantidade || 0) : - (m.quantidade || 0);
+            const delta = (m.tipo === 'entrega') ? (parseInt(m.quantidade,10) || 0) : - (parseInt(m.quantidade,10) || 0);
             const prev = saldo;
             saldo += delta;
             if (prev <= 0 && saldo > 0) origem = m;
@@ -541,8 +558,8 @@ export function getDebitosAguaResumoList() {
     unidades.forEach(u => saldoPorUnidade.set(u.id, 0));
     movsOper.forEach(m => {
         const atual = saldoPorUnidade.get(m.unidadeId) ?? 0;
-        if (m.tipo === 'entrega') saldoPorUnidade.set(m.unidadeId, atual + (m.quantidade || 0));
-        else if (m.tipo === 'retorno' || m.tipo === 'retirada') saldoPorUnidade.set(m.unidadeId, atual - (m.quantidade || 0));
+        if (m.tipo === 'entrega') saldoPorUnidade.set(m.unidadeId, atual + (parseInt(m.quantidade,10)||0));
+        else if (m.tipo === 'retorno' || m.tipo === 'retirada') saldoPorUnidade.set(m.unidadeId, atual - (parseInt(m.quantidade,10)||0));
     });
 
     // Agrupa por unidade para achar a última data e resumo do último dia
@@ -568,7 +585,7 @@ export function getDebitosAguaResumoList() {
         let saldo = 0;
         let debtStartMov = null;
         arrAsc.forEach(m => {
-            const delta = (m.tipo === 'entrega') ? (m.quantidade || 0) : - (m.quantidade || 0);
+            const delta = (m.tipo === 'entrega') ? (parseInt(m.quantidade,10)||0) : - (parseInt(m.quantidade,10)||0);
             const prev = saldo;
             saldo += delta;
             if (prev <= 0 && saldo > 0) debtStartMov = m; // cruzou para devedor
@@ -579,8 +596,8 @@ export function getDebitosAguaResumoList() {
         if (arrDesc.length > 0) {
             const lastDateMs = arrDesc[0].data?.toMillis() || 0;
             const sameDay = arrDesc.filter(x => (x.data?.toMillis() || 0) === lastDateMs);
-            const entregou = sameDay.filter(x => x.tipo === 'entrega').reduce((s, x) => s + (x.quantidade || 0), 0);
-            const devolveu = sameDay.filter(x => (x.tipo === 'retorno' || x.tipo === 'retirada')).reduce((s, x) => s + (x.quantidade || 0), 0);
+            const entregou = sameDay.filter(x => x.tipo === 'entrega').reduce((s, x) => s + (parseInt(x.quantidade,10)||0), 0);
+            const devolveu = sameDay.filter(x => (x.tipo === 'retorno' || x.tipo === 'retirada')).reduce((s, x) => s + (parseInt(x.quantidade,10)||0), 0);
             resumoUltimoDia = { data: arrDesc[0].data, entregou, devolveu };
         }
         return { id: u.id, nome: u.nome, pendentes: saldoAtual, inicioDivida: debtStartMov?.data || null, origemMov: debtStartMov || null, ultimoResumo: resumoUltimoDia };
@@ -934,6 +951,9 @@ function checkAguaHistoryIntegrity() {
 // =========================================================================
 
 export function initAguaListeners() {
+    // CORREÇÃO: Evita duplicar listeners se a função for chamada 2x
+    if (listenersInitialized) return;
+    
     if (DOM_ELEMENTS.formAgua) {
         DOM_ELEMENTS.formAgua.addEventListener('submit', handleAguaSubmit);
     }
@@ -1040,7 +1060,9 @@ export function initAguaListeners() {
         if (DOM_ELEMENTS.formEntradaAgua) DOM_ELEMENTS.formEntradaAgua.classList.toggle('hidden', formName !== 'entrada-agua');
         renderPermissionsUI(); 
     }));
-
+    
+    listenersInitialized = true;
+    console.log('Módulo Água: Listeners inicializados (blindado contra duplicação).');
 }
 
 export function onAguaTabChange() {
@@ -1105,3 +1127,34 @@ export function onAguaTabChange() {
         });
     }
 }
+
+// =========================================================================
+// FERRAMENTA DE DIAGNÓSTICO (Execute no Console: window.diagnosticarErrosAgua())
+// =========================================================================
+window.diagnosticarErrosAgua = async function() {
+    console.log("=== INICIANDO DIAGNÓSTICO DE ÁGUA ===");
+    console.log("Procurando por lançamentos suspeitos (quantidade > 50)...");
+
+    try {
+        const q = query(COLLECTIONS.historicoAgua || collection(db, 'historico_agua'), orderBy('quantidade', 'desc'), limit(50));
+        const snapshot = await getDocs(q);
+        
+        let suspeitos = 0;
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            const qtd = parseInt(data.quantidade, 10);
+            if (qtd > 50) {
+                console.warn(`[SUSPEITO] ID: ${doc.id} | Qtd: ${qtd} | Data: ${data.data?.toDate()?.toLocaleString()} | Tipo: ${data.tipo}`);
+                suspeitos++;
+            }
+        });
+
+        if (suspeitos === 0) {
+            console.log("Nenhum lançamento acima de 50 unidades encontrado nos maiores registros.");
+        } else {
+            console.log(`Encontrados ${suspeitos} registros suspeitos acima. Verifique se algum corresponde ao erro.`);
+        }
+    } catch (e) {
+        console.error("Erro ao rodar diagnóstico:", e);
+    }
+};
