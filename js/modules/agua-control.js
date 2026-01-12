@@ -420,7 +420,7 @@ export function renderAguaDebitosResumo() {
     getUnidades().forEach(u => {
         let tipo = (u.tipo || 'N/A').toUpperCase();
         if (tipo === 'SEMCAS') tipo = 'SEDE';
-        const obj = { id: u.id, nome: u.nome, tipo, entregues: 0, recebidos: 0, ultimo: null, origemDivida: null };
+        const obj = { id: u.id, nome: u.nome, tipo, entregues: 0, recebidos: 0, ultimosLancamentos: [] };
         statusMap.set(u.id, obj);
         nameIndex.set(_normName(u.nome), obj);
     });
@@ -1159,9 +1159,13 @@ window.diagnosticarErrosAgua = async function() {
     console.log("Procurando por lançamentos suspeitos (quantidade > 50)...");
 
     try {
-        // Usa getFirestore para obter a instância DB de forma segura
-        const db = getFirestore();
-        const historicoRef = collection(db, 'historico_agua');
+        // CORREÇÃO: Usar COLLECTIONS para garantir que estamos acessando o path correto
+        // (/artifacts/{appId}/public/data/controleAgua) permitido pelas regras
+        const historicoRef = COLLECTIONS.historicoAgua; 
+        
+        if (!historicoRef) {
+            throw new Error("Referência da coleção 'historicoAgua' não encontrada em COLLECTIONS.");
+        }
         
         const q = query(historicoRef, orderBy('quantidade', 'desc'), limit(50));
         const snapshot = await getDocs(q);
@@ -1183,5 +1187,11 @@ window.diagnosticarErrosAgua = async function() {
         }
     } catch (e) {
         console.error("Erro ao rodar diagnóstico:", e);
+        if (e.code === 'permission-denied') {
+             console.error("ERRO DE PERMISSÃO: O usuário atual não tem permissão ou o caminho da coleção está errado nas regras.");
+        }
+        if (e.message && e.message.includes('index')) {
+            console.error("ERRO DE ÍNDICE: O Firebase precisa de um índice para essa consulta. Verifique o link no erro original acima.");
+        }
     }
 };
