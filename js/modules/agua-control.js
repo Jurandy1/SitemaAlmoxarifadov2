@@ -1,11 +1,33 @@
-import { Timestamp, addDoc, updateDoc, serverTimestamp, query, where, getDoc, doc, getDocs, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-import { db } from "../firebase-config.js"; // Importando DB para a ferramenta de diagnóstico
+// Importações diretas do CDN para garantir compatibilidade e evitar erros de exportação local
+import { 
+    getFirestore, 
+    collection, 
+    addDoc, 
+    updateDoc, 
+    query, 
+    where, 
+    getDoc, 
+    doc, 
+    getDocs, 
+    orderBy, 
+    limit, 
+    serverTimestamp,
+    Timestamp 
+} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+// Importa o config apenas para garantir que o app foi inicializado (initializeApp)
+import "../firebase-config.js";
+
 import { getUnidades, getAguaMovimentacoes, isEstoqueInicialDefinido, getCurrentStatusFilter, setCurrentStatusFilter, getEstoqueAgua, getUserRole } from "../utils/cache.js";
 import { DOM_ELEMENTS, showAlert, switchSubTabView, switchTab, openConfirmDeleteModal, filterTable, renderPermissionsUI } from "../utils/dom-helpers.js";
 import { getTodayDateString, dateToTimestamp, capitalizeString, formatTimestampComTempo, formatTimestamp } from "../utils/formatters.js";
 import { isReady, getUserId } from "./auth.js";
 import { COLLECTIONS } from "../services/firestore-service.js";
 import { executeFinalMovimentacao } from "./movimentacao-modal-handler.js";
+
+// INICIALIZAÇÃO DO DB DE FORMA ROBUSTA
+// Pega a instância do Firestore do app padrão inicializado em firebase-config.js
+const db = getFirestore();
 
 // VARIÁVEL DE ESTADO LOCAL
 let debitoAguaMode = 'devendo';
@@ -1142,6 +1164,7 @@ window.diagnosticarErrosAgua = async function() {
         let suspeitos = 0;
         snapshot.forEach(doc => {
             const data = doc.data();
+            // CORREÇÃO: parseInt para garantir
             const qtd = parseInt(data.quantidade, 10);
             if (qtd > 50) {
                 console.warn(`[SUSPEITO] ID: ${doc.id} | Qtd: ${qtd} | Data: ${data.data?.toDate()?.toLocaleString()} | Tipo: ${data.tipo}`);
