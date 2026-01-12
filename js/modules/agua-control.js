@@ -6,7 +6,7 @@ import { isReady, getUserId } from "./auth.js";
 import { COLLECTIONS } from "../services/firestore-service.js";
 import { executeFinalMovimentacao } from "./movimentacao-modal-handler.js";
 
-// VARIÁVEL DE ESTADO LOCAL (Movida para o topo para evitar ReferenceError)
+// VARIÁVEL DE ESTADO LOCAL
 let debitoAguaMode = 'devendo';
 
 function _normName(x) { return (x || '').toLowerCase().replace(/\s+/g, ' ').trim(); }
@@ -15,7 +15,6 @@ function isHistoricoImportado(m) {
     if (!m) return false;
     const idStr = String(m.id || '').toLowerCase();
     const origemStr = String(m.origem || '').toLowerCase();
-    // Verifica tanto 'observacao' quanto 'obs'
     const obs = String(m.observacao || m.obs || '').toLowerCase();
     
     if (origemStr === 'importador_sql') return true;
@@ -23,7 +22,6 @@ function isHistoricoImportado(m) {
     if (origemStr.includes('importa') || origemStr.includes('automatica')) return true;
     if (idStr.includes('__sql') || idStr.endsWith('_sql')) return true;
     
-    // Verificações robustas para observações (com e sem acento)
     if (obs.includes('importado de sql') || 
         obs.includes('importação automática') || 
         obs.includes('importacao automatica') || 
@@ -44,9 +42,6 @@ function isHistoricoImportado(m) {
 // LÓGICA DE ESTOQUE
 // =========================================================================
 
-/**
- * Renderiza o resumo do estoque de água.
- */
 export function renderEstoqueAgua() {
     if (!DOM_ELEMENTS.estoqueAguaAtualEl) return; 
     
@@ -606,9 +601,74 @@ export function getDebitosAguaResumoList() {
     return mensagens;
 }
 
+// -------------------------------------------------------------------------
+// NOVA FUNÇÃO: Renderização do Histórico de Estoque COM FILTROS NO HEADER
+// -------------------------------------------------------------------------
 export function renderAguaEstoqueHistory() {
     if (!DOM_ELEMENTS.tableHistoricoEstoqueAgua) return;
     
+    // Encontrar a tabela pai para manipular o thead
+    const tableElement = DOM_ELEMENTS.tableHistoricoEstoqueAgua.closest('table');
+    if (!tableElement) return;
+
+    // Configuração dos Cabeçalhos com Filtros
+    // Verifica se já inserimos os filtros para evitar duplicação (ou recria se necessário)
+    let thead = tableElement.querySelector('thead');
+    
+    // Se não tiver a classe 'filtered-header' (marcação nossa), vamos criar
+    if (!thead || !thead.classList.contains('filtered-header')) {
+        const columns = [
+            { key: 'tipo', label: 'Tipo' },
+            { key: 'quantidade', label: 'Qtd.' },
+            { key: 'data', label: 'Data' },
+            { key: 'notaFiscal', label: 'Nota Fiscal' },
+            { key: 'responsavel', label: 'Resp. Estoque' },
+            { key: 'registradoEm', label: 'Lançado Em' },
+            { key: 'actions', label: 'Ações', noFilter: true }
+        ];
+
+        const tr = document.createElement('tr');
+        columns.forEach(col => {
+            const th = document.createElement('th');
+            th.className = "px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider align-top";
+            
+            const divContainer = document.createElement('div');
+            divContainer.className = "flex flex-col gap-2";
+            
+            const spanLabel = document.createElement('span');
+            spanLabel.className = "font-bold";
+            spanLabel.textContent = col.label;
+            divContainer.appendChild(spanLabel);
+
+            if (!col.noFilter) {
+                const input = document.createElement('input');
+                input.type = "text";
+                input.className = "filter-estoque-input w-full p-1.5 text-xs border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500 font-normal normal-case text-gray-700";
+                input.placeholder = `Filtrar...`;
+                input.dataset.colKey = col.key;
+                
+                // Listener para filtrar
+                input.addEventListener('keyup', () => filterEstoqueTable(tableElement));
+                
+                divContainer.appendChild(input);
+            }
+            
+            th.appendChild(divContainer);
+            tr.appendChild(th);
+        });
+
+        if (thead) {
+            thead.innerHTML = '';
+            thead.appendChild(tr);
+            thead.classList.add('filtered-header');
+        } else {
+            thead = document.createElement('thead');
+            thead.classList.add('filtered-header');
+            thead.appendChild(tr);
+            tableElement.prepend(thead);
+        }
+    }
+
     const estoque = getEstoqueAgua();
     const role = getUserRole();
     const isAdmin = role === 'admin';
@@ -642,13 +702,15 @@ export function renderAguaEstoqueHistory() {
             ? `<button class="btn-danger btn-remove btn-icon" data-id="${m.id}" data-type="entrada-agua" data-details="${details}" title="Remover este lançamento"><i data-lucide="trash-2"></i></button>`
             : `<span class="text-gray-400 btn-icon" title="Apenas Admin pode excluir"><i data-lucide="slash"></i></span>`;
 
-        html += `<tr title="Lançado em: ${dataLancamento}">
+        // A ordem das TDs deve corresponder à ordem dos THs definidos acima
+        // Colunas: Tipo, Qtd, Data, NF, Resp, LancadoEm, Ações
+        html += `<tr title="Lançado em: ${dataLancamento}" class="hover:bg-gray-50 transition-colors">
             <td><span class="badge ${tipoClass}">${tipoText}</span></td>
-            <td class="text-center font-medium">${m.quantidade}</td>
+            <td class="font-medium">${m.quantidade}</td>
             <td class="whitespace-nowrap">${dataMov}</td>
             <td>${notaFiscal}</td>
             <td>${responsavel}</td>
-            <td class="text-center whitespace-nowrap text-xs">${dataLancamento}</td>
+            <td class="whitespace-nowrap text-xs text-gray-500">${dataLancamento}</td>
             <td class="text-center">${actionHtml}</td>
         </tr>`;
     });
@@ -656,8 +718,42 @@ export function renderAguaEstoqueHistory() {
     DOM_ELEMENTS.tableHistoricoEstoqueAgua.innerHTML = html;
     if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
 
-    const filtroEl = DOM_ELEMENTS.filtroHistoricoEstoqueAgua;
-    if (filtroEl && filtroEl.value) { filterTable(filtroEl, DOM_ELEMENTS.tableHistoricoEstoqueAgua.id); }
+    // Reaplica filtro se houver valores nos inputs
+    filterEstoqueTable(tableElement);
+}
+
+// Função auxiliar de filtro para a tabela de estoque
+function filterEstoqueTable(table) {
+    const inputs = table.querySelectorAll('.filter-estoque-input');
+    const tbody = table.querySelector('tbody');
+    const rows = tbody.querySelectorAll('tr');
+
+    rows.forEach(row => {
+        let showRow = true;
+        const cells = row.querySelectorAll('td');
+        
+        // Mapeia inputs para colunas
+        // Assume que a ordem dos inputs nos THs corresponde à ordem das TDs (excluindo colunas sem filtro)
+        // Mas a lógica mais segura é pelo índice da coluna
+        
+        inputs.forEach(input => {
+            const th = input.closest('th');
+            // Encontra o índice da coluna deste TH na linha do cabeçalho
+            const colIndex = Array.from(th.parentNode.children).indexOf(th);
+            
+            const cell = cells[colIndex];
+            if (cell) {
+                const filterVal = input.value.toLowerCase().trim();
+                const cellVal = cell.textContent.toLowerCase();
+                
+                if (filterVal && !cellVal.includes(filterVal)) {
+                    showRow = false;
+                }
+            }
+        });
+
+        row.style.display = showRow ? '' : 'none';
+    });
 }
 
 export function renderAguaMovimentacoesHistory() {
