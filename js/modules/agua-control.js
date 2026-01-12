@@ -1,22 +1,18 @@
-// Importações diretas do CDN para garantir compatibilidade e evitar erros de exportação local
 import { 
-    getFirestore, 
-    collection, 
+    getFirestore,
+    collection,
     addDoc, 
     updateDoc, 
+    serverTimestamp, 
     query, 
     where, 
     getDoc, 
-    doc, 
-    getDocs, 
-    orderBy, 
-    limit, 
-    serverTimestamp,
+    doc,
+    getDocs,
+    orderBy,
+    limit,
     Timestamp 
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-// Importa o config apenas para garantir que o app foi inicializado (initializeApp)
-import "../firebase-config.js";
 
 import { getUnidades, getAguaMovimentacoes, isEstoqueInicialDefinido, getCurrentStatusFilter, setCurrentStatusFilter, getEstoqueAgua, getUserRole } from "../utils/cache.js";
 import { DOM_ELEMENTS, showAlert, switchSubTabView, switchTab, openConfirmDeleteModal, filterTable, renderPermissionsUI } from "../utils/dom-helpers.js";
@@ -25,16 +21,14 @@ import { isReady, getUserId } from "./auth.js";
 import { COLLECTIONS } from "../services/firestore-service.js";
 import { executeFinalMovimentacao } from "./movimentacao-modal-handler.js";
 
-// INICIALIZAÇÃO DO DB DE FORMA ROBUSTA
-// Pega a instância do Firestore do app padrão inicializado em firebase-config.js
-const db = getFirestore();
-
-// VARIÁVEL DE ESTADO LOCAL
+// VARIÁVEIS DE ESTADO LOCAL
 let debitoAguaMode = 'devendo';
 let listenersInitialized = false; // Proteção contra duplicação de eventos
 
+// Normalização de nomes
 function _normName(x) { return (x || '').toLowerCase().replace(/\s+/g, ' ').trim(); }
 
+// Verificação de histórico importado (legado)
 function isHistoricoImportado(m) {
     if (!m) return false;
     const idStr = String(m.id || '').toLowerCase();
@@ -124,6 +118,7 @@ export async function handleInicialEstoqueSubmit(e) {
     DOM_ELEMENTS.btnSubmitInicialAgua.innerHTML = '<div class="loading-spinner-small mx-auto"></div>';
     
     try {
+        // Usa COLLECTIONS se estiver disponível, senão fallback
         await addDoc(COLLECTIONS.estoqueAgua, { 
             tipo: 'inicial', 
             quantidade: quantidade, 
@@ -269,9 +264,12 @@ export async function handleAguaSubmit(e) {
         showAlert('alert-agua', "Permissão negada. Usuário Anônimo não pode lançar movimentações.", 'error'); return; 
     }
 
-    // Desabilitar botão para evitar duplo clique
+    // Desabilitar botão para evitar duplo clique e TRAVAR MÚLTIPLOS ENVIOS
     const submitBtn = e.submitter || e.target.querySelector('button[type="submit"]');
-    if(submitBtn) submitBtn.disabled = true;
+    if(submitBtn) {
+        submitBtn.disabled = true;
+        // Opcional: mudar texto para "Salvando..."
+    }
 
     try {
         const selectValue = DOM_ELEMENTS.selectUnidadeAgua.value; 
@@ -316,8 +314,11 @@ export async function handleAguaSubmit(e) {
 
     } catch (error) {
         showAlert('alert-agua', error.message, 'warning');
+        // Reativa botão apenas em erro
         if(submitBtn) submitBtn.disabled = false;
     }
+    // Nota: Em caso de sucesso, o modal geralmente fecha ou recarrega, 
+    // então o botão pode continuar disabled até lá.
 }
 
 export function renderAguaStatus(newFilter = null) {
@@ -1158,13 +1159,16 @@ window.diagnosticarErrosAgua = async function() {
     console.log("Procurando por lançamentos suspeitos (quantidade > 50)...");
 
     try {
-        const q = query(COLLECTIONS.historicoAgua || collection(db, 'historico_agua'), orderBy('quantidade', 'desc'), limit(50));
+        // Usa getFirestore para obter a instância DB de forma segura
+        const db = getFirestore();
+        const historicoRef = collection(db, 'historico_agua');
+        
+        const q = query(historicoRef, orderBy('quantidade', 'desc'), limit(50));
         const snapshot = await getDocs(q);
         
         let suspeitos = 0;
         snapshot.forEach(doc => {
             const data = doc.data();
-            // CORREÇÃO: parseInt para garantir
             const qtd = parseInt(data.quantidade, 10);
             if (qtd > 50) {
                 console.warn(`[SUSPEITO] ID: ${doc.id} | Qtd: ${qtd} | Data: ${data.data?.toDate()?.toLocaleString()} | Tipo: ${data.tipo}`);
