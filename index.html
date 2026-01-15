@@ -112,16 +112,16 @@
                 <div class="flex justify-between items-center py-3 sm:py-4">
                     <!-- Lado Esquerdo: Logo e Títulos -->
                     <div class="flex items-center gap-4 sm:gap-6">
-                        <!-- Logo (Aumentado para h-20/h-24) -->
+                        <!-- Logo (Aumentado para destaque) -->
                         <div class="flex-shrink-0">
                             <img src="SaoLuis.png"
                                 alt="Logo SEMCAS São Luís"
-                                class="h-20 sm:h-24 w-auto"
+                                class="h-24 sm:h-32 w-auto"
                                 loading="eager"
                                 onerror="this.src='https://placehold.co/200x80/1e40af/ffffff?text=SEMCAS'; this.onerror=null">
                         </div>
-                        <!-- Títulos (Ajustados para azul escuro institucional) -->
-                        <div class="ml-5">
+                        <!-- Títulos (Ocultados conforme solicitado para dar destaque ao banner) -->
+                        <div class="ml-5 hidden">
                             <h1 class="text-xl sm:text-3xl font-bold text-blue-900 tracking-tight">Controle de Almoxarifado</h1>
                             <p class="text-xs sm:text-sm text-gray-600 font-medium">SEMCAS – Secretaria Municipal da Criança e Assistência Social</p>
                         </div>
@@ -1090,7 +1090,7 @@
                      <button class="sub-nav-btn" data-subview="historico-estoque-gas">
                         <i data-lucide="package-open"></i>
                         <span>Histórico de Entradas (Estoque)</span>
-                     </button> <!-- NOVO SUBMENU 1 -->
+                     </button>
                     <button class="sub-nav-btn" data-subview="status-gas">
                        <i data-lucide="flame"></i>
                        <span>Status de Botijões (Saldo nas Unidades)</span>
@@ -1099,10 +1099,10 @@
                        <i data-lucide="archive"></i>
                        <span>Histórico Geral de Movimentações (Unidades)</span>
                     </button>
-                    <button class="sub-nav-btn" data-subview="analise-previsao-gas">
-                       <i data-lucide="bar-chart-3"></i>
-                       <span>Análise de Consumo e Previsão</span>
-                    </button> <!-- NOME DO SUBMENU 2 ATUALIZADO -->
+                    <button class="sub-nav-btn" data-subview="consumo-semanal-gas">
+                       <i data-lucide="calendar-range"></i>
+                       <span>Consumo Semanal Médio (Histórico Completo)</span>
+                    </button>
                 </div>
 
                 <!-- Sub-view: Movimentação (Lançamento) -->
@@ -1461,222 +1461,45 @@
                     </div>
                 </div>
 
-                <!-- Sub-view: Análise de Consumo e Previsão (Gás) (Ponto 2 - Renomeado) -->
-                <div id="subview-analise-previsao-gas" class="hidden">
+                <!-- Sub-view: Consumo Semanal Médio por Unidade (Histórico Completo) - Gás -->
+                <div id="subview-consumo-semanal-gas" class="hidden">
                     <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 max-w-6xl mx-auto">
-                        <h2 class="text-2xl font-bold text-gray-800 mb-2">
-                            <i data-lucide="bar-chart-3" class="inline-block -mt-1"></i> Análise de Consumo e Previsão - Gás
-                        </h2 >
-                        <p class="text-sm text-gray-500 mb-6">
-                            Visualize o consumo detalhado por período e calcule previsões precisas.
-                        </p>
-
-                        <!-- PAINEL REFORMULADO: Análise de Consumo (PROFISSIONAL) -->
-                        <div class="mb-8 p-4 bg-gray-50 rounded-xl border border-gray-200 shadow-inner">
-                            <h3 class="font-semibold text-gray-700 mb-4 text-lg border-b pb-2 flex items-center gap-2">
-                                <i data-lucide="pie-chart" class="w-5 h-5 text-blue-600"></i>
-                                Relatório de Análise de Consumo
-                            </h3>
-                            <div class="grid grid-cols-1 md:grid-cols-6 gap-4 mb-4">
-
-                                <!-- NOVO: Agrupamento Principal (Tipo ou Unidade) -->
-                                <div>
-                                    <label for="select-modo-agrupamento-gas" class="form-label">Agrupar por</label>
-                                    <select id="select-modo-agrupamento-gas" class="form-select">
-                                        <option value="tipo">Tipo de Unidade</option>
-                                        <option value="unidade">Unidade Específica</option>
-                                    </select>
-                                </div>
-
-                                <!-- FILTRO DE TIPO (Visível por padrão) -->
-                                <div id="analise-agrupamento-tipo-container-gas" class="hidden">
-                                    <label for="analise-agrupamento-tipo-gas" class="form-label">Filtro por Tipo</label>
-                                    <!-- Este select será populado com CRAS, CREAS, etc. -->
-                                    <select id="analise-agrupamento-tipo-gas" class="form-select">
-                                        <option value="todas">Todos os Tipos</option>
-                                    </select>
-                                </div>
-
-                                <!-- FILTRO DE UNIDADE (Inicia Oculto) -->
-                                <div id="analise-agrupamento-unidade-container-gas" class="hidden">
-                                   <label for="analise-agrupamento-unidade-gas" class="form-label">Unidade Específica</label>
-                                    <select id="analise-agrupamento-unidade-gas" class="form-select">
-                                        <option value="todas">Todas as Unidades</option>
-                                    </select>
-                                </div>
-
-                                <!-- Granularidade (Mantida) -->
-                                <div>
-                                     <label for="analise-granularidade-gas" class="form-label">Granularidade (Eixo X)</label>
-                                     <select id="analise-granularidade-gas" class="form-select">
-                                         <option value="mensal">Mensal</option>
-                                         <option value="semanal">Semanal</option>
-                                         <option value="diario">Diário</option>
-                                         <option value="anual">Anual</option>
-                                     </select>
-                                </div>
-
-                                <!-- Período: Data Início -->
-                                <div>
-                                    <label for="analise-data-inicio-gas" class="form-label">Início do Período</label>
-                                    <input type="date" id="analise-data-inicio-gas" class="form-input">
-                                </div>
-
-                                <!-- Período: Data Fim -->
-                                <div>
-                                    <label for="analise-data-fim-gas" class="form-label">Fim do Período</label>
-                                    <input type="date" id="analise-data-fim-gas" class="form-input">
-                                </div>
-
-                                <!-- Filtro rápido por mês -->
-                                <div>
-                                    <label for="analise-mes-gas" class="form-label">Mês de Referência</label>
-                                    <input type="month" id="analise-mes-gas" class="form-input">
-                                </div>
-
-                                <div class="col-span-1 flex items-end justify-end">
-                                    <button id="btn-analisar-consumo-gas" class="btn-primary flex-shrink-0">
-                                         <i data-lucide="bar-chart-2"></i> Gerar Relatório
-                                    </button>
-                                 </div>
-                             </div>
-
-                             <!-- REMOVIDO: Filtros de período e datas personalizadas não usados -->
-                             <div id="alert-analise-consumo-gas" class="alert mt-4"></div>
-                        </div>
-
-                        <!-- RESULTADOS DA ANÁLISE (Oculto até a execução) -->
-                        <div id="analise-resultado-container-gas" class="hidden space-y-8">
-
-                            <!-- Resumo Executivo com Métricas Chave -->
-                            <div id="analise-resumo-executivo-gas" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
-
-                            <!-- Resumo Textual e Ranking de Unidades -->
-                            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-                                <!-- Coluna 1: Relatório Textual de Destaques -->
-                                <div class="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-lg p-6">
-                                    <h3 class="font-semibold text-gray-800 mb-4 text-xl flex items-center gap-2">
-                                        <i data-lucide="clipboard-list" class="w-5 h-5 text-green-600"></i>
-                                        Relatório Textual de Consumo
-                                    </h3>
-                                    <div id="analise-relatorio-textual-gas" class="text-sm text-gray-700 space-y-3">
-                                        <!-- O JS preenche o relatório detalhado aqui -->
-                                        <p class="text-gray-500 italic">Gere o relatório para visualizar os destaques.</p>
-                                    </div>
-                                </div>
-
-                                <!-- Coluna 2: Ranking de Consumo -->
-                                <div class="lg:col-span-1 bg-white rounded-xl border border-gray-200 shadow-lg p-6">
-                                     <h3 class="font-semibold text-gray-800 mb-4 text-xl flex items-center gap-2">
-                                        <i data-lucide="trending-up" class="w-5 h-5 text-red-600"></i>
-                                        Ranking de Consumo
-                                    </h3>
-                                    <div id="analise-ranking-gas" class="space-y-3">
-                                        <!-- O JS preenche o ranking de unidades aqui -->
-                                        <p class="text-gray-500 italic text-sm">Gere o relatório para visualizar o ranking.</p>
-                                    </div>
-                                </div>
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h3 class="font-semibold text-gray-800 text-lg flex items-center gap-2">
+                                    <i data-lucide="calendar-range" class="w-5 h-5 text-indigo-600"></i>
+                                    Consumo Semanal Médio por Unidade (Histórico Completo)
+                                </h3>
+                                <p class="text-sm text-gray-500 mt-1">
+                                    Quantos botijões cheios, em média por semana, cada unidade recebeu ao longo de todo o período registrado.
+                                </p>
                             </div>
-
-                            <!-- Gráfico de Consumo por Período -->
-                            <div class="bg-white rounded-xl border border-gray-200 shadow-lg p-6">
-                                <h4 class="font-semibold text-gray-700 mb-3 text-lg">
-                                    <i data-lucide="bar-chart" class="w-5 h-5 text-blue-600 inline-block -mt-1"></i>
-                                    Gráfico de Consumo ao Longo do Tempo
-                                </h4 >
-                                <div class="chart-container-lg">
-                                    <canvas id="grafico-analise-consumo-gas"></canvas>
-                                </div>
-                            </div>
-
-                        </div>
-                        <!-- FIM DOS RESULTADOS DA ANÁLISE -->
-
-                        <!-- Etapa 2: Previsão de Compra (existente) -->
-                        <div class="mb-6 border-t pt-6">
-                             <h3 class="font-semibold text-gray-700 mb-3 text-lg">2. Configure a Previsão de Compra:</h3>
-
-                            <div id="previsao-modo-container-gas" class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div class="previsao-option-card" data-modo="unidade-especifica">
-                                    <div class="flex items-center gap-3 mb-2">
-                                        <div class="bg-blue-100 p-2 rounded-full"><i data-lucide="building" class="text-blue-600"></i></div>
-                                        <h4 class="font-bold text-gray-800">Unidade Específica</h4>
-                                    </div>
-                                    <p class="text-sm text-gray-600">Previsão detalhada para uma unidade individual</p>
-                                </div>
-                                <div class="previsao-option-card" data-modo="por-tipo">
-                                    <div class="flex items-center gap-3 mb-2">
-                                        <div class="bg-green-100 p-2 rounded-full"><i data-lucide="layers" class="text-green-600"></i></div>
-                                        <h4 class="font-bold text-gray-800">Por Tipo</h4>
-                                    </div>
-                                    <p class="text-sm text-gray-600">Previsão para todas as unidades de um tipo</p>
-                                </div>
-                                <div class="previsao-option-card" data-modo="completo">
-                                    <div class="flex items-center gap-3 mb-2">
-                                        <div class="bg-purple-100 p-2 rounded-full"><i data-lucide="globe" class="text-purple-600"></i></div>
-                                        <h4 class="font-bold text-gray-800">Completo</h4>
-                                    </div>
-                                    <p class="text-sm text-gray-600">Previsão total para todas as unidades</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Etapa 3 da Previsão (existente) -->
-                        <div id="config-previsao-gas" class="hidden mb-6 p-4 bg-gray-50 rounded-lg border">
-                             <h3 class="font-semibold text-gray-700 mb-3 text-lg">3. Configure os parâmetros da previsão:</h3>
-                            <div id="select-unidade-container-gas" class="hidden mb-4">
-                                <label for="select-previsao-unidade-gas-v2" class="form-label">Selecione a Unidade:</label>
-                                <select id="select-previsao-unidade-gas-v2" class="form-select"></select>
-                            </div>
-                            <div id="select-tipo-container-gas" class="hidden mb-4">
-                                <label for="select-previsao-tipo-gas" class="form-label">Selecione o Tipo:</label>
-                                <select id="select-previsao-tipo-gas" class="form-select"></select>
-                            </div>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                                <div>
-                                    <label for="dias-previsao-gas" class="form-label">Período da Previsão (dias):</label>
-                                    <input type="number" id="dias-previsao-gas" class="form-input" min="1" value="7">
-                                </div>
-                                <div>
-                                    <label for="margem-seguranca-gas" class="form-label">Margem de Segurança (%):</label>
-                                    <input type="number" id="margem-seguranca-gas" class="form-input" min="0" max="100" value="15">
-                                </div>
-                            </div>
-                            <div class="mb-4" id="exclusao-container-gas">
-                                <label class="form-label">Excluir Unidades do Cálculo (opcional)</label>
-                                <div class="flex gap-2">
-                                    <select id="select-exclusao-gas" class="form-select flex-1"></select>
-                                    <button type="button" id="btn-add-exclusao-gas" class="btn-secondary flex-shrink-0">
-                                        + Adicionar
-                                    </button>
-                                </div>
-                                <div id="lista-exclusoes-gas" class="flex flex-wrap gap-2 mt-3"></div>
-                            </div>
-                        </div>
-
-                        <!-- Etapa 4 da Previsão (existente) -->
-                        <div class="text-center mb-6">
-                            <button id="btn-calcular-previsao-gas-v2" class="btn-primary btn-lg px-8">
-                                <i data-lucide="calculator"></i>
-                                Calcular Previsão
+                            <button id="btn-analisar-consumo-gas" class="btn-primary flex-shrink-0">
+                                <i data-lucide="bar-chart-2"></i>
+                                Gerar consumo semanal
                             </button>
                         </div>
-
-                        <!-- Etapa 5: Resultados da Previsão (existente) -->
-                        <div id="resultado-previsao-gas-v2" class="hidden space-y-6">
-                            <div id="alertas-previsao-gas"></div>
-                            <div class="previsao-card">
-                                <h3 class="text-xl font-bold mb-4">📊 Resultados da Previsão</h3>
-                                <div id="resultado-content-gas"></div>
-                            </div>
-                            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-                                <h4 class="font-semibold text-gray-700 mb-3">📈 Tendência de Consumo para Próxima Compra</h4>
-                                <div class="chart-container">
-                                    <canvas id="grafico-previsao-gas"></canvas>
-                                </div>
-                            </div>
+                        <div class="overflow-x-auto border border-gray-200 rounded-lg max-h-96">
+                            <table class="table w-full text-sm">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th>Tipo de Unidade</th>
+                                        <th>Unidade</th>
+                                        <th>Datas das Entregas</th>
+                                        <th class="text-center">Total Consumido</th>
+                                        <th class="text-center">Consumo Semanal Médio (botijões)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabela-consumo-semanal-gas" class="divide-y divide-gray-100">
+                                    <tr>
+                                        <td colspan="4" class="text-center py-6 text-gray-500 text-sm">
+                                            Clique em "Gerar consumo semanal" para calcular usando todo o histórico.
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
+                        <div id="resumo-consumo-semanal-gas" class="mt-4 text-sm text-gray-700"></div>
                     </div>
                 </div>
             </div>

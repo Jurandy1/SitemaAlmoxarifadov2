@@ -26,6 +26,10 @@ function normalizeUnidadeType(tipo) {
     return tipoNormalizado;
 }
 
+function normalizeUnidadeNome(nome) {
+    return (nome || '').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
 /**
  * Configura os controles de seleção de unidades para a análise de consumo.
  */
@@ -115,6 +119,148 @@ function getPeriodoAnalise(movimentacoes) {
     const totalDaysMs = 1000 * 60 * 60 * 24;
     const totalDias = Math.ceil(diffTime / totalDaysMs) + 1; 
     return { dataInicial, dataFinal, totalDias };
+}
+
+function gerarConsumoSemanalGasHistorico() {
+    const tabelaSemanal = document.getElementById('tabela-consumo-semanal-gas');
+    const resumoEl = document.getElementById('resumo-consumo-semanal-gas');
+    if (!tabelaSemanal) return;
+
+    tabelaSemanal.innerHTML = '';
+    if (resumoEl) resumoEl.textContent = '';
+
+    const unidades = getUnidades();
+    const movimentacoes = getGasMovimentacoes() || [];
+
+    const baseMovs = movimentacoes
+        .filter(m => m && m.tipo === 'entrega' && m.data && typeof m.data.toDate === 'function');
+
+    if (baseMovs.length === 0) {
+        tabelaSemanal.innerHTML = `<tr><td colspan="4" class="text-center py-6 text-gray-500 text-sm">Nenhuma unidade com consumo registrado no histórico.</td></tr>`;
+        if (resumoEl) resumoEl.textContent = 'Nenhum consumo registrado no histórico para calcular o resumo.';
+        return;
+    }
+
+    const periodo = getPeriodoAnalise(baseMovs);
+    const totalDias = periodo.totalDias;
+    const diasBase = totalDias > 0 ? totalDias : 1;
+
+    const unidadesById = new Map();
+    const unidadesByNome = new Map();
+    unidades.forEach(u => {
+        const tipo = normalizeUnidadeType(u.tipo);
+        const entry = { id: u.id, nome: u.nome, tipo };
+        unidadesById.set(u.id, entry);
+        unidadesByNome.set(normalizeUnidadeNome(u.nome), entry);
+    });
+
+    const consumoMap = new Map();
+    let totalConsumoGlobal = 0;
+
+    baseMovs.forEach(mov => {
+        const normNomeMov = normalizeUnidadeNome(mov.unidadeNome);
+        let baseInfo = (mov.unidadeId && unidadesById.get(mov.unidadeId)) || unidadesByNome.get(normNomeMov);
+
+        let key;
+        if (baseInfo) {
+            key = baseInfo.id || baseInfo.nome;
+        } else if (mov.unidadeId || normNomeMov) {
+            key = mov.unidadeId || normNomeMov;
+            baseInfo = {
+                id: mov.unidadeId || null,
+                nome: mov.unidadeNome || 'Unidade não identificada',
+                tipo: 'OUTROS'
+            };
+        } else {
+            return;
+        }
+
+        const atual = consumoMap.get(key) || { nome: baseInfo.nome, tipo: baseInfo.tipo, consumo: 0, datas: [] };
+        atual.consumo += mov.quantidade || 0;
+        totalConsumoGlobal += mov.quantidade || 0;
+        const d = mov.data.toDate();
+        atual.datas.push(d);
+        consumoMap.set(key, atual);
+    });
+
+    const linhas = Array.from(consumoMap.values())
+        .map(entry => {
+            const datasOrdenadasRaw = entry.datas
+                .slice()
+                .sort((a, b) => a.getTime() - b.getTime());
+            const first = datasOrdenadasRaw[0];
+            const last = datasOrdenadasRaw[datasOrdenadasRaw.length - 1] || first;
+            const diffMs = last.getTime() - first.getTime();
+            const diasUnidade = Math.floor(diffMs / (1000 * 60 * 60 * 24)) + 1;
+            const diasRef = diasUnidade > 0 ? diasUnidade : 1;
+
+            const mediaDiaria = entry.consumo / diasRef;
+            const semanalFloat = mediaDiaria * 7;
+            const semanal = entry.consumo > 0 && semanalFloat < 1 ? 1 : Math.round(semanalFloat);
+
+            const datasOrdenadas = datasOrdenadasRaw
+                .map(d => formatTimestamp(Timestamp.fromDate(d)));
+
+            return {
+                tipo: entry.tipo,
+                nome: entry.nome,
+                total: entry.consumo,
+                semanal,
+                datas: datasOrdenadas
+            };
+        })
+        .sort((a, b) => {
+            if (a.tipo === b.tipo) {
+                return a.nome.localeCompare(b.nome);
+            }
+            return a.tipo.localeCompare(b.tipo);
+        });
+
+    if (linhas.length === 0) {
+        tabelaSemanal.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-gray-500 text-sm">Nenhuma unidade com consumo registrado no histórico.</td></tr>`;
+        return;
+    }
+
+    linhas.forEach(l => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${l.tipo}</td>
+            <td>${l.nome}</td>
+            <td>${l.datas.join(', ')}</td>
+            <td class="text-center font-medium text-gray-600">${l.total}</td>
+            <td class="text-center font-semibold">${l.semanal}</td>
+        `;
+        tabelaSemanal.appendChild(row);
+    });
+
+    if (resumoEl) {
+        const mediaDiariaGlobal = diasBase > 0 ? (totalConsumoGlobal / diasBase) : 0;
+        const semanalGlobal = Math.round(mediaDiariaGlobal * 7);
+        const mensalGlobal = Math.round(mediaDiariaGlobal * 30);
+        const anualGlobal = Math.round(mediaDiariaGlobal * 365);
+        const inicioStr = periodo.dataInicial ? formatTimestamp(periodo.dataInicial) : '-';
+        const fimStr = periodo.dataFinal ? formatTimestamp(periodo.dataFinal) : '-';
+        resumoEl.innerHTML = `
+            <div class="mb-3">
+                Período analisado: <strong>${inicioStr}</strong> a <strong>${fimStr}</strong> (<strong>${diasBase}</strong> dias).<br>
+                Total de botijões entregues no período: <strong>${totalConsumoGlobal}</strong>.
+            </div>
+            <div class="mb-3">
+                Para abastecer todas as unidades nesse ritmo seriam necessários, em média:<br>
+                <span class="text-lg">
+                    <strong>${semanalGlobal}</strong> botijões por semana, 
+                    <strong>${mensalGlobal}</strong> por mês e 
+                    <strong>${anualGlobal}</strong> por ano.
+                </span>
+            </div>
+            <div class="text-xs text-gray-500 bg-gray-50 p-3 rounded border border-gray-200">
+                <strong>Metodologia do Cálculo:</strong><br>
+                O sistema calculou a média diária dividindo o total consumido (${totalConsumoGlobal}) pelo número de dias (${diasBase}). 
+                Os valores acima são projeções dessa média para 7, 30 e 365 dias, sempre arredondados para números inteiros.<br>
+                <em>Atenção: Unidades com apenas uma data de entrega terão o período considerado como 1 dia, o que projeta o consumo daquele dia para a semana inteira.</em>
+            </div>
+        `;
+    }
 }
 
 function analisarConsumoPorPeriodo(itemType) {
@@ -213,7 +359,7 @@ function analisarConsumoPorPeriodo(itemType) {
     const { chartLabels, chartDataSets } = formatDataForChart(consumoPorPeriodo, granularidade);
     renderGraficoAnalise(itemType, chartLabels, chartDataSets, granularidade, agruparPor, nomeFiltro);
     document.getElementById(`analise-resultado-container-${itemType}`).classList.remove('hidden');
-    renderAnaliseTextual(itemType, movsEntrega, unidades, dataInicial, dataFinal, movsGroupFull, granularidade, mesRefVal || '');
+    renderAnaliseTextual(itemType, movsEntrega, unidades, dataInicial, dataFinal, movsGroupFull, granularidade, mesRefVal || '', movimentacoes);
     showAlert(alertId, `Análise concluída. Período: ${formatTimestamp(dataInicial)} a ${formatTimestamp(dataFinal)} (${totalDias} dias).`, 'success', 5000);
 }
 
@@ -350,11 +496,12 @@ function renderGraficoAnalise(itemType, labels, datasets, granularidade, agrupar
     });
 }
 
-function renderAnaliseTextual(itemType, movsEntrega, unidades, dataInicial, dataFinal, movsGroupFull, granularidade, mesRefVal) {
+function renderAnaliseTextual(itemType, movsEntrega, unidades, dataInicial, dataFinal, movsGroupFull, granularidade, mesRefVal, allMovs = []) {
     const relatorioEl = document.getElementById(`analise-relatorio-textual-${itemType}`);
     const rankingEl = document.getElementById(`analise-ranking-${itemType}`);
     const resumoExecEl = document.getElementById(`analise-resumo-executivo-${itemType}`);
     if (!relatorioEl || !rankingEl) return;
+    const { totalDias } = getPeriodoAnalise(movsEntrega);
     const consumoPorUnidade = movsEntrega.reduce((acc, mov) => {
         const unidadeInfo = unidades.find(u => u.id === mov.unidadeId);
         if (unidadeInfo) {
@@ -399,8 +546,99 @@ function renderAnaliseTextual(itemType, movsEntrega, unidades, dataInicial, data
     } else {
         rankingEl.innerHTML = `<p class="text-gray-500 italic text-sm">Nenhum consumo registrado.</p>`;
     }
-    const { totalDias } = getPeriodoAnalise(movsEntrega);
     const mediaDiariaPeriodo = totalDias > 0 ? (totalConsumo / totalDias) : totalConsumo;
+    let blocoEquivalencia = '';
+    if (itemType === 'agua') {
+        const semanalEquiv = mediaDiariaPeriodo * 7;
+        const mensalEquiv = mediaDiariaPeriodo * 30;
+        const anualEquiv = mediaDiariaPeriodo * 365;
+        blocoEquivalencia = `
+        <p>🔍 Mantendo esse ritmo médio, isso equivale aproximadamente a:</p>
+        <ul class="list-disc ml-5 text-sm text-gray-700">
+            <li><strong>${semanalEquiv.toFixed(1)} un. por semana</strong></li>
+            <li><strong>${mensalEquiv.toFixed(1)} un. por mês</strong> (30 dias)</li>
+            <li><strong>${anualEquiv.toFixed(1)} un. por ano</strong> (365 dias)</li>
+        </ul>
+        <p class="text-xs text-gray-500 mt-1">
+            Metodologia: o sistema calcula a média diária dividindo o consumo total do período (${totalConsumo} ${itemLabelPlural})
+            pela quantidade de dias analisados (${totalDias}). Em seguida, projeta essa média para 7, 30 e 365 dias.
+        </p>
+        `;
+    }
+
+    if (itemType === 'gas') {
+        const tabelaSemanal = document.getElementById('tabela-consumo-semanal-gas');
+        if (tabelaSemanal) {
+            tabelaSemanal.innerHTML = '';
+
+            const baseMovs = (Array.isArray(allMovs) && allMovs.length > 0
+                ? allMovs
+                : Array.isArray(movsGroupFull) && movsGroupFull.length > 0
+                    ? movsGroupFull
+                    : movsEntrega
+            ).filter(m => m && m.tipo === 'entrega' && m.data && typeof m.data.toDate === 'function');
+
+            if (baseMovs.length === 0) {
+                tabelaSemanal.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-gray-500 text-sm">Nenhuma unidade com consumo registrado no histórico.</td></tr>`;
+            } else {
+                const periodoHist = getPeriodoAnalise(baseMovs);
+                const diasBase = periodoHist.totalDias > 0 ? periodoHist.totalDias : 1;
+
+                const unidadeInfoMap = new Map(unidades.map(u => [u.id, {
+                    nome: u.nome,
+                    tipo: (
+                        (() => {
+                            let t = (u.tipo || 'OUTROS').toUpperCase();
+                            if (t === 'SEMCAS') t = 'SEDE';
+                            if (t === 'ABRIGO' || t === 'ACOLHER E AMAR') t = 'ABRIGO';
+                            return t;
+                        })()
+                    )
+                }]));
+
+                const consumoPorUnidadeId = baseMovs.reduce((acc, mov) => {
+                    const info = unidadeInfoMap.get(mov.unidadeId);
+                    if (!info) return acc;
+                    const atual = acc.get(mov.unidadeId) || { nome: info.nome, tipo: info.tipo, consumo: 0 };
+                    atual.consumo += mov.quantidade || 0;
+                    acc.set(mov.unidadeId, atual);
+                    return acc;
+                }, new Map());
+
+                const linhas = Array.from(consumoPorUnidadeId.values())
+                    .map(entry => {
+                        const mediaDiaria = entry.consumo / diasBase;
+                        const semanal = Math.round(mediaDiaria * 7);
+                        return {
+                            tipo: entry.tipo,
+                            nome: entry.nome,
+                            semanal
+                        };
+                    })
+                    .filter(l => l.semanal > 0)
+                    .sort((a, b) => {
+                        if (a.tipo === b.tipo) {
+                            return a.nome.localeCompare(b.nome);
+                        }
+                        return a.tipo.localeCompare(b.tipo);
+                    });
+
+                if (linhas.length === 0) {
+                    tabelaSemanal.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-gray-500 text-sm">Nenhuma unidade com consumo registrado no histórico.</td></tr>`;
+                } else {
+                    linhas.forEach(l => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${l.tipo}</td>
+                            <td>${l.nome}</td>
+                            <td class="text-center font-semibold">${l.semanal}</td>
+                        `;
+                        tabelaSemanal.appendChild(row);
+                    });
+                }
+            }
+        }
+    }
 
     let mediaDiariaHistorica = 0;
     if (Array.isArray(movsGroupFull) && movsGroupFull.length > 0) {
@@ -418,6 +656,7 @@ function renderAnaliseTextual(itemType, movsEntrega, unidades, dataInicial, data
         <p>📦 Consumo total de ${itemLabelPlural}: <strong>${totalConsumo} un.</strong></p>
         <p>⚖️ Média diária: <strong>${mediaDiariaPeriodo.toFixed(2)} un./dia</strong> (histórico: <strong>${mediaDiariaHistorica.toFixed(2)} un./dia</strong>).</p>
         <p>📈 Desvio vs previsão histórica no período: <strong>${desvioAbs.toFixed(1)} un.</strong> (${desvioPerc.toFixed(1)}%).</p>
+        ${blocoEquivalencia}
     `;
     if (ranking.length > 0) {
         relatorioText += `<p>🏅 Destaque: <strong>${ranking[0].nome}</strong> consumiu <strong>${ranking[0].consumo} un.</strong> (${((ranking[0].consumo / totalConsumo) * 100).toFixed(1)}% do total).</p>`;
@@ -928,7 +1167,7 @@ function calcularPrevisaoInteligente(itemType) {
 
 export function initPrevisaoListeners() {
     DOM_ELEMENTS.btnAnalisarConsumoAgua?.addEventListener('click', () => analisarConsumoPorPeriodo('agua'));
-    DOM_ELEMENTS.btnAnalisarConsumoGas?.addEventListener('click', () => analisarConsumoPorPeriodo('gas'));
+    DOM_ELEMENTS.btnAnalisarConsumoGas?.addEventListener('click', gerarConsumoSemanalGasHistorico);
 
     const containerAgua = document.getElementById('previsao-modo-container-agua');
     if (containerAgua) {
@@ -988,6 +1227,15 @@ export function initPrevisaoListeners() {
                 removerExclusao('gas', btn.dataset.unidadeId);
             }
         });
+    }
+
+    // Listeners para atualização dinâmica do relatório semanal de gás (intervalo de anos)
+    const anoInicioGas = document.getElementById('analise-ano-inicio-gas');
+    const anoFimGas = document.getElementById('analise-ano-fim-gas');
+    if (anoInicioGas && anoFimGas) {
+        const updateGas = () => analisarConsumoPorPeriodo('gas');
+        anoInicioGas.addEventListener('change', updateGas);
+        anoFimGas.addEventListener('change', updateGas);
     }
 
     console.log("[Previsão] Listeners inicializados.");
