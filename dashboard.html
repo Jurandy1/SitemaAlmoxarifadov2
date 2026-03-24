@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <title>Painel TV — Almoxarifado SEMCAS</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --font-d: 'Barlow Condensed', sans-serif;
+      --font-b: 'DM Sans', sans-serif;
+
+      --bg: #e8edf4;
+      --white: #ffffff;
+      --bd: #dde3ec;
+      --bd2: #c8d0de;
+
+      --water: #0ea5e9; --water-bg: #f0f9ff; --water-bd: #bae6fd;
+      --gas:   #10b981; --gas-bg:   #f0fdf4; --gas-bd:   #a7f3d0;
+      --prep:  #f59e0b; --prep-bg:  #fffbeb; --prep-bd:  #fde68a; --prep-txt: #92400e;
+      --rdy:   #16a34a; --rdy-bg:   #f0fdf4; --rdy-bd:   #bbf7d0; --rdy-txt:  #14532d;
+
+      --t1: #0f172a; --t2: #334155; --t3: #64748b; --t4: #94a3b8;
+
+      --cras:   #1e40af; --cras-bg:   #eff6ff; --cras-bd:   #bfdbfe;
+      --creas:  #92400e; --creas-bg:  #fef3c7; --creas-bd:  #fcd34d;
+      --sede:   #6b21a8; --sede-bg:   #f3e8ff; --sede-bd:   #d8b4fe;
+      --ct:     #9d174d; --ct-bg:     #fce7f3; --ct-bd:     #f9a8d4;
+      --abrigo: #075985; --abrigo-bg: #e0f2fe; --abrigo-bd: #7dd3fc;
+      --pop:    #14532d; --pop-bg:    #dcfce7; --pop-bd:    #86efac;
+      --outros: #475569; --outros-bg: #f1f5f9; --outros-bd: #cbd5e1;
+    }
+
+    html, body { width: 100%; height: 100vh; overflow: hidden; font-family: var(--font-b); background: var(--bg); color: var(--t2); -webkit-font-smoothing: antialiased; }
+
+    .tv-root { height: 100vh; display: flex; flex-direction: column; }
+
+    .tv-hdr {
+      flex-shrink: 0;
+      height: 68px;
+      padding: 0 28px;
+      background: linear-gradient(135deg, #0b1f40 0%, #142d5c 55%, #1a3d80 100%);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: relative;
+    }
+    .tv-hdr::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 15%, #60a5fa 45%, #34d399 75%, #f59e0b 100%);
+    }
+    .hbrand { display: flex; align-items: center; gap: 14px; }
+    .hlogo { height: 44px; width: auto; filter: brightness(0) invert(1); opacity: .9; }
+    .hfallback {
+      width: 44px;
+      height: 44px;
+      background: #1e40af;
+      border-radius: 10px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-d);
+      font-size: 13px;
+      font-weight: 800;
+      color: #93c5fd;
+      letter-spacing: 1px;
+    }
+    .htxt h1 { font-family: var(--font-d); font-size: 24px; font-weight: 700; color: #fff; letter-spacing: .3px; line-height: 1.1; }
+    .htxt p  { font-size: 10px; font-weight: 500; color: #93c5fd; letter-spacing: .08em; text-transform: uppercase; }
+    .hright  { display: flex; align-items: center; gap: 20px; }
+    .hlive   { display: flex; align-items: center; gap: 7px; font-size: 11px; font-weight: 700; color: #6ee7b7; letter-spacing: .06em; text-transform: uppercase; }
+    .hdot    { width: 8px; height: 8px; border-radius: 50%; background: #34d399; animation: pdot 2s ease-in-out infinite; }
+    @keyframes pdot { 0%,100%{box-shadow:0 0 0 0 rgba(52,211,153,.5)} 50%{box-shadow:0 0 0 6px rgba(52,211,153,0)} }
+    .hclock  { text-align: right; }
+    .htime   { font-family: var(--font-d); font-size: 30px; font-weight: 700; color: #fff; letter-spacing: .06em; font-variant-numeric: tabular-nums; line-height: 1; }
+    .hdate   { font-size: 10px; font-weight: 500; color: #93c5fd; margin-top: 2px; text-transform: capitalize; }
+
+    .kpi-row { flex-shrink: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 10px 18px 0; }
+    .kpi {
+      background: var(--white);
+      border-radius: 13px;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border: 1px solid var(--bd);
+      box-shadow: 0 2px 8px rgba(15,23,42,.06);
+      position: relative;
+      overflow: hidden;
+    }
+    .kpi::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; border-radius: 13px 0 0 13px; }
+    .kpi.w::before { background: var(--water); }
+    .kpi.g::before { background: var(--gas); }
+    .kpi.p::before { background: var(--prep); }
+    .kpi.r::before { background: var(--rdy); }
+    .kpi-ic { width: 48px; height: 48px; flex-shrink: 0; border-radius: 11px; display: flex; align-items: center; justify-content: center; font-size: 24px; }
+    .kpi.w .kpi-ic { background: var(--water-bg); }
+    .kpi.g .kpi-ic { background: var(--gas-bg); }
+    .kpi.p .kpi-ic { background: var(--prep-bg); }
+    .kpi.r .kpi-ic { background: var(--rdy-bg); }
+    .kpi-lbl { font-size: 10px; font-weight: 600; color: var(--t3); text-transform: uppercase; letter-spacing: .07em; line-height: 1; }
+    .kpi-val { font-family: var(--font-d); font-size: 40px; font-weight: 800; line-height: 1; margin: 2px 0; font-variant-numeric: tabular-nums; }
+    .kpi.w .kpi-val { color: var(--water); }
+    .kpi.g .kpi-val { color: var(--gas); }
+    .kpi.p .kpi-val { color: var(--prep); }
+    .kpi.r .kpi-val { color: var(--rdy); }
+    .kpi-sub { font-size: 10px; font-weight: 500; color: var(--t4); }
+
+    .main-grid { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px 18px 12px; overflow: hidden; min-height: 0; }
+    .panel { background: var(--white); border-radius: 15px; border: 1px solid var(--bd); box-shadow: 0 4px 16px rgba(15,23,42,.07); display: flex; flex-direction: column; overflow: hidden; }
+    .panel-hdr { flex-shrink: 0; padding: 11px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid; }
+    .panel.prep .panel-hdr { background: var(--prep-bg); border-color: var(--prep-bd); }
+    .panel.rdy  .panel-hdr { background: var(--rdy-bg);  border-color: var(--rdy-bd); }
+    .panel-ttl { display: flex; align-items: center; gap: 8px; font-family: var(--font-d); font-size: 19px; font-weight: 700; }
+    .panel.prep .panel-ttl { color: var(--prep-txt); }
+    .panel.rdy  .panel-ttl { color: var(--rdy-txt); }
+    .panel-badge { font-family: var(--font-d); font-size: 14px; font-weight: 700; padding: 3px 12px; border-radius: 999px; }
+    .panel.prep .panel-badge { background: #fef3c7; color: #b45309; border: 1px solid #fcd34d; }
+    .panel.rdy  .panel-badge { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+    .list-scroll { flex: 1; overflow-y: auto; padding: 10px 10px; min-height: 0; }
+    .list-scroll::-webkit-scrollbar { width: 4px; }
+    .list-scroll::-webkit-scrollbar-track { background: transparent; }
+    .list-scroll::-webkit-scrollbar-thumb { background: var(--bd2); border-radius: 4px; }
+
+    .type-group { margin-bottom: 14px; }
+    .type-group-hdr { display: flex; align-items: stretch; margin-bottom: 7px; }
+    .type-pill {
+      font-family: var(--font-d);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      padding: 5px 13px;
+      border-radius: 7px 0 0 7px;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .type-count {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 5px 10px;
+      border-radius: 0 7px 7px 0;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      background: #f1f5f9;
+      border-top: 1px solid var(--bd2);
+      border-right: 1px solid var(--bd2);
+      border-bottom: 1px solid var(--bd2);
+      color: var(--t3);
+    }
+    .type-line { flex: 1; margin: 0 10px; border-bottom: 1px solid var(--bd); align-self: center; }
+
+    .type-pill.cras { background: var(--cras-bg); color: var(--cras); border: 1px solid var(--cras-bd); border-right: none; }
+    .type-pill.creas { background: var(--creas-bg); color: var(--creas); border: 1px solid var(--creas-bd); border-right: none; }
+    .type-pill.sede { background: var(--sede-bg); color: var(--sede); border: 1px solid var(--sede-bd); border-right: none; }
+    .type-pill.ct { background: var(--ct-bg); color: var(--ct); border: 1px solid var(--ct-bd); border-right: none; }
+    .type-pill.abrigo { background: var(--abrigo-bg); color: var(--abrigo); border: 1px solid var(--abrigo-bd); border-right: none; }
+    .type-pill.pop { background: var(--pop-bg); color: var(--pop); border: 1px solid var(--pop-bd); border-right: none; }
+    .type-pill.outros { background: var(--outros-bg); color: var(--outros); border: 1px solid var(--outros-bd); border-right: none; }
+
+    .type-count.cras { border-color: var(--cras-bd); }
+    .type-count.creas { border-color: var(--creas-bd); }
+    .type-count.sede { border-color: var(--sede-bd); }
+    .type-count.ct { border-color: var(--ct-bd); }
+    .type-count.abrigo { border-color: var(--abrigo-bd); }
+    .type-count.pop { border-color: var(--pop-bd); }
+    .type-count.outros { border-color: var(--outros-bd); }
+
+    .card {
+      background: var(--white);
+      border: 1px solid #e8edf5;
+      border-radius: 9px;
+      padding: 10px 12px 10px 16px;
+      margin-bottom: 5px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      position: relative;
+      overflow: hidden;
+      animation: cin .2s ease both;
+    }
+    @keyframes cin { from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:translateY(0)} }
+    .card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; border-radius: 9px 0 0 9px; }
+    .panel.prep .card::before { background: var(--prep); }
+    .panel.rdy .card::before { background: var(--rdy); }
+    .card-ic { width: 34px; height: 34px; flex-shrink: 0; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 15px; margin-top: 2px; }
+    .panel.prep .card-ic { background: #fef3c7; }
+    .panel.rdy .card-ic { background: #dcfce7; }
+    .card-body { flex: 1; min-width: 0; }
+    .card-unit { font-weight: 700; font-size: 13.5px; color: var(--t1); line-height: 1.4; white-space: normal; word-break: break-word; }
+    .card-tipo { font-size: 11.5px; font-weight: 500; color: var(--t3); text-transform: capitalize; line-height: 1.4; margin-top: 1px; }
+    .card-obs { font-size: 10.5px; color: var(--t4); font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+    .card-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; gap: 8px; flex-wrap: wrap; }
+    .card-sep { display: flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 600; color: var(--t3); background: #f1f5f9; padding: 2px 8px; border-radius: 999px; max-width: 65%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .card-time { font-size: 10px; color: var(--t4); font-variant-numeric: tabular-nums; margin-left: auto; flex-shrink: 0; }
+
+    .empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 10px; opacity: .4; }
+    .empty-ic { font-size: 40px; }
+    .empty-tx { font-size: 14px; font-weight: 500; color: var(--t3); }
+
+    .loading { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 12px; opacity: .55; }
+    .spinner { width: 36px; height: 36px; border: 3px solid #e2e8f0; border-top-color: #94a3b8; border-radius: 50%; animation: spin .9s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg) } }
+    .loading-tx { font-size: 13px; font-weight: 500; color: var(--t3); }
+
+    .sbar { flex-shrink: 0; height: 26px; background: #0b1f40; display: flex; align-items: center; padding: 0 18px; gap: 18px; }
+    .si { display: flex; align-items: center; gap: 5px; font-size: 10px; font-weight: 500; color: rgba(147,197,253,.75); font-variant-numeric: tabular-nums; }
+    .ssep { width: 1px; height: 12px; background: rgba(255,255,255,.15); }
+  </style>
+</head>
+<body class="tv-mode">
+  <div class="tv-root">
+    <header class="tv-hdr">
+      <div class="hbrand">
+        <img src="SaoLuis.png" alt="SEMCAS" class="hlogo" onerror="this.style.display='none';document.getElementById('hfb').style.display='flex'">
+        <div class="hfallback" id="hfb">SL</div>
+        <div class="htxt">
+          <h1>Painel de Almoxarifado</h1>
+          <p>SEMCAS · Monitoramento em Tempo Real</p>
+        </div>
+      </div>
+      <div class="hright">
+        <div class="hlive"><div class="hdot"></div>Ao Vivo</div>
+        <div class="hclock">
+          <div class="htime" id="tv-clk">--:--</div>
+          <div class="hdate" id="tv-dt">carregando...</div>
+        </div>
+      </div>
+    </header>
+
+    <div class="kpi-row">
+      <div class="kpi w">
+        <div class="kpi-ic">💧</div>
+        <div>
+          <div class="kpi-lbl">Estoque Água</div>
+          <div class="kpi-val" id="dashboard-estoque-agua">--</div>
+          <div class="kpi-sub">Galões Disponíveis</div>
+        </div>
+      </div>
+      <div class="kpi g">
+        <div class="kpi-ic">🔥</div>
+        <div>
+          <div class="kpi-lbl">Estoque Gás</div>
+          <div class="kpi-val" id="dashboard-estoque-gas">--</div>
+          <div class="kpi-sub">Botijões Disponíveis</div>
+        </div>
+      </div>
+      <div class="kpi p">
+        <div class="kpi-ic">📦</div>
+        <div>
+          <div class="kpi-lbl">Em Preparação</div>
+          <div class="kpi-val" id="dashboard-materiais-separacao-count">--</div>
+          <div class="kpi-sub">Requisições Ativas</div>
+        </div>
+      </div>
+      <div class="kpi r">
+        <div class="kpi-ic">✅</div>
+        <div>
+          <div class="kpi-lbl">Prontos</div>
+          <div class="kpi-val" id="dashboard-materiais-retirada-count">--</div>
+          <div class="kpi-sub">Aguardando Retirada</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="main-grid">
+      <div class="panel prep">
+        <div class="panel-hdr">
+          <div class="panel-ttl">📦 Em Preparação</div>
+          <span class="panel-badge" id="count-separacao-header">0</span>
+        </div>
+        <div class="list-scroll" id="tv-list-separacao">
+          <div class="loading"><div class="spinner"></div><div class="loading-tx">Carregando...</div></div>
+        </div>
+      </div>
+      <div class="panel rdy">
+        <div class="panel-hdr">
+          <div class="panel-ttl">✅ Pronto para Retirada</div>
+          <span class="panel-badge" id="count-pronto-header">0</span>
+        </div>
+        <div class="list-scroll" id="tv-list-pronto">
+          <div class="loading"><div class="spinner"></div><div class="loading-tx">Carregando...</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sbar">
+      <div class="si">🏛️ SEMCAS — Prefeitura de São Luís</div>
+      <div class="ssep"></div>
+      <div class="si" id="last-update-time">Última atualização: --</div>
+      <div class="ssep" style="margin-left:auto"></div>
+      <div class="si" id="connectionStatus">Online</div>
+    </div>
+  </div>
+
+  <div class="hidden">
+    <div id="auth-modal"></div>
+    <div id="app-content-wrapper"></div>
+    <div id="alert-login"></div>
+    <button id="btn-login-anonimo"></button>
+    <form id="form-login"></form>
+    <canvas id="dashboardAguaChart"></canvas>
+    <canvas id="dashboardGasChart"></canvas>
+    <div id="dashboard-materiais-list"></div>
+    <div id="dashboard-materiais-prontos"></div>
+    <div id="loading-materiais-dashboard"></div>
+  </div>
+
+  <script type="module" src="./runtime-config.js"></script>
+  <script type="module">
+    import { createIcons, icons } from 'lucide';
+    window.lucide = { icons, createIcons: (options) => createIcons({ icons, ...(options || {}) }) };
+
+    import { initializeFirebaseServices } from './js/services/firestore-service.js';
+    import { initAuthAndListeners, signInAnonUser, isReady } from './js/modules/auth.js';
+    import { findDOMElements } from './js/utils/dom-helpers.js';
+    import { renderDashboard, startDashboardRefresh } from './js/modules/dashboard.js';
+
+    function upClock(){
+      const n = new Date();
+      const c = document.getElementById('tv-clk');
+      const d = document.getElementById('tv-dt');
+      if (c) c.textContent = n.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      if (d) d.textContent = n.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+    }
+    upClock();
+    setInterval(upClock, 1000);
+
+    async function initTVDashboard() {
+      initializeFirebaseServices();
+      findDOMElements();
+
+      const safeRender = () => {
+        try { renderDashboard(); } catch (e) { console.error(e); }
+        try { if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') lucide.createIcons(); } catch (_) {}
+      };
+
+      await initAuthAndListeners(safeRender, null, null);
+
+      setTimeout(() => {
+        if (!isReady()) signInAnonUser().catch(err => console.error(err));
+      }, 1200);
+
+      startDashboardRefresh();
+      setTimeout(safeRender, 2000);
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initTVDashboard);
+    } else {
+      initTVDashboard();
+    }
+  </script>
+</body>
+</html>

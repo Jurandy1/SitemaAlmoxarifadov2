@@ -1,0 +1,89 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /artifacts/{appId}/public/data {
+      function getRole() {
+        return request.auth == null ? 'anon' : (
+          exists(/databases/$(database)/documents/artifacts/$(appId)/public/data/userRoles/$(request.auth.uid)) ?
+            get(/databases/$(database)/documents/artifacts/$(appId)/public/data/userRoles/$(request.auth.uid)).data.role
+          : 'anon'
+        );
+      }
+
+      function isAdmin() {
+        return getRole() == 'admin';
+      }
+
+      function isEditorOrAdmin() {
+        let userRole = getRole();
+        return userRole == 'admin' || userRole == 'editor';
+      }
+
+      match /userRoles/{userId} {
+        allow read: if request.auth != null;
+        allow write: if isAdmin();
+      }
+
+      match /controleMateriais/{docId} {
+        allow read: if request.auth != null;
+        allow create: if isAdmin();
+        allow update: if isEditorOrAdmin();
+        allow delete: if isAdmin();
+      }
+
+      match /controleAgua/{docId} {
+        allow read: if request.auth != null;
+        allow create, update: if isEditorOrAdmin();
+        allow delete: if isAdmin();
+      }
+
+      match /controleGas/{docId} {
+        allow read: if request.auth != null;
+        allow create, update: if isEditorOrAdmin();
+        allow delete: if isAdmin();
+      }
+
+      match /socialCestaMov/{docId} {
+        allow read: if request.auth != null;
+        allow create, update: if isEditorOrAdmin();
+        allow delete: if isAdmin();
+      }
+
+      match /socialEnxovalMov/{docId} {
+        allow read: if request.auth != null;
+        allow create, update: if isEditorOrAdmin();
+        allow delete: if isAdmin();
+      }
+
+      match /unidades/{docId} {
+        allow read: if request.auth != null;
+        allow write: if isAdmin();
+      }
+
+      match /estoqueAgua/{docId} {
+        allow read: if request.auth != null;
+        allow create, update, delete: if isAdmin();
+      }
+
+      match /estoqueGas/{docId} {
+        allow read: if request.auth != null;
+        allow create, update, delete: if isAdmin();
+      }
+
+      match /socialCestaEstoque/{docId} {
+        allow read: if request.auth != null;
+        allow create, update, delete: if isAdmin();
+      }
+
+      match /socialEnxovalEstoque/{docId} {
+        allow read: if request.auth != null;
+        allow create, update, delete: if isAdmin();
+      }
+
+      match /feriados/{docId} {
+        allow read: if request.auth != null;
+        allow write: if isAdmin();
+      }
+    }
+  }
+}

@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <title>Painel TV — Almoxarifado SEMCAS</title>
+
+  <!-- ══════════════════════════════════════════════════════
+       PASSO 1: COLE AQUI A SUA CONFIGURAÇÃO DO FIREBASE
+       Vá em: Firebase Console → Seu Projeto → Configurações → Seus apps
+  ══════════════════════════════════════════════════════ -->
+  <script>
+    const FIREBASE_CONFIG = {
+      apiKey:            "COLE_AQUI",
+      authDomain:        "COLE_AQUI",
+      projectId:         "COLE_AQUI",
+      storageBucket:     "COLE_AQUI",
+      messagingSenderId: "COLE_AQUI",
+      appId:             "COLE_AQUI"
+    };
+
+    // PASSO 2: Cole aqui o APP_ID do seu firebase-config.js
+    // Exemplo: const APP_ID = "almoxarifado-semcas";
+    const APP_ID = "COLE_SEU_APP_ID_AQUI";
+  </script>
+
+  <!-- Firebase CDN (versão compatível, não precisa de bundler) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+
+  <!-- Fontes -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+
+  <style>
+    /* ═══════════════════════════════════════════════════════
+       SEMCAS — PAINEL TV ALMOXARIFADO
+       Design System Profissional · Otimizado para 50"/55" 1080p
+    ═══════════════════════════════════════════════════════ */
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --font-display: 'Barlow Condensed', sans-serif;
+      --font-body:    'DM Sans', sans-serif;
+
+      --bg-page:    #e8edf4;
+      --bg-white:   #ffffff;
+      --border:     #dde3ec;
+      --border-2:   #c8d0de;
+
+      --water:      #0ea5e9;
+      --water-bg:   #f0f9ff;
+      --water-bd:   #bae6fd;
+      --water-txt:  #0369a1;
+
+      --gas:        #10b981;
+      --gas-bg:     #f0fdf4;
+      --gas-bd:     #a7f3d0;
+      --gas-txt:    #065f46;
+
+      --prep:       #f59e0b;
+      --prep-bg:    #fffbeb;
+      --prep-bd:    #fde68a;
+      --prep-txt:   #92400e;
+
+      --ready:      #16a34a;
+      --ready-bg:   #f0fdf4;
+      --ready-bd:   #bbf7d0;
+      --ready-txt:  #14532d;
+
+      --text-1: #0f172a;
+      --text-2: #334155;
+      --text-3: #64748b;
+      --text-4: #94a3b8;
+    }
+
+    html, body {
+      width: 100%; height: 100vh;
+      overflow: hidden;
+      font-family: var(--font-body);
+      background: var(--bg-page);
+      color: var(--text-2);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ─── LAYOUT PRINCIPAL ─── */
+    .tv-root {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ─────────────────────────────────────────
+       HEADER
+    ───────────────────────────────────────── */
+    .tv-header {
+      flex-shrink: 0;
+      background: linear-gradient(135deg, #0b1f40 0%, #142d5c 55%, #1a3d80 100%);
+      height: 72px;
+      padding: 0 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: relative;
+    }
+    .tv-header::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0; height: 3px;
+      background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 15%, #60a5fa 45%, #34d399 75%, #f59e0b 100%);
+    }
+
+    .hdr-brand { display: flex; align-items: center; gap: 14px; }
+    .hdr-logo {
+      height: 48px; width: auto;
+      filter: brightness(0) invert(1);
+      opacity: .9;
+    }
+    .hdr-logo-fallback {
+      width: 46px; height: 46px;
+      background: #1e40af;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-display);
+      font-size: 14px; font-weight: 800;
+      color: #93c5fd;
+      letter-spacing: 1px;
+    }
+    .hdr-text h1 {
+      font-family: var(--font-display);
+      font-size: 26px; font-weight: 700;
+      color: #fff;
+      letter-spacing: .3px;
+      line-height: 1.1;
+    }
+    .hdr-text p {
+      font-size: 11px; font-weight: 500;
+      color: #93c5fd;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .hdr-right { display: flex; align-items: center; gap: 20px; }
+
+    .hdr-live {
+      display: flex; align-items: center; gap: 7px;
+      font-size: 11px; font-weight: 700;
+      color: #6ee7b7;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+    .hdr-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #34d399;
+      animation: pulse-live 2s ease-in-out infinite;
+    }
+    @keyframes pulse-live {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(52,211,153,.5); }
+      50%       { box-shadow: 0 0 0 6px rgba(52,211,153,0); }
+    }
+
+    .hdr-clock { text-align: right; }
+    .hdr-time {
+      font-family: var(--font-display);
+      font-size: 32px; font-weight: 700;
+      color: #fff;
+      letter-spacing: .06em;
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+    }
+    .hdr-date {
+      font-size: 11px; font-weight: 500;
+      color: #93c5fd;
+      margin-top: 2px;
+      text-transform: capitalize;
+    }
+
+    /* ─────────────────────────────────────────
+       KPI ROW
+    ───────────────────────────────────────── */
+    .kpi-row {
+      flex-shrink: 0;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      padding: 12px 20px 0;
+    }
+
+    .kpi {
+      background: var(--bg-white);
+      border-radius: 14px;
+      padding: 14px 18px;
+      display: flex; align-items: center; gap: 14px;
+      border: 1px solid var(--border);
+      box-shadow: 0 2px 8px rgba(15,23,42,.06);
+      position: relative; overflow: hidden;
+    }
+    .kpi::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0; width: 4px;
+      border-radius: 14px 0 0 14px;
+    }
+    .kpi.water::before { background: var(--water); }
+    .kpi.gas::before   { background: var(--gas); }
+    .kpi.prep::before  { background: var(--prep); }
+    .kpi.ready::before { background: var(--ready); }
+
+    .kpi-icon {
+      width: 52px; height: 52px; flex-shrink: 0;
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 26px;
+    }
+    .kpi.water .kpi-icon { background: var(--water-bg); }
+    .kpi.gas   .kpi-icon { background: var(--gas-bg); }
+    .kpi.prep  .kpi-icon { background: var(--prep-bg); }
+    .kpi.ready .kpi-icon { background: var(--ready-bg); }
+
+    .kpi-label {
+      font-size: 11px; font-weight: 600;
+      color: var(--text-3);
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      line-height: 1;
+    }
+    .kpi-value {
+      font-family: var(--font-display);
+      font-size: 42px; font-weight: 800;
+      line-height: 1;
+      margin: 2px 0;
+      font-variant-numeric: tabular-nums;
+    }
+    .kpi.water .kpi-value { color: var(--water); }
+    .kpi.gas   .kpi-value { color: var(--gas); }
+    .kpi.prep  .kpi-value { color: var(--prep); }
+    .kpi.ready .kpi-value { color: var(--ready); }
+
+    .kpi-sub {
+      font-size: 11px; font-weight: 500;
+      color: var(--text-4);
+    }
+
+    /* ─────────────────────────────────────────
+       COLUNAS PRINCIPAIS
+    ───────────────────────────────────────── */
+    .main-grid {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      padding: 10px 20px 14px;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    .panel {
+      background: var(--bg-white);
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      box-shadow: 0 4px 16px rgba(15,23,42,.07);
+      display: flex; flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel-hdr {
+      flex-shrink: 0;
+      padding: 12px 18px;
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid;
+    }
+    .panel.prep .panel-hdr { background: #fffbeb; border-color: #fde68a; }
+    .panel.rdy  .panel-hdr { background: #f0fdf4; border-color: #bbf7d0; }
+
+    .panel-title {
+      display: flex; align-items: center; gap: 8px;
+      font-family: var(--font-display);
+      font-size: 20px; font-weight: 700;
+      letter-spacing: .01em;
+    }
+    .panel.prep .panel-title { color: var(--prep-txt); }
+    .panel.rdy  .panel-title { color: var(--ready-txt); }
+
+    .panel-title-icon { font-size: 20px; }
+
+    .panel-badge {
+      font-family: var(--font-display);
+      font-size: 15px; font-weight: 700;
+      padding: 3px 13px;
+      border-radius: 999px;
+    }
+    .panel.prep .panel-badge {
+      background: #fef3c7; color: #b45309;
+      border: 1px solid #fcd34d;
+    }
+    .panel.rdy .panel-badge {
+      background: #dcfce7; color: #15803d;
+      border: 1px solid #86efac;
+    }
+
+    /* ─── SCROLL AREA ─── */
+    .list-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px 12px;
+      min-height: 0;
+    }
+    .list-scroll::-webkit-scrollbar { width: 4px; }
+    .list-scroll::-webkit-scrollbar-track { background: transparent; }
+    .list-scroll::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 4px; }
+
+    /* ─── GRUPO DE UNIDADE ─── */
+    .group { margin-bottom: 10px; }
+
+    .group-header {
+      display: flex; align-items: center; gap: 7px;
+      padding: 4px 8px; margin-bottom: 5px;
+      border-radius: 6px;
+    }
+    .panel.prep .group-header { background: #fef9e7; }
+    .panel.rdy  .group-header { background: #f0fdf4; }
+
+    .group-type {
+      font-family: var(--font-display);
+      font-size: 11px; font-weight: 700;
+      letter-spacing: .1em; text-transform: uppercase;
+      padding: 2px 9px;
+      border-radius: 5px;
+    }
+    .panel.prep .group-type { background: #fef3c7; color: #92400e; }
+    .panel.rdy  .group-type { background: #dcfce7; color: #15803d; }
+
+    .group-count {
+      font-size: 11px; font-weight: 600;
+      color: var(--text-4);
+    }
+
+    /* ─── CARD DE MATERIAL ─── */
+    .card {
+      background: var(--bg-white);
+      border: 1px solid #e8edf5;
+      border-radius: 10px;
+      padding: 9px 12px;
+      margin-bottom: 5px;
+      display: flex; align-items: flex-start; gap: 10px;
+      position: relative; overflow: hidden;
+      transition: box-shadow .15s ease;
+    }
+    .card:hover { box-shadow: 0 2px 8px rgba(15,23,42,.1); }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0; width: 3px;
+      border-radius: 10px 0 0 10px;
+    }
+    .panel.prep .card::before { background: var(--prep); }
+    .panel.rdy  .card::before { background: var(--ready); }
+
+    .card-icon {
+      width: 36px; height: 36px; flex-shrink: 0;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+      margin-top: 1px;
+    }
+    .panel.prep .card-icon { background: #fef3c7; }
+    .panel.rdy  .card-icon { background: #dcfce7; }
+
+    .card-body { flex: 1; min-width: 0; }
+
+    .card-unit {
+      font-weight: 700;
+      font-size: 13px;
+      color: var(--text-1);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      line-height: 1.35;
+    }
+    .card-type {
+      font-size: 11.5px; font-weight: 500;
+      color: var(--text-3);
+      text-transform: capitalize;
+      line-height: 1.35;
+    }
+    .card-obs {
+      font-size: 10.5px;
+      color: var(--text-4);
+      font-style: italic;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      margin-top: 1px;
+    }
+    .card-footer {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-top: 6px; gap: 8px;
+    }
+    .card-person {
+      display: flex; align-items: center; gap: 4px;
+      font-size: 10.5px; font-weight: 600;
+      color: var(--text-3);
+      background: #f1f5f9;
+      padding: 2px 8px;
+      border-radius: 999px;
+      max-width: 60%; overflow: hidden;
+      white-space: nowrap; text-overflow: ellipsis;
+    }
+    .card-time {
+      font-size: 10px;
+      color: var(--text-4);
+      font-variant-numeric: tabular-nums;
+      margin-left: auto; flex-shrink: 0;
+    }
+
+    /* ─── ESTADO VAZIO ─── */
+    .empty-state {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      height: 100%; gap: 10px;
+      opacity: .4;
+    }
+    .empty-icon { font-size: 40px; }
+    .empty-text { font-size: 14px; font-weight: 500; color: var(--text-3); }
+
+    /* ─── CARREGANDO ─── */
+    .loading-state {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      height: 100%; gap: 12px;
+      opacity: .55;
+    }
+    .spinner {
+      width: 36px; height: 36px;
+      border: 3px solid #e2e8f0;
+      border-top-color: #94a3b8;
+      border-radius: 50%;
+      animation: spin .9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text { font-size: 13px; font-weight: 500; color: var(--text-3); }
+
+    /* ─── STATUS BAR ─── */
+    .status-bar {
+      flex-shrink: 0;
+      height: 28px;
+      background: #0b1f40;
+      display: flex; align-items: center;
+      padding: 0 20px;
+      gap: 20px;
+    }
+    .status-item {
+      display: flex; align-items: center; gap: 5px;
+      font-size: 10px; font-weight: 500;
+      color: rgba(147,197,253,.75);
+      font-variant-numeric: tabular-nums;
+    }
+    .status-sep {
+      width: 1px; height: 12px;
+      background: rgba(255,255,255,.15);
+    }
+    #status-conn { margin-left: auto; }
+    .conn-ok  { color: #6ee7b7; }
+    .conn-err { color: #fca5a5; }
+    .conn-wait { color: #fde68a; }
+
+    /* ─── ANIMAÇÃO ENTRADA DE CARD ─── */
+    @keyframes card-in {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .card { animation: card-in .2s ease both; }
+  </style>
+</head>
+<body>
+
+<div class="tv-root">
+
+  <!-- ══ HEADER ══ -->
+  <header class="tv-header">
+    <div class="hdr-brand">
+      <img src="SaoLuis.png" alt="SEMCAS" class="hdr-logo"
+           onerror="this.style.display='none'; document.getElementById('logo-fallback').style.display='flex'">
+      <div class="hdr-logo-fallback" id="logo-fallback" style="display:none">SL</div>
+      <div class="hdr-text">
+        <h1>Painel de Almoxarifado</h1>
+        <p>SEMCAS &middot; Monitoramento em Tempo Real</p>
+      </div>
+    </div>
+    <div class="hdr-right">
+      <div class="hdr-live">
+        <div class="hdr-dot"></div>
+        Ao Vivo
+      </div>
+      <div class="hdr-clock">
+        <div class="hdr-time" id="tv-clock">--:--</div>
+        <div class="hdr-date" id="tv-date">carregando...</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ══ KPIs ══ -->
+  <div class="kpi-row">
+    <div class="kpi water">
+      <div class="kpi-icon">💧</div>
+      <div>
+        <div class="kpi-label">Estoque Água</div>
+        <div class="kpi-value" id="kpi-agua">--</div>
+        <div class="kpi-sub">Galões Disponíveis</div>
+      </div>
+    </div>
+    <div class="kpi gas">
+      <div class="kpi-icon">🔥</div>
+      <div>
+        <div class="kpi-label">Estoque Gás</div>
+        <div class="kpi-value" id="kpi-gas">--</div>
+        <div class="kpi-sub">Botijões Disponíveis</div>
+      </div>
+    </div>
+    <div class="kpi prep">
+      <div class="kpi-icon">📦</div>
+      <div>
+        <div class="kpi-label">Em Preparação</div>
+        <div class="kpi-value" id="kpi-prep">--</div>
+        <div class="kpi-sub">Requisições Ativas</div>
+      </div>
+    </div>
+    <div class="kpi ready">
+      <div class="kpi-icon">✅</div>
+      <div>
+        <div class="kpi-label">Prontos</div>
+        <div class="kpi-value" id="kpi-ready">--</div>
+        <div class="kpi-sub">Aguardando Retirada</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ COLUNAS ══ -->
+  <div class="main-grid">
+
+    <!-- Em Preparação -->
+    <div class="panel prep">
+      <div class="panel-hdr">
+        <div class="panel-title">
+          <span class="panel-title-icon">📦</span>
+          Em Preparação
+        </div>
+        <span class="panel-badge" id="badge-prep">0</span>
+      </div>
+      <div class="list-scroll" id="list-prep">
+        <div class="loading-state">
+          <div class="spinner"></div>
+          <div class="loading-text">Conectando ao Firebase...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pronto para Retirada -->
+    <div class="panel rdy">
+      <div class="panel-hdr">
+        <div class="panel-title">
+          <span class="panel-title-icon">✅</span>
+          Pronto para Retirada
+        </div>
+        <span class="panel-badge" id="badge-rdy">0</span>
+      </div>
+      <div class="list-scroll" id="list-rdy">
+        <div class="loading-state">
+          <div class="spinner"></div>
+          <div class="loading-text">Conectando ao Firebase...</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ══ STATUS BAR ══ -->
+  <div class="status-bar">
+    <div class="status-item">
+      🏛️ SEMCAS — Prefeitura de São Luís
+    </div>
+    <div class="status-sep"></div>
+    <div class="status-item" id="status-update">
+      Última atualização: --
+    </div>
+    <div class="status-item status-sep" style="margin-left:auto"></div>
+    <div class="status-item" id="status-conn">
+      ⬤ Aguardando conexão...
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     LÓGICA COMPLETA DO PAINEL TV
+══════════════════════════════════════════════════════ -->
+<script>
+(function () {
+  'use strict';
+
+  /* ────────────────────────────────────────────
+     ESTADO GLOBAL
+  ──────────────────────────────────────────── */
+  const state = {
+    materiais:    [],
+    estoqueAgua:  [],
+    estoqueGas:   [],
+    aguaMov:      [],
+    gasMov:       [],
+    connected:    false,
+  };
+
+  /* ────────────────────────────────────────────
+     FIREBASE INIT
+  ──────────────────────────────────────────── */
+  const app  = firebase.initializeApp(FIREBASE_CONFIG);
+  const db   = firebase.firestore();
+  const auth = firebase.auth();
+
+  // Força long polling para ambientes com firewall/proxy
+  db.settings({ experimentalForceLongPolling: true, merge: true });
+
+  const BASE = `artifacts/${APP_ID}/public/data`;
+
+  /* ────────────────────────────────────────────
+     RELÓGIO
+  ──────────────────────────────────────────── */
+  function updateClock() {
+    const now = new Date();
+    const clockEl = document.getElementById('tv-clock');
+    const dateEl  = document.getElementById('tv-date');
+    if (clockEl) clockEl.textContent = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    if (dateEl)  dateEl.textContent  = now.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+  }
+  updateClock();
+  setInterval(updateClock, 1000);
+
+  /* ────────────────────────────────────────────
+     STATUS BAR
+  ──────────────────────────────────────────── */
+  function setConnStatus(ok, msg) {
+    const el = document.getElementById('status-conn');
+    if (!el) return;
+    el.className = 'status-item ' + (ok ? 'conn-ok' : ok === null ? 'conn-wait' : 'conn-err');
+    el.textContent = ok ? ('⬤ ' + (msg || 'Conectado')) : ok === null ? ('◎ ' + (msg || 'Conectando...')) : ('⬤ ' + (msg || 'Sem conexão'));
+  }
+
+  function setLastUpdate() {
+    const el = document.getElementById('status-update');
+    if (el) el.textContent = 'Última atualização: ' + new Date().toLocaleTimeString('pt-BR');
+  }
+
+  /* ────────────────────────────────────────────
+     FORMATAR TIMESTAMP
+  ──────────────────────────────────────────── */
+  function fmtDate(ts) {
+    if (!ts) return '';
+    try {
+      const d = (typeof ts.toDate === 'function') ? ts.toDate() : new Date(ts);
+      return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+    } catch (_) { return ''; }
+  }
+
+  /* ────────────────────────────────────────────
+     CALCULAR ESTOQUES
+  ──────────────────────────────────────────── */
+  function calcEstoque(estoqueArr, movsArr) {
+    const inicial  = estoqueArr.filter(e => e.tipo === 'inicial').reduce((s, e) => s + (e.quantidade || 0), 0);
+    const entradas = estoqueArr.filter(e => e.tipo === 'entrada').reduce((s, e) => s + (e.quantidade || 0), 0);
+    const saidas   = movsArr.filter(m => m.tipo === 'entrega' && !isHistoricoImportado(m)).reduce((s, m) => s + (m.quantidade || 0), 0);
+    return Math.max(0, inicial + entradas - saidas);
+  }
+
+  function isHistoricoImportado(m) {
+    if (!m) return false;
+    if (m.origem === 'importador_sql') return true;
+    const obs = (m.observacao || '').toLowerCase();
+    if (obs.includes('importado de sql')) return true;
+    if (typeof m.referenciaAno === 'number' || typeof m.referenciaMes === 'number') return true;
+    return false;
+  }
+
+  /* ────────────────────────────────────────────
+     AGRUPAR POR TIPO DE UNIDADE
+  ──────────────────────────────────────────── */
+  const PRIO = ['CRAS','CREAS','SEDE','SEMCAS','CT','CONSELHO','POP','ABRIGO'];
+
+  function groupByTipo(arr) {
+    const map = {};
+    arr.forEach(m => {
+      let t = ((m.tipoUnidade || 'OUTROS')).toUpperCase();
+      if (t === 'SEMCAS') t = 'SEDE';
+      if (!map[t]) map[t] = [];
+      map[t].push(m);
+    });
+    return Object.keys(map)
+      .sort((a, b) => {
+        const ia = PRIO.indexOf(a), ib = PRIO.indexOf(b);
+        if (ia !== -1 && ib !== -1) return ia - ib;
+        if (ia !== -1) return -1;
+        if (ib !== -1) return  1;
+        return a.localeCompare(b);
+      })
+      .map(t => ({ tipo: t, items: map[t] }));
+  }
+
+  /* ────────────────────────────────────────────
+     HTML DO CARD
+  ──────────────────────────────────────────── */
+  function cardHTML(m, panelType) {
+    const unidade  = esc(m.unidadeNome || 'Unidade');
+    const tipo     = esc((m.tipoMaterial || 'material').toLowerCase());
+    const obs      = m.itens ? `<div class="card-obs" title="${esc(m.itens)}">↳ ${esc(m.itens)}</div>` : '';
+    const sep      = m.responsavelSeparador
+      ? `<div class="card-person">👤 ${esc(m.responsavelSeparador)}</div>`
+      : '<span></span>';
+    const time     = fmtDate(m.dataSeparacao || m.dataRetirada || m.registradoEm);
+    const icon     = panelType === 'rdy' ? '✓' : '◎';
+
+    return `<div class="card">
+      <div class="card-icon">${icon}</div>
+      <div class="card-body">
+        <div class="card-unit" title="${unidade}">${unidade}</div>
+        <div class="card-type">${tipo}</div>
+        ${obs}
+        <div class="card-footer">
+          ${sep}
+          <div class="card-time">${time}</div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function esc(s) {
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  /* ────────────────────────────────────────────
+     RENDERIZAR COLUNA
+  ──────────────────────────────────────────── */
+  function renderColumn(containerId, grupos, panelType) {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    if (grupos.length === 0) {
+      el.innerHTML = `<div class="empty-state">
+        <div class="empty-icon">${panelType === 'rdy' ? '🕐' : '✔'}</div>
+        <div class="empty-text">${panelType === 'rdy' ? 'Nenhum material aguardando retirada' : 'Nenhuma requisição em preparação'}</div>
+      </div>`;
+      return;
+    }
+    el.innerHTML = grupos.map(g => `
+      <div class="group">
+        <div class="group-header">
+          <span class="group-type">${esc(g.tipo)}</span>
+          <span class="group-count">${g.items.length} ${g.items.length === 1 ? 'item' : 'itens'}</span>
+        </div>
+        ${g.items.map(m => cardHTML(m, panelType)).join('')}
+      </div>`
+    ).join('');
+  }
+
+  /* ────────────────────────────────────────────
+     RENDERIZAR PAINEL COMPLETO
+  ──────────────────────────────────────────── */
+  function render() {
+    const mats = state.materiais.filter(m => !m.deleted);
+
+    // Em Preparação = requisitado + separacao
+    const emPrep = mats
+      .filter(m => m.status === 'requisitado' || m.status === 'separacao')
+      .sort((a, b) => {
+        const ta = (a.dataSeparacao?.toMillis?.() || a.registradoEm?.toMillis?.() || 0);
+        const tb = (b.dataSeparacao?.toMillis?.() || b.registradoEm?.toMillis?.() || 0);
+        return ta - tb; // mais antigos primeiro
+      });
+
+    // Prontos = retirada
+    const prontos = mats
+      .filter(m => m.status === 'retirada')
+      .sort((a, b) => {
+        const ta = (a.dataRetirada?.toMillis?.() || a.registradoEm?.toMillis?.() || 0);
+        const tb = (b.dataRetirada?.toMillis?.() || b.registradoEm?.toMillis?.() || 0);
+        return tb - ta; // mais recentes primeiro
+      });
+
+    // KPIs
+    const agua = calcEstoque(state.estoqueAgua, state.aguaMov);
+    const gas  = calcEstoque(state.estoqueGas,  state.gasMov);
+
+    setText('kpi-agua',  agua);
+    setText('kpi-gas',   gas);
+    setText('kpi-prep',  emPrep.length);
+    setText('kpi-ready', prontos.length);
+    setText('badge-prep', emPrep.length);
+    setText('badge-rdy',  prontos.length);
+
+    // Colunas
+    renderColumn('list-prep', groupByTipo(emPrep),  'prep');
+    renderColumn('list-rdy',  groupByTipo(prontos),  'rdy');
+
+    setLastUpdate();
+    initAutoScroll();
+  }
+
+  function setText(id, val) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
+  }
+
+  /* ────────────────────────────────────────────
+     AUTO SCROLL SUAVE (bidirecional)
+  ──────────────────────────────────────────── */
+  const scrollTimers = new WeakMap();
+
+  function initAutoScroll() {
+    ['list-prep', 'list-rdy'].forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      startAutoScroll(el);
+    });
+  }
+
+  function startAutoScroll(el) {
+    // Para scroll anterior se existir
+    const prev = scrollTimers.get(el);
+    if (prev) clearInterval(prev);
+
+    let paused = false;
+    el.addEventListener('mouseenter', () => paused = true,  { passive: true });
+    el.addEventListener('mouseleave', () => paused = false, { passive: true });
+
+    // Aguarda um pouco para o conteúdo renderizar
+    setTimeout(() => {
+      // Só faz scroll se necessário
+      if (el.scrollHeight <= el.clientHeight + 4) return;
+
+      const SPEED  = 1;     // px por tick
+      const TICK   = 40;    // ms por tick (~25fps)
+      const PAUSE_BOTTOM = 2500; // ms parado embaixo
+      const PAUSE_TOP    = 800;  // ms parado em cima
+
+      let dir = 1; // 1 = para baixo, -1 = para cima
+      let waiting = false;
+
+      const timer = setInterval(() => {
+        if (paused || waiting || document.hidden) return;
+
+        const max = el.scrollHeight - el.clientHeight;
+        if (max <= 4) { clearInterval(timer); return; }
+
+        el.scrollTop += dir * SPEED;
+
+        if (dir === 1 && el.scrollTop >= max - 2) {
+          waiting = true;
+          setTimeout(() => {
+            dir = -1;
+            waiting = false;
+          }, PAUSE_BOTTOM);
+        } else if (dir === -1 && el.scrollTop <= 2) {
+          waiting = true;
+          setTimeout(() => {
+            dir = 1;
+            waiting = false;
+          }, PAUSE_TOP);
+        }
+      }, TICK);
+
+      scrollTimers.set(el, timer);
+    }, 1800);
+  }
+
+  /* ────────────────────────────────────────────
+     LISTENERS FIRESTORE
+  ──────────────────────────────────────────── */
+  let unsubs = [];
+
+  function stopListeners() {
+    unsubs.forEach(fn => { try { fn(); } catch(_){} });
+    unsubs = [];
+  }
+
+  function startListeners() {
+    stopListeners();
+    setConnStatus(null, 'Conectando ao Firebase...');
+
+    // Materiais
+    unsubs.push(
+      db.collection(`${BASE}/controleMateriais`)
+        .orderBy('registradoEm', 'desc')
+        .limit(2000)
+        .onSnapshot(snap => {
+          state.materiais = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          state.connected = true;
+          setConnStatus(true, `Conectado · ${snap.docs.length} materiais`);
+          render();
+        }, err => {
+          console.error('Listener materiais:', err);
+          setConnStatus(false, 'Erro ao carregar materiais');
+        })
+    );
+
+    // Estoque Água
+    unsubs.push(
+      db.collection(`${BASE}/estoqueAgua`)
+        .onSnapshot(snap => {
+          state.estoqueAgua = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          render();
+        }, err => console.error('Listener estoqueAgua:', err))
+    );
+
+    // Movimentações Água
+    unsubs.push(
+      db.collection(`${BASE}/controleAgua`)
+        .orderBy('registradoEm', 'desc')
+        .limit(5000)
+        .onSnapshot(snap => {
+          state.aguaMov = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          render();
+        }, err => console.error('Listener controleAgua:', err))
+    );
+
+    // Estoque Gás
+    unsubs.push(
+      db.collection(`${BASE}/estoqueGas`)
+        .onSnapshot(snap => {
+          state.estoqueGas = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          render();
+        }, err => console.error('Listener estoqueGas:', err))
+    );
+
+    // Movimentações Gás
+    unsubs.push(
+      db.collection(`${BASE}/controleGas`)
+        .orderBy('registradoEm', 'desc')
+        .limit(5000)
+        .onSnapshot(snap => {
+          state.gasMov = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          render();
+        }, err => console.error('Listener controleGas:', err))
+    );
+  }
+
+  /* ────────────────────────────────────────────
+     RECONEXÃO AUTOMÁTICA (rede)
+  ──────────────────────────────────────────── */
+  window.addEventListener('online', () => {
+    console.log('Rede restabelecida. Reconectando...');
+    setConnStatus(null, 'Reconectando...');
+    setTimeout(() => {
+      if (auth.currentUser) startListeners();
+    }, 2000);
+  });
+
+  window.addEventListener('offline', () => {
+    setConnStatus(false, 'Sem conexão de rede');
+  });
+
+  /* ────────────────────────────────────────────
+     AUTENTICAÇÃO → LOGIN ANÔNIMO
+  ──────────────────────────────────────────── */
+  auth.onAuthStateChanged(user => {
+    if (user) {
+      console.log('Auth OK:', user.uid);
+      startListeners();
+    } else {
+      console.log('Sem sessão. Fazendo login anônimo...');
+      auth.signInAnonymously().catch(err => {
+        console.error('Login anônimo falhou:', err);
+        setConnStatus(false, 'Falha na autenticação: ' + err.message);
+      });
+    }
+  });
+
+  /* ────────────────────────────────────────────
+     WATCHDOG: re-renderiza se dados ficarem velhos
+  ──────────────────────────────────────────── */
+  setInterval(() => {
+    if (state.connected && navigator.onLine) {
+      const kpi = document.getElementById('kpi-prep');
+      if (kpi && (kpi.textContent === '--' || kpi.textContent === '')) {
+        console.warn('Dados ausentes. Forçando re-renderização...');
+        render();
+      }
+    }
+  }, 15000);
+
+})();
+</script>
+
+</body>
+</html>
