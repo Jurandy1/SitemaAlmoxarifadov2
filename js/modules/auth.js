@@ -251,15 +251,16 @@ async function initFirestoreListeners(renderDash, renderControls, renderModules)
         scheduleRenders({ controls: true, modules: true, permissions: true }, renderDash, renderControls, renderModules);
     });
 
-    // Água (limit reduzido — com persistência offline, apenas deltas são lidos após o 1º load)
-    addListener(query(COLLECTIONS.aguaMov, orderBy("registradoEm", "desc"), limit(500)), snap => {
+    // Água (sem limit — o cálculo de estoque precisa de TODAS as movimentações)
+    // Com persistência offline, apenas deltas são lidos após o 1º load.
+    addListener(query(COLLECTIONS.aguaMov, orderBy("registradoEm", "desc")), snap => {
         const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         setAguaMovimentacoes(data);
         scheduleRenders({ dash: true, modules: true }, renderDash, renderControls, renderModules);
     });
 
-    // Gás
-    addListener(query(COLLECTIONS.gasMov, orderBy("registradoEm", "desc"), limit(500)), snap => {
+    // Gás (sem limit — mesmo motivo que Água: cálculo de estoque precisa de tudo)
+    addListener(query(COLLECTIONS.gasMov, orderBy("registradoEm", "desc")), snap => {
         const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         setGasMovimentacoes(data);
         scheduleRenders({ dash: true, modules: true }, renderDash, renderControls, renderModules);
