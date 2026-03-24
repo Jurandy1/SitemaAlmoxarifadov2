@@ -114,32 +114,44 @@ export async function handleGerarPdf() {
             showAlert('alert-relatorio', 'Erro: Módulo AutoTable não carregado. Verifique a internet ou recarregue a página.', 'error');
             return;
         }
-        const logoDataUrl = await loadImageDataUrl('SaoLuis.png');
+        const headerDataUrl = await loadImageDataUrl('Imagem1.png');
 
-        // Cabeçalho institucional aprimorado
+        // Cabeçalho institucional — banner Imagem1.png
         const MARGIN_LEFT = 14;
         const MARGIN_RIGHT = 14;
         const CONTENT_WIDTH = doc.internal.pageSize.getWidth() - MARGIN_LEFT - MARGIN_RIGHT;
-        safeAddImage(doc, logoDataUrl, 'PNG', MARGIN_LEFT, 10, 22, 22);
+        const HEADER_IMG_W = CONTENT_WIDTH;
+        const HEADER_IMG_H = 22;
+        const HEADER_TOP = 8;
+        const headerOk = safeAddImage(doc, headerDataUrl, 'PNG', MARGIN_LEFT, HEADER_TOP, HEADER_IMG_W, HEADER_IMG_H);
+        let curY = headerOk ? HEADER_TOP + HEADER_IMG_H + 2 : 10;
+
+        // Barra de título do relatório
         doc.setFillColor(11, 61, 145);
-        doc.roundedRect(MARGIN_LEFT + 26, 10, CONTENT_WIDTH - 26, 14, 3, 3, 'F');
+        doc.roundedRect(MARGIN_LEFT, curY, CONTENT_WIDTH, 12, 2, 2, 'F');
         doc.setTextColor(255);
-        doc.setFontSize(14);
-        doc.text(`Relatório de Consumo e Custos — ${nomenclatura}`, MARGIN_LEFT + 32, 20);
+        doc.setFontSize(13);
+        doc.text(`Relatório de Consumo e Custos — ${nomenclatura}`, MARGIN_LEFT + CONTENT_WIDTH / 2, curY + 8, { align: 'center' });
+        curY += 16;
+
         doc.setTextColor(51, 65, 85);
         doc.setFontSize(10);
         const userEmail = (auth?.currentUser?.email) || 'Operador Anônimo';
-        doc.text(`Tipo: ${tipoLabel} | Período: ${formatTimestamp(Timestamp.fromMillis(dataInicio))} a ${formatTimestamp(Timestamp.fromMillis(dataFim))}`, MARGIN_LEFT, 36);
-        doc.text(`Emitido por: ${userEmail} em ${new Date().toLocaleString('pt-BR')}`, MARGIN_LEFT, 41);
+        doc.text(`Tipo: ${tipoLabel} | Período: ${formatTimestamp(Timestamp.fromMillis(dataInicio))} a ${formatTimestamp(Timestamp.fromMillis(dataFim))}`, MARGIN_LEFT, curY);
+        curY += 5;
+        doc.text(`Emitido por: ${userEmail} em ${new Date().toLocaleString('pt-BR')}`, MARGIN_LEFT, curY);
+        curY += 5;
         // Nota sobre margem aplicada nas previsões
         try {
             const margemAgua = parseInt(document.getElementById('margem-seguranca-agua')?.value || '5', 10);
             const margemGas = parseInt(document.getElementById('margem-seguranca-gas')?.value || '15', 10);
             const margemAplicada = (tipo === 'agua') ? margemAgua : margemGas;
             doc.setTextColor(100); doc.setFontSize(9);
-            doc.text(`Nota: Previsões e recomendações consideram margem de segurança de ${margemAplicada}%`, MARGIN_LEFT, 46);
+            doc.text(`Nota: Previsões e recomendações consideram margem de segurança de ${margemAplicada}%`, MARGIN_LEFT, curY);
+            curY += 5;
             doc.setTextColor(51); doc.setFontSize(10);
-        } catch (_) { /* se DOM indisponível, segue sem nota */ }
+        } catch (_) { curY += 2; }
+        const startContentY = curY;
 
         // Dados agregados básicos
         const abastecimentoMap = new Map();
@@ -276,7 +288,7 @@ export async function handleGerarPdf() {
                 doc.setFontSize(13); doc.text(String(value), x + 6, y + 16);
                 doc.setTextColor(40);
             };
-            let y = 48;
+            let y = startContentY;
             drawKpiBox(MARGIN_LEFT, y, 'Galões entregues', totalGaloes);
             drawKpiBox(MARGIN_LEFT + 60, y, 'Litros entregues', totalLitrosPeriodo);
             drawKpiBox(MARGIN_LEFT + 120, y, 'Consumo mensal (L)', litrosMensalTotal);
@@ -381,20 +393,22 @@ export async function handleGerarPdf() {
             // KPIs de gás
             const totalBotijoes = Array.from(abastecimentoMap.values()).reduce((s, v) => s + v, 0);
             const consumoMensalEstimado = Math.round((totalBotijoes / diasUteisPeriodo) * diasUteisMesAprox);
+            let gasY = startContentY;
             const drawKpiBox = (x, y, title, value, color = [11, 61, 145]) => {
                 doc.setDrawColor(color[0], color[1], color[2]);
                 doc.setFillColor(color[0], color[1], color[2]);
-                doc.roundedRect(x, 48, 55, 22, 3, 3, 'FD');
+                doc.roundedRect(x, y, 55, 22, 3, 3, 'FD');
                 doc.setTextColor(255);
-                doc.setFontSize(9); doc.text(title, x + 6, 57);
-                doc.setFontSize(13); doc.text(String(value), x + 6, 64);
+                doc.setFontSize(9); doc.text(title, x + 6, y + 9);
+                doc.setFontSize(13); doc.text(String(value), x + 6, y + 16);
                 doc.setTextColor(40);
             };
-            drawKpiBox(MARGIN_LEFT, 48, 'Botijões entregues', totalBotijoes);
-            drawKpiBox(MARGIN_LEFT + 60, 48, 'Consumo mensal (botijões)', consumoMensalEstimado);
+            drawKpiBox(MARGIN_LEFT, gasY, 'Botijões entregues', totalBotijoes);
+            drawKpiBox(MARGIN_LEFT + 60, gasY, 'Consumo mensal (botijões)', consumoMensalEstimado);
+            gasY += 28;
 
             doc.autoTable({
-                startY: 74,
+                startY: gasY,
                 head: [['Unidade', 'Quantidade Fornecida']],
                 body: abastecimentoData,
                 theme: 'striped',
@@ -441,10 +455,15 @@ export async function handleGerarPdf() {
             });
         }
 
-        // Rodapé com paginação
+        // Cabeçalho em todas as páginas + rodapé com paginação
         const pageCount = doc.getNumberOfPages();
         for (let i = 1; i <= pageCount; i++) {
             doc.setPage(i);
+            // Cabeçalho institucional em páginas 2+ (página 1 já tem)
+            if (i > 1 && headerDataUrl) {
+                safeAddImage(doc, headerDataUrl, 'PNG', MARGIN_LEFT, 4, CONTENT_WIDTH * 0.6, 14);
+            }
+            // Rodapé
             doc.setFontSize(9); doc.setTextColor(130);
             doc.text(`Página ${i} de ${pageCount}`, doc.internal.pageSize.getWidth() - MARGIN_RIGHT, doc.internal.pageSize.getHeight() - 10, { align: 'right' });
         }
