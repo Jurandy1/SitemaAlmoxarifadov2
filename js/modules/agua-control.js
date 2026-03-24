@@ -15,7 +15,7 @@ import {
 } from "firebase/firestore";
 
 import { getUnidades, getAguaMovimentacoes, isEstoqueInicialDefinido, getCurrentStatusFilter, setCurrentStatusFilter, getEstoqueAgua, getUserRole } from "../utils/cache.js";
-import { DOM_ELEMENTS, showAlert, switchSubTabView, switchTab, openConfirmDeleteModal, filterTable, renderPermissionsUI } from "../utils/dom-helpers.js";
+import { DOM_ELEMENTS, showAlert, switchSubTabView, switchTab, openConfirmDeleteModal, filterTable, renderPermissionsUI, escapeHTML } from "../utils/dom-helpers.js";
 import { getTodayDateString, dateToTimestamp, capitalizeString, formatTimestampComTempo, formatTimestamp } from "../utils/formatters.js";
 import { isReady, getUserId } from "./auth.js";
 import { COLLECTIONS } from "../services/firestore-service.js";
@@ -177,7 +177,13 @@ export async function handleAguaSubmit(e) {
             if (!isEstoqueInicialDefinido('agua')) {
                 throw new Error('Defina o Estoque Inicial de Água antes de lançar saídas.');
             }
-            const estoqueAtual = parseInt(DOM_ELEMENTS.estoqueAguaAtualEl.textContent) || 0;
+            // BUG-03 fix: calcular estoque do cache, não do DOM
+            const estoqueData = getEstoqueAgua() || [];
+            const movsAll = (getAguaMovimentacoes() || []).filter(m => !isHistoricoImportado(m));
+            const estoqueInicialVal = estoqueData.filter(e => e.tipo === 'inicial').reduce((sum, e) => sum + (parseInt(e.quantidade, 10) || 0), 0);
+            const totalEntradasVal = estoqueData.filter(e => e.tipo === 'entrada').reduce((sum, e) => sum + (parseInt(e.quantidade, 10) || 0), 0);
+            const totalSaidasVal = movsAll.filter(m => m.tipo === 'entrega').reduce((sum, m) => sum + (parseInt(m.quantidade, 10) || 0), 0);
+            const estoqueAtual = Math.max(0, estoqueInicialVal + totalEntradasVal - totalSaidasVal);
             if (qtdEntregue > estoqueAtual) {
                 throw new Error(`Erro: Estoque insuficiente. Disponível: ${estoqueAtual}`);
             }
@@ -272,8 +278,8 @@ export function renderAguaStatus(newFilter = null) {
             lancamentoDetalhes = `<span>${dataMovimentacao}</span> (Almox: ${respAlmox} / Unid: ${respUnidade})`;
         }
         
-        html += `<tr title="${s.nome} - Saldo: ${saldoText.replace(/<[^>]*>?/gm, '')}">
-            <td class="font-medium">${s.nome}</td><td>${s.tipo || 'N/A'}</td>
+        html += `<tr title="${escapeHTML(s.nome)} - Saldo: ${saldoText.replace(/<[^>]*>?/gm, '')}">
+            <td class="font-medium">${escapeHTML(s.nome)}</td><td>${escapeHTML(s.tipo || 'N/A')}</td>
             <td class="text-center">${s.entregues}</td><td class="text-center">${s.recebidos}</td>
             <td class="text-center font-bold ${saldoClass}">${saldoText}</td>
             <td class="space-x-1 whitespace-nowrap text-xs text-gray-600">
@@ -411,14 +417,14 @@ export function renderAguaDebitosResumo() {
             const pendText = debitoAguaMode === 'credito' ? Math.abs(s.pendentes) : s.pendentes;
             const pendClass = debitoAguaMode === 'credito' ? 'text-blue-600' : 'text-red-600';
             rows.push(`<tr>
-                <td class="font-medium">${s.nome}</td>
-                <td><span class="badge badge-gray">${s.tipo}</span></td>
+                <td class="font-medium">${escapeHTML(s.nome)}</td>
+                <td><span class="badge badge-gray">${escapeHTML(s.tipo)}</span></td>
                 <td class="text-center ${pendClass} font-extrabold">${pendText}</td>
                 <td class="text-xs text-gray-700">
                     <div class="flex flex-col">
                         <span class="font-medium">${origemData}</span>
                         <span class="mt-1 flex items-center gap-2"><span class="badge ${(origemTipo==='retorno' || origemTipo==='retirada') ? 'badge-green' : 'badge-blue'}">${(origemTipo==='retorno' || origemTipo==='retirada') ? 'vazio' : 'cheio'}</span><span>${origemQtd}</span></span>
-                        <span class="text-gray-500">${origemResp}</span>
+                        <span class="text-gray-500">${escapeHTML(origemResp)}</span>
                         <span class="text-gray-400 text-xs">ID: ${origemMov?.id || 'N/A'}</span>
                         ${origemMov ? `<button class="btn-primary btn-sm mt-2 rounded-full px-3 py-1 btn-ver-dia-divida" title="Abrir histórico do dia da origem" data-item="agua" data-unidade-id="${s.id}" data-date="${(new Date(origemMov.data.toDate())).toISOString().slice(0,10)}"><i data-lucide="calendar"></i> Ver histórico do dia</button>` : ''}
                     </div>
@@ -897,33 +903,7 @@ export function initAguaListeners() {
         renderPermissionsUI(); 
     }));
     
-    listenersInitialized = true;
-    console.log('Módulo Água: Listeners inicializados (blindado contra duplicação).');
-}
-
-export function onAguaTabChange() {
-    const currentSubView = document.querySelector('#sub-nav-agua .sub-nav-btn.active')?.dataset.subview || 'movimentacao-agua';
-    
-    switchSubTabView('agua', currentSubView);
-    
-    toggleAguaFormInputs(); 
-    checkUnidadeSaldoAlertAgua();
-    renderEstoqueAgua();
-    renderAguaDebitosResumo();
-    renderAguaEstoqueHistory(); 
-    renderAguaStatus();
-    renderAguaMovimentacoesHistory();
-    if (DOM_ELEMENTS.inputDataAgua) DOM_ELEMENTS.inputDataAgua.value = getTodayDateString();
-    if (DOM_ELEMENTS.inputDataEntradaAgua) DOM_ELEMENTS.inputDataEntradaAgua.value = getTodayDateString();
-    
-    const filtroStatus = document.getElementById('filtro-status-agua');
-    if (filtroStatus) filtroStatus.value = '';
-    const filtroHistorico = document.getElementById('filtro-historico-agua');
-    if (filtroHistorico) filtroHistorico.value = '';
-
-    populateAguaFilterUnidades();
-    checkAguaHistoryIntegrity();
-    renderPermissionsUI();
+    // BUG-05 fix: inner nav listeners moved here from onAguaTabChange to avoid accumulation
     const innerNavAgua = document.querySelector('#subview-movimentacao-agua .module-inner-subnav');
     if (innerNavAgua) {
         innerNavAgua.addEventListener('click', (e) => {
@@ -953,4 +933,32 @@ export function onAguaTabChange() {
             if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { setTimeout(() => lucide.createIcons(), 50); }
         });
     }
+
+    listenersInitialized = true;
+    console.log('Módulo Água: Listeners inicializados (blindado contra duplicação).');
+}
+
+export function onAguaTabChange() {
+    const currentSubView = document.querySelector('#sub-nav-agua .sub-nav-btn.active')?.dataset.subview || 'movimentacao-agua';
+    
+    switchSubTabView('agua', currentSubView);
+    
+    toggleAguaFormInputs(); 
+    checkUnidadeSaldoAlertAgua();
+    renderEstoqueAgua();
+    renderAguaDebitosResumo();
+    renderAguaEstoqueHistory(); 
+    renderAguaStatus();
+    renderAguaMovimentacoesHistory();
+    if (DOM_ELEMENTS.inputDataAgua) DOM_ELEMENTS.inputDataAgua.value = getTodayDateString();
+    if (DOM_ELEMENTS.inputDataEntradaAgua) DOM_ELEMENTS.inputDataEntradaAgua.value = getTodayDateString();
+    
+    const filtroStatus = document.getElementById('filtro-status-agua');
+    if (filtroStatus) filtroStatus.value = '';
+    const filtroHistorico = document.getElementById('filtro-historico-agua');
+    if (filtroHistorico) filtroHistorico.value = '';
+
+    populateAguaFilterUnidades();
+    checkAguaHistoryIntegrity();
+    renderPermissionsUI();
 }

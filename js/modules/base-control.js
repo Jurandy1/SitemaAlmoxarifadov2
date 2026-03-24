@@ -58,7 +58,7 @@ export class BaseControl {
         const estoqueInicial = estoqueData.filter(e => e.tipo === 'inicial').reduce((sum, e) => sum + (parseInt(e.quantidade, 10) || 0), 0);
         const totalEntradas = estoqueData.filter(e => e.tipo === 'entrada').reduce((sum, e) => sum + (parseInt(e.quantidade, 10) || 0), 0);
         const totalSaidas = movs.filter(m => m.tipo === 'entrega').reduce((sum, m) => sum + (parseInt(m.quantidade, 10) || 0), 0);
-        const estoqueAtual = estoqueInicial + totalEntradas - totalSaidas;
+        const estoqueAtual = Math.max(0, estoqueInicial + totalEntradas - totalSaidas);
 
         if (elements.estoqueInicial) elements.estoqueInicial.textContent = estoqueInicial;
         if (elements.estoqueEntradas) elements.estoqueEntradas.textContent = `+${totalEntradas}`;

@@ -108,8 +108,8 @@ export function toggleGasFormInputs() {
 export function getUnidadeSaldoGas(unidadeId) {
     if (!unidadeId) return 0;
     const movimentacoes = getGasMovimentacoes();
-    const entregues = movimentacoes.filter(m => m.unidadeId === unidadeId && m.tipo === 'entrega').reduce((sum, m) => sum + m.quantidade, 0);
-    const recebidos = movimentacoes.filter(m => m.unidadeId === unidadeId && m.tipo === 'retorno').reduce((sum, m) => sum + m.quantidade, 0);
+    const entregues = movimentacoes.filter(m => m.unidadeId === unidadeId && m.tipo === 'entrega').reduce((sum, m) => sum + (parseInt(m.quantidade, 10) || 0), 0);
+    const recebidos = movimentacoes.filter(m => m.unidadeId === unidadeId && m.tipo === 'retorno').reduce((sum, m) => sum + (parseInt(m.quantidade, 10) || 0), 0);
     return entregues - recebidos;
 }
 
@@ -160,44 +160,60 @@ export async function handleGasSubmit(e) {
         showAlert('alert-gas', "Permissão negada. Usuário Anônimo não pode lançar movimentações.", 'error'); return; 
     }
 
-    const selectValue = DOM_ELEMENTS.selectUnidadeGas.value; 
-    if (!selectValue) { showAlert('alert-gas', 'Selecione uma unidade.', 'warning'); return; }
-    const [unidadeId, unidadeNome, tipoUnidadeRaw] = selectValue.split('|');
-    
-    const tipoMovimentacao = DOM_ELEMENTS.selectTipoGas.value; 
-    const qtdEntregue = parseInt(DOM_ELEMENTS.inputQtdEntregueGas.value, 10) || 0;
-    const qtdRetorno = parseInt(DOM_ELEMENTS.inputQtdRetornoGas.value, 10) || 0;
-    const data = dateToTimestamp(DOM_ELEMENTS.inputDataGas.value); 
-    const responsavelUnidade = capitalizeString(DOM_ELEMENTS.inputResponsavelGas.value.trim()); 
-    
-    if (!unidadeId || !data || !responsavelUnidade) {
-        showAlert('alert-gas', 'Dados inválidos. Verifique Unidade, Data e Nome de quem Recebeu/Devolveu.', 'warning'); return;
-    }
-    if (tipoMovimentacao === 'troca' && qtdEntregue === 0 && qtdRetorno === 0) {
-         showAlert('alert-gas', 'Para "Troca", ao menos uma das quantidades deve ser maior que zero.', 'warning'); return;
-    }
-    if (tipoMovimentacao === 'entrega' && qtdEntregue <= 0) {
-         showAlert('alert-gas', 'Para "Apenas Saída", a quantidade deve ser maior que zero.', 'warning'); return;
-    }
-    if (tipoMovimentacao === 'retorno' && qtdRetorno <= 0) {
-         showAlert('alert-gas', 'Para "Apenas Retorno", a quantidade deve ser maior que zero.', 'warning'); return;
-    }
-    
-    if (qtdEntregue > 0) {
-        if (!isEstoqueInicialDefinido('gas')) {
-            showAlert('alert-gas', 'Defina o Estoque Inicial de Gás antes de lançar saídas.', 'warning'); return;
+    // Desabilitar botão para evitar duplo clique (BUG-01 fix)
+    const submitBtn = e.submitter || e.target.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
+
+    try {
+        const selectValue = DOM_ELEMENTS.selectUnidadeGas.value; 
+        if (!selectValue) { throw new Error('Selecione uma unidade.'); }
+        const [unidadeId, unidadeNome, tipoUnidadeRaw] = selectValue.split('|');
+        
+        const tipoMovimentacao = DOM_ELEMENTS.selectTipoGas.value; 
+        const qtdEntregue = parseInt(DOM_ELEMENTS.inputQtdEntregueGas.value, 10) || 0;
+        const qtdRetorno = parseInt(DOM_ELEMENTS.inputQtdRetornoGas.value, 10) || 0;
+        const data = dateToTimestamp(DOM_ELEMENTS.inputDataGas.value); 
+        const responsavelUnidade = capitalizeString(DOM_ELEMENTS.inputResponsavelGas.value.trim()); 
+        
+        if (!unidadeId || !data || !responsavelUnidade) {
+            throw new Error('Dados inválidos. Verifique Unidade, Data e Nome de quem Recebeu/Devolveu.');
         }
-        const estoqueAtual = parseInt(DOM_ELEMENTS.estoqueGasAtualEl.textContent) || 0;
-        if (qtdEntregue > estoqueAtual) {
-            showAlert('alert-gas', `Erro: Estoque insuficiente. Disponível: ${estoqueAtual}`, 'error'); return;
+        if (tipoMovimentacao === 'troca' && qtdEntregue === 0 && qtdRetorno === 0) {
+            throw new Error('Para "Troca", ao menos uma das quantidades deve ser maior que zero.');
         }
+        if (tipoMovimentacao === 'entrega' && qtdEntregue <= 0) {
+            throw new Error('Para "Apenas Saída", a quantidade deve ser maior que zero.');
+        }
+        if (tipoMovimentacao === 'retorno' && qtdRetorno <= 0) {
+            throw new Error('Para "Apenas Retorno", a quantidade deve ser maior que zero.');
+        }
+        
+        if (qtdEntregue > 0) {
+            if (!isEstoqueInicialDefinido('gas')) {
+                throw new Error('Defina o Estoque Inicial de Gás antes de lançar saídas.');
+            }
+            // BUG-03 fix: calcular estoque do cache, não do DOM
+            const estoqueData = getEstoqueGas() || [];
+            const movs = (getGasMovimentacoes() || []);
+            const estoqueInicial = estoqueData.filter(e => e.tipo === 'inicial').reduce((sum, e) => sum + (parseInt(e.quantidade, 10) || 0), 0);
+            const totalEntradas = estoqueData.filter(e => e.tipo === 'entrada').reduce((sum, e) => sum + (parseInt(e.quantidade, 10) || 0), 0);
+            const totalSaidas = movs.filter(m => m.tipo === 'entrega').reduce((sum, m) => sum + (parseInt(m.quantidade, 10) || 0), 0);
+            const estoqueAtual = Math.max(0, estoqueInicial + totalEntradas - totalSaidas);
+            if (qtdEntregue > estoqueAtual) {
+                throw new Error(`Erro: Estoque insuficiente. Disponível: ${estoqueAtual}`);
+            }
+        }
+        
+        executeFinalMovimentacao({
+            unidadeId, unidadeNome, tipoUnidadeRaw,
+            tipoMovimentacao, qtdEntregue, qtdRetorno,
+            data, responsavelUnidade, itemType: 'gas'
+        });
+
+    } catch (error) {
+        showAlert('alert-gas', error.message, 'warning');
+        if (submitBtn) submitBtn.disabled = false;
     }
-    
-    executeFinalMovimentacao({
-        unidadeId, unidadeNome, tipoUnidadeRaw,
-        tipoMovimentacao, qtdEntregue, qtdRetorno,
-        data, responsavelUnidade, itemType: 'gas'
-    });
 }
 
 export function renderGasStatus(newFilter = null) {
@@ -228,8 +244,8 @@ export function renderGasStatus(newFilter = null) {
      movsOrdenadas.forEach(m => {
          let unidadeStatus = statusMap.get(m.unidadeId) || nameIndex.get(_normName(m.unidadeNome));
          if (!unidadeStatus) return;
-         if (m.tipo === 'entrega') unidadeStatus.entregues += m.quantidade;
-         else if (m.tipo === 'retorno' || m.tipo === 'retirada') unidadeStatus.recebidos += m.quantidade;
+         if (m.tipo === 'entrega') unidadeStatus.entregues += (parseInt(m.quantidade, 10) || 0);
+         else if (m.tipo === 'retorno' || m.tipo === 'retirada') unidadeStatus.recebidos += (parseInt(m.quantidade, 10) || 0);
           
          if (unidadeStatus.ultimosLancamentos.length === 0) {
              unidadeStatus.ultimosLancamentos.push({
@@ -273,8 +289,8 @@ export function renderGasStatus(newFilter = null) {
             lancamentoDetalhes = `<span>${dataMovimentacao}</span> (Almox: ${respAlmox} / Unid: ${respUnidade})`;
         }
         
-        html += `<tr title="${s.nome} - Saldo: ${saldoText.replace(/<[^>]*>?/gm, '')}">
-            <td class="font-medium">${s.nome}</td><td>${s.tipo || 'N/A'}</td>
+        html += `<tr title="${escapeHTML(s.nome)} - Saldo: ${saldoText.replace(/<[^>]*>?/gm, '')}">
+            <td class="font-medium">${escapeHTML(s.nome)}</td><td>${escapeHTML(s.tipo || 'N/A')}</td>
             <td class="text-center">${s.entregues}</td><td class="text-center">${s.recebidos}</td>
             <td class="text-center font-bold ${saldoClass}">${saldoText}</td>
             <td class="space-x-1 whitespace-nowrap text-xs text-gray-600">
@@ -314,7 +330,7 @@ export function renderGasDebitosResumo() {
     movsOrdenadas.forEach(m => {
         let s = statusMap.get(m.unidadeId) || nameIndex.get(_normName(m.unidadeNome));
         if (!s) return;
-        if (m.tipo === 'entrega') s.entregues += m.quantidade; else if (m.tipo === 'retorno' || m.tipo === 'retirada') s.recebidos += m.quantidade;
+        if (m.tipo === 'entrega') s.entregues += (parseInt(m.quantidade, 10) || 0); else if (m.tipo === 'retorno' || m.tipo === 'retirada') s.recebidos += (parseInt(m.quantidade, 10) || 0);
         if (!s.ultimo) s.ultimo = { id: m.id, data: m.data, tipo: m.tipo, quantidade: m.quantidade, respUnidade: m.responsavel, respAlmox: m.responsavelAlmoxarifado || 'N/A' };
     });
 
@@ -380,8 +396,8 @@ export function renderGasDebitosResumo() {
             const pendText = debitoGasMode === 'credito' ? Math.abs(s.pendentes) : s.pendentes;
             const pendClass = debitoGasMode === 'credito' ? 'text-blue-600' : 'text-red-600';
             rows.push(`<tr>
-                <td class="font-medium">${s.nome}</td>
-                <td><span class="badge badge-gray">${s.tipo}</span></td>
+                <td class="font-medium">${escapeHTML(s.nome)}</td>
+                <td><span class="badge badge-gray">${escapeHTML(s.tipo)}</span></td>
                 <td class="text-center ${pendClass} font-extrabold">${pendText}</td>
                 <td class="text-xs text-gray-700">
                     <div class="flex flex-col">
@@ -419,7 +435,7 @@ export function getDebitosGasResumoList() {
     movsOrdenadas.forEach(m => {
         let s = statusMap.get(m.unidadeId) || nameIndex.get(_normName(m.unidadeNome));
         if (!s) return;
-        if (m.tipo === 'entrega') s.entregues += m.quantidade; else if (m.tipo === 'retorno' || m.tipo === 'retirada') s.recebidos += m.quantidade;
+        if (m.tipo === 'entrega') s.entregues += (parseInt(m.quantidade, 10) || 0); else if (m.tipo === 'retorno' || m.tipo === 'retirada') s.recebidos += (parseInt(m.quantidade, 10) || 0);
         if (!s.ultimo) s.ultimo = { id: m.id, data: m.data, tipo: m.tipo, quantidade: m.quantidade, respUnidade: m.responsavel, respAlmox: m.responsavelAlmoxarifado || 'N/A' };
     });
 
