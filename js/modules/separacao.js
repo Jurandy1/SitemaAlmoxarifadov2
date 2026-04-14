@@ -1426,7 +1426,7 @@ function buildFichaHTML(r,isPrint){
   const entrega=fmtDateOnly(r.dtEntrega)||'—';
   const perLbl=r.periodLabel?esc(r.periodLabel):'';
   const reqId=esc(r.v2Id||r.id||'');
-  const logoUrl=(typeof location!=='undefined'&&location.origin)?(location.origin+'/brasao-sao-luis.png'):'/brasao-sao-luis.png';
+  const logoUrl=new URL('/brasao-sao-luis.png', typeof location!=='undefined'?location.origin:'http://localhost').href;
   const totalItens=(d?.categories||[]).reduce((s,c)=>s+(c?.items?.length||0),0);
   const hdr=
     totalItens>=80 ? { img: 42, t1: 10, t2: 8, t3: 8, t4: 8, lh: 1.05, mb: 4 } :
