@@ -1426,14 +1426,16 @@ function buildFichaHTML(r,isPrint){
   const entrega=fmtDateOnly(r.dtEntrega)||'—';
   const perLbl=r.periodLabel?esc(r.periodLabel):'';
   const reqId=esc(r.v2Id||r.id||'');
-  const logoUrl=new URL('/brasao-sao-luis.png', typeof location!=='undefined'?location.origin:'http://localhost').href;
+  const base = typeof location!=='undefined' ? location.href.split('?')[0].replace(/[^/]*$/, '') : '/';
+  const logoUrl = base + 'brasao-sao-luis.png';
+  const logoUrlAlt = base + 'dist/brasao-sao-luis.png';
   const totalItens=(d?.categories||[]).reduce((s,c)=>s+(c?.items?.length||0),0);
   const hdr=
     totalItens>=80 ? { img: 42, t1: 10, t2: 8, t3: 8, t4: 8, lh: 1.05, mb: 4 } :
     totalItens>=55 ? { img: 52, t1: 11, t2: 9, t3: 9, t4: 9, lh: 1.08, mb: 5 } :
     { img: 64, t1: 12, t2: 10, t3: 10, t4: 10, lh: 1.12, mb: 6 };
   let h=`<div style="text-align:center;margin-bottom:${hdr.mb}px">`
-    +`<img src="${esc(logoUrl)}" alt="Brasão de São Luís" style="display:block;margin:0 auto 6px;width:${hdr.img}px;height:auto">`
+    +`<img src="${esc(logoUrl)}" alt="Brasão de São Luís" onerror="this.onerror=null;this.src='${logoUrlAlt}'" style="display:block;margin:0 auto 6px;width:${hdr.img}px;height:auto">`
     +`<div style="line-height:${hdr.lh};text-transform:uppercase">`
     +`<div style="font-size:${hdr.t1}px;font-weight:800">PREFEITURA DE SÃO LUÍS</div>`
     +`<div style="font-size:${hdr.t2}px;font-weight:800">SECRETARIA MUNICIPAL DA CRIANÇA E ASSISTÊNCIA SOCIAL - SEMCAS</div>`
@@ -1640,7 +1642,7 @@ function printReq(id){
 .ficha-summary{margin-top:14px;padding:8px 10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;font-size:11px}
 .ficha-sigs{margin-top:24px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;font-size:10px}.ficha-sig{text-align:center}.ficha-sig-line{border-bottom:1px solid #0f172a;padding-bottom:3px;margin-bottom:3px;min-height:16px;font-weight:500}.ficha-sig-label{font-size:9px;color:#64748b;font-weight:600}
 @page{size:A4 portrait;margin:5mm}@media print{ * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; } body{padding:0} }
-</style></head><body>${html}<script>window.onload=function(){window.print()}<\/script></body></html>`);
+</style></head><body>${html}<script>window.onload=function(){setTimeout(function(){window.print()},50)};setTimeout(function(){window.print()},1500);<\/script></body></html>`);
   w.document.close();
 }
 
