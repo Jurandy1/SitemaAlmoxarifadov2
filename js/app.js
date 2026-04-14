@@ -27,6 +27,36 @@ import { initFeriadosListeners } from "./modules/feriados.js";
 import { getUserRole } from "./utils/cache.js";
 import { initTooltips } from "./utils/tooltip-manager.js";
 
+function ensureDebugOverlay() {
+    try {
+        const hostname = window.location?.hostname || '';
+        const isLocal = hostname === 'localhost' || hostname === '127.0.0.1';
+        if (!isLocal) return null;
+        let el = document.getElementById('__debug-overlay');
+        if (el) return el;
+        el = document.createElement('div');
+        el.id = '__debug-overlay';
+        el.style.cssText = 'position:fixed;left:10px;bottom:10px;z-index:99999;background:rgba(15,23,42,.92);color:#e2e8f0;padding:10px 12px;border-radius:10px;font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;max-width:min(520px,calc(100vw - 20px));white-space:pre-wrap;box-shadow:0 10px 30px rgba(0,0,0,.35)';
+        el.textContent = 'JS ok. Iniciando…';
+        document.body.appendChild(el);
+        return el;
+    } catch (_) {
+        return null;
+    }
+}
+
+const __dbg = ensureDebugOverlay();
+const __dbgSet = (msg) => { try { if (__dbg) __dbg.textContent = msg; } catch (_) {} };
+window.addEventListener('error', (e) => {
+    const msg = e?.error?.stack || e?.message || String(e);
+    __dbgSet('Erro JS:\n' + msg);
+});
+window.addEventListener('unhandledrejection', (e) => {
+    const r = e?.reason;
+    const msg = r?.stack || r?.message || JSON.stringify(r) || String(r);
+    __dbgSet('Promise rejeitada:\n' + msg);
+});
+
 // Variável de estado da UI local (para manter o dashboard na tela)
 let visaoAtiva = 'inicio'; 
 
@@ -56,9 +86,11 @@ function ensureLucideIcons() {
  */
 function setupApp() {
     console.log("Executando setupApp...");
+    __dbgSet('setupApp(): iniciando DOM…');
     
     // 1. Encontrar todos os elementos do DOM e armazenar em DOM_ELEMENTS
     findDOMElements(); 
+    __dbgSet('setupApp(): DOM ok, configurando listeners…');
     
     // 2. Definir datas iniciais
     const todayStr = getTodayDateString();
@@ -90,32 +122,31 @@ function setupApp() {
     initFeriadosListeners();
     
     // 8. ADICIONADO: Listeners do Modal de Login
+    const __tryEmailLogin = async () => {
+        const email = DOM_ELEMENTS.inputLoginEmail?.value || '';
+        const password = DOM_ELEMENTS.inputLoginPassword?.value || '';
+        const btn = document.getElementById('btn-submit-login');
+        try {
+            if (btn) { btn.disabled = true; btn.innerHTML = '<div class="loading-spinner-small mx-auto"></div>'; }
+            const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('Tempo de login esgotado. Verifique sua conexão.')), 15000));
+            await Promise.race([signInEmailPassword(email, password), timeout]);
+        } catch (error) {
+            if (typeof showAlert === 'function') {
+                showAlert('alert-login', 'Erro ao logar: ' + (error?.message || 'Verifique suas credenciais.'), 'error');
+            }
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="log-in"></i><span>Entrar no Sistema</span>';
+                if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
+            }
+        }
+    };
+
     if (DOM_ELEMENTS.formLogin) {
         DOM_ELEMENTS.formLogin.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const email = DOM_ELEMENTS.inputLoginEmail.value;
-            const password = DOM_ELEMENTS.inputLoginPassword.value;
-            const btn = document.getElementById('btn-submit-login');
-            
-            try {
-                // Desabilita o botão enquanto tenta logar
-                btn.disabled = true;
-                btn.innerHTML = '<div class="loading-spinner-small mx-auto"></div>';
-                // Chama a função de login
-                await signInEmailPassword(email, password);
-            } catch (error) {
-                // Tratamento de erro aprimorado
-                console.error("Erro de login:", error);
-                // Exibe um alerta de erro
-                        if (typeof showAlert === 'function') {
-                            showAlert('alert-login', 'Erro ao logar: ' + (error.message || 'Verifique suas credenciais.'), 'error');
-                        }
-            } finally {
-                // Reabilita o botão e restaura o ícone
-                btn.disabled = false;
-                btn.innerHTML = '<i data-lucide="log-in"></i> Entrar';
-                if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
-            }
+            await __tryEmailLogin();
         });
         const btnReset = document.getElementById('btn-reset-password');
         if (btnReset) {
@@ -127,10 +158,17 @@ function setupApp() {
         }
     }
     
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('#btn-submit-login');
+        if (!btn) return;
+        e.preventDefault();
+        __tryEmailLogin();
+    });
     if (DOM_ELEMENTS.btnLoginAnonimo) {
         DOM_ELEMENTS.btnLoginAnonimo.addEventListener('click', async () => {
              DOM_ELEMENTS.btnLoginAnonimo.disabled = true;
              DOM_ELEMENTS.btnLoginAnonimo.innerHTML = '<div class="loading-spinner-small mx-auto"></div>';
+             
              
              try {
                 await signInAnonUser();
@@ -202,6 +240,7 @@ function setupApp() {
     }
 
     console.log("Setup inicial do DOM concluído.");
+    __dbgSet('setupApp(): ok.');
 }
 
 /**
@@ -209,19 +248,24 @@ function setupApp() {
  */
 function main() {
     console.log("Iniciando main()...");
+    __dbgSet('main(): iniciando…');
     
     // 1. Inicializa o Firebase (instâncias, mas sem login)
     initializeFirebaseServices(); 
+    __dbgSet('main(): firebase ok.');
 
     // 2. Configura o App (DOM e Listeners)
-    setupApp();
+    try {
+        setupApp();
+    } catch (e) {
+        const msg = e?.stack || e?.message || String(e);
+        __dbgSet('Erro em setupApp():\n' + msg);
+        throw e;
+    }
 
     // 3. Inicia a Autenticação e os Listeners do Firestore (usa callbacks para garantir a ordem)
-    initAuthAndListeners(
-        renderDashboard,        // Callback para renderizar o Dashboard
-        renderUnidadeControls,  // Callback para renderizar selects/controles
-        renderUIModules         // Callback para renderizar módulos (Água, Gás, etc.)
-    );
+    __dbgSet('main(): auth… (se ficar preso aqui, veja erros/permiteções)');
+    initAuthAndListeners(renderDashboard, renderUnidadeControls, renderUIModules);
 
 }
 
@@ -295,3 +339,14 @@ let __debitosHasShown = false;
 
 // Inicia a aplicação após o DOM estar completamente carregado
 document.addEventListener('DOMContentLoaded', main);
+
+// DEBUG_LAYOUT
+setTimeout(() => {
+  const t = document.querySelector(".topbar");
+  const p = document.querySelector(".page-header");
+  const s = document.querySelector(".sidebar");
+  console.log("T rect:", t.getBoundingClientRect());
+  console.log("P rect:", p.getBoundingClientRect());
+  console.log("S rect:", s.getBoundingClientRect());
+  console.log("T pos:", getComputedStyle(t).position);
+}, 2000);

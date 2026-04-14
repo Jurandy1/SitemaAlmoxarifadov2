@@ -24,6 +24,29 @@ service cloud.firestore {
         allow write: if isAdmin();
       }
 
+      match /entregas/{docId} {
+        allow read: if request.auth != null;
+        allow create: if isAdmin();
+        allow update: if isEditorOrAdmin();
+        allow delete: if isAdmin();
+      }
+
+      match /stats/{docId} {
+        allow read: if request.auth != null;
+        allow write: if isAdmin();
+      }
+
+      match /semcasHistDB/{docId} {
+        allow read: if request.auth != null;
+        allow create, update: if isEditorOrAdmin();
+        allow delete: if isAdmin();
+      }
+
+      match /semcasAliases/{docId} {
+        allow read: if request.auth != null;
+        allow write: if isEditorOrAdmin();
+      }
+
       match /controleMateriais/{docId} {
         allow read: if request.auth != null;
         allow create: if isAdmin();

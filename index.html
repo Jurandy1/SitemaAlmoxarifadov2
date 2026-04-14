@@ -13,10 +13,12 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231e40af'/%3E%3Cpath d='M20 42V22h8.5c6.7 0 11.5 3.9 11.5 10s-4.8 10-11.5 10H20zm7-6h1.7c3 0 5.3-1.5 5.3-4s-2.3-4-5.3-4H27v8z' fill='white'/%3E%3C/svg%3E">
+    <link rel="icon" href="./favicon.ico">
 
     <!-- CSS Customizado (para classes dinâmicas) -->
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js"></script>
 
 </head>
 <body class="v2-app semcas-shell">
@@ -200,452 +202,180 @@
                     
             <!-- Tela Inicial (ID: content-inicio) -->
             <div id="content-inicio" class="fade-in">
-                <div class="bg-white border border-gray-200 rounded-2xl shadow-sm p-6 md:p-8 gov-card">
-                    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-                        <div class="min-w-0">
-                            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-100 text-xs font-semibold">
-                                <i data-lucide="sparkles" class="w-4 h-4"></i>
-                                <span>Sistema Almoxarifado v2</span>
-                            </div>
-                            <h3 class="mt-4 text-3xl md:text-4xl font-extrabold text-gray-900 tracking-tight">
-                                Central de Operações SEMCAS
-                            </h3>
-                            <p class="mt-3 text-base md:text-lg text-slate-600 max-w-3xl">
-                                Plataforma para controle de água, gás, materiais e assistência social, com rastreabilidade, relatórios e gestão de usuários por permissão.
-                            </p>
-                            <div class="mt-5 flex flex-wrap items-center gap-3">
-                                <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-100 text-sm font-semibold">
-                                    <i data-lucide="shield-check" class="w-4 h-4"></i>
-                                    <span>Dados centralizados</span>
-                                </div>
-                                <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-50 text-amber-800 border border-amber-100 text-sm font-semibold">
-                                    <i data-lucide="history" class="w-4 h-4"></i>
-                                    <span>Histórico e auditoria</span>
-                                </div>
-                                <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-sky-50 text-sky-700 border border-sky-100 text-sm font-semibold">
-                                    <i data-lucide="refresh-cw" class="w-4 h-4"></i>
-                                    <span>Atualização automática</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="w-full lg:w-auto">
-                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3">
-                                <a href="dashboard.html" target="_blank" class="btn-primary w-full justify-center">
-                                    <i data-lucide="monitor" class="w-5 h-5"></i>
-                                    <span>Abrir Modo TV</span>
-                                </a>
-                                <div class="bg-slate-50 border border-slate-200 rounded-xl p-4">
-                                    <div class="flex items-start gap-3">
-                                        <div class="mt-0.5 text-slate-700">
-                                            <i data-lucide="mouse-pointer-click" class="w-5 h-5"></i>
-                                        </div>
-                                        <div class="min-w-0">
-                                            <div class="text-sm font-semibold text-slate-900">Como usar</div>
-                                            <div class="text-sm text-slate-600 mt-1">
-                                                Use o menu lateral para acessar os módulos. Cada módulo possui submenus no topo da página.
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+    <!-- Hero Section -->
+    <div class="bg-gradient-to-br from-blue-900 to-blue-700 rounded-2xl shadow-lg p-8 text-white relative overflow-hidden mb-8">
+        <!-- Decorational Background Icon -->
+        <div class="absolute top-0 right-0 opacity-10 pointer-events-none transform translate-x-1/4 -translate-y-1/4">
+            <i data-lucide="boxes" class="w-64 h-64"></i>
+        </div>
+        
+        <div class="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+            <div class="min-w-0">
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-800/50 text-blue-100 border border-blue-400/30 text-xs font-semibold mb-4 backdrop-blur-sm">
+                    <i data-lucide="sparkles" class="w-4 h-4"></i>
+                    <span>Sistema Almoxarifado v2</span>
                 </div>
-
-                <div class="mt-8 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                    <div class="bg-white border border-gray-200 rounded-2xl shadow-sm p-6 gov-card">
-                        <div class="flex items-center gap-3">
-                            <div class="p-2 bg-sky-100 rounded-xl">
-                                <i data-lucide="droplet" class="w-6 h-6 text-sky-700"></i>
-                            </div>
-                            <div>
-                                <div class="text-lg font-bold text-gray-900">Controle de Água</div>
-                                <div class="text-sm text-slate-600">Saídas, entradas e saldos por unidade.</div>
-                            </div>
-                        </div>
-                        <div class="mt-4 grid gap-2 text-sm text-slate-700">
-                            <div class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-sky-600"></i><span>Movimentações e histórico</span></div>
-                            <div class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-sky-600"></i><span>Resumo de débitos e filtros</span></div>
-                            <div class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-sky-600"></i><span>Análise por unidade</span></div>
-                        </div>
+                <h3 class="text-3xl md:text-4xl font-extrabold tracking-tight">
+                    Central de Operações SEMCAS
+                </h3>
+                <p class="mt-3 text-base md:text-lg text-blue-100 max-w-3xl">
+                    Plataforma integrada para controle de água, gás, materiais e assistência social.
+                </p>
+                <div class="mt-6 flex flex-wrap items-center gap-3">
+                    <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-800/40 border border-blue-400/20 text-sm font-medium backdrop-blur-sm">
+                        <i data-lucide="shield-check" class="w-4 h-4 text-emerald-400"></i>
+                        <span>Dados centralizados</span>
                     </div>
-
-                    <div class="bg-white border border-gray-200 rounded-2xl shadow-sm p-6 gov-card">
-                        <div class="flex items-center gap-3">
-                            <div class="p-2 bg-orange-100 rounded-xl">
-                                <i data-lucide="flame" class="w-6 h-6 text-orange-700"></i>
-                            </div>
-                            <div>
-                                <div class="text-lg font-bold text-gray-900">Controle de Gás</div>
-                                <div class="text-sm text-slate-600">Gestão de botijões e movimentações.</div>
-                            </div>
-                        </div>
-                        <div class="mt-4 grid gap-2 text-sm text-slate-700">
-                            <div class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-orange-600"></i><span>Entradas, saídas e estoque</span></div>
-                            <div class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-orange-600"></i><span>Débitos e pendências</span></div>
-                            <div class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-orange-600"></i><span>Relatórios e auditoria</span></div>
-                        </div>
+                    <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-800/40 border border-blue-400/20 text-sm font-medium backdrop-blur-sm">
+                        <i data-lucide="history" class="w-4 h-4 text-amber-400"></i>
+                        <span>Auditoria completa</span>
                     </div>
-
-                    <div class="bg-white border border-gray-200 rounded-2xl shadow-sm p-6 gov-card">
-                        <div class="flex items-center gap-3">
-                            <div class="p-2 bg-purple-100 rounded-xl">
-                                <i data-lucide="truck" class="w-6 h-6 text-purple-700"></i>
-                            </div>
-                            <div>
-                                <div class="text-lg font-bold text-gray-900">Entrega de Materiais</div>
-                                <div class="text-sm text-slate-600">Requisição, separação e retirada.</div>
-                            </div>
-                        </div>
-                        <div class="mt-4 grid gap-2 text-sm text-slate-700">
-                            <div class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-purple-600"></i><span>Fluxo por status</span></div>
-                            <div class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-purple-600"></i><span>Histórico e observações</span></div>
-                            <div class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-purple-600"></i><span>Painel TV dedicado</span></div>
-                        </div>
-                    </div>
-
-                    <div class="bg-white border border-gray-200 rounded-2xl shadow-sm p-6 gov-card">
-                        <div class="flex items-center gap-3">
-                            <div class="p-2 bg-pink-100 rounded-xl">
-                                <i data-lucide="handshake" class="w-6 h-6 text-pink-700"></i>
-                            </div>
-                            <div>
-                                <div class="text-lg font-bold text-gray-900">Assistência Social</div>
-                                <div class="text-sm text-slate-600">Cestas básicas e enxoval.</div>
-                            </div>
-                        </div>
-                        <div class="mt-4 grid gap-2 text-sm text-slate-700">
-                            <div class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-pink-600"></i><span>Lançamentos e estoque</span></div>
-                            <div class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-pink-600"></i><span>Importação (permissão)</span></div>
-                            <div class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-pink-600"></i><span>Rastreabilidade por período</span></div>
-                        </div>
-                    </div>
-
-                    <div class="bg-white border border-gray-200 rounded-2xl shadow-sm p-6 gov-card">
-                        <div class="flex items-center gap-3">
-                            <div class="p-2 bg-slate-100 rounded-xl">
-                                <i data-lucide="settings" class="w-6 h-6 text-slate-700"></i>
-                            </div>
-                            <div>
-                                <div class="text-lg font-bold text-gray-900">Gestão e Relatórios</div>
-                                <div class="text-sm text-slate-600">Cadastros e acompanhamento.</div>
-                            </div>
-                        </div>
-                        <div class="mt-4 grid gap-2 text-sm text-slate-700">
-                            <div class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-slate-600"></i><span>Gestão de unidades</span></div>
-                            <div class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-slate-600"></i><span>Relatórios operacionais</span></div>
-                            <div class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-slate-600"></i><span>Gestão de usuários (Admin)</span></div>
-                        </div>
-                    </div>
-
-                    <div class="bg-white border border-gray-200 rounded-2xl shadow-sm p-6 gov-card">
-                        <div class="flex items-center gap-3">
-                            <div class="p-2 bg-emerald-100 rounded-xl">
-                                <i data-lucide="shield" class="w-6 h-6 text-emerald-700"></i>
-                            </div>
-                            <div>
-                                <div class="text-lg font-bold text-gray-900">Perfis de Acesso</div>
-                                <div class="text-sm text-slate-600">Permissões por função.</div>
-                            </div>
-                        </div>
-                        <div class="mt-4 grid gap-2 text-sm text-slate-700">
-                            <div class="flex items-center gap-2"><span class="badge badge-blue">Admin</span><span>Configurações e usuários</span></div>
-                            <div class="flex items-center gap-2"><span class="badge badge-gray">Editor</span><span>Operação e consultas</span></div>
-                            <div class="flex items-center gap-2"><span class="badge badge-yellow">Anônimo</span><span>Visualização inicial</span></div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="mt-8 bg-white border border-gray-200 rounded-2xl shadow-sm p-6 gov-card">
-                    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                        <div>
-                            <div class="text-lg font-bold text-gray-900">Fluxo de Materiais</div>
-                            <div class="text-sm text-slate-600 mt-1">Do pedido à retirada com rastreabilidade.</div>
-                        </div>
-                        <a href="dashboard.html" target="_blank" class="btn-secondary">
-                            <i data-lucide="external-link" class="w-4 h-4"></i>
-                            <span>Ver no Modo TV</span>
-                        </a>
-                    </div>
-                    <div class="mt-5 grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div class="border border-amber-200 bg-amber-50 rounded-xl p-4">
-                            <div class="flex items-center gap-2 font-semibold text-amber-900">
-                                <i data-lucide="file-plus" class="w-5 h-5 text-amber-700"></i>
-                                <span>1. Requisição</span>
-                            </div>
-                            <div class="mt-2 text-sm text-amber-900/80">Registro do pedido com unidade, item e observações.</div>
-                        </div>
-                        <div class="border border-blue-200 bg-blue-50 rounded-xl p-4">
-                            <div class="flex items-center gap-2 font-semibold text-blue-900">
-                                <i data-lucide="archive" class="w-5 h-5 text-blue-700"></i>
-                                <span>2. Separação</span>
-                            </div>
-                            <div class="mt-2 text-sm text-blue-900/80">Conferência e preparação para retirada.</div>
-                        </div>
-                        <div class="border border-emerald-200 bg-emerald-50 rounded-xl p-4">
-                            <div class="flex items-center gap-2 font-semibold text-emerald-900">
-                                <i data-lucide="check-square" class="w-5 h-5 text-emerald-700"></i>
-                                <span>3. Pronto / Retirada</span>
-                            </div>
-                            <div class="mt-2 text-sm text-emerald-900/80">Disponível para retirada e finalização do processo.</div>
-                        </div>
+                    <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-800/40 border border-blue-400/20 text-sm font-medium backdrop-blur-sm">
+                        <i data-lucide="refresh-cw" class="w-4 h-4 text-sky-400"></i>
+                        <span>Tempo real</span>
                     </div>
                 </div>
             </div>
 
-            <!-- Conteúdo do Dashboard (oculto na V2) -->
-            <div id="content-dashboard" class="fade-in hidden">
-                <!-- Cabeçalho do Módulo -->
-                <div class="flex items-center justify-between gap-3 mb-5 flex-wrap">
+            <div class="w-full lg:w-auto shrink-0">
+                <a href="dashboard.html" target="_blank" class="inline-flex items-center justify-center gap-2 px-6 py-3 bg-white text-blue-900 rounded-xl font-bold shadow-sm hover:bg-blue-50 transition-colors w-full lg:w-auto">
+                    <i data-lucide="monitor" class="w-5 h-5"></i>
+                    <span>Painel de TV</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Módulos Operacionais -->
+        <div class="lg:col-span-2 space-y-6">
+            <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <i data-lucide="layers" class="w-5 h-5 text-blue-600"></i>
+                Módulos Operacionais
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Card Água -->
+                <a href="#" onclick="document.querySelector('[data-tab=\'agua\']').click(); return false;" 
+                    class="bg-white rounded-xl p-5 border border-slate-200 shadow-sm hover:shadow-md hover:border-sky-300 transition-all group block">
+                    <div class="flex items-center gap-4 mb-3">
+                        <div class="w-12 h-12 rounded-lg bg-sky-50 flex items-center justify-center text-sky-600 group-hover:bg-sky-600 group-hover:text-white transition-colors">
+                            <i data-lucide="droplet" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-slate-800 group-hover:text-sky-700 transition-colors">Controle de Água</h4>
+                            <p class="text-sm text-slate-500">Gestão de galões</p>
+                        </div>
+                    </div>
+                    <div class="text-xs text-slate-500 space-y-1">
+                        <div class="flex items-center gap-1.5"><i data-lucide="check" class="w-3.5 h-3.5 text-sky-500"></i> Entradas e saídas</div>
+                        <div class="flex items-center gap-1.5"><i data-lucide="check" class="w-3.5 h-3.5 text-sky-500"></i> Saldos por unidade</div>
+                    </div>
+                </a>
+
+                <!-- Card Gás -->
+                <a href="#" onclick="document.querySelector('[data-tab=\'gas\']').click(); return false;" 
+                    class="bg-white rounded-xl p-5 border border-slate-200 shadow-sm hover:shadow-md hover:border-orange-300 transition-all group block">
+                    <div class="flex items-center gap-4 mb-3">
+                        <div class="w-12 h-12 rounded-lg bg-orange-50 flex items-center justify-center text-orange-600 group-hover:bg-orange-600 group-hover:text-white transition-colors">
+                            <i data-lucide="flame" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-slate-800 group-hover:text-orange-700 transition-colors">Controle de Gás</h4>
+                            <p class="text-sm text-slate-500">Botijões P13 e P45</p>
+                        </div>
+                    </div>
+                    <div class="text-xs text-slate-500 space-y-1">
+                        <div class="flex items-center gap-1.5"><i data-lucide="check" class="w-3.5 h-3.5 text-orange-500"></i> Movimentações</div>
+                        <div class="flex items-center gap-1.5"><i data-lucide="check" class="w-3.5 h-3.5 text-orange-500"></i> Débitos pendentes</div>
+                    </div>
+                </a>
+
+                <!-- Card Materiais -->
+                <a href="#" onclick="document.querySelector('[data-tab=\'materiais\']').click(); return false;" 
+                    class="bg-white rounded-xl p-5 border border-slate-200 shadow-sm hover:shadow-md hover:border-purple-300 transition-all group block">
+                    <div class="flex items-center gap-4 mb-3">
+                        <div class="w-12 h-12 rounded-lg bg-purple-50 flex items-center justify-center text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-colors">
+                            <i data-lucide="truck" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-slate-800 group-hover:text-purple-700 transition-colors">Materiais</h4>
+                            <p class="text-sm text-slate-500">Kits e Expediente</p>
+                        </div>
+                    </div>
+                    <div class="text-xs text-slate-500 space-y-1">
+                        <div class="flex items-center gap-1.5"><i data-lucide="check" class="w-3.5 h-3.5 text-purple-500"></i> Separação e entrega</div>
+                        <div class="flex items-center gap-1.5"><i data-lucide="check" class="w-3.5 h-3.5 text-purple-500"></i> Fichas A4</div>
+                    </div>
+                </a>
+
+                <!-- Card Assistência -->
+                <a href="#" onclick="document.querySelector('[data-tab=\'social\']').click(); return false;" 
+                    class="bg-white rounded-xl p-5 border border-slate-200 shadow-sm hover:shadow-md hover:border-pink-300 transition-all group block">
+                    <div class="flex items-center gap-4 mb-3">
+                        <div class="w-12 h-12 rounded-lg bg-pink-50 flex items-center justify-center text-pink-600 group-hover:bg-pink-600 group-hover:text-white transition-colors">
+                            <i data-lucide="handshake" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-slate-800 group-hover:text-pink-700 transition-colors">Assist. Social</h4>
+                            <p class="text-sm text-slate-500">Benefícios eventuais</p>
+                        </div>
+                    </div>
+                    <div class="text-xs text-slate-500 space-y-1">
+                        <div class="flex items-center gap-1.5"><i data-lucide="check" class="w-3.5 h-3.5 text-pink-500"></i> Cestas e enxovais</div>
+                        <div class="flex items-center gap-1.5"><i data-lucide="check" class="w-3.5 h-3.5 text-pink-500"></i> Lançamentos mensais</div>
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        <!-- Administração e Sistema -->
+        <div class="space-y-6">
+            <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <i data-lucide="settings" class="w-5 h-5 text-slate-600"></i>
+                Gestão e Sistema
+            </h3>
+            <div class="grid grid-cols-1 gap-4">
+                <!-- Card Unidades -->
+                <a href="#" onclick="document.querySelector('[data-tab=\'gestao\']').click(); return false;" 
+                    class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm hover:shadow-md hover:border-slate-400 transition-all group flex items-center justify-between">
                     <div class="flex items-center gap-3">
-                        <div class="flex items-center justify-center w-10 h-10 rounded-xl bg-blue-100">
-                            <i data-lucide="layout-dashboard" class="w-5 h-5 text-blue-700"></i>
+                        <div class="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600 group-hover:bg-slate-200 transition-colors">
+                            <i data-lucide="building" class="w-5 h-5"></i>
                         </div>
-                        <div>
-                            <h2 class="text-xl font-bold text-gray-900 tracking-tight">Visão Geral do Almoxarifado</h2>
-                            <p class="text-xs text-gray-500">Atualização automática a cada 2 minutos</p>
-                        </div>
+                        <div class="font-semibold text-slate-800">Unidades</div>
                     </div>
-                    <!-- Filtros Locais (Pills) -->
-                    <div class="flex flex-wrap gap-2" id="dashboard-nav-controls">
-                        <button class="dashboard-nav-btn" data-view="geral">
-                            <i data-lucide="pie-chart"></i>
-                            <span>Geral</span>
-                        </button>
-                        <button class="dashboard-nav-btn" data-view="agua">
-                            <i data-lucide="droplet"></i>
-                            <span>Água</span>
-                        </button>
-                        <button class="dashboard-nav-btn" data-view="gas">
-                            <i data-lucide="flame"></i>
-                            <span>Gás</span>
-                        </button>
-                        <button class="dashboard-nav-btn" data-view="materiais">
-                            <i data-lucide="truck"></i>
-                            <span>Materiais</span>
-                        </button>
+                    <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400 group-hover:text-slate-600"></i>
+                </a>
+
+                <!-- Card Relatórios -->
+                <a href="#" onclick="document.querySelector('[data-tab=\'relatorio\']').click(); return false;" 
+                    class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm hover:shadow-md hover:border-slate-400 transition-all group flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600 group-hover:bg-slate-200 transition-colors">
+                            <i data-lucide="file-text" class="w-5 h-5"></i>
+                        </div>
+                        <div class="font-semibold text-slate-800">Relatórios</div>
                     </div>
-                </div>
+                    <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400 group-hover:text-slate-600"></i>
+                </a>
 
-                <!-- Container para as visualizações do Dashboard -->
-                <div class="dashboard-tv-view">
-
-                    <!-- VISÃO GERAL (Spec 5: KPIs) -->
-                    <div id="dashboard-view-geral" class="fade-in">
-
-                        <!-- 5) CARTÕES DE KPIS / INDICADORES -->
-                        <div id="kpi-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-
-                            <!-- Card Estoque de Água -->
-                            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col gov-card">
-                                <div class="flex items-center gap-3 mb-4">
-                                    <div class="p-2 bg-sky-100 rounded-full">
-                                        <i data-lucide="droplet" class="w-6 h-6 text-sky-600"></i>
-                                    </div>
-                                    <h3 class="font-semibold text-gray-800">Estoque de Água</h3>
-                                </div>
-                                <p id="dashboard-estoque-agua" class="text-5xl font-extrabold text-sky-600 mt-auto">0</p>
-                                <p class="text-sm text-gray-500 mt-1">Galões Disponíveis</p>
-                            </div>
-
-                            <!-- Card Estoque de Gás -->
-                            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col gov-card">
-                                <div class="flex items-center gap-3 mb-4">
-                                    <div class="p-2 bg-emerald-100 rounded-full">
-                                        <i data-lucide="flame" class="w-6 h-6 text-emerald-600"></i>
-                                    </div>
-                                    <h3 class="font-semibold text-gray-800">Estoque de Gás</h3>
-                                </div>
-                                <p id="dashboard-estoque-gas" class="text-5xl font-extrabold text-emerald-600 mt-auto">0</p>
-                                <p class="text-sm text-gray-500 mt-1">Botijões Disponíveis</p>
-                            </div>
-
-
-                            <!-- Card Em Separação (Agora soma Requisitado + Em Separação) -->
-                            <div id="dashboard-card-separacao" class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col cursor-pointer transition-all hover:shadow-md hover:border-amber-300 gov-card">
-                                <div class="flex items-center gap-3 mb-4">
-                                    <div class="p-2 bg-amber-100 rounded-full">
-                                        <i data-lucide="archive" class="w-6 h-6 text-amber-600"></i>
-                                    </div>
-                                    <h3 class="font-semibold text-gray-800">Em Preparação</h3>
-                                </div>
-                                <p id="dashboard-materiais-separacao-count" class="text-5xl font-extrabold text-amber-600 mt-auto">0</p>
-                                <p class="text-sm text-gray-500 mt-1">Requisições a serem separadas</p>
-                            </div>
-
-                            <!-- Card Disponível p/ Retirada -->
-                            <div id="dashboard-card-retirada" class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col cursor-pointer transition-all hover:shadow-md hover:border-green-300 gov-card">
-                                <div class="flex items-center gap-3 mb-4">
-                                    <div class="p-2 bg-green-100 rounded-full">
-                                        <i data-lucide="check-square" class="w-6 h-6 text-green-600"></i>
-                                    </div>
-                                    <h3 class="font-semibold text-gray-800">Disponível p/ Retirada</h3>
-                                </div>
-                                <p id="dashboard-materiais-retirada-count" class="text-5xl font-extrabold text-green-600 mt-auto">0</p>
-                                <p class="text-sm text-gray-500 mt-1">Registros prontos</p>
-                            </div>
+                <!-- Card Usuários -->
+                <a href="#" onclick="document.querySelector('[data-tab=\'usuarios\']').click(); return false;" 
+                    class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm hover:shadow-md hover:border-emerald-300 transition-all group flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600 group-hover:bg-emerald-100 transition-colors">
+                            <i data-lucide="users" class="w-5 h-5"></i>
                         </div>
-
-                        <!-- 6) SEÇÃO "MATERIAIS DO ALMOXARIFADO" -->
-                        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 gov-card">
-                            <div class="flex justify-between items-center mb-4 flex-wrap gap-3">
-                                <h3 id="dashboard-materiais-title" class="text-xl font-semibold text-gray-900">Materiais do Almoxarifado</h3>
-                                <div class="flex items-center gap-2">
-                                    <button id="btn-dashboard-ver-lista" class="text-sm font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1" title="Ver como Lista">
-                                        <i data-lucide="list" class="w-4 h-4"></i>
-                                        Ver Lista
-                                    </button>
-                                    <button id="btn-tv-mode" class="text-sm font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1" title="Ativar Modo TV">
-                                        <i data-lucide="tv" class="w-4 h-4"></i>
-                                        Modo TV
-                                    </button>
-                                    <button id="btn-clear-dashboard-filter" class="hidden text-sm font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1">
-                                        <i data-lucide="x" class="w-4 h-4"></i>
-                                        Limpar Filtro
-                                    </button>
-                                </div>
-                            </div>
-
-                            <!-- Filtros globais e busca -->
-                            <div id="dashboard-materiais-prontos-controls" class="flex flex-wrap items-center gap-2 mb-4">
-                                <div class="flex flex-wrap gap-2">
-                                    <button id="btn-filter-todos" class="badge-filter active">Todos</button>
-                                    <button id="btn-filter-separacao" class="badge-filter">Em separação</button>
-                                    <button id="btn-filter-pronto" class="badge-filter">Prontos</button>
-                                    <button id="btn-filter-pendente" class="badge-filter">Pendentes</button>
-                                </div>
-                                <div class="ml-auto w-full sm:w-auto">
-                                    <input id="input-busca-materiais-geral" type="text" placeholder="Buscar unidade ou item..." class="form-input w-full sm:w-64" />
-                                </div>
-                            </div>
-
-                            <!-- Pager da Visão Geral (Materiais do Almoxarifado) -->
-                            <div id="dashboard-materiais-prontos-pager" class="dashboard-materiais-pager hidden" aria-label="Paginação da grade de materiais">
-                                <div class="pager-left flex items-center gap-2">
-                                    <button id="btn-geral-prev-page" class="btn-sm text-blue-600 hover:text-blue-800" aria-label="Página anterior">Anterior</button>
-                                    <span id="geral-pager-info" class="text-xs text-gray-600">Página 1 de 1 • até 5 itens/coluna</span>
-                                    <button id="btn-geral-next-page" class="btn-sm text-blue-600 hover:text-blue-800" aria-label="Próxima página">Próxima</button>
-                                </div>
-                                <div class="pager-right flex items-center gap-2">
-                                    <label for="geral-page-size-select" class="text-xs text-gray-600">Itens/coluna</label>
-                                    <select id="geral-page-size-select" class="select-sm">
-                                        <option value="5" selected>5</option>
-                                        <option value="8">8</option>
-                                        <option value="12">12</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <!-- Container para os grupos recolhíveis -->
-                            <div id="dashboard-materiais-prontos" class="space-y-4">
-                                <!-- JS renderiza grupos com acordeão aqui -->
-                                <div class="text-sm text-slate-500 p-3"><div class="loading-spinner-small mx-auto"></div></div>
-                            </div>
-                            <!-- Fim do container modificado -->
-                        </div>
+                        <div class="font-semibold text-slate-800">Usuários</div>
                     </div>
-
-                    <!-- VISÃO ÁGUA -->
-                    <div id="dashboard-view-agua" class="hidden fade-in">
-                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 text-center">
-                                <h3 class="font-semibold text-gray-800 mb-2">Total Pendente (Saldo)</h3>
-                                <p id="summary-agua-pendente" class="text-5xl font-extrabold text-red-600">0</p>
-                                <p class="text-sm text-gray-500 mt-1">Galões com as unidades</p>
-                            </div>
-                            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 text-center">
-                                <h3 class="font-semibold text-gray-800 mb-2">Entregues (Últimos 30 dias)</h3>
-                                <p id="summary-agua-entregue" class="text-5xl font-extrabold text-blue-600">0</p>
-                                <p class="text-sm text-gray-500 mt-1">Galões cheios</p>
-                            </div>
-                             <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 text-center">
-                                <h3 class="font-semibold text-gray-800 mb-2">Recebidos (Últimos 30 dias)</h3>
-                                <p id="summary-agua-recebido" class="text-5xl font-extrabold text-green-600">0</p>
-                                <p class="text-sm text-gray-500 mt-1">Galões vazios</p>
-                            </div>
-                        </div>
-                        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 mt-6">
-                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Controle de Água (Últimos 30 dias)</h3>
-                            <div class="chart-container">
-                                <canvas id="dashboardAguaChart"></canvas>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- VISÃO GÁS -->
-                    <div id="dashboard-view-gas" class="hidden fade-in">
-                         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 text-center">
-                                <h3 class="font-semibold text-gray-800 mb-2">Total Pendente (Saldo)</h3>
-                                <p id="summary-gas-pendente" class="text-5xl font-extrabold text-red-600">0</p>
-                                <p class="text-sm text-gray-500 mt-1">Botijões com as unidades</p>
-                            </div>
-                            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 text-center">
-                                <h3 class="font-semibold text-gray-800 mb-2">Entregues (Últimos 30 dias)</h3>
-                                <p id="summary-gas-entregue" class="text-5xl font-extrabold text-orange-600">0</p>
-                                <p class="text-sm text-gray-500 mt-1">Botijões cheios</p>
-                            </div>
-                             <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 text-center">
-                                <h3 class="font-semibold text-gray-800 mb-2">Recebidos (Últimos 30 dias)</h3>
-                                <p id="summary-gas-recebido" class="text-5xl font-extrabold text-green-600">0</p>
-                                <p class="text-sm text-gray-500 mt-1">Botijões vazios</p>
-                            </div>
-                        </div>
-                        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 mt-6">
-                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Controle de Gás (Últimos 30 dias)</h3>
-                            <div class="chart-container">
-                                <canvas id="dashboardGasChart"></canvas>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- VISÃO MATERIAIS (LISTA) -->
-                    <div id="dashboard-view-materiais" class="hidden fade-in">
-                        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-                            <div class="flex justify-between items-center mb-4 flex-wrap gap-3">
-                                <h3 class="text-lg font-semibold text-gray-900">Materiais Pendentes (Requisição, Separação e Retirada)</h3>
-                                <div class="flex items-center gap-3">
-                                    <button id="btn-dashboard-materiais-tvmode" class="text-sm font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1" title="Modo TV (auto-paginar)">
-                                        <i data-lucide="monitor" class="w-4 h-4"></i>
-                                        Modo TV
-                                    </button>
-                                    <button id="btn-dashboard-ver-grade" class="text-sm font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1" title="Ver como Grade">
-                                        <i data-lucide="grid" class="w-4 h-4"></i>
-                                        Ver Grade
-                                    </button>
-                                </div>
-                            </div>
-                            <!-- Pager de Materiais (Lista) -->
-                            <div id="dashboard-materiais-pager" class="dashboard-materiais-pager hidden" aria-label="Paginação da lista de materiais">
-                                <div class="pager-left flex items-center gap-2">
-                                    <button id="btn-materiais-prev-page" class="btn-sm text-blue-600 hover:text-blue-800" aria-label="Página anterior">Anterior</button>
-                                    <span id="materiais-pager-info" class="text-xs text-gray-600">Página 1 de 1 • 0 itens</span>
-                                    <button id="btn-materiais-next-page" class="btn-sm text-blue-600 hover:text-blue-800" aria-label="Próxima página">Próxima</button>
-                                </div>
-                                <div class="pager-right flex items-center gap-2">
-                                    <label for="materiais-page-size-select" class="text-xs text-gray-600">Itens/página</label>
-                                    <select id="materiais-page-size-select" class="select-sm">
-                                        <option value="10">10</option>
-                                        <option value="20" selected>20</option>
-                                        <option value="50">50</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div id="dashboard-materiais-list" class="space-y-3 dashboard-list">
-                                 <div class="text-center p-10" id="loading-materiais-dashboard">
-                                    <div class="loading-spinner-small mx-auto"></div>
-                                    <p class="text-sm text-gray-500">Carregando...</p>
-                                </div>
-                                <!-- O JS preenche isso com cards de bg-purple-50, bg-yellow-50, bg-green-50 -->
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                    <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400 group-hover:text-slate-600"></i>
+                </a>
             </div>
-
-            <!-- ============================================= -->
-            <!-- PAINEL CONTROLE DE ÁGUA (ID: content-agua)    -->
+        </div>
+    </div>
+</div>
+<!-- ============================================= -->
+<!-- PAINEL CONTROLE DE ÁGUA (ID: content-agua)    -->
             <!-- ============================================= -->
             <div id="content-agua" class="fade-in hidden">
                 <!-- Cabeçalho do Módulo -->
@@ -1710,331 +1440,272 @@
             <!-- PAINEL ENTREGA DE MATERIAIS (ID: content-materiais)      -->
             <!-- ========================================================== -->
             <div id="content-materiais" class="fade-in hidden">
-                <!-- Cabeçalho do Módulo -->
-                <div class="flex items-center gap-3 mb-5">
-                    <div class="flex items-center justify-center w-10 h-10 rounded-xl bg-purple-100">
-                        <i data-lucide="truck" class="w-5 h-5 text-purple-700"></i>
+                <div class="separacao-module">
+                    <!-- Backup/Restore toolbar (topbar hidden, buttons kept accessible) -->
+                    <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:6px 0;flex-wrap:wrap">
+                        <button class="btn btn-s btn-sm" style="font-size:10px;padding:4px 10px;border:1px solid #cbd5e1;color:#64748b;background:#f8fafc;border-radius:6px" onclick="exportBackup()" title="Exportar backup completo">⬇️ Backup</button>
+                        <button class="btn btn-s btn-sm" style="font-size:10px;padding:4px 10px;border:1px solid #cbd5e1;color:#64748b;background:#f8fafc;border-radius:6px" onclick="document.getElementById('impBackup').click()" title="Importar backup">⬆️ Restaurar</button>
+                        <input type="file" id="impBackup" accept=".json" style="display:none" onchange="importBackup(event)">
+                        <span style="color:#94a3b8;font-size:11px" id="td"></span>
                     </div>
-                    <div>
-                        <h2 class="text-xl font-bold text-gray-900 tracking-tight">Entrega de Materiais</h2>
-                        <p class="text-xs text-gray-500">Requisição, separação, entrega e histórico</p>
+                    <div class="tabs">
+                        <div class="tab active" data-tab="req" onclick="goTab('req')">📋 Requisição</div>
+                        <div class="tab" data-tab="ps" onclick="goTab('ps')">📦 Para Separar <span class="bc zero" id="c1">0</span></div>
+                        <div class="tab" data-tab="es" onclick="goTab('es')">🔧 Em Separação <span class="bc zero" id="c2">0</span></div>
+                        <div class="tab" data-tab="pe" onclick="goTab('pe')">✅ Pronto <span class="bc zero" id="c3">0</span></div>
+                        <div class="tab" data-tab="hi" onclick="goTab('hi')">📂 Histórico <span class="bc zero" id="c4">0</span></div>
+                        <div class="tab" data-tab="db" onclick="goTab('db')">🗄️ Banco de Dados</div>
+                        <div class="tab" data-tab="pan" onclick="goTab('pan')">📈 Painel</div>
+                        <div class="tab" data-tab="rel" onclick="goTab('rel')">📊 Relatório</div>
                     </div>
-                </div>
 
-                <!-- Painel de instruções -->
-                <div class="bg-blue-50 border border-blue-200 shadow-sm p-4 mb-6 rounded-xl">
-                    <div class="flex justify-between items-center">
-                        <div class="flex items-center gap-2">
-                            <i data-lucide="info" class="text-blue-600 w-5 h-5"></i>
-                            <h2 class="font-semibold text-blue-700">Como usar esta aba</h2>
+                    <div class="view active" id="tab-req">
+                        <div class="card">
+                            <h2>📋 Registrar Nova Requisição</h2>
+                            <p class="desc">Anexe a planilha. O sistema detecta automaticamente unidade, tipos e formato (padrão ou abrigos).</p>
+                            <div class="row mb-3">
+                                <div><label class="lbl">Unidade (auto-detectada ou selecione)</label><select class="sel" id="rU" onchange="ck()"><option value="">-- Auto-detectar da planilha --</option></select></div>
+                                <div><label class="lbl">Detectado</label><div id="detectInfo" style="min-height:36px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:6px 0"><span style="color:var(--muted);font-size:12px">Anexe a planilha...</span></div></div>
+                            </div>
+                            <div class="mb-3"><label class="lbl">Planilha do Pedido</label>
+                                <div class="fd" id="fdrop" onclick="document.getElementById('fi').click()"><div style="font-size:24px">📎</div><div style="font-size:13px;font-weight:600">Clique ou arraste</div><div style="font-size:11px;color:var(--muted)">.xlsx .xls .ods .docx</div><input type="file" id="fi" accept=".xlsx,.xls,.ods,.docx,.doc" style="display:none" onchange="handleFile(event)"><div class="fn" id="fname" style="display:none"></div></div>
+                            </div>
+                            <div class="row mb-3">
+                                <div><label class="lbl">Lançado por</label><input class="input" id="rR" value="Admin"></div>
+                                <div><label class="lbl">Observações</label><input class="input" id="rO" placeholder="Opcional"></div>
+                            </div>
+                            <div style="display:flex; gap:8px;">
+                                <button class="btn btn-s w-full" id="bPreview" disabled onclick="previewReq()" style="flex:1;">👁️ Visualizar</button>
+                                <button class="btn btn-p w-full" id="bR" disabled onclick="registrar()" style="flex:2;">📝 Registrar Requisição</button>
+                            </div>
                         </div>
-
-                        <button id="toggleInstructions" class="text-sm text-blue-700 underline hover:text-blue-900 transition">Ocultar</button>
                     </div>
-                    <div id="instructionContent" class="mt-3 text-sm text-blue-800 space-y-1">
-                        <p>1️⃣ <strong>Registrar Requisição:</strong> preencha o formulário e clique em <em>Salvar</em>.</p>
-                        <p>2️⃣ <strong>Para Separar:</strong> visualize as requisições pendentes e clique em <em>Iniciar Separação</em>.</p>
-                        <p>3️⃣ <strong>Em Separação:</strong> finalize e marque como <em>Pronto p/ Entrega</em>.</p>
-                        <p>4️⃣ <strong>Pronto p/ Entrega:</strong> confirme quando o material for entregue.</p>
-                        <p>5️⃣ <strong>Histórico:</strong> veja todas as entregas concluídas.</p>
+
+                    <div class="view" id="tab-ps">
+                        <div class="card">
+                            <h2>📦 Fila para Separar</h2>
+                            <p class="desc">Primeiro da fila destacado. Separador informa o nome e a ficha é impressa.</p>
+                            <input type="text" class="input mb-3" id="buscaPS" placeholder="🔍 Procurar unidade..." onkeyup="PAGE_STATE.ps=1;debouncedRenderPS()">
+                            <div id="lps"></div>
+                        </div>
                     </div>
-                </div>
 
-                <!-- Sub-abas -->
-                <div class="flex flex-wrap gap-2 mb-6" id="sub-nav-materiais">
-                    <button class="sub-nav-btn active" data-subview="lancar-materiais">
-                        <i data-lucide="file-plus"></i><span>Requisição</span>
-                    </button>
-                    <button class="sub-nav-btn" data-subview="para-separar">
-                        <i data-lucide="list-checks"></i><span>Para Separar</span>
-                    </button>
-                    <button class="sub-nav-btn" data-subview="em-separacao">
-                        <i data-lucide="package"></i><span>Em Separação</span>
-                    </button>
-                    <button class="sub-nav-btn" data-subview="pronto-entrega">
-                        <i data-lucide="truck"></i><span>Pronto p/ Entrega</span>
-                    </button>
-                    <button class="sub-nav-btn" data-subview="historico-entregues">
-                        <i data-lucide="clock"></i><span>Histórico</span>
-                    </button>
-                </div>
+                    <div class="view" id="tab-es">
+                        <div class="card">
+                            <h2>🔧 Em Separação</h2>
+                            <p class="desc">Clique em "Editar" para abrir a ficha A4 em tela cheia.</p>
+                            <input type="text" class="input mb-3" id="buscaES" placeholder="🔍 Procurar unidade..." onkeyup="PAGE_STATE.es=1;debouncedRenderES()">
+                            <div id="les"></div>
+                        </div>
+                    </div>
 
-                <!-- Conteúdos das Sub-abas -->
-                <!-- Sub-view: Lançar Materiais -->
-                <div id="subview-lancar-materiais" class="space-y-6"> <!-- ID Atualizado -->
-                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        <!-- Coluna do Formulário -->
-                        <div class="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-                            <h2 class="text-lg font-bold text-gray-900 mb-4">Registrar Nova Requisição</h2>
-                            <form id="form-materiais" class="space-y-4">
+                    <div class="view" id="tab-pe">
+                        <div class="card">
+                            <h2>✅ Pronto para Entrega</h2>
+                            <p class="desc">Quando alguém vier buscar, clique "Entregar" e informe quem retirou.</p>
+                            <input type="text" class="input mb-3" id="buscaPE" placeholder="🔍 Procurar unidade..." onkeyup="PAGE_STATE.pe=1;debouncedRenderPE()">
+                            <div id="lpe"></div>
+                        </div>
+                    </div>
+
+                    <div class="view" id="tab-hi">
+                        <div class="card">
+                            <h2>📁 Histórico</h2>
+                            <p class="desc">Entregas finalizadas.</p>
+                            <input type="text" class="input mb-3" id="buscaHI" placeholder="🔍 Procurar unidade..." onkeyup="PAGE_STATE.hi=1;debouncedRenderHI()">
+                            <div id="lhi"></div>
+                        </div>
+                    </div>
+
+                    <div class="view" id="tab-pan">
+                        <div style="max-width:1100px;margin:0 auto">
+                            <div class="pan-filters" id="panFilters" style="display:none">
+                                <h3>🔍 Filtrar Painel</h3>
+                                <div style="margin-bottom:8px">
+                                    <label class="lbl">Tipo de Unidade</label>
+                                    <div class="tipo-chips" id="panTipoChips"></div>
+                                </div>
+                                <div class="pan-unit-sel">
+                                    <div style="flex:1">
+                                        <label class="lbl">Unidade Específica <span style="font-size:10px;color:var(--muted);font-weight:400">(vazio = todas do tipo)</span></label>
+                                        <select class="sel" id="panUnitSel" onchange="buildPainel()"><option value="">— Todas —</option></select>
+                                    </div>
+                                    <button class="btn btn-s btn-sm" onclick="clearPanFilters()" style="margin-top:18px">✕ Limpar</button>
+                                </div>
+                            </div>
+                            <div id="panContent">
+                                <div class="pan-empty"><div class="ic">📈</div><b>Painel de Gestão</b><br><span style="font-size:13px">Carregue planilhas na aba Relatório para gerar análise automática.</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="view" id="tab-db">
+                        <div style="max-width:1100px;margin:0 auto">
+                            <div class="db-stats">
+                                <div class="db-stat"><b id="rStatFiles">0</b>Arquivos</div>
+                                <div class="db-stat"><b id="rStatWeeks">0</b>Envios</div>
+                                <div class="db-stat"><b id="rStatUnits">0</b>Unidades</div>
+                                <div class="db-stat"><b id="rStatItems">0</b>Registros</div>
+                            </div>
+                            <div class="rel-layout" style="grid-template-columns: 360px 1fr; gap: 12px">
+                                <div class="rel-panel" style="margin-bottom:12px">
+                                    <h3>🗄️ Banco de Dados</h3>
+                                    <div>
+                                        <label class="lbl">Unidade</label>
+                                        <select class="sel" id="rDbUnit" onchange="PAGE_STATE.files=1;renderRelatorio()">
+                                            <option value="">Selecione uma unidade...</option>
+                                        </select>
+                                    </div>
+                                    <div style="margin-top:10px">
+                                        <label class="lbl">Pesquisar arquivo</label>
+                                        <input class="db-search" id="dbSearch" placeholder="Digite parte do nome do arquivo..." onkeyup="PAGE_STATE.files=1;renderRelatorio()">
+                                    </div>
+                                    <div style="margin-top:10px">
+                                        <button class="btn btn-s btn-sm" style="width:100%;font-size:11px" onclick="var x=document.getElementById('dbAdv'); x.style.display=(x.style.display==='none'?'block':'none');">⚙️ Ações</button>
+                                    </div>
+                                    <div id="dbAdv" style="display:none;margin-top:10px">
+                                        <div class="fd" id="rDrop" onclick="document.getElementById('rFi').click()" style="margin-bottom:10px;padding:14px">
+                                            <div style="font-size:18px">📎</div>
+                                            <div style="font-size:12px;font-weight:600">Importar planilhas</div>
+                                            <div style="font-size:10px;color:var(--muted)">.xlsx .xls .ods .docx — múltiplos arquivos</div>
+                                            <input type="file" id="rFi" accept=".xlsx,.xls,.ods,.docx,.doc" style="display:none" multiple onchange="handleHistFiles(event)">
+                                        </div>
+                                        <div id="rProgress" style="display:none;font-size:11px;color:var(--muted);margin-bottom:8px">
+                                            <span id="rProgressMsg">Processando...</span>
+                                            <div class="progress-bar"><div class="progress-fill" id="rProgressBar" style="width:0%"></div></div>
+                                        </div>
+                                        <div style="display:flex;gap:6px;flex-wrap:wrap">
+                                            <button class="btn btn-s" style="flex:1;font-size:11px;min-width:140px" onclick="clearHistDB()">🗑️ Limpar banco</button>
+                                            <button class="btn btn-s" style="flex:1;font-size:11px;min-width:140px;color:#d97706;border-color:#fde047" onclick="removeDuplicatesAuto()">🔍 Duplicatas</button>
+                                            <button class="btn btn-s" style="flex:1;font-size:11px;min-width:140px;color:#0369a1;border-color:#bae6fd" onclick="recalcAllDates()">📅 Recalcular datas</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="rel-panel" style="margin-bottom:12px">
+                                    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+                                        <div style="font-size:12px;color:var(--muted)">Selecione uma unidade para listar as planilhas. Use a busca para filtrar pelo nome.</div>
+                                    </div>
+                                    <div id="rFileList" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(280px, 1fr));gap:10px;margin-top:10px">
+                                        <div style="font-size:11px;color:var(--muted);text-align:center;padding:10px;grid-column:1 / -1">Selecione uma unidade.</div>
+                                    </div>
+                                    <div style="font-size:10px;color:var(--muted);margin-top:8px">🟢 Ano detectado automaticamente &nbsp;⚠️ Ano não encontrado — clique para corrigir</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="view" id="tab-rel">
+                        <div style="max-width:1100px;margin:0 auto">
+                            <div class="rel-layout" style="display:block">
                                 <div>
-                                    <label for="select-unidade-materiais" class="form-label">Unidade</label>
-                                    <select id="select-unidade-materiais" class="form-select" required></select>
+                                    <div class="rel-panel" style="margin-bottom:12px">
+                                        <h3>🔍 Filtros</h3>
+                                        <div class="filter-grid">
+                                            <div>
+                                                <label class="lbl">Unidades</label>
+                                                <select class="sel-multi" id="rFiltUnits" multiple size="5" onchange="showOrigemUnidade()"></select>
+                                                <div style="font-size:10px;color:var(--muted);margin-top:3px">Ctrl+clique = múltiplas. Vazio = todas.</div>
+                                                <div id="origemUnidade" style="margin-top:6px"></div>
+                                            </div>
+                                            <div>
+                                                <label class="lbl">Categorias</label>
+                                                <select class="sel-multi" id="rFiltCats" multiple size="5" onchange="showOrigemCategoria()"></select>
+                                                <div style="font-size:10px;color:var(--muted);margin-top:3px">Ctrl+clique = múltiplas. Vazio = todas.</div>
+                                                <div id="origemCategoria" style="margin-top:6px"></div>
+                                            </div>
+                                            <div>
+                                                <label class="lbl">Período</label>
+                                                <div style="display:flex;gap:6px;margin-bottom:6px">
+                                                    <input type="month" class="input" id="rFiltDateFrom" style="font-size:11px;padding:5px 8px" title="De (mês/ano)">
+                                                    <span style="color:var(--muted);font-size:11px;align-self:center">a</span>
+                                                    <input type="month" class="input" id="rFiltDateTo" style="font-size:11px;padding:5px 8px" title="Até (mês/ano)">
+                                                </div>
+                                                <label class="lbl">Anos <span style="font-size:10px;color:var(--muted);font-weight:400">(vazio = todos)</span></label>
+                                                <div id="rYearChecks" style="display:flex;flex-wrap:wrap;gap:6px;padding:4px 0;min-height:32px">
+                                                    <span style="font-size:11px;color:var(--muted)">Carregue arquivos...</span>
+                                                </div>
+                                                <div style="display:flex;gap:6px;margin-top:6px">
+                                                    <button class="btn btn-s btn-sm" style="font-size:10px" onclick="selAllYears()">Todos</button>
+                                                    <button class="btn btn-s btn-sm" style="font-size:10px" onclick="clearYears()">Nenhum</button>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label class="lbl">Tipo de análise</label>
+                                                <select class="sel" id="rFiltMode" style="font-size:12px;padding:7px 10px" onchange="onModeChange()">
+                                                    <option value="standard">📊 Consumo Real (Totais e Médias)</option>
+                                                    <option value="ranking">🏆 Ranking — quem mais consome</option>
+                                                    <option value="yearcomp">📅 Comparação ano a ano</option>
+                                                </select>
+                                                <label class="lbl" style="margin-top:8px">Agrupar por</label>
+                                                <select class="sel" id="rFiltGroup" style="font-size:12px;padding:7px 10px">
+                                                    <option value="unit">Unidade → Categoria → Item</option>
+                                                    <option value="cat">Categoria → Item → Unidade</option>
+                                                    <option value="item">Item consolidado</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div id="rankingOpts" style="display:none;background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:10px;font-size:12px">
+                                            <label class="lbl">Item específico para ranking</label>
+                                            <input class="input" id="rRankItem" placeholder="Ex: ARROZ (deixe vazio para todos)" style="font-size:12px;padding:7px 10px;margin-bottom:0">
+                                        </div>
+                                        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                                            <button class="btn btn-p" onclick="gerarRelatorio()">📊 Gerar Relatório</button>
+                                            <button class="btn btn-s" onclick="exportarCSV()">⬇️ Exportar CSV</button>
+                                            <button class="btn btn-s btn-sm" onclick="selAllUnits()">☑ Todas unid.</button>
+                                            <button class="btn btn-s btn-sm" onclick="selAllCats()">☑ Todas categ.</button>
+                                            <button class="btn btn-s btn-sm" onclick="clearFilters()">✕ Limpar</button>
+                                            <label style="display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;margin-left:4px">
+                                                <input type="checkbox" id="rFiltZeros"> Mostrar zeros
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="rel-panel" id="rReport">
+                                        <div class="rel-empty"><div class="ic">📊</div>Carregue arquivos e clique em Gerar Relatório.</div>
+                                    </div>
                                 </div>
-                                <div>
-                                    <label for="select-tipo-materiais" class="form-label">Tipo de Material</label>
-                                    <select id="select-tipo-materiais" class="form-select" required>
-                                        <option value="">-- Selecione --</option>
-                                        <option value="alimenticio">Alimento</option>
-                                        <option value="higiene">Higiene</option>
-                                        <option value="limpeza">Limpeza</option>
-                                        <option value="expediente">Expediente</option>
-                                        <option value="outros">Outros</option>
-                                    </select>
-                                </div>
-                                 <div>
-                                    <label for="input-data-separacao" class="form-label">Data da Requisição (Opcional)</label>
-                                    <input type="date" id="input-data-separacao" class="form-input">
-                                </div>
-                                <div>
-                                    <label for="input-arquivo-materiais" class="form-label">Anexar Pedido (PDF, Excel, Imagem)</label>
-                                    <input type="file" id="input-arquivo-materiais" class="form-input" accept=".pdf,.xls,.xlsx,.jpg,.jpeg,.png">
-                                    <p class="text-xs text-gray-500 mt-1">Opcional. Anexe o arquivo do pedido (Máx 10MB).</p>
-                                </div>
-                                <div>
-                                    <label for="textarea-itens-materiais" class="form-label">Observação/Itens Solicitados:</label>
-                                    <textarea id="textarea-itens-materiais" class="form-textarea" placeholder="Liste os itens ou descreva o pedido... (Opcional)"></textarea>
-                                </div>
-                                <div>
-                                    <label for="input-responsavel-materiais" class="form-label">Responsável pelo Lançamento (Unidade)</label>
-                                    <input type="text" id="input-responsavel-materiais" class="form-input" placeholder="Nome de quem lançou a requisição" required>
-                                </div>
-
-                                <button type="submit" id="btn-submit-materiais" class="btn-primary w-full !mt-6">
-                                    <i data-lucide="save"></i> <span>Registrar Requisição</span>
-                                </button>
-                            </form>
-                            <div id="alert-materiais" class="alert mt-4"></div>
+                            </div>
                         </div>
+                    </div>
 
-                        <!-- Coluna de Resumo de Pendências -->
-                        <div class="lg:col-span-1 space-y-4">
-                             <h3 class="text-xl font-bold text-gray-800 mb-2">Resumo de Pendências</h3>
+                    <div class="modal-ficha" id="fichaModal">
+                        <div class="modal-inner">
+                            <div class="modal-toolbar">
+                                <span class="title" id="fichaTitle">📋 Ficha</span>
+                                <div class="fstats" id="fichaStats"></div>
+                                <div style="margin-left:auto;display:flex;gap:8px" id="fichaModalActions">
+                                    <button class="btn btn-s btn-sm" id="btnImprimirFicha" onclick="printFicha()" style="color:#e2e8f0;border-color:#475569">🖨️ Imprimir</button>
+                                    <button type="button" class="btn btn-g btn-sm" id="btnMarcarProntoFicha" onclick="marcarPronto(event)">✅ Pronto</button>
+                                    <button class="btn btn-s btn-sm" onclick="fecharFicha()" style="color:#e2e8f0;border-color:#475569">✕ Fechar</button>
+                                </div>
+                            </div>
+                            <div class="legend" id="fichaModalLegend">
+                                <b>Clique no status:</b>
+                                <span class="badge-status badge-nao_atendido" style="cursor:default">Não Atendido</span> →
+                                <span class="badge-status badge-atendido" style="cursor:default">Atendido</span> →
+                                <span class="badge-status badge-parcial" style="cursor:default">Parcial</span> →
+                                <span class="badge-status badge-sem_estoque" style="cursor:default">Sem Estoque</span>
+                                <span style="margin-left:8px">| Auto-detecta Parcial quando qtd &lt; solicitada</span>
+                            </div>
+                            <div class="ficha-a4" id="fichaBody"></div>
+                        </div>
+                    </div>
 
-                             <!-- Card Para Separar -->
-                             <div class="bg-purple-50 rounded-xl border border-purple-200 shadow-sm p-5 flex flex-col hover:shadow-md transition-shadow">
-                                 <div class="flex items-center gap-3 mb-2">
-                                     <div class="p-2 bg-purple-100 rounded-full">
-                                         <i data-lucide="clipboard-list" class="w-5 h-5 text-purple-600"></i>
-                                     </div>
-                                     <h4 class="font-semibold text-purple-800">Para Separar</h4>
-                                 </div>
-                                 <p id="summary-materiais-requisitado" class="text-4xl font-extrabold text-purple-600 mt-auto">0</p>
-                                 <p class="text-xs text-purple-500 mt-1">Requisições aguardando</p>
-                             </div>
+                    <div class="mo" id="modal"><div class="mbox"><div class="mhd"><h3 id="mT"></h3><p id="mD"></p></div><div class="mbd"><input class="input" id="mI" style="font-size:15px"></div><div class="mft"><button class="btn btn-s btn-sm" onclick="closeModal()">Cancelar</button><button class="btn btn-p btn-sm" onclick="okModal()">Confirmar</button></div></div></div>
 
-                             <!-- Card Em Separação -->
-                             <div class="bg-yellow-50 rounded-xl border border-yellow-200 shadow-sm p-5 flex flex-col hover:shadow-md transition-shadow">
-                                 <div class="flex items-center gap-3 mb-2">
-                                     <div class="p-2 bg-yellow-100 rounded-full">
-                                         <i data-lucide="loader-2" class="w-5 h-5 text-yellow-600 animate-spin"></i>
-                                     </div>
-                                     <h4 class="font-semibold text-yellow-800">Em Separação</h4>
-                                 </div>
-                                 <p id="summary-materiais-separacao" class="text-4xl font-extrabold text-yellow-600 mt-auto">0</p>
-                                 <p class="text-xs text-yellow-500 mt-1">Materiais sendo separados</p>
-                             </div>
-
-                             <!-- Card Pronto p/ Entrega -->
-                             <div class="bg-green-50 rounded-xl border border-green-200 shadow-sm p-5 flex flex-col hover:shadow-md transition-shadow">
-                                 <div class="flex items-center gap-3 mb-2">
-                                     <div class="p-2 bg-green-100 rounded-full">
-                                         <i data-lucide="package-check" class="w-5 h-5 text-green-600"></i>
-                                     </div>
-                                     <h4 class="font-semibold text-green-800">Pronto p/ Entrega</h4>
-                                 </div>
-                                 <p id="summary-materiais-retirada" class="text-4xl font-extrabold text-green-600 mt-auto">0</p>
-                                 <p class="text-xs text-green-500 mt-1">Registros prontos</p>
-                             </div>
+                    <div class="editor-modal" id="editorModal">
+                        <div class="editor-inner">
+                            <div class="editor-hd">
+                                <h3 id="editorTitle">📝 Editar Planilha</h3>
+                                <div style="display:flex;gap:8px">
+                                    <button class="btn btn-g btn-sm" onclick="saveEditor()">💾 Salvar</button>
+                                    <button class="btn btn-s btn-sm" style="color:#e2e8f0;border-color:#475569" onclick="closeEditor()">✕ Fechar</button>
+                                </div>
+                            </div>
+                            <div class="editor-body" id="editorBody"></div>
                         </div>
                     </div>
                 </div>
-
-                <!-- Sub-view: Para Separar -->
-                <div id="subview-para-separar" class="hidden"> <!-- ID Atualizado -->
-                    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-                        <h3 class="text-xl font-bold text-gray-800 mb-2">1. Para Separar</h3>
-                        <p class="text-sm text-gray-500 mb-2">Requisições que aguardam um separador.</p>
-                        <!-- Tutorial: Para Separar -->
-                        <div class="bg-blue-50 border border-blue-200 p-3 rounded-lg mb-4">
-                            <div class="flex items-center gap-2 mb-1">
-                                <i data-lucide="help-circle" class="text-blue-600 w-4 h-4"></i>
-                                <span class="text-sm font-medium text-blue-700">Tutorial rápido</span>
-                            </div>
-                            <p class="text-xs text-blue-800">Ações: <strong>Iniciar</strong>, <strong>Baixar</strong>, <strong>Remover (admin)</strong>. Clique em <strong>Iniciar</strong> para informar o separador; use <strong>Baixar</strong> para abrir o anexo.</p>
-                        </div>
-                        <div id="alert-para-separar" class="alert mb-4"></div>
-                        <div class="overflow-x-auto border border-gray-200 rounded-lg">
-                            <table class="table w-full text-sm">
-                                <thead class="bg-gray-50">
-                                    <tr>
-                                        <th>Unidade</th>
-                                        <th>Tipo</th>
-                                        <!-- CORREÇÃO SOLICITADA 2: Coluna Data e Hora -->
-                                        <th>Lançado Em (Data e Hora)</th>
-                                        <th>Lançado por</th>
-                                        <th class="text-center">Ações</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="table-para-separar" class="divide-y divide-gray-100">
-                                    <!-- JS Preenche aqui -->
-                                    <tr><td colspan="5" class="text-center py-10"><div class="loading-spinner-small mx-auto"></div></td></tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Sub-view: Em Separação -->
-                <div id="subview-em-separacao" class="hidden"> <!-- ID Atualizado -->
-                    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-                        <h3 class="text-xl font-bold text-gray-800 mb-2">2. Em Separação</h3>
-                        <p class="text-sm text-gray-500 mb-2">Materiais que estão sendo separados no almoxarifado.</p>
-                        <!-- Tutorial: Em Separação -->
-                        <div class="bg-yellow-50 border border-yellow-200 p-3 rounded-lg mb-4">
-                            <div class="flex items-center gap-2 mb-1">
-                                <i data-lucide="info" class="text-yellow-600 w-4 h-4"></i>
-                                <span class="text-sm font-medium text-yellow-700">Tutorial rápido</span>
-                            </div>
-                            <p class="text-xs text-yellow-800">Ações: <strong>Pronto</strong>, <strong>Remover (admin)</strong>. Após separar, clique em <strong>Pronto</strong> para mover para a próxima etapa. A coluna <em>Iniciado Em</em> mostra data e hora.</p>
-                        </div>
-                        <div id="alert-em-separacao" class="alert mb-4"></div>
-                        <div class="overflow-x-auto border border-gray-200 rounded-lg">
-                            <table class="table w-full text-sm">
-                                <thead class="bg-gray-50">
-                                    <tr>
-                                        <th>Unidade</th>
-                                        <th>Tipo</th>
-                                        <th>Separador</th>
-                                        <th>Iniciado Em</th>
-                                        <th class="text-center">Ações</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="table-em-separacao" class="divide-y divide-gray-100">
-                                    <!-- JS Preenche aqui -->
-                                     <tr><td colspan="5" class="text-center py-10"><div class="loading-spinner-small mx-auto"></div></td></tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Sub-view: Pronto para Entrega -->
-                <div id="subview-pronto-entrega" class="hidden"> <!-- ID Atualizado -->
-                    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-                        <h3 class="text-xl font-bold text-gray-800 mb-2">3. Pronto p/ Entrega</h3>
-                        <p class="text-sm text-gray-500 mb-2">Materiais que aguardam a confirmação de recebimento da unidade.</p>
-                        <!-- Tutorial: Pronto p/ Entrega -->
-                        <div class="bg-green-50 border border-green-200 p-3 rounded-lg mb-4">
-                            <div class="flex items-center gap-2 mb-1">
-                                <i data-lucide="check-circle" class="text-green-600 w-4 h-4"></i>
-                                <span class="text-sm font-medium text-green-700">Tutorial rápido</span>
-                            </div>
-                            <p class="text-xs text-green-800">Ações: <strong>Finalizar</strong>, <strong>Remover (admin)</strong>. Use <strong>Finalizar</strong> para registrar os responsáveis. O botão <em>Finalizar em lote (Hoje)</em> é exclusivo para administradores.</p>
-                        </div>
-                        <div id="alert-pronto-entrega" class="alert mb-4"></div>
-                        <div class="mb-4 grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
-                            <div>
-                                <label for="batch-unidade-select" class="form-label text-xs">Unidade (lote):</label>
-                                <select id="batch-unidade-select" class="form-select">
-                                    <option value="">Selecione...</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label for="batch-resp-almox" class="form-label text-xs">Resp. Almox. (lote):</label>
-                                <input type="text" id="batch-resp-almox" class="form-input" placeholder="Nome do responsável do almox." />
-                            </div>
-                            <div>
-                                <label for="batch-resp-unidade" class="form-label text-xs">Resp. Unidade (lote):</label>
-                                <input type="text" id="batch-resp-unidade" class="form-input" placeholder="Nome de quem recebe" />
-                            </div>
-                            <div class="md:col-span-2 flex items-end justify-end">
-                                <button id="btn-batch-finalizar-hoje" class="btn-primary text-sm"><i data-lucide="check-check"></i><span>Finalizar em lote (Hoje)</span></button>
-                            </div>
-                        </div>
-                        <div class="overflow-x-auto border border-gray-200 rounded-lg">
-                            <table class="table w-full text-sm">
-                                <thead class="bg-gray-50">
-                                    <tr>
-                                        <th>Unidade</th>
-                                        <th>Tipo</th>
-                                        <th>Separador</th>
-                                        <th>Pronto Em</th>
-                                        <th class="text-center">Ações</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="table-pronto-entrega" class="divide-y divide-gray-100">
-                                    <!-- JS Preenche aqui -->
-                                    <tr><td colspan="5" class="text-center py-10"><div class="loading-spinner-small mx-auto"></div></td></tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Sub-view: Histórico de Entregues -->
-                <div id="subview-historico-entregues" class="hidden"> <!-- ID Atualizado -->
-                    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-                        <h2 class="text-xl font-bold text-gray-800 mb-4"><i data-lucide="archive" class="inline-block -mt-1 mr-2"></i> Histórico de Materiais Entregues</h2>
-                        <p class="text-sm text-gray-600 mb-2">Detalhes de todos os materiais que já foram finalizados e entregues.</p>
-                        <!-- Tutorial: Histórico -->
-                        <div class="bg-gray-50 border border-gray-200 p-3 rounded-lg mb-4">
-                            <div class="flex items-center gap-2 mb-1">
-                                <i data-lucide="search" class="text-gray-700 w-4 h-4"></i>
-                                <span class="text-sm font-medium text-gray-700">Tutorial rápido</span>
-                            </div>
-                            <p class="text-xs text-gray-700">Filtros de texto, unidade e período ajudam a localizar entregas. Colunas com data/hora não quebram mais visualmente. Ação disponível: <strong>Remover (admin)</strong>.</p>
-                        </div>
-                        <div id="alert-historico-entregues" class="alert mb-4"></div>
-
-                        <div class="mb-4 grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
-                            <div class="md:col-span-2">
-                                <label for="filtro-historico-entregues" class="form-label text-xs">Buscar no Histórico:</label>
-                                <input type="text" id="filtro-historico-entregues" data-table="table-historico-entregues" class="form-input" placeholder="Buscar por unidade, responsável, data...">
-                            </div>
-                            <div>
-                                <label for="select-historico-unidade" class="form-label text-xs">Filtrar por Unidade:</label>
-                                <select id="select-historico-unidade" class="form-select">
-                                    <option value="todas">Todas as unidades</option>
-                                </select>
-                            </div>
-                            <div class="flex gap-2">
-                                <div class="flex-1">
-                                    <label for="historico-inicio" class="form-label text-xs">Início</label>
-                                    <input type="date" id="historico-inicio" class="form-input" />
-                                </div>
-                                <div class="flex-1">
-                                    <label for="historico-fim" class="form-label text-xs">Fim</label>
-                                    <input type="date" id="historico-fim" class="form-input" />
-                                </div>
-                            </div>
-                            <div class="md:col-span-4 flex justify-end">
-                                <button id="btn-limpar-filtros-historico" class="btn-secondary text-sm"><i data-lucide="x"></i><span>Limpar filtros</span></button>
-                            </div>
-                        </div>
-
-                        <div class="overflow-x-auto border border-gray-200 rounded-lg">
-                            <table class="table w-full text-sm">
-                                <thead class="bg-gray-50">
-                                    <tr>
-                                        <th>Unidade</th>
-                                        <th>Tipo</th>
-                                        <th>Data Entrega</th>
-                                        <th>Resp. Unidade</th>
-                                        <th>Resp. Almox.</th>
-                                        <th class="text-center">Lançado Em (Data e Hora)</th>
-                                        <th class="text-center">Ação</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="table-historico-entregues" class="divide-y divide-gray-100">
-                                    <!-- JS Preenche aqui -->
-                                    <tr><td colspan="7" class="text-center py-10"><div class="loading-spinner-small mx-auto"></div></td></tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div> <!-- Fim de content-materiais -->
+            </div>
 
             <!-- ========================================================== -->
             <!-- PAINEL ASSISTÊNCIA SOCIAL (ID: content-social)             -->
@@ -2831,7 +2502,6 @@ Ou cole o texto do calendário (com '1º de janeiro', etc.)"></textarea>
                     <script>document.getElementById('gov-footer-year').textContent = new Date().getFullYear();</script>
                 </footer>
                 </div>
-            </div>
         </main>
 
     </div> <!-- Fim de #app-content-wrapper -->

@@ -28,6 +28,8 @@ function buildCollections(basePath) {
         cestaEstoque: collection(db, `${basePath}/socialCestaEstoque`),
         enxovalMov: collection(db, `${basePath}/socialEnxovalMov`),
         enxovalEstoque: collection(db, `${basePath}/socialEnxovalEstoque`),
+        semcasHistDB: collection(db, `${basePath}/semcasHistDB`),
+        semcasAliases: collection(db, `${basePath}/semcasAliases`),
     };
 }
 
@@ -83,7 +85,7 @@ async function ensureCollectionsWithData() {
     if (!db || !__collectionsPrimary || !__collectionsLegacy) return __activeCollectionsKey;
     try {
         const hasAnyData = async (cols) => {
-            const checks = [cols.unidades, cols.estoqueAgua, cols.aguaMov];
+            const checks = [cols.unidades, cols.estoqueAgua, cols.aguaMov, cols.materiais];
             for (const c of checks) {
                 const snap = await getDocs(query(c, limit(1)));
                 if (!snap.empty) return true;
@@ -101,7 +103,9 @@ async function ensureCollectionsWithData() {
             __activeCollectionsKey = 'legacy';
             return __activeCollectionsKey;
         }
-    } catch (_) {}
+    } catch (err) {
+        console.warn("Erro no ensureCollectionsWithData (verifique as regras de permissão):", err);
+    }
     COLLECTIONS = __collectionsPrimary;
     __activeCollectionsKey = 'primary';
     return __activeCollectionsKey;

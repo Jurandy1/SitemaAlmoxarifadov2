@@ -1,4 +1,5 @@
 // js/modules/auth.js
+console.info("[AUTH] auth.js v11-hotfix carregado");
 import {
     signInAnonymously,
     signInWithCustomToken,
@@ -41,6 +42,8 @@ import {
     setEnxovalMovimentacoes,
     setEnxovalEstoque,
     setEstoqueInicialDefinido,
+    setSemcasHistDB,
+    setSemcasAliases,
     setUserRole
 } from "../utils/cache.js";
 import { onUserLogout } from "./usuarios.js";
@@ -125,14 +128,16 @@ async function getUserRoleFromFirestore(user) {
         const primary = getPrimaryCollections?.();
         const legacy = getLegacyCollections?.();
         const candidates = [primary?.userRoles, legacy?.userRoles].filter(Boolean);
+        const found = [];
         for (const col of candidates) {
             const ref = doc(col, user.uid);
             const snap = await getDoc(ref);
-            if (snap.exists()) {
-                const role = snap.data().role;
-                return ['admin', 'editor', 'anon'].includes(role) ? role : 'anon';
-            }
+            if (!snap.exists()) continue;
+            const role = snap.data().role;
+            if (['admin', 'editor', 'anon'].includes(role)) found.push(role);
         }
+        if (found.includes('admin')) return 'admin';
+        if (found.includes('editor')) return 'editor';
         return 'anon';
     } catch (err) {
         console.error("Erro ao obter role:", err);
@@ -227,17 +232,41 @@ async function initFirestoreListeners(renderDash, renderControls, renderModules)
 
     await ensureCollectionsWithData();
 
+    let gotAnySnapshot = false;
+    let lastListenerError = null;
+
     const addListener = (q, cb) => {
         const unsub = onSnapshot(
             q,
-            cb,
+            snap => {
+                gotAnySnapshot = true;
+                cb(snap);
+            },
             err => {
+                lastListenerError = err;
+                const code = String(err?.code || '').toLowerCase();
                 const msg = String(err?.message || '').toLowerCase();
-                // Silencia erros de canal abortado/queda de rede no preview
-                if (msg.includes('aborted') || msg.includes('network') || msg.includes('failed')) {
+
+                if (code === 'unavailable' || msg.includes('aborted') || msg.includes('network request failed')) {
                     console.warn("Conexão com Firestore perdida temporariamente.");
+                    try { showAlert('connectionStatus', 'Conexão instável. Tentando reconectar…', 'warning', 6000); } catch (_) {}
                     return;
                 }
+
+                if (code === 'permission-denied' || msg.includes('missing or insufficient permissions')) {
+                    try { showAlert('alert-login', 'Sem permissão para ler os dados (' + q.type + ').', 'error', 10000); } catch (_) {}
+                    try {
+                        if (DOM_ELEMENTS.appContentWrapper) DOM_ELEMENTS.appContentWrapper.classList.add('hidden');
+                        if (DOM_ELEMENTS.authModal) DOM_ELEMENTS.authModal.style.display = 'flex';
+                    } catch (_) {}
+                    console.error("Erro no listener Firestore (permission-denied):", err, "Query:", q);
+                    return;
+                }
+
+                if (code === 'failed-precondition' && msg.includes('index')) {
+                    try { showAlert('connectionStatus', 'Consulta do Firestore precisa de índice. Verifique o console para o link de criação.', 'warning', 10000); } catch (_) {}
+                }
+
                 console.error("Erro no listener Firestore:", err);
             }
         );
@@ -269,6 +298,7 @@ async function initFirestoreListeners(renderDash, renderControls, renderModules)
     // Materiais
     addListener(query(COLLECTIONS.materiais, orderBy("registradoEm", "desc"), limit(500)), snap => {
         const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        try { console.info("[FM] materiais listener:", data.length, "docs"); } catch (_) {}
         setMateriais(data);
         scheduleRenders({ dash: true, modules: true }, renderDash, renderControls, renderModules);
     });
@@ -314,6 +344,35 @@ async function initFirestoreListeners(renderDash, renderControls, renderModules)
         setEnxovalEstoque(data);
         scheduleRenders({ modules: true }, renderDash, renderControls, renderModules);
     });
+
+    addListener(query(COLLECTIONS.semcasHistDB, orderBy("weekStart", "desc"), limit(200)), snap => {
+        const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        try { console.info("[FM] semcasHistDB listener (economico):", data.length, "docs"); } catch (_) {}
+        setSemcasHistDB(data);
+        window.__semcasHistDB = data;
+        window.__semcasHistDBAt = Date.now();
+        window.__semcasHistDBPartial = true;
+        scheduleRenders({ modules: true }, renderDash, renderControls, renderModules);
+    });
+
+    addListener(query(COLLECTIONS.semcasAliases), snap => {
+        const config = snap.docs.find(d => d.id === "config")?.data() || {};
+        const aliases = config.aliases || {};
+        setSemcasAliases(aliases);
+        window.__semcasAliases = aliases;
+        scheduleRenders({ modules: true }, renderDash, renderControls, renderModules);
+    });
+
+    setTimeout(() => {
+        try {
+            if (gotAnySnapshot) return;
+            if (lastListenerError) {
+                showAlert('connectionStatus', 'Não foi possível carregar os dados do banco. Verifique sua conexão/permissões.', 'error', 10000);
+                return;
+            }
+            showAlert('connectionStatus', 'Carregando dados do banco…', 'info', 8000);
+        } catch (_) {}
+    }, 4000);
 }
 
 // Reconexão: O Firebase com persistência offline (IndexedDB) já gerencia
@@ -330,8 +389,7 @@ window.addEventListener('online', () => {
 // AUTH STATE HANDLER
 // =======================================================================
 async function initAuthAndListeners(renderDash, renderControls, renderModules) {
-    await ensureBestAuthPersistence();
-    if (DOM_ELEMENTS.authModal) DOM_ELEMENTS.authModal.style.display = 'none';
+    try { await ensureBestAuthPersistence(); } catch (_) {}
 
     if (window.authInitialized) return;
     window.authInitialized = true;
@@ -353,6 +411,11 @@ async function initAuthAndListeners(renderDash, renderControls, renderModules) {
 
             console.log(`✅ Autenticado com UID: ${userId}, Role: ${role}`);
             if (DOM_ELEMENTS.userEmailDisplayEl) DOM_ELEMENTS.userEmailDisplayEl.textContent = user.email || 'Usuário';
+            if (DOM_ELEMENTS.authModal) DOM_ELEMENTS.authModal.style.display = 'none';
+            if (DOM_ELEMENTS.appContentWrapper) {
+                DOM_ELEMENTS.appContentWrapper.classList.remove('hidden');
+                DOM_ELEMENTS.appContentWrapper.style.display = '';
+            }
 
             unsubscribeFirestoreListeners();
             

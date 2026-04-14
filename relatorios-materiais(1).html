@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel Gerencial — Materiais SEMCAS</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700;9..40,800&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--navy:#0f172a;--accent:#2563eb;--green:#10b981;--red:#ef4444;--amber:#f59e0b;--purple:#8b5cf6;--bg:#f1f5f9;--surface:#fff;--border:#e2e8f0;--muted:#64748b;--text:#0f172a}
+body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--text)}
+.topbar{background:var(--navy);color:#fff;padding:12px 20px;display:flex;align-items:center;gap:12px;font-size:13px;position:sticky;top:0;z-index:100}
+.topbar b{font-size:15px}
+.filters{background:var(--surface);border-bottom:1px solid var(--border);padding:10px 20px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.sel{padding:6px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;outline:none;background:var(--surface)}
+.content{max-width:1100px;margin:0 auto;padding:16px 20px}
+
+/* SECTION */
+.section{margin-bottom:24px}
+.section-title{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:10px;padding-left:2px;display:flex;align-items:center;gap:6px}
+.section-title span{font-size:15px}
+
+/* CARDS */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.grid4{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+@media(max-width:768px){.grid2,.grid3{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px}
+.card h3{font-size:13px;font-weight:800;margin-bottom:3px;letter-spacing:-.2px}
+.card .desc{font-size:11px;color:var(--muted);margin-bottom:10px}
+
+/* KPI */
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center}
+.kpi .v{font-size:26px;font-weight:800;line-height:1.1}
+.kpi .l{font-size:10px;color:var(--muted);margin-top:2px;font-weight:700;text-transform:uppercase;letter-spacing:.3px}
+.kpi .trend{font-size:10px;margin-top:4px;font-weight:700}
+.up{color:var(--red)}.down{color:var(--green)}.flat{color:var(--muted)}
+
+/* ALERT */
+.alert{border-radius:10px;padding:10px 14px;margin-bottom:8px;font-size:12px;display:flex;align-items:flex-start;gap:8px;line-height:1.5}
+.alert-red{background:#fef2f2;border:1px solid #fecaca;color:#991b1b}
+.alert-amber{background:#fffbeb;border:1px solid #fde68a;color:#92400e}
+.alert-blue{background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af}
+.alert-icon{font-size:16px;flex-shrink:0;line-height:1}
+.alert b{font-weight:800}
+
+/* TABLE */
+.rank{width:100%;border-collapse:collapse;font-size:12px}
+.rank th{text-align:left;padding:6px 8px;font-size:9px;font-weight:800;text-transform:uppercase;color:var(--muted);border-bottom:2px solid var(--border);letter-spacing:.5px}
+.rank td{padding:6px 8px;border-bottom:1px solid #f1f5f9;vertical-align:middle}
+.rank tr:hover td{background:#f8fafc}
+.pos{text-align:center;font-weight:800;color:var(--accent);width:24px}
+.bar-cell{width:100px}
+.bar-bg{height:6px;background:#f1f5f9;border-radius:3px;overflow:hidden}
+.bar-fill{height:100%;border-radius:3px}
+.pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700}
+.p-ok{background:#d1fae5;color:#065f46}
+.p-pa{background:#fef3c7;color:#92400e}
+.p-se{background:#fee2e2;color:#991b1b}
+.p-blue{background:#dbeafe;color:#1e40af}
+.chart-wrap{position:relative;height:220px}
+.chart-wrap canvas{max-height:220px}
+.tall .chart-wrap{height:280px}
+.tall .chart-wrap canvas{max-height:280px}
+.compare{display:flex;align-items:center;gap:4px;font-size:11px;font-weight:700}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <b>SEMCAS</b>
+  <span style="color:#475569">›</span>
+  <span>Painel Gerencial de Materiais</span>
+  <span style="margin-left:auto;color:#94a3b8;font-size:11px" id="tdLabel"></span>
+</div>
+<div class="filters">
+  <span style="font-size:11px;font-weight:700;color:var(--muted)">Período:</span>
+  <select class="sel" id="fMes" onchange="render()">
+    <option value="3">Março 2026</option><option value="2">Fevereiro 2026</option><option value="1">Janeiro 2026</option><option value="0">Trimestre (Jan-Mar)</option>
+  </select>
+  <span style="font-size:11px;font-weight:700;color:var(--muted)">Unidade:</span>
+  <select class="sel" id="fUni" onchange="render()"><option value="">Todas</option></select>
+</div>
+<div class="content" id="main"></div>
+
+<script>
+document.getElementById('tdLabel').textContent=new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+
+// ═══════════════════════════════════════
+// DEMO DATA
+// ═══════════════════════════════════════
+const UNIS=['CRAS Bacanga','CRAS Maracanã','CRAS Turu','CRAS Cohab','CRAS Vinhais','CRAS Anjo da Guarda','CREAS Cidade Operária','CREAS Coroadinho','CREAS Centro','CT Bacanga','CT Cidade Operária','PROCAD'];
+const TIPOS=['Expediente','Limpeza','Higiene','Alimentício','Descartável'];
+const MATS={
+  'Expediente':['Papel A4','Caneta azul','Caneta preta','Grampeador','Grampo 26/6','Tesoura','Cola branca','Cola bastão','Fita gomada','Clips','Borracha','Lápis grafite','Envelope A4','Pasta AZ','Caixa arquivo','Caderno brochura','Marcador texto','Fita durex','Prancheta','Post-it'],
+  'Limpeza':['Água sanitária','Desinfetante','Detergente','Sabão em pó','Sabão barra','Vassoura','Rodo','Pano de chão','Saco lixo 50L','Saco lixo 100L','Esponja','Balde','Luva limpeza','Flanela','Escovão'],
+  'Higiene':['Papel higiênico','Papel toalha','Álcool gel','Álcool líquido','Máscara descartável','Sabonete líquido'],
+  'Alimentício':['Café','Açúcar','Leite em pó','Biscoito','Margarina','Flocão milho','Fécula','Cuscuz'],
+  'Descartável':['Copo água','Copo café','Colher descartável','Prato descartável','Guardanapo']
+};
+const SEPS=['João','Carlos','Maria S.','Pedro','Ana','Fernanda'];
+function rnd(a,b){return Math.floor(Math.random()*(b-a+1))+a}
+function pick(a){return a[rnd(0,a.length-1)]}
+
+let D=[];
+for(let mes=1;mes<=3;mes++){
+  const dias=mes===2?28:31;
+  // Some units consume more (simulate anomaly)
+  const heavyUnits=new Set(['CRAS Bacanga','CREAS Coroadinho']);
+  for(let d=1;d<=dias;d++){
+    const dow=new Date(2026,mes-1,d).getDay();
+    if(dow===0||dow===6)continue;
+    const nReqs=rnd(16,24);
+    for(let r=0;r<nReqs;r++){
+      const uni=pick(UNIS);
+      const tipo=pick(TIPOS);
+      const mats2=MATS[tipo];
+      const nItens=rnd(3,Math.min(mats2.length,10));
+      const sep=pick(SEPS);
+      const ret=pick(['Motorista Paulo','Motorista Marcos','Motorista Raimundo','Próprio']);
+      // Time to deliver (hours) — some are slow
+      const horasEntrega=rnd(1,48);
+      const used=new Set();
+      for(let i=0;i<nItens;i++){
+        let mat;do{mat=pick(mats2)}while(used.has(mat)&&used.size<mats2.length);
+        used.add(mat);
+        let sol=rnd(1,10);
+        if(heavyUnits.has(uni))sol=rnd(3,15); // heavy consumer
+        const sw=rnd(1,10);
+        let status,ate;
+        if(sw<=2){status='sem_estoque';ate=0}
+        else if(sw<=4){status='parcial';ate=rnd(1,Math.max(sol-1,1))}
+        else{status='atendido';ate=sol}
+        D.push({data:`2026-${String(mes).padStart(2,'0')}-${String(d).padStart(2,'0')}`,unidade:uni,tipo,material:mat,sol,ate,status,separador:sep,retirou:ret,horas:horasEntrega});
+      }
+    }
+  }
+}
+
+const uSel=document.getElementById('fUni');
+UNIS.forEach(u=>{const o=document.createElement('option');o.value=u;o.textContent=u;uSel.appendChild(o)});
+
+let charts=[];
+function clearCharts(){charts.forEach(c=>c.destroy());charts=[]}
+function mk(id,cfg){const c=new Chart(document.getElementById(id),cfg);charts.push(c);return c}
+const C=['#2563eb','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4','#f97316','#14b8a6','#6366f1','#84cc16','#e11d48'];
+
+function render(){
+  clearCharts();
+  const mes=document.getElementById('fMes').value;
+  const uni=document.getElementById('fUni').value;
+  let F=D;
+  if(mes!=='0')F=F.filter(r=>r.data.split('-')[1]===String(mes).padStart(2,'0'));
+  if(uni)F=F.filter(r=>r.unidade===uni);
+
+  // Previous period for comparison
+  const prevMes=mes==='0'?null:String(Math.max(+mes-1,1)).padStart(2,'0');
+  let P=prevMes?D.filter(r=>r.data.split('-')[1]===prevMes):[];
+  if(uni)P=P.filter(r=>r.unidade===uni);
+
+  // ── CALCULATIONS ──
+  const totalSol=F.reduce((s,r)=>s+r.sol,0);
+  const totalAte=F.reduce((s,r)=>s+r.ate,0);
+  const pctAte=totalSol?Math.round((totalAte/totalSol)*100):0;
+  const prevSol=P.reduce((s,r)=>s+r.sol,0);
+  const prevAte=P.reduce((s,r)=>s+r.ate,0);
+  const prevPct=prevSol?Math.round((prevAte/prevSol)*100):0;
+  const diffSol=prevSol?Math.round(((totalSol-prevSol)/prevSol)*100):0;
+  const totalSE=F.filter(r=>r.status==='sem_estoque').length;
+  const prevSE=P.filter(r=>r.status==='sem_estoque').length;
+  const diffSE=prevSE?Math.round(((totalSE-prevSE)/prevSE)*100):0;
+  const avgHoras=F.length?Math.round(F.reduce((s,r)=>s+r.horas,0)/F.length):0;
+  const reqs=new Set(F.map(r=>r.data+r.unidade+r.separador)).size;
+
+  // By unit
+  const byU={};F.forEach(r=>{if(!byU[r.unidade])byU[r.unidade]={sol:0,ate:0,se:0,n:0,horas:0};byU[r.unidade].sol+=r.sol;byU[r.unidade].ate+=r.ate;byU[r.unidade].se+=(r.status==='sem_estoque'?1:0);byU[r.unidade].n++;byU[r.unidade].horas+=r.horas});
+  // Average consumption per unit
+  const avgPerUnit=Object.values(byU).length?Math.round(totalAte/Object.values(byU).length):0;
+
+  // By material
+  const byM={};F.forEach(r=>{if(!byM[r.material])byM[r.material]={sol:0,ate:0,se:0,n:0};byM[r.material].sol+=r.sol;byM[r.material].ate+=r.ate;byM[r.material].se+=(r.status==='sem_estoque'?1:0);byM[r.material].n++});
+
+  // By type
+  const byT={};F.forEach(r=>{if(!byT[r.tipo])byT[r.tipo]={sol:0,ate:0};byT[r.tipo].sol+=r.sol;byT[r.tipo].ate+=r.ate});
+
+  // By separator
+  const byS={};F.forEach(r=>{if(!byS[r.separador])byS[r.separador]=0;byS[r.separador]++});
+
+  // Monthly trend
+  const byMonth={};F.forEach(r=>{const m=r.data.substring(0,7);if(!byMonth[m])byMonth[m]={sol:0,ate:0};byMonth[m].sol+=r.sol;byMonth[m].ate+=r.ate});
+
+  // Anomalies: units consuming >50% above average
+  const anomalies=Object.entries(byU).filter(([,v])=>v.ate>avgPerUnit*1.5).sort((a,b)=>b[1].ate-a[1].ate);
+
+  // Critical stock: materials with highest sem_estoque rate
+  const critical=Object.entries(byM).filter(([,v])=>v.se>0).sort((a,b)=>(b[1].se/b[1].n)-(a[1].se/a[1].n)).slice(0,5);
+
+  // Slow deliveries
+  const slowUnits=Object.entries(byU).map(([u,v])=>([u,Math.round(v.horas/v.n)])).sort((a,b)=>b[1]-a[1]).slice(0,5);
+
+  // Forecast: simple projection based on trend
+  const mKeys=Object.keys(byMonth).sort();
+  let forecast=0;
+  if(mKeys.length>=2){
+    const vals=mKeys.map(m=>byMonth[m].ate);
+    const growth=(vals[vals.length-1]-vals[0])/(vals.length-1);
+    forecast=Math.round(vals[vals.length-1]+growth);
+    if(forecast<0)forecast=vals[vals.length-1];
+  }
+
+  function trend(diff,inv){
+    if(diff===0)return'<span class="flat">= igual</span>';
+    const cls=diff>0?(inv?'up':'down'):(inv?'down':'up');
+    return`<span class="${cls}">${diff>0?'▲':'▼'} ${Math.abs(diff)}% vs mês anterior</span>`;
+  }
+
+  // ═══ BUILD HTML ═══
+  let h='';
+
+  // ── ALERTAS ──
+  h+=`<div class="section"><div class="section-title"><span>🚨</span> Alertas e pontos de atenção</div>`;
+  if(anomalies.length){
+    anomalies.slice(0,3).forEach(([u,v])=>{
+      const pctAbove=Math.round(((v.ate-avgPerUnit)/avgPerUnit)*100);
+      h+=`<div class="alert alert-red"><span class="alert-icon">⚠️</span><div><b>${u}</b> está consumindo <b>${pctAbove}% acima da média</b> das outras unidades. Recebeu ${v.ate} itens vs média de ${avgPerUnit} por unidade.</div></div>`;
+    });
+  }
+  if(critical.length){
+    const topCrit=critical.slice(0,3).map(([m])=>m).join(', ');
+    h+=`<div class="alert alert-amber"><span class="alert-icon">📦</span><div><b>Itens críticos no estoque:</b> ${topCrit} — alta taxa de "sem estoque". Considere aumentar a compra desses itens.</div></div>`;
+  }
+  if(avgHoras>24){
+    h+=`<div class="alert alert-amber"><span class="alert-icon">⏰</span><div>Tempo médio de entrega está em <b>${avgHoras}h</b>. Algumas unidades esperam mais de 2 dias.</div></div>`;
+  }
+  if(forecast>0&&mes!=='0'){
+    h+=`<div class="alert alert-blue"><span class="alert-icon">📊</span><div><b>Previsão para o próximo mês:</b> ~${forecast.toLocaleString()} itens precisarão ser atendidos, com base na tendência dos últimos meses.</div></div>`;
+  }
+  if(!anomalies.length&&!critical.length&&avgHoras<=24){
+    h+=`<div class="alert alert-blue"><span class="alert-icon">✅</span><div>Nenhum alerta no momento. Consumo dentro da normalidade.</div></div>`;
+  }
+  h+=`</div>`;
+
+  // ── VISÃO GERAL ──
+  h+=`<div class="section"><div class="section-title"><span>📊</span> Visão geral do período</div>`;
+  h+=`<div class="grid4">
+    <div class="kpi"><div class="v" style="color:var(--accent)">${reqs.toLocaleString()}</div><div class="l">Requisições</div><div class="trend">${trend(diffSol,true)}</div></div>
+    <div class="kpi"><div class="v">${totalAte.toLocaleString()}</div><div class="l">Itens entregues</div><div class="trend">de ${totalSol.toLocaleString()} solicitados</div></div>
+    <div class="kpi"><div class="v" style="color:${pctAte>=70?'var(--green)':'var(--red)'}">${pctAte}%</div><div class="l">Taxa de atendimento</div><div class="trend">${prevPct?`era ${prevPct}% no mês anterior`:''}</div></div>
+    <div class="kpi"><div class="v" style="color:var(--red)">${totalSE}</div><div class="l">"Sem estoque"</div><div class="trend">${trend(diffSE,true)}</div></div>
+    <div class="kpi"><div class="v" style="color:${avgHoras<=24?'var(--green)':'var(--amber)'}"> ${avgHoras}h</div><div class="l">Tempo médio entrega</div><div class="trend">do pedido à retirada</div></div>
+    <div class="kpi"><div class="v" style="color:var(--purple)">${forecast>0?'~'+forecast.toLocaleString():'—'}</div><div class="l">Previsão próx. mês</div><div class="trend">baseado na tendência</div></div>
+  </div></div>`;
+
+  // ── ONDE ESTÁ INDO O MATERIAL ──
+  h+=`<div class="section"><div class="section-title"><span>🏢</span> Onde está indo o material?</div>`;
+  h+=`<div class="grid2">
+    <div class="card tall"><h3>Consumo por unidade</h3><div class="desc">Quem recebe mais vs a média (linha vermelha)</div><div class="chart-wrap"><canvas id="cUni"></canvas></div></div>
+    <div class="card tall"><h3>Distribuição por tipo de material</h3><div class="desc">Para onde vai cada categoria</div><div class="chart-wrap"><canvas id="cTipo"></canvas></div></div>
+  </div></div>`;
+
+  // ── ESTOQUE: O QUE FALTA ──
+  h+=`<div class="section"><div class="section-title"><span>🚨</span> O que está faltando no estoque?</div>`;
+  h+=`<div class="grid2">`;
+  // Items with highest sem_estoque
+  h+=`<div class="card"><h3>Itens que mais faltam</h3><div class="desc">Materiais com maior taxa de "sem estoque" — prioridade de compra</div>`;
+  const topSE=Object.entries(byM).map(([m,v])=>({m,se:v.se,n:v.n,pct:v.n?Math.round((v.se/v.n)*100):0})).filter(x=>x.se>0).sort((a,b)=>b.pct-a.pct).slice(0,8);
+  if(topSE.length){
+    h+=`<table class="rank"><thead><tr><th>Material</th><th>Vezes faltou</th><th>Taxa</th><th></th></tr></thead><tbody>`;
+    const maxP=topSE[0].pct;
+    topSE.forEach(x=>{
+      h+=`<tr><td style="font-weight:700">${x.m}</td><td style="color:var(--red);font-weight:700">${x.se}x</td><td><span class="pill p-se">${x.pct}%</span></td><td class="bar-cell"><div class="bar-bg"><div class="bar-fill" style="width:${Math.round(x.pct/maxP*100)}%;background:var(--red)"></div></div></td></tr>`;
+    });
+    h+=`</tbody></table>`;
+  }else h+=`<div style="text-align:center;color:var(--muted);padding:30px">Nenhum item em falta</div>`;
+  h+=`</div>`;
+
+  // Items with high parcial rate
+  const topParcial=Object.entries(byM).map(([m,v])=>{const pa=F.filter(r=>r.material===m&&r.status==='parcial').length;return{m,pa,n:v.n,pct:v.n?Math.round((pa/v.n)*100):0}}).filter(x=>x.pa>0).sort((a,b)=>b.pct-a.pct).slice(0,8);
+  h+=`<div class="card"><h3>Itens entregues parcialmente</h3><div class="desc">Pedido 5, entregou 2 — sinal de estoque insuficiente</div>`;
+  if(topParcial.length){
+    h+=`<table class="rank"><thead><tr><th>Material</th><th>Vezes parcial</th><th>Taxa</th><th></th></tr></thead><tbody>`;
+    const maxPa=topParcial[0].pct;
+    topParcial.forEach(x=>{
+      h+=`<tr><td style="font-weight:700">${x.m}</td><td style="color:var(--amber);font-weight:700">${x.pa}x</td><td><span class="pill p-pa">${x.pct}%</span></td><td class="bar-cell"><div class="bar-bg"><div class="bar-fill" style="width:${Math.round(x.pct/maxPa*100)}%;background:var(--amber)"></div></div></td></tr>`;
+    });
+    h+=`</tbody></table>`;
+  }
+  h+=`</div></div></div>`;
+
+  // ── EFICIÊNCIA DO ALMOXARIFADO ──
+  h+=`<div class="section"><div class="section-title"><span>⚡</span> Eficiência do almoxarifado</div>`;
+  h+=`<div class="grid3">`;
+  // Delivery speed distribution
+  const fast=F.filter(r=>r.horas<=8).length;
+  const med=F.filter(r=>r.horas>8&&r.horas<=24).length;
+  const slow=F.filter(r=>r.horas>24).length;
+  h+=`<div class="card"><h3>Velocidade de entrega</h3><div class="desc">Quanto tempo do pedido até a retirada</div><div class="chart-wrap"><canvas id="cSpeed"></canvas></div></div>`;
+
+  // Separator productivity
+  h+=`<div class="card"><h3>Produtividade dos separadores</h3><div class="desc">Itens processados por cada um</div><div class="chart-wrap"><canvas id="cSep"></canvas></div></div>`;
+
+  // Slow units
+  h+=`<div class="card"><h3>Unidades que mais demoram p/ retirar</h3><div class="desc">Tempo médio até virem buscar</div>`;
+  h+=`<table class="rank"><thead><tr><th>Unidade</th><th>Média</th><th></th></tr></thead><tbody>`;
+  slowUnits.forEach(([u,hr])=>{
+    const col=hr>36?'var(--red)':hr>24?'var(--amber)':'var(--green)';
+    h+=`<tr><td style="font-weight:600">${u}</td><td style="font-weight:700;color:${col}">${hr}h</td><td class="bar-cell"><div class="bar-bg"><div class="bar-fill" style="width:${Math.min(Math.round(hr/48*100),100)}%;background:${col}"></div></div></td></tr>`;
+  });
+  h+=`</tbody></table></div>`;
+  h+=`</div></div>`;
+
+  // ── TENDÊNCIA ──
+  h+=`<div class="section"><div class="section-title"><span>📈</span> Tendência e previsão</div>`;
+  h+=`<div class="grid2">
+    <div class="card tall"><h3>Evolução mensal</h3><div class="desc">Solicitado vs entregue — a diferença é o que faltou</div><div class="chart-wrap"><canvas id="cTrend"></canvas></div></div>
+    <div class="card tall"><h3>Taxa de atendimento por tipo</h3><div class="desc">Qual categoria está sendo mais prejudicada?</div><div class="chart-wrap"><canvas id="cTipoRate"></canvas></div></div>
+  </div></div>`;
+
+  // ── CONTROLE ──
+  h+=`<div class="section"><div class="section-title"><span>🔍</span> Controle e auditoria</div>`;
+  // Comparative table: all units with metrics
+  const uEntries=Object.entries(byU).sort((a,b)=>b[1].ate-a[1].ate);
+  h+=`<div class="card"><h3>Comparativo entre unidades</h3><div class="desc">Unidades do mesmo tipo (ex: dois CRAS) devem ter consumo semelhante. Diferenças grandes merecem atenção.</div>`;
+  h+=`<table class="rank"><thead><tr><th>#</th><th>Unidade</th><th>Solicitado</th><th>Entregue</th><th>Sem estoque</th><th>Taxa</th><th>Tempo médio</th><th>vs Média</th></tr></thead><tbody>`;
+  uEntries.forEach(([u,v],i)=>{
+    const pct=v.sol?Math.round((v.ate/v.sol)*100):0;
+    const hrs=Math.round(v.horas/v.n);
+    const vsMed=avgPerUnit?Math.round(((v.ate-avgPerUnit)/avgPerUnit)*100):0;
+    const vsCol=vsMed>50?'var(--red)':vsMed>20?'var(--amber)':'var(--green)';
+    h+=`<tr><td class="pos">${i+1}</td><td style="font-weight:700">${u}</td><td>${v.sol}</td><td style="font-weight:700;color:var(--green)">${v.ate}</td><td style="color:var(--red)">${v.se}</td><td><span class="pill ${pct>=70?'p-ok':pct>=50?'p-pa':'p-se'}">${pct}%</span></td><td>${hrs}h</td><td style="font-weight:700;color:${vsCol}">${vsMed>0?'+':''}${vsMed}%</td></tr>`;
+  });
+  h+=`</tbody></table></div>`;
+
+  // Top 15 materiais mais consumidos
+  const topMat=Object.entries(byM).sort((a,b)=>b[1].ate-a[1].ate).slice(0,15);
+  h+=`<div class="card" style="margin-top:12px"><h3>Top 15 materiais mais consumidos</h3><div class="desc">Onde concentrar o orçamento de compra</div>`;
+  h+=`<table class="rank"><thead><tr><th>#</th><th>Material</th><th>Solicitado</th><th>Entregue</th><th>Faltou</th><th>Taxa</th></tr></thead><tbody>`;
+  topMat.forEach(([m,v],i)=>{
+    const pct=v.sol?Math.round((v.ate/v.sol)*100):0;
+    const medals=['🥇','🥈','🥉'];
+    h+=`<tr><td class="pos">${medals[i]||i+1}</td><td style="font-weight:700">${m}</td><td>${v.sol}</td><td style="font-weight:700;color:var(--green)">${v.ate}</td><td style="color:var(--red)">${v.se}x</td><td><span class="pill ${pct>=70?'p-ok':pct>=50?'p-pa':'p-se'}">${pct}%</span></td></tr>`;
+  });
+  h+=`</tbody></table></div></div>`;
+
+  document.getElementById('main').innerHTML=h;
+
+  // ═══ CHARTS ═══
+  // Consumption by unit (bar + average line)
+  const uSorted=uEntries.slice(0,12);
+  mk('cUni',{type:'bar',data:{labels:uSorted.map(([u])=>u.replace(/CRAS |CREAS |CT /,'')),datasets:[{label:'Entregue',data:uSorted.map(([,v])=>v.ate),backgroundColor:'#2563eb',borderRadius:4},{type:'line',label:'Média',data:uSorted.map(()=>avgPerUnit),borderColor:'#ef4444',borderDash:[6,3],borderWidth:2,pointRadius:0,fill:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:10}}}},scales:{y:{beginAtZero:true,grid:{color:'#f1f5f9'}},x:{grid:{display:false},ticks:{font:{size:9}}}}}});
+
+  // Type donut
+  const tKeys=Object.keys(byT);
+  mk('cTipo',{type:'doughnut',data:{labels:tKeys,datasets:[{data:tKeys.map(t=>byT[t].ate),backgroundColor:C.slice(0,tKeys.length),borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{position:'right',labels:{font:{size:10},padding:8}}}}});
+
+  // Speed pie
+  mk('cSpeed',{type:'doughnut',data:{labels:['Até 8h (rápido)','8-24h (normal)','+24h (lento)'],datasets:[{data:[fast,med,slow],backgroundColor:['#10b981','#f59e0b','#ef4444'],borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'50%',plugins:{legend:{position:'bottom',labels:{font:{size:10},padding:6}}}}});
+
+  // Separator bar
+  const sEntries=Object.entries(byS).sort((a,b)=>b[1]-a[1]);
+  mk('cSep',{type:'bar',data:{labels:sEntries.map(([s])=>s),datasets:[{data:sEntries.map(([,v])=>v),backgroundColor:C.slice(0,sEntries.length),borderRadius:6}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,grid:{color:'#f1f5f9'}},y:{grid:{display:false},ticks:{font:{size:11,weight:'bold'}}}}}});
+
+  // Monthly trend
+  const mKeys2=Object.keys(byMonth).sort();
+  const mNames={1:'Jan',2:'Fev',3:'Mar',4:'Abr',5:'Mai',6:'Jun',7:'Jul',8:'Ago',9:'Set',10:'Out',11:'Nov',12:'Dez'};
+  mk('cTrend',{type:'bar',data:{labels:mKeys2.map(m=>mNames[+m.split('-')[1]]),datasets:[{label:'Solicitado',data:mKeys2.map(m=>byMonth[m].sol),backgroundColor:'#cbd5e1',borderRadius:4},{label:'Entregue',data:mKeys2.map(m=>byMonth[m].ate),backgroundColor:'#2563eb',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:10}}}},scales:{y:{beginAtZero:true,grid:{color:'#f1f5f9'}},x:{grid:{display:false}}}}});
+
+  // Type fulfillment rate
+  mk('cTipoRate',{type:'bar',data:{labels:tKeys,datasets:[{label:'% atendido',data:tKeys.map(t=>byT[t].sol?Math.round((byT[t].ate/byT[t].sol)*100):0),backgroundColor:tKeys.map((t,i)=>{const p=byT[t].sol?Math.round((byT[t].ate/byT[t].sol)*100):0;return p>=70?'#10b981':p>=50?'#f59e0b':'#ef4444'}),borderRadius:6}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,max:100,grid:{color:'#f1f5f9'},ticks:{callback:v=>v+'%'}},y:{grid:{display:false},ticks:{font:{size:12,weight:'bold'}}}}}});
+}
+
+render();
+</script>
+</body>
+</html>

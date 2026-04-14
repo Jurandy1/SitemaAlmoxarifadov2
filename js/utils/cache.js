@@ -9,6 +9,9 @@ let __unidades = [];
 let __aguaMovimentacoes = [];
 let __gasMovimentacoes = [];
 let __materiais = [];
+let __entregas = [];
+let __semcasHistDB = [];
+let __semcasAliases = {};
 let __estoqueAgua = [];
 let __estoqueGas = [];
 let __unidadesVersion = 0;
@@ -49,6 +52,9 @@ function getUnidadesVersion() { return __unidadesVersion; }
 function getAguaMovimentacoes() { return __aguaMovimentacoes; }
 function getGasMovimentacoes() { return __gasMovimentacoes; }
 function getMateriais() { return __materiais; }
+function getEntregas() { return __entregas; }
+function getSemcasHistDB() { return __semcasHistDB; }
+function getSemcasAliases() { return __semcasAliases; }
 function getEstoqueAgua() { return __estoqueAgua; }
 function getEstoqueGas() { return __estoqueGas; }
 
@@ -76,6 +82,9 @@ function setUnidades(data) { __unidades = data; __unidadesVersion += 1; }
 function setAguaMovimentacoes(data) { __aguaMovimentacoes = data; }
 function setGasMovimentacoes(data) { __gasMovimentacoes = data; }
 function setMateriais(data) { __materiais = data; }
+function setEntregas(data) { __entregas = data; }
+function setSemcasHistDB(data) { __semcasHistDB = data; }
+function setSemcasAliases(data) { __semcasAliases = data; }
 function setEstoqueAgua(data) { __estoqueAgua = data; }
 function setEstoqueGas(data) { __estoqueGas = data; }
 
@@ -113,6 +122,9 @@ export {
     getAguaMovimentacoes, setAguaMovimentacoes,
     getGasMovimentacoes, setGasMovimentacoes,
     getMateriais, setMateriais,
+    getEntregas, setEntregas,
+    getSemcasHistDB, setSemcasHistDB,
+    getSemcasAliases, setSemcasAliases,
     getEstoqueAgua, setEstoqueAgua,
     getEstoqueGas, setEstoqueGas,
     

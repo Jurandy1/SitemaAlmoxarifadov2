@@ -416,11 +416,6 @@ function findDOMElements() {
  * Exibe um alerta na interface.
  */
 function showAlert(elementId, message, type = 'info', duration = 5000) {
-    if (!domReady) {
-        console.warn(`DOM not ready, alert skipped: ${elementId}, Msg: ${message}`);
-        return;
-    }
-
     const el = document.getElementById(elementId);
     if (!el) {
         if (!missingAlertWarned.has(elementId)) {

@@ -1,5 +1,5 @@
 // js/modules/dashboard.js
-import { getAguaMovimentacoes, getGasMovimentacoes, getEstoqueAgua, getEstoqueGas, getMateriais, getCurrentDashboardMaterialFilter, setCurrentDashboardMaterialFilter } from "../utils/cache.js";
+import { getAguaMovimentacoes, getGasMovimentacoes, getEstoqueAgua, getEstoqueGas, getMateriais, getEntregas, getCurrentDashboardMaterialFilter, setCurrentDashboardMaterialFilter } from "../utils/cache.js";
 import { DOM_ELEMENTS } from "../utils/dom-helpers.js";
 import { formatTimestamp } from "../utils/formatters.js";
 import Chart from 'chart.js/auto';
@@ -16,10 +16,23 @@ let geralAutoScrollTimers = [];
 // Filtros globais e busca da Visão Geral (agrupamento)
 let geralFilterStatus = 'todos'; // 'todos' | 'separacao' | 'pronto' | 'pendente'
 let geralSearchQuery = '';
+let __tvFichaBound = false;
 
 // =========================================================================
 // FUNÇÕES DE UTILIDADE DO DASHBOARD
 // =========================================================================
+
+// ── Filtro: apenas documentos do novo módulo de separação (v2) ──
+// Documentos antigos (v1, sem _version) ficam apenas no histórico.
+function getActiveV2Materiais() {
+    return (getMateriais() || []).filter(m => {
+        if (m?.deleted) return false;
+        if (m?._version === 2) return true;
+        if (m?.origemFluxo === 'v2') return true;
+        if (m?.itemsMap && typeof m.itemsMap === 'object') return true;
+        return false;
+    });
+}
 
 function isHistoricoImportado(m) {
     if (!m) return false;
@@ -219,8 +232,7 @@ function renderDashboardMateriaisList() {
     try {
         DOM_ELEMENTS.loadingMateriaisDashboard.style.display = 'none'; 
         
-        const pendentes = (getMateriais() || [])
-            .filter(m => !m.deleted)
+        const pendentes = getActiveV2Materiais()
             .filter(m => m.status === 'requisitado' || m.status === 'separacao' || m.status === 'retirada')
             .sort((a,b) => { 
                 const statusOrder = { 'requisitado': 1, 'separacao': 2, 'retirada': 3 }; 
@@ -304,11 +316,12 @@ function renderDashboardMateriaisCounts() {
     // if (!DOM_ELEMENTS.summaryMateriaisRequisitado) return; // Removido para permitir atualização parcial (Modo TV)
     
     try {
-        const materiais = (getMateriais() || []).filter(m => !m.deleted);
+        const entregas = (getEntregas() || []).filter(m => !m.deleted && (m._version === 2 || m.origemFluxo === 'v2'));
+        const materiais = entregas.length ? entregas : getActiveV2Materiais();
 
         const requisitadoCount = materiais.filter(m => m.status === 'requisitado').length;
-        const separacaoCount = materiais.filter(m => m.status === 'separacao').length;
-        const retiradaCount = materiais.filter(m => m.status === 'retirada').length;
+        const separacaoCount = materiais.filter(m => m.status === 'separacao' || m.status === 'separando').length;
+        const retiradaCount = materiais.filter(m => m.status === 'retirada' || m.status === 'pronto').length;
         
         const emSeparacaoDashboard = requisitadoCount + separacaoCount;
 
@@ -337,7 +350,7 @@ export function renderDashboardMateriaisProntos(filterStatus = null) {
     if (!container) return; 
     
     try {
-        const materiais = (getMateriais() || []).filter(m => !m.deleted);
+        const materiais = getActiveV2Materiais();
         
         let pendentes = materiais.filter(m => m.status === 'requisitado' || m.status === 'separacao' || m.status === 'retirada');
         
@@ -464,7 +477,7 @@ export function renderDashboardMateriaisProntos(filterStatus = null) {
 // FUNÇÃO ESPECÍFICA PARA O NOVO PAINEL TV
 function renderTVDashboard(containerSeparacao, containerPronto) {
     try {
-        const materiais = (getMateriais() || []).filter(m => !m.deleted);
+        const materiais = getActiveV2Materiais();
         
         // Filtra e Ordena
         // Em Preparação = Requisitado + Separação
@@ -520,7 +533,18 @@ function renderTVDashboard(containerSeparacao, containerPronto) {
         const groupByTipo = (arr) => {
             const map = new Map();
             arr.forEach((m) => {
-                const tipo = normalizeTipo(m.tipoUnidade);
+                // Fallback: se tipoUnidade está vazio (docs v2 antigos), detecta do nome
+                let rawTipo = m.tipoUnidade || '';
+                if (!rawTipo && m.unidadeNome) {
+                    const nome = String(m.unidadeNome).toUpperCase();
+                    if (nome.startsWith('CRAS')) rawTipo = 'CRAS';
+                    else if (nome.startsWith('CREAS')) rawTipo = 'CREAS';
+                    else if (nome.includes('CT ') || nome.startsWith('CT')) rawTipo = 'CT';
+                    else if (nome.includes('CENTRO POP') || nome.includes('POP')) rawTipo = 'POP';
+                    else if (nome.includes('SEDE') || nome.includes('SEMCAS') || nome.includes('GABINETE')) rawTipo = 'SEDE';
+                    else if (nome.includes('ABRIGO') || nome.includes('RESIDÊNCIA') || nome.includes('LUZ E VIDA') || nome.includes('ACOLHER')) rawTipo = 'ABRIGO';
+                }
+                const tipo = normalizeTipo(rawTipo);
                 const key = tipo.label;
                 const entry = map.get(key) || { tipo, items: [] };
                 entry.items.push(m);
@@ -570,6 +594,16 @@ function renderTVDashboard(containerSeparacao, containerPronto) {
         renderCol(containerSeparacao, groupByTipo(emSeparacao), 'prep');
         renderCol(containerPronto, groupByTipo(prontos), 'rdy');
 
+        [containerSeparacao, containerPronto].forEach((c) => {
+            if (!c) return;
+            c.querySelectorAll('.card[data-mat-id]').forEach((el) => {
+                const id = el.getAttribute('data-mat-id');
+                if (!id) return;
+                el.style.cursor = 'pointer';
+                el.addEventListener('click', () => openTVFichaById(id));
+            });
+        });
+
         // Inicia Auto-Scroll se necessário
         handleTVAutoScroll(containerSeparacao);
         handleTVAutoScroll(containerPronto);
@@ -590,19 +624,44 @@ function createTVCard(m, panelType, escapeHTML) {
             .replace(/'/g, '&#39;');
 
     const unidade = esc(m.unidadeNome || 'Unidade');
-    const item = esc((m.tipoMaterial || 'material').toLowerCase());
-    const obs = m.itens ? `<div class="card-obs" title="${esc(m.itens)}">↳ ${esc(m.itens)}</div>` : '';
+
+    // v2: mostra tipos como pills; v1: mostra tipoMaterial simples
+    const isV2 = m._version === 2 || m.itemsMap;
+    let tipoHtml = '';
+    if (isV2 && Array.isArray(m.tiposMaterial) && m.tiposMaterial.length) {
+        tipoHtml = m.tiposMaterial.map(t => {
+            const slug = esc(String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z]/g, ''));
+            return `<span class="tv-tipo-pill ${slug}">${esc(t)}</span>`;
+        }).join(' ');
+    } else {
+        tipoHtml = `<span class="tv-tipo-pill">${esc((m.tipoMaterial || 'material').toLowerCase())}</span>`;
+    }
+
+    // v2: mostra resumo dos itens do itemsMap; v1: mostra m.itens (texto)
+    let obsHtml = '';
+    if (isV2 && m.itemsMap && typeof m.itemsMap === 'object') {
+        const items = Object.values(m.itemsMap);
+        const totalItens = items.length;
+        const atendidos = items.filter(i => i.status === 'atendido' || (Number(i.qtdAtendida) > 0 && i.status !== 'sem_estoque')).length;
+        const preview = items.slice(0, 4).map(i => esc(i.material || '')).join(', ');
+        const more = totalItens > 4 ? ` +${totalItens - 4}` : '';
+        obsHtml = `<div class="card-obs" title="${esc(preview + more)}">📋 ${totalItens} itens${panelType === 'rdy' && atendidos ? ` · ${atendidos} atend.` : ''}${preview ? ' · ' + preview + more : ''}</div>`;
+    } else if (m.itens) {
+        obsHtml = `<div class="card-obs" title="${esc(m.itens)}">↳ ${esc(m.itens)}</div>`;
+    }
+
     const separador = m.responsavelSeparador ? `<div class="card-sep">👤 ${esc(m.responsavelSeparador)}</div>` : '<span></span>';
     const time = esc(formatTimestamp(m.dataSeparacao || m.dataRetirada || m.registradoEm));
     const icon = panelType === 'rdy' ? '✓' : '◎';
 
+    const id = esc(m.id || '');
     return `
-        <div class="card">
+        <div class="card" data-mat-id="${id}">
             <div class="card-ic">${icon}</div>
             <div class="card-body">
                 <div class="card-unit">${unidade}</div>
-                <div class="card-tipo">${item}</div>
-                ${obs}
+                <div class="card-tipo">${tipoHtml}</div>
+                ${obsHtml}
                 <div class="card-footer">
                     ${separador}
                     <div class="card-time">${time}</div>
@@ -610,6 +669,98 @@ function createTVCard(m, panelType, escapeHTML) {
             </div>
         </div>
     `;
+}
+
+function ensureTVFichaBindings() {
+    if (__tvFichaBound) return;
+    __tvFichaBound = true;
+
+    const modal = document.getElementById('tvFichaModal');
+    const closeBtn = document.getElementById('tvFichaClose');
+    if (!modal) return;
+
+    const close = () => {
+        modal.classList.remove('open');
+        modal.setAttribute('aria-hidden', 'true');
+    };
+
+    if (closeBtn) closeBtn.addEventListener('click', close);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) close();
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal.classList.contains('open')) close();
+    });
+}
+
+function tvStatusLabel(raw) {
+    const s = String(raw || '').toLowerCase();
+    if (s === 'atendido') return { cls: 'atendido', txt: 'Atendido' };
+    if (s === 'parcial') return { cls: 'parcial', txt: 'Parcial' };
+    if (s === 'sem_estoque') return { cls: 'sem_estoque', txt: 'Sem estoque' };
+    if (s === 'nao_atendido') return { cls: 'nao_atendido', txt: 'Não atendido' };
+    if (s === 'excedido') return { cls: 'parcial', txt: 'Excedido' };
+    return { cls: 'nao_atendido', txt: '—' };
+}
+
+function openTVFichaById(id) {
+    ensureTVFichaBindings();
+    const modal = document.getElementById('tvFichaModal');
+    const titleEl = document.getElementById('tvFichaTitle');
+    const bodyEl = document.getElementById('tvFichaBody');
+    if (!modal || !titleEl || !bodyEl) return;
+
+    const materiais = (getMateriais() || []).filter(m => !m.deleted);
+    const m = materiais.find(x => String(x.id || '') === String(id || ''));
+    if (!m) return;
+
+    const esc = (input) => String(input ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
+    const unidade = esc(m.unidadeNome || 'Unidade');
+    const tipoUnidade = esc((m.tipoUnidade || 'OUTROS').toUpperCase());
+    const tipos = Array.isArray(m.tiposMaterial) && m.tiposMaterial.length ? m.tiposMaterial.map(t => esc(String(t))).join(', ') : esc(m.tipoMaterial || '');
+    const separador = esc(m.responsavelSeparador || '');
+    const entreguePor = esc(m.responsavelEntregaAlmox || m.entreguePor || '');
+    const retiradoPor = esc(m.responsavelRecebimento || '');
+    const status = esc(String(m.status || '').toUpperCase());
+    const quando = esc(formatTimestamp(m.dataSeparacao || m.dataRetirada || m.registradoEm));
+
+    titleEl.textContent = `📦 ${unidade}`;
+
+    const itemsObj = m.itemsMap && typeof m.itemsMap === 'object' ? m.itemsMap : {};
+    const items = Object.values(itemsObj).filter(Boolean);
+
+    const rows = items.slice(0, 60).map((it) => {
+        const mat = esc(it.material || '');
+        const un = esc(it.unidade || '');
+        const sol = esc(it.qtdSolicitada ?? '');
+        const ate = esc(it.qtdAtendida ?? '');
+        const st = tvStatusLabel(it.status);
+        return `<tr><td class="c-mat">${mat}</td><td class="c-un">${un}</td><td class="c-sol">${sol}</td><td class="c-ate">${ate}</td><td class="c-st"><span class="tv-st ${st.cls}">${st.txt}</span></td></tr>`;
+    }).join('');
+
+    const more = items.length > 60 ? `<div style="margin-top:10px;font-size:11px;color:#64748b">Mostrando 60 de ${items.length} itens.</div>` : '';
+
+    bodyEl.innerHTML = `
+        <div class="tv-ficha-meta">
+            <span class="tv-chip">🏷️ ${tipoUnidade}</span>
+            <span class="tv-chip">📌 ${status}</span>
+            <span class="tv-chip">🕒 ${quando}</span>
+            ${tipos ? `<span class="tv-chip">🧾 ${tipos}</span>` : ''}
+            ${separador ? `<span class="tv-chip">👤 Separador: ${separador}</span>` : ''}
+            ${entreguePor ? `<span class="tv-chip">📦 Entregue por: ${entreguePor}</span>` : ''}
+            ${retiradoPor ? `<span class="tv-chip">🤝 Retirado por: ${retiradoPor}</span>` : ''}
+        </div>
+        ${items.length ? `<table class="tv-items"><thead><tr><th class="c-mat">Material</th><th class="c-un">Un.</th><th class="c-sol">Solic.</th><th class="c-ate">Atend.</th><th class="c-st">Status</th></tr></thead><tbody>${rows}</tbody></table>${more}` : '<div style="font-size:12px;color:#64748b">Sem itens detalhados nesta requisição.</div>'}
+    `;
+
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden', 'false');
 }
 
 const tvAutoScrollState = new WeakMap();
@@ -686,11 +837,11 @@ export function filterDashboardMateriais(status) {
 
 export function renderDashboard() {
     // Bloco try-catch individual para cada seção evitar que um erro pare tudo
-    renderDashboardAguaSummary();
-    renderDashboardGasSummary();
-    renderDashboardMateriaisCounts();
-    renderDashboardMateriaisProntos(getCurrentDashboardMaterialFilter());
-    renderDashboardMateriaisList();
+    try { renderDashboardAguaSummary(); } catch(e) { console.error("Dashboard Água:", e); }
+    try { renderDashboardGasSummary(); } catch(e) { console.error("Dashboard Gás:", e); }
+    try { renderDashboardMateriaisCounts(); } catch(e) { console.error("Dashboard Counts:", e); }
+    try { renderDashboardMateriaisProntos(getCurrentDashboardMaterialFilter()); } catch(e) { console.error("Dashboard Materiais:", e); }
+    try { renderDashboardMateriaisList(); } catch(e) { console.error("Dashboard Lista:", e); }
 }
 
 export function startDashboardRefresh() {
