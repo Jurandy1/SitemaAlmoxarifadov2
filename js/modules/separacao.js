@@ -1,4 +1,4 @@
-import { setDoc, deleteDoc, doc, writeBatch, getDocs, query, orderBy, limit, startAfter, serverTimestamp, Timestamp, FieldPath } from "firebase/firestore";
+import { setDoc, deleteDoc, doc, writeBatch, getDocs, query, orderBy, limit, startAfter, serverTimestamp, Timestamp, documentId } from "firebase/firestore";
 import { auth, COLLECTIONS } from "../services/firestore-service.js";
 import { getMateriais, getUnidades, getUserRole, getSemcasHistDB, getSemcasAliases } from "../utils/cache.js";
 import { showAlert } from "../utils/dom-helpers.js";
@@ -386,8 +386,8 @@ async function deleteAllSemcasHistDB(onProgress) {
   let deleted = 0;
   while (true) {
     const q = last
-      ? query(COLLECTIONS.semcasHistDB, orderBy(FieldPath.documentId()), startAfter(last), limit(450))
-      : query(COLLECTIONS.semcasHistDB, orderBy(FieldPath.documentId()), limit(450));
+      ? query(COLLECTIONS.semcasHistDB, orderBy(documentId()), startAfter(last), limit(450))
+      : query(COLLECTIONS.semcasHistDB, orderBy(documentId()), limit(450));
     const snap = await getDocs(q);
     if (snap.empty) break;
     const b = writeBatch(db);
@@ -1467,7 +1467,25 @@ function buildFichaHTML(r,isPrint){
   });
   const v=Object.values(items);
   h+=`<div class="ficha-summary"><b>Resumo:</b> ${sumText(v)}</div>`;
-  h+=`<div class="ficha-sigs"><div class="ficha-sig"><div class="ficha-sig-line">${sep}</div><div class="ficha-sig-label">Separado por</div></div><div class="ficha-sig"><div class="ficha-sig-line">${ent}</div><div class="ficha-sig-label">Entregue por</div></div><div class="ficha-sig"><div class="ficha-sig-line">${ret}</div><div class="ficha-sig-label">Recebido por (assinatura)</div></div></div>`;
+  if (isPrint && r.status === 'separando') {
+    h+=`<div class="ficha-sigs">`
+      +`<div class="ficha-sig"><div class="ficha-sig-line"></div><div class="ficha-sig-label">Separado por${sep?'<br><b style="font-size:11px;color:#0f172a">'+sep+'</b>':''}</div></div>`
+      +`<div class="ficha-sig"></div>`
+      +`<div class="ficha-sig"><div class="ficha-sig-line"></div><div class="ficha-sig-label">Recebido por (assinatura)</div></div>`
+      +`</div>`;
+  } else if (isPrint) {
+    h+=`<div class="ficha-sigs">`
+      +`<div class="ficha-sig"><div class="ficha-sig-line" style="border-bottom:none;min-height:0"></div><div class="ficha-sig-label">Separado por${sep?'<br><b style="font-size:11px;color:#0f172a">'+sep+'</b>':''}</div></div>`
+      +`<div class="ficha-sig"><div class="ficha-sig-line"></div><div class="ficha-sig-label">Entregue por (assinatura)${ent?'<br><b style="font-size:11px;color:#0f172a">'+ent+'</b>':''}</div></div>`
+      +`<div class="ficha-sig"><div class="ficha-sig-line"></div><div class="ficha-sig-label">Recebido por (assinatura)${ret?'<br><b style="font-size:11px;color:#0f172a">'+ret+'</b>':''}</div></div>`
+      +`</div>`;
+  } else {
+    h+=`<div class="ficha-sigs">`
+      +`<div class="ficha-sig"><div class="ficha-sig-line" style="border-bottom:none;min-height:0"></div><div class="ficha-sig-label">Separado por${sep?'<br><b style="font-size:11px;color:#0f172a">'+sep+'</b>':''}</div></div>`
+      +`<div class="ficha-sig"><div class="ficha-sig-line" style="border-bottom:none;min-height:0"></div><div class="ficha-sig-label">Entregue por${ent?'<br><b style="font-size:11px;color:#0f172a">'+ent+'</b>':''}</div></div>`
+      +`<div class="ficha-sig"><div class="ficha-sig-line" style="border-bottom:none;min-height:0"></div><div class="ficha-sig-label">Recebido por${ret?'<br><b style="font-size:11px;color:#0f172a">'+ret+'</b>':''}</div></div>`
+      +`</div>`;
+  }
   return h;
 }
 
@@ -1601,6 +1619,10 @@ function entregarReq(id){
       const nItens = Object.values(r2.items).filter(i=>i.status==='atendido'||i.status==='parcial'||i.status==='excedido').length;
       const nZero = Object.values(r2.items).filter(i=>i.status==='sem_estoque'||i.status==='nao_atendido').length;
       toast(r2.unidade+' entregue para '+nm+' · '+nItens+' itens → banco | '+nZero+' sem atendimento','green');
+      
+      // Abre a impressão do comprovante (via do almoxarifado) com as assinaturas prontas
+      printReq(r2.id);
+      
       renderAll();
       try { buildPainel(); } catch (_) {}
       try { renderRelatorio(); } catch (_) {}
@@ -1615,6 +1637,7 @@ function printFicha(){const r=findReq(curId);if(r)printReq(r.id)}
 function printReq(id){
   const r=findReq(id);if(!r)return;
   const html='<div class="ficha-a4">'+buildFichaHTML(r,true)+'</div>';
+  
   const w=window.open('','_blank','width=850,height=1100');
   if(!w){toast('Permita popups!','red');return}
   w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>SEMCAS</title><style>
