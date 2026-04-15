@@ -817,8 +817,107 @@ async function docxToRows(arrayBuffer) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// FILE UPLOAD
+// PDF SUPPORT — Extrai tabelas de .pdf via pdf.js (posição X/Y)
 // ═══════════════════════════════════════════════════════════════════
+function isPdfFile(name) {
+  return /\.pdf$/i.test(name || '');
+}
+
+async function pdfToRows(arrayBuffer) {
+  if (typeof pdfjsLib === 'undefined') throw new Error('pdf.js não carregado');
+
+  const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) });
+  const pdf = await loadingTask.promise;
+  const allRows = [];
+
+  for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+    const page = await pdf.getPage(pageNum);
+    const textContent = await page.getTextContent();
+    const items = textContent.items.filter(item => item.str.trim());
+    if (!items.length) continue;
+
+    // ── Agrupar itens por coordenada Y (mesma linha) ──
+    const yThreshold = 4;
+    const rowBuckets = [];
+
+    items.forEach(item => {
+      const y = Math.round(item.transform[5]);
+      const x = item.transform[4];
+      const text = item.str;
+      const width = item.width || 0;
+
+      let bucket = rowBuckets.find(b => Math.abs(b.y - y) <= yThreshold);
+      if (!bucket) {
+        bucket = { y, cells: [] };
+        rowBuckets.push(bucket);
+      }
+      bucket.cells.push({ x, text, width });
+    });
+
+    // Ordenar linhas de cima para baixo (Y decresce no PDF)
+    rowBuckets.sort((a, b) => b.y - a.y);
+
+    // ── Detectar fronteiras de coluna via header "Material" ──
+    // Procura a linha que contém "Material" + "Quantidade"
+    let colBoundaries = null;
+    for (const bucket of rowBuckets) {
+      const sorted = [...bucket.cells].sort((a, b) => a.x - b.x);
+      const fullText = sorted.map(c => c.text).join(' ').toLowerCase();
+      if (fullText.includes('material') && fullText.includes('quantidade')) {
+        // Detecta posições X das colunas
+        const matCell = sorted.find(c => /^material$/i.test(c.text.trim()));
+        const qtdCells = sorted.filter(c => /quantidade/i.test(c.text));
+        if (matCell && qtdCells.length >= 1) {
+          const xMat = matCell.x;
+          const xQtd1 = qtdCells[0]?.x || 999;
+          const xQtd2 = qtdCells.length > 1 ? qtdCells[1]?.x : xQtd1 + 120;
+          // Fronteiras: [col0_start, col1_start, col2_start]
+          colBoundaries = [xMat, (xMat + xQtd1) / 2, (xQtd1 + xQtd2) / 2];
+        }
+        break;
+      }
+    }
+
+    // ── Converter cada linha em array de colunas ──
+    for (const bucket of rowBuckets) {
+      const sorted = [...bucket.cells].sort((a, b) => a.x - b.x);
+
+      if (colBoundaries && sorted.length >= 1) {
+        // Usar fronteiras detectadas para distribuir em 3-4 colunas
+        const cols = ['', '', '', ''];
+        for (const cell of sorted) {
+          let colIdx = 0;
+          if (cell.x >= colBoundaries[2]) colIdx = 2;
+          else if (cell.x >= colBoundaries[1]) colIdx = 1;
+          cols[colIdx] += (cols[colIdx] ? ' ' : '') + cell.text.trim();
+        }
+        // Remove colunas vazias no final
+        while (cols.length && !cols[cols.length - 1].trim()) cols.pop();
+        if (cols.some(c => c.trim())) allRows.push(cols.map(c => c.trim()));
+      } else {
+        // Fallback: detecta colunas por gaps grandes (>40px)
+        const columns = [];
+        let currentCol = '';
+        let lastRight = -999;
+
+        for (const cell of sorted) {
+          const gap = cell.x - lastRight;
+          if (gap > 40 && currentCol.trim()) {
+            columns.push(currentCol.trim());
+            currentCol = cell.text;
+          } else {
+            currentCol += (currentCol ? ' ' : '') + cell.text;
+          }
+          lastRight = cell.x + (cell.width || cell.text.length * 5);
+        }
+        if (currentCol.trim()) columns.push(currentCol.trim());
+        if (columns.length) allRows.push(columns);
+      }
+    }
+  }
+
+  return allRows;
+}
 const dz=document.getElementById('fdrop');
 if (dz) {
   ['dragenter','dragover'].forEach(e=>dz.addEventListener(e,ev=>{ev.preventDefault();dz.classList.add('over')}));
@@ -837,6 +936,9 @@ function handleFile(e){
     if (isDocxFile(file.name)) {
       rows = await docxToRows(ev.target.result);
       wb = { SheetNames: ['Sheet1'], Sheets: { Sheet1: {} } };
+    } else if (isPdfFile(file.name)) {
+      rows = await pdfToRows(ev.target.result);
+      wb = { SheetNames: ['Sheet1'], Sheets: { Sheet1: {} } };
     } else {
       wb = XLSX.read(a, {type:'array', cellDates: true});
       const ws = wb.Sheets[wb.SheetNames[0]];
@@ -848,6 +950,7 @@ function handleFile(e){
     tmpParsed._wb=wb;
     tmpParsed._rows=rows;
     if (isDocxFile(file.name)) tmpParsed.formato = 'docx';
+    if (isPdfFile(file.name)) tmpParsed.formato = 'pdf';
     
     // ── Tenta arranjar nome da unidade ──
     if (tmpParsed.unitName === 'Unidade' || tmpParsed.unitName === 'Desconhecida') {
@@ -866,13 +969,18 @@ function handleFile(e){
     const rDateWarn = document.getElementById('rDateWarn');
     if (rDateEl) {
       if (fin && fin.ws && fin.label !== '? (sem data)') {
-        rDateEl.value = fin.ws;
+        rDateEl.value = fin.ws; // ISO date detected from file
         tmpParsed._dateDetected = true;
         if (rDateWarn) rDateWarn.style.display = fin.yearAssumed ? 'block' : 'none';
       } else {
-        rDateEl.value = '';
+        // Data não detectada → usa data de hoje como fallback
+        const hj = new Date();
+        rDateEl.value = hj.getFullYear() + '-' + pad2(hj.getMonth()+1) + '-' + pad2(hj.getDate());
         tmpParsed._dateDetected = false;
-        if (rDateWarn) rDateWarn.style.display = 'block';
+        if (rDateWarn) {
+          rDateWarn.innerHTML = '⚠️ Data não identificada na planilha. <b>Usando data de hoje (' + pad2(hj.getDate()) + '/' + pad2(hj.getMonth()+1) + '/' + hj.getFullYear() + ').</b> Altere se necessário.';
+          rDateWarn.style.display = 'block';
+        }
       }
     }
 
@@ -882,7 +990,9 @@ function handleFile(e){
     const perTag=fin&&fin.label!=='? (sem data)'
       ?'<span style="font-size:10px;color:var(--muted);margin-left:4px">📅 '+fin.label+(fin.yearAssumed?' <span style="color:#f59e0b">⚠️ ano assumido</span>':'')+'</span>'
       :'<span style="font-size:10px;color:#d97706;margin-left:4px">⚠️ Data não detectada</span>';
-    const fmtTag=tmpParsed.formato==='docx'
+    const fmtTag=tmpParsed.formato==='pdf'
+      ?'<span class="format-tag" style="background:#fce7f3;color:#9d174d">Formato PDF</span>'
+      :tmpParsed.formato==='docx'
       ?'<span class="format-tag" style="background:#e0e7ff;color:#3730a3">Formato DOCX</span>'
       :tmpParsed.formato==='abrigo'
       ?'<span class="format-tag fmt-abrigo">Formato Abrigo</span>'
@@ -976,7 +1086,7 @@ function ck(){
 
   // Data: precisa ter sido detectada OU preenchida manualmente
   const hasDate = !!(rDate && rDate.value);
-  const dateOk = !rDate || hasDate || (hasParsed && tmpParsed._dateDetected);
+  const dateOk = hasDate;
 
   // Warnings visuais
   if (hasParsed && rUWarn) {
@@ -1098,13 +1208,12 @@ async function registrar(){
   }
 
   // ── Validação: data obrigatória ──
-  const dateVal = rDate?.value || tmpParsed?._detectedPeriod?.ws || '';
+  const dateVal = rDate?.value || '';
   if (!dateVal) {
     toast('Informe a data do pedido antes de registrar.', 'red');
     if (rDate) rDate.focus();
     return;
   }
-  if (rDate && !rDate.value) rDate.value = dateVal;
 
   const dtReq = new Date(dateVal + 'T12:00:00');
   if (isNaN(dtReq.getTime())) {
@@ -2433,11 +2542,9 @@ const UNIT_MAP=[
 ];
 function normalizeUnit(raw){
   if(!raw)return'Desconhecida';
-  const s=String(raw).replace(/\u00A0/g,' ').trim().replace(/\s+/g,' ').replace(/[\u2010-\u2015\u2212]/g,'-');
+  const s=raw.trim().replace(/\s+/g,' ');
   const k=rmAcc(s).toUpperCase();
   if(HIST_ALIASES[k])return HIST_ALIASES[k];
-  const k2=rmAcc(s.replace(/\s*\/\s*/g,'/')).toUpperCase();
-  if(HIST_ALIASES[k2])return HIST_ALIASES[k2];
   for(const [re,canon] of UNIT_MAP){if(re.test(s)||re.test(rmAcc(s)))return canon;}
   if(/^(fornecimento|data:|unidade de acolhimento$|separado|entregue|recebido)/i.test(s))return'Desconhecida';
   return s;
@@ -3097,6 +3204,10 @@ function handleHistFiles(e){
           // ── DOCX: converte tabelas via mammoth ──
           rows = await docxToRows(ev.target.result);
           wb = { SheetNames: ['Sheet1'], Sheets: { Sheet1: {} } };
+        } else if (isPdfFile(file.name)) {
+          // ── PDF: extrai tabelas via pdf.js ──
+          rows = await pdfToRows(ev.target.result);
+          wb = { SheetNames: ['Sheet1'], Sheets: { Sheet1: {} } };
         } else {
           // ── Excel/ODS: pipeline original ──
           wb = XLSX.read(new Uint8Array(ev.target.result),{type:'array', cellDates: true});
@@ -3107,7 +3218,7 @@ function handleHistFiles(e){
         const fmt = detectFormat(rows);
         
         let entry = null;
-        if(!isDocxFile(file.name) && isMultiSheet(wb)) {
+        if(!isDocxFile(file.name) && !isPdfFile(file.name) && isMultiSheet(wb)) {
             entry = parseMultiSheetWb(wb,file.name,fy);
         } else if (isStackedFormat(rows)) {
             entry = parseStackedBlocks(rows,file.name,fy);
@@ -3910,20 +4021,6 @@ const UNIT_TYPES = [
 
 function classifyUnit(name) {
   if (!name) return { id:'outros', label:'Outros', icon:'❓', color:'#94a3b8' };
-  try {
-    const nm = rmAcc(String(name)).toLowerCase().trim().replace(/\s+/g,' ');
-    const u = (getUnidades() || []).find(x => rmAcc(String(x?.nome||'')).toLowerCase().trim().replace(/\s+/g,' ') === nm);
-    if (u?.tipo) {
-      let t = String(u.tipo).toLowerCase().trim();
-      if (t === 'semcas') t = 'sede';
-      const byId = UNIT_TYPES.find(x => x.id === t);
-      if (byId) return byId;
-      if (t === 'cras') return UNIT_TYPES.find(x => x.id === 'cras');
-      if (t === 'creas') return UNIT_TYPES.find(x => x.id === 'creas');
-      if (t === 'ct') return UNIT_TYPES.find(x => x.id === 'ct');
-      if (t.includes('consel')) return UNIT_TYPES.find(x => x.id === 'conselho');
-    }
-  } catch (_) {}
   for (const t of UNIT_TYPES) {
     if (t.re.test(name)) return t;
   }
