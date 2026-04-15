@@ -19,6 +19,8 @@
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>if(typeof pdfjsLib!=='undefined')pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
 
 </head>
 <body class="v2-app semcas-shell">
@@ -1462,17 +1464,28 @@
                     <div class="view active" id="tab-req">
                         <div class="card">
                             <h2>📋 Registrar Nova Requisição</h2>
-                            <p class="desc">Anexe a planilha. O sistema detecta automaticamente unidade, tipos e formato (padrão ou abrigos).</p>
+                            <p class="desc">Anexe a planilha. O sistema detecta automaticamente unidade, tipos, data e formato.</p>
                             <div class="row mb-3">
-                                <div><label class="lbl">Unidade (auto-detectada ou selecione)</label><select class="sel" id="rU" onchange="ck()"><option value="">-- Auto-detectar da planilha --</option></select></div>
+                                <div>
+                                    <label class="lbl">Unidade (auto-detectada ou selecione)</label>
+                                    <select class="sel" id="rU" onchange="ck()"><option value="">-- Auto-detectar da planilha --</option></select>
+                                    <div id="rUWarn" style="display:none;font-size:11px;color:#d97706;margin-top:4px;background:#fefce8;border:1px solid #fde047;border-radius:6px;padding:4px 8px">⚠️ Unidade não identificada na planilha. <b>Selecione manualmente.</b></div>
+                                </div>
                                 <div><label class="lbl">Detectado</label><div id="detectInfo" style="min-height:36px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:6px 0"><span style="color:var(--muted);font-size:12px">Anexe a planilha...</span></div></div>
                             </div>
                             <div class="mb-3"><label class="lbl">Planilha do Pedido</label>
-                                <div class="fd" id="fdrop" onclick="document.getElementById('fi').click()"><div style="font-size:24px">📎</div><div style="font-size:13px;font-weight:600">Clique ou arraste</div><div style="font-size:11px;color:var(--muted)">.xlsx .xls .ods .docx</div><input type="file" id="fi" accept=".xlsx,.xls,.ods,.docx,.doc" style="display:none" onchange="handleFile(event)"><div class="fn" id="fname" style="display:none"></div></div>
+                                <div class="fd" id="fdrop" onclick="document.getElementById('fi').click()"><div style="font-size:24px">📎</div><div style="font-size:13px;font-weight:600">Clique ou arraste</div><div style="font-size:11px;color:var(--muted)">.xlsx .xls .ods .docx .pdf</div><input type="file" id="fi" accept=".xlsx,.xls,.ods,.docx,.doc,.pdf" style="display:none" onchange="handleFile(event)"><div class="fn" id="fname" style="display:none"></div></div>
                             </div>
                             <div class="row mb-3">
+                                <div>
+                                    <label class="lbl">Data do Pedido (auto-detectada ou informe)</label>
+                                    <input type="date" class="input" id="rDate" onchange="ck()">
+                                    <div id="rDateWarn" style="display:none;font-size:11px;color:#d97706;margin-top:4px;background:#fefce8;border:1px solid #fde047;border-radius:6px;padding:4px 8px">⚠️ Data não identificada na planilha. <b>Informe manualmente.</b></div>
+                                </div>
                                 <div><label class="lbl">Lançado por</label><input class="input" id="rR" value="Admin"></div>
-                                <div><label class="lbl">Observações</label><input class="input" id="rO" placeholder="Opcional"></div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="lbl">Observações</label><input class="input" id="rO" placeholder="Opcional">
                             </div>
                             <div style="display:flex; gap:8px;">
                                 <button class="btn btn-s w-full" id="bPreview" disabled onclick="previewReq()" style="flex:1;">👁️ Visualizar</button>
@@ -1567,8 +1580,8 @@
                                         <div class="fd" id="rDrop" onclick="document.getElementById('rFi').click()" style="margin-bottom:10px;padding:14px">
                                             <div style="font-size:18px">📎</div>
                                             <div style="font-size:12px;font-weight:600">Importar planilhas</div>
-                                            <div style="font-size:10px;color:var(--muted)">.xlsx .xls .ods .docx — múltiplos arquivos</div>
-                                            <input type="file" id="rFi" accept=".xlsx,.xls,.ods,.docx,.doc" style="display:none" multiple onchange="handleHistFiles(event)">
+                                            <div style="font-size:10px;color:var(--muted)">.xlsx .xls .ods .docx .pdf — múltiplos arquivos</div>
+                                            <input type="file" id="rFi" accept=".xlsx,.xls,.ods,.docx,.doc,.pdf" style="display:none" multiple onchange="handleHistFiles(event)">
                                         </div>
                                         <div id="rProgress" style="display:none;font-size:11px;color:var(--muted);margin-bottom:8px">
                                             <span id="rProgressMsg">Processando...</span>
