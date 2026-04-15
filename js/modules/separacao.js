@@ -976,7 +976,7 @@ function ck(){
 
   // Data: precisa ter sido detectada OU preenchida manualmente
   const hasDate = !!(rDate && rDate.value);
-  const dateOk = hasDate;
+  const dateOk = !rDate || hasDate || (hasParsed && tmpParsed._dateDetected);
 
   // Warnings visuais
   if (hasParsed && rUWarn) {
