@@ -483,6 +483,7 @@ const debouncedRenderPS = debounce(renderPS, 250);
 const debouncedRenderES = debounce(renderES, 250);
 const debouncedRenderPE = debounce(renderPE, 250);
 const debouncedRenderHI = debounce(renderHI, 250);
+const debouncedRenderVinculos = debounce(renderVinculos, 250);
 
 // Aggregation cache
 let _aggCache = null, _aggCacheKey = '';
@@ -959,7 +960,7 @@ function omitUndefinedShallow(obj) {
 function buildPreviewReqObject() {
   if (!tmpParsed) return null;
   const uSel=document.getElementById('rU');
-  const unidade=uSel.value||tmpParsed.unitName;
+  const unidade=uSel.value||normalizeUnit(tmpParsed.unitName)||tmpParsed.unitName;
   const itemsMap={};tmpParsed.categories.forEach(c=>c.items.forEach(it=>{itemsMap[it.id]={...it}}));
   const parsedSafe = stripVolatileParsed(tmpParsed);
   const fy = new Date().getFullYear();
@@ -1003,7 +1004,7 @@ function previewReq() {
 
 async function registrar(){
   const uSel=document.getElementById('rU');
-  const unidade=uSel.value||tmpParsed.unitName;
+  const unidade=uSel.value||normalizeUnit(tmpParsed.unitName)||tmpParsed.unitName;
   const itemsMap={};tmpParsed.categories.forEach(c=>c.items.forEach(it=>{itemsMap[it.id]={...it}}));
   const parsedSafe = stripVolatileParsed(tmpParsed);
   const fy = new Date().getFullYear();
@@ -1390,6 +1391,132 @@ function renderHI(){
   h+='</tbody></table></div>';
   h+=paginationHTML('hi', pg.page, pg.total, pg.count);
   el.innerHTML=h;
+}
+
+async function upsertUnitAlias(rawKey, canonicalName){
+  if (getUserRole() !== 'admin') { toast('Permissão negada: apenas Admin.', 'red'); return false; }
+  const k = rmAcc(String(rawKey||'').trim()).toUpperCase();
+  if(!k) return false;
+  const cn = String(canonicalName||'').trim();
+  if(!cn) return false;
+  HIST_ALIASES = getSemcasAliases() || HIST_ALIASES || {};
+  HIST_ALIASES[k] = cn;
+  try {
+    await DataStore.set('aliases', HIST_ALIASES);
+  } catch (e) {
+    console.error(e);
+    const code = String(e?.code || '');
+    const msg = String(e?.message || '');
+    toast('Erro ao salvar vínculo. ' + (code ? code + ': ' : '') + msg, 'red');
+    return false;
+  }
+  try {
+    const apply = (arr) => (arr||[]).forEach(e => (e.units||[]).forEach(u => { if (u && u.rawUnit) u.unitName = normalizeUnit(u.rawUnit) || u.unitName; }));
+    apply(HIST_DB);
+    if (window.__semcasHistDB && Array.isArray(window.__semcasHistDB)) apply(window.__semcasHistDB);
+    invalidateAggCache();
+  } catch (_) {}
+  toast('Vínculo salvo.', 'green');
+  return true;
+}
+
+async function removeUnitAlias(rawKey){
+  if (getUserRole() !== 'admin') { toast('Permissão negada: apenas Admin.', 'red'); return false; }
+  const k = rmAcc(String(rawKey||'').trim()).toUpperCase();
+  if(!k) return false;
+  HIST_ALIASES = getSemcasAliases() || HIST_ALIASES || {};
+  if (!HIST_ALIASES[k]) return true;
+  delete HIST_ALIASES[k];
+  try {
+    await DataStore.set('aliases', HIST_ALIASES);
+  } catch (e) {
+    console.error(e);
+    const code = String(e?.code || '');
+    const msg = String(e?.message || '');
+    toast('Erro ao remover vínculo. ' + (code ? code + ': ' : '') + msg, 'red');
+    return false;
+  }
+  try {
+    const apply = (arr) => (arr||[]).forEach(e => (e.units||[]).forEach(u => { if (u && u.rawUnit) u.unitName = normalizeUnit(u.rawUnit) || u.unitName; }));
+    apply(HIST_DB);
+    if (window.__semcasHistDB && Array.isArray(window.__semcasHistDB)) apply(window.__semcasHistDB);
+    invalidateAggCache();
+  } catch (_) {}
+  toast('Vínculo removido.', 'green');
+  return true;
+}
+
+function renderVinculos(){
+  const el = document.getElementById('vincList');
+  if(!el) return;
+  HIST_ALIASES = getSemcasAliases() || HIST_ALIASES || {};
+  const busca = (document.getElementById('vincBusca')?.value||'').toLowerCase();
+  const modo = document.getElementById('vincFiltro')?.value || 'pendentes';
+  const unidades = (getUnidades() || []).filter(u => (u?.atendeMateriais ?? true) === true);
+  const unitByName = new Map(unidades.map(u => [String(u.nome||u.unidadeNome||'').toLowerCase(), u]));
+  const hist = getSemcasHistDB() || [];
+  const cand = new Map();
+  const add = (raw) => {
+    const s = String(raw || '').trim().replace(/\s+/g,' ');
+    if(!s) return;
+    const k = rmAcc(s).toUpperCase();
+    if(!cand.has(k)) cand.set(k, { k, raw: s });
+  };
+  hist.forEach(e => (e.units||[]).forEach(u => add(u.rawUnit || u.unitName)));
+  if (tmpParsed?.unitName) add(tmpParsed.unitName);
+  let list = [...cand.values()];
+  if (busca) list = list.filter(x => x.raw.toLowerCase().includes(busca) || String(HIST_ALIASES[x.k]||'').toLowerCase().includes(busca));
+  if (modo === 'pendentes') {
+    list = list.filter(x => {
+      if (HIST_ALIASES[x.k]) return false;
+      const n = normalizeUnit(x.raw);
+      return !unitByName.has(String(n||'').toLowerCase());
+    });
+  }
+  list.sort((a,b) => a.raw.localeCompare(b.raw, 'pt-BR'));
+  if(!list.length){el.innerHTML='<div class="empty"><div class="ic">🔗</div>Nenhum vínculo pendente.</div>';return;}
+  let h='<div class="tbl-wrap"><table class="qt"><thead><tr><th>Nome na planilha</th><th>Vincular à unidade</th><th>Tipo</th><th></th></tr></thead><tbody>';
+  list.forEach((x,idx) => {
+    const mapped = HIST_ALIASES[x.k] || '';
+    const auto = (() => {
+      const n = normalizeUnit(x.raw);
+      return unitByName.has(String(n||'').toLowerCase()) ? n : '';
+    })();
+    const sel = mapped || auto || '';
+    h += `<tr><td style="font-weight:700">${esc(x.raw)}</td><td><select class="sel" style="min-width:260px" data-vk="${esc(x.k)}" data-vraw="${esc(x.raw)}" data-vsel="${esc(sel)}"><option value="">— Selecione —</option>${unidades.map(u=>`<option value="${esc(u.nome||u.unidadeNome||'')}">${esc(u.nome||u.unidadeNome||'')}</option>`).join('')}</select></td><td data-vtipo style="color:#64748b;font-size:12px"></td><td style="display:flex;gap:6px;justify-content:flex-end"><button class="btn btn-p btn-sm" type="button" data-vsave="${esc(x.k)}">💾 Salvar</button>${HIST_ALIASES[x.k]?`<button class="btn btn-s btn-sm" type="button" data-vdel="${esc(x.k)}" style="color:var(--red);border-color:#fecaca">✕ Remover</button>`:''}</td></tr>`;
+  });
+  h += '</tbody></table></div>';
+  el.innerHTML = h;
+  el.querySelectorAll('select[data-vk]').forEach(sel => {
+    sel.value = sel.dataset.vsel || '';
+    const tr = sel.closest('tr');
+    const tipoEl = tr?.querySelector('[data-vtipo]');
+    const refresh = () => {
+      if (!tipoEl) return;
+      const u = unitByName.get(String(sel.value||'').toLowerCase());
+      tipoEl.textContent = u?.tipo || u?.tipoUnidade || '';
+    };
+    sel.addEventListener('change', refresh);
+    refresh();
+  });
+  el.querySelectorAll('button[data-vsave]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const k = btn.getAttribute('data-vsave');
+      const sel = [...el.querySelectorAll('select[data-vk]')].find(s => s.getAttribute('data-vk') === k);
+      const canon = sel?.value || '';
+      if (!canon) { toast('Selecione uma unidade.', 'red'); return; }
+      const ok = await upsertUnitAlias(k, canon);
+      if (ok) renderVinculos();
+    });
+  });
+  el.querySelectorAll('button[data-vdel]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const k = btn.getAttribute('data-vdel');
+      if(!confirm('Remover este vínculo?')) return;
+      const ok = await removeUnitAlias(k);
+      if (ok) renderVinculos();
+    });
+  });
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -2202,6 +2329,29 @@ function normalizeUnit(raw){
   for(const [re,canon] of UNIT_MAP){if(re.test(s)||re.test(rmAcc(s)))return canon;}
   if(/^(fornecimento|data:|unidade de acolhimento$|separado|entregue|recebido)/i.test(s))return'Desconhecida';
   return s;
+}
+
+let _aliasesApplyKey = '';
+function applyAliasesToHistDB(){
+  const freshAliases = getSemcasAliases() || {};
+  const aKeys = Object.keys(freshAliases).sort();
+  let aKey = '' + aKeys.length;
+  for (const k of aKeys) aKey += '|' + k + '=' + freshAliases[k];
+  const h0 = HIST_DB && HIST_DB.length ? String(HIST_DB[0]?.id || '') : '';
+  const h1 = HIST_DB && HIST_DB.length ? String(HIST_DB[HIST_DB.length - 1]?.id || '') : '';
+  const applyKey = aKey + '::' + (HIST_DB?.length || 0) + '|' + h0 + '|' + h1;
+  if (applyKey === _aliasesApplyKey) return false;
+  _aliasesApplyKey = applyKey;
+  HIST_ALIASES = freshAliases;
+  let changed = false;
+  (HIST_DB || []).forEach(e => (e.units || []).forEach(u => {
+    if (!u) return;
+    if (!u.rawUnit) u.rawUnit = u.unitName || '';
+    const nn = normalizeUnit(u.rawUnit || u.unitName);
+    if (nn && u.unitName !== nn) { u.unitName = nn; changed = true; }
+  }));
+  if (changed) invalidateAggCache();
+  return changed;
 }
 
 const CAT_MAP=[
@@ -3061,6 +3211,7 @@ function renderRelatorio(){
   if(window.__semcasHistDB && window.__semcasHistDB.length>0) HIST_DB=window.__semcasHistDB;
   if(getSemcasHistDB() && getSemcasHistDB().length>0) HIST_DB=getSemcasHistDB();
   HIST_DB_PARTIAL=!!window.__semcasHistDBPartial;
+  applyAliasesToHistDB();
   populateDbUnitSelect();
   const allUnits=new Set(),allCats=new Set(),allYears=new Set();
   let totalRec=0;
@@ -4851,6 +5002,7 @@ function _buildPainelImpl(){
   if(window.__semcasHistDB && window.__semcasHistDB.length>0) HIST_DB=window.__semcasHistDB;
   if(getSemcasHistDB() && getSemcasHistDB().length>0) HIST_DB=getSemcasHistDB();
   HIST_DB_PARTIAL=!!window.__semcasHistDBPartial;
+  applyAliasesToHistDB();
   const el=document.getElementById('panContent');
   _panUnit = document.getElementById('panUnitSel')?.value || '';
   
@@ -5410,6 +5562,7 @@ export function renderSeparacao() {
     if (Object.keys(freshAliases).length > 0 || Object.keys(HIST_ALIASES).length === 0) {
       HIST_ALIASES = freshAliases;
     }
+    applyAliasesToHistDB();
     applySeparacaoRoleUI();
     syncReqsFromCache();
     renderAll();

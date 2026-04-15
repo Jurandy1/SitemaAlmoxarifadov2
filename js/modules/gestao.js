@@ -1,11 +1,18 @@
 // js/modules/gestao.js
-import { addDoc, updateDoc, doc } from "firebase/firestore";
-import { getUnidades, getUserRole } from "../utils/cache.js"; // Adicionado getUserRole
+import { addDoc, updateDoc, doc, setDoc } from "firebase/firestore";
+import { getUnidades, getUserRole, getSemcasAliases, getSemcasHistDB } from "../utils/cache.js"; // Adicionado getUserRole
 // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
 import { DOM_ELEMENTS, showAlert, openConfirmDeleteModal } from "../utils/dom-helpers.js"; 
 import { normalizeString, capitalizeString } from "../utils/formatters.js";
 import { isReady } from "./auth.js";
 import { COLLECTIONS } from "../services/firestore-service.js";
+
+function _norm(v = "") {
+    return String(v || "").normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim().replace(/\s+/g, ' ');
+}
+
+let _gestaoSubview = 'unidades';
+let _aliasesOverride = null;
 
 // =========================================================================
 // LÓGICA DE RENDERIZAÇÃO E FILTRO
@@ -317,6 +324,149 @@ export async function handleBulkAddUnidades() {
      }
 }
 
+function setGestaoSubview(subview) {
+    _gestaoSubview = subview === 'vinculos' ? 'vinculos' : 'unidades';
+    document.querySelectorAll('[data-subview-gestao]').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.subviewGestao === _gestaoSubview);
+    });
+    const vUn = document.getElementById('gestao-sub-unidades');
+    const vVi = document.getElementById('gestao-sub-vinculos');
+    if (vUn) vUn.classList.toggle('hidden', _gestaoSubview !== 'unidades');
+    if (vVi) vVi.classList.toggle('hidden', _gestaoSubview !== 'vinculos');
+    if (_gestaoSubview === 'vinculos') renderGestaoVinculos();
+}
+
+async function saveGestaoAlias(rawKey, canonicalName) {
+    const role = getUserRole();
+    if (role !== 'admin') {
+        showAlert('alert-gestao', 'Permissão negada. Apenas Administradores podem criar vínculos.', 'error');
+        return false;
+    }
+    const aliases = { ...(getSemcasAliases() || {}), ...(_aliasesOverride || {}) };
+    aliases[_norm(rawKey)] = canonicalName;
+    try {
+        await setDoc(doc(COLLECTIONS.semcasAliases, 'config'), { aliases }, { merge: true });
+        _aliasesOverride = aliases;
+        showAlert('alert-gestao', 'Vínculo salvo com sucesso.', 'success', 2500);
+        return true;
+    } catch (error) {
+        showAlert('alert-gestao', `Erro ao salvar vínculo: ${error.message}`, 'error');
+        return false;
+    }
+}
+
+async function removeGestaoAlias(rawKey) {
+    const role = getUserRole();
+    if (role !== 'admin') {
+        showAlert('alert-gestao', 'Permissão negada. Apenas Administradores podem remover vínculos.', 'error');
+        return false;
+    }
+    const aliases = { ...(getSemcasAliases() || {}), ...(_aliasesOverride || {}) };
+    delete aliases[_norm(rawKey)];
+    try {
+        await setDoc(doc(COLLECTIONS.semcasAliases, 'config'), { aliases }, { merge: true });
+        _aliasesOverride = aliases;
+        showAlert('alert-gestao', 'Vínculo removido com sucesso.', 'success', 2500);
+        return true;
+    } catch (error) {
+        showAlert('alert-gestao', `Erro ao remover vínculo: ${error.message}`, 'error');
+        return false;
+    }
+}
+
+function renderGestaoVinculos() {
+    const container = document.getElementById('gestao-vinc-list');
+    if (!container) return;
+
+    const busca = _norm(document.getElementById('gestao-vinc-busca')?.value || '').toLowerCase();
+    const modo = document.getElementById('gestao-vinc-filtro')?.value || 'pendentes';
+    const unidades = (getUnidades() || []).filter(u => (u?.atendeMateriais ?? true) === true);
+    const aliases = { ...(getSemcasAliases() || {}), ...(_aliasesOverride || {}) };
+
+    const rawCandidates = new Map();
+    (getSemcasHistDB() || []).forEach(entry => {
+        (entry.units || []).forEach(u => {
+            const raw = String(u?.rawUnit || u?.unitName || '').trim();
+            if (!raw) return;
+            const k = _norm(raw);
+            if (!rawCandidates.has(k)) rawCandidates.set(k, raw);
+        });
+    });
+
+    let rows = [...rawCandidates.entries()].map(([k, raw]) => ({ key: k, raw, mapped: aliases[k] || '' }));
+    if (busca) rows = rows.filter(r => _norm(r.raw).toLowerCase().includes(busca) || _norm(r.mapped).toLowerCase().includes(busca));
+    if (modo === 'pendentes') rows = rows.filter(r => !r.mapped);
+    rows.sort((a,b) => a.raw.localeCompare(b.raw, 'pt-BR'));
+
+    if (!rows.length) {
+        container.innerHTML = `<div class="text-sm text-slate-500 p-4 border border-dashed rounded-lg">Nenhum vínculo pendente encontrado.</div>`;
+        return;
+    }
+
+    const opts = unidades
+        .slice()
+        .sort((a,b) => String(a.nome||'').localeCompare(String(b.nome||''), 'pt-BR'))
+        .map(u => {
+            let t = String(u?.tipo || '').toUpperCase();
+            if (t === 'SEMCAS') t = 'SEDE';
+            const label = (t ? t + ': ' : '') + String(u.nome || '');
+            return `<option value="${u.nome}">${label}</option>`;
+        }).join('');
+
+    let html = `<div class="overflow-x-auto border border-gray-200 rounded-lg"><table class="table w-full text-sm"><thead class="bg-gray-50"><tr><th>Nome na planilha</th><th>Unidade vinculada</th><th>Tipo</th><th class="text-right">Ação</th></tr></thead><tbody>`;
+    rows.forEach((r, i) => {
+        html += `<tr data-vrow="${i}">
+            <td class="font-medium">${r.raw}</td>
+            <td><select class="form-select gestao-vinc-select" data-key="${r.key}" data-current="${r.mapped}" style="min-width:280px"><option value="">-- Selecione --</option>${opts}</select></td>
+            <td class="gestao-vinc-tipo text-slate-500"></td>
+            <td class="text-right whitespace-nowrap">
+                <button type="button" class="btn-primary !py-1 !px-3 text-xs gestao-vinc-save" data-key="${r.key}">Salvar</button>
+                ${r.mapped ? `<button type="button" class="btn-danger !py-1 !px-3 text-xs gestao-vinc-del ml-2" data-key="${r.key}">Remover</button>` : ''}
+            </td>
+        </tr>`;
+    });
+    html += `</tbody></table></div>`;
+    container.innerHTML = html;
+
+    const tipoFromName = (name) => {
+        const u = unidades.find(x => String(x.nome || '').toLowerCase() === String(name || '').toLowerCase());
+        let t = String(u?.tipo || '').toUpperCase();
+        if (t === 'SEMCAS') t = 'SEDE';
+        return t;
+    };
+
+    container.querySelectorAll('.gestao-vinc-select').forEach(sel => {
+        sel.value = sel.dataset.current || '';
+        const tr = sel.closest('tr');
+        const tipoEl = tr?.querySelector('.gestao-vinc-tipo');
+        const refreshTipo = () => { if (tipoEl) tipoEl.textContent = tipoFromName(sel.value) || '—'; };
+        sel.addEventListener('change', refreshTipo);
+        refreshTipo();
+    });
+
+    container.querySelectorAll('.gestao-vinc-save').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const key = btn.dataset.key;
+            const sel = container.querySelector(`.gestao-vinc-select[data-key="${key}"]`);
+            const val = sel?.value || '';
+            if (!val) {
+                showAlert('alert-gestao', 'Selecione uma unidade para salvar o vínculo.', 'warning');
+                return;
+            }
+            const ok = await saveGestaoAlias(key, val);
+            if (ok) renderGestaoVinculos();
+        });
+    });
+
+    container.querySelectorAll('.gestao-vinc-del').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            if (!confirm('Remover este vínculo de materiais?')) return;
+            const ok = await removeGestaoAlias(btn.dataset.key);
+            if (ok) renderGestaoVinculos();
+        });
+    });
+}
+
 // =========================================================================
 // INICIALIZAÇÃO DE LISTENERS DO DOM
 // =========================================================================
@@ -338,6 +488,13 @@ export function initGestaoListeners() {
     if (DOM_ELEMENTS.btnBulkAddUnidades) {
         DOM_ELEMENTS.btnBulkAddUnidades.addEventListener('click', handleBulkAddUnidades);
     }
+    document.querySelectorAll('[data-subview-gestao]').forEach(btn => {
+        btn.addEventListener('click', () => setGestaoSubview(btn.dataset.subviewGestao));
+    });
+    const vincBusca = document.getElementById('gestao-vinc-busca');
+    if (vincBusca) vincBusca.addEventListener('input', renderGestaoVinculos);
+    const vincFiltro = document.getElementById('gestao-vinc-filtro');
+    if (vincFiltro) vincFiltro.addEventListener('change', renderGestaoVinculos);
 }
 
 /**
@@ -345,4 +502,5 @@ export function initGestaoListeners() {
  */
 export function onGestaoTabChange() {
     renderGestaoUnidades();
+    setGestaoSubview(_gestaoSubview);
 }

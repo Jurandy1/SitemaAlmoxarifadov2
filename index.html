@@ -29,7 +29,7 @@
             <!-- Cabeçalho Azul Institucional -->
             <div class="auth-modal-header">
                 <div class="auth-modal-logo">
-                    <img src="SaoLuis.png" alt="Brasão São Luís" onerror="this.style.display='none'">
+                    <img src="./SaoLuis.png" alt="Brasão São Luís" onerror="this.style.display='none'">
                 </div>
                 <div class="auth-modal-title">SEMCAS Almoxarifado</div>
                 <div class="auth-modal-subtitle">Secretaria Municipal da Criança e Assistência Social</div>
@@ -110,7 +110,7 @@
         <!-- 1) SIDEBAR (MENU LATERAL) -->
         <aside id="main-sidebar" class="sidebar transform -translate-x-full md:translate-x-0">
             <div class="sidebar-brand">
-                <img src="SaoLuis.png" alt="Prefeitura de São Luís" class="sidebar-site-logo" onerror="this.style.display='none'">
+                <img src="./SaoLuis.png" alt="Prefeitura de São Luís" class="sidebar-site-logo" onerror="this.style.display='none'">
             </div>
 
             <!-- Navegação Vertical -->
@@ -2213,6 +2213,12 @@
                 </div>
                 <div id="alert-gestao" class="alert mb-4"></div>
 
+                <div class="sub-nav flex flex-wrap gap-2 mb-4">
+                    <button class="sub-nav-btn active" data-subview-gestao="unidades">🏢 Unidades Cadastradas</button>
+                    <button class="sub-nav-btn" data-subview-gestao="vinculos">🔗 Vínculos Materiais</button>
+                </div>
+
+                <div id="gestao-sub-unidades" class="gestao-subview">
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <!-- Coluna de Adição em Lote -->
                     <div class="lg:col-span-1 bg-white rounded-xl border border-gray-200 shadow-sm p-6">
@@ -2253,6 +2259,28 @@
                                 </tbody>
                             </table>
                         </div>
+                    </div>
+                </div>
+                </div>
+
+                <div id="gestao-sub-vinculos" class="gestao-subview hidden">
+                    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                        <h3 class="text-lg font-semibold mb-3">Vínculos Materiais</h3>
+                        <p class="text-sm text-gray-500 mb-4">Vincule nomes de unidade encontrados nas planilhas à unidade cadastrada correta. Isso melhora a auto-detecção na Requisição.</p>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                            <div class="md:col-span-2">
+                                <label class="form-label text-xs">Buscar</label>
+                                <input type="text" class="form-input" id="gestao-vinc-busca" placeholder="🔍 Ex: TRANSFERÊNCIA DE RENDA-SGBSTR">
+                            </div>
+                            <div>
+                                <label class="form-label text-xs">Mostrar</label>
+                                <select class="form-select" id="gestao-vinc-filtro">
+                                    <option value="pendentes">Somente pendentes</option>
+                                    <option value="todas">Todas</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div id="gestao-vinc-list"></div>
                     </div>
                 </div>
             </div>
@@ -2491,7 +2519,7 @@ Ou cole o texto do calendário (com '1º de janeiro', etc.)"></textarea>
                 <footer class="mt-8 border-t border-gray-200 py-6">
                     <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-gray-500">
                         <div class="flex items-center gap-2">
-                            <img src="SaoLuis.png" alt="Brasão" class="h-6 opacity-80" onerror="this.style.display='none'">
+                            <img src="./SaoLuis.png" alt="Brasão" class="h-6 opacity-80" onerror="this.style.display='none'">
                             <span class="font-semibold text-gray-700">Prefeitura de São Luís</span>
                             <span class="text-gray-300">•</span>
                             <span>SEMCAS</span>
