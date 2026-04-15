@@ -865,14 +865,14 @@ function handleFile(e){
     const rDateEl = document.getElementById('rDate');
     const rDateWarn = document.getElementById('rDateWarn');
     if (rDateEl) {
-      if (fin && fin.ws && !fin.yearAssumed && fin.label !== '? (sem data)') {
-        rDateEl.value = fin.ws; // ISO date
-        if (rDateWarn) rDateWarn.style.display = 'none';
+      if (fin && fin.ws && fin.label !== '? (sem data)') {
+        rDateEl.value = fin.ws;
         tmpParsed._dateDetected = true;
+        if (rDateWarn) rDateWarn.style.display = fin.yearAssumed ? 'block' : 'none';
       } else {
         rDateEl.value = '';
-        if (rDateWarn) rDateWarn.style.display = 'block';
         tmpParsed._dateDetected = false;
+        if (rDateWarn) rDateWarn.style.display = 'block';
       }
     }
 
@@ -1098,12 +1098,13 @@ async function registrar(){
   }
 
   // ── Validação: data obrigatória ──
-  const dateVal = rDate?.value || '';
+  const dateVal = rDate?.value || tmpParsed?._detectedPeriod?.ws || '';
   if (!dateVal) {
     toast('Informe a data do pedido antes de registrar.', 'red');
     if (rDate) rDate.focus();
     return;
   }
+  if (rDate && !rDate.value) rDate.value = dateVal;
 
   const dtReq = new Date(dateVal + 'T12:00:00');
   if (isNaN(dtReq.getTime())) {
