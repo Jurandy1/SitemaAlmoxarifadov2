@@ -8,7 +8,13 @@ import { isReady } from "./auth.js";
 import { COLLECTIONS } from "../services/firestore-service.js";
 
 function _norm(v = "") {
-    return String(v || "").normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim().replace(/\s+/g, ' ');
+    return String(v || "")
+        .replace(/\u00A0/g, ' ')
+        .replace(/[\u2010-\u2015\u2212]/g, '-')
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .toUpperCase()
+        .trim()
+        .replace(/\s+/g, ' ');
 }
 
 let _gestaoSubview = 'unidades';
@@ -436,7 +442,13 @@ function renderGestaoVinculos() {
     };
 
     container.querySelectorAll('.gestao-vinc-select').forEach(sel => {
-        sel.value = sel.dataset.current || '';
+        const current = String(sel.dataset.current || '').trim();
+        sel.value = current;
+        if (current && !sel.value) {
+            const curNorm = _norm(current);
+            const opt = [...sel.options].find(o => _norm(o.value) === curNorm);
+            if (opt) sel.value = opt.value;
+        }
         const tr = sel.closest('tr');
         const tipoEl = tr?.querySelector('.gestao-vinc-tipo');
         const refreshTipo = () => { if (tipoEl) tipoEl.textContent = tipoFromName(sel.value) || '—'; };

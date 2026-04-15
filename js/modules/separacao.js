@@ -639,7 +639,7 @@ function extractUnit(rows){
         return name;
       }
     }
-    if(/^(CT|CRAS|CREAS|ABRIGO|SEDE|PROCAD|CENTRO\s*POP|AEPETI|ASTEC)/i.test(f)&&!lo.includes('nome da unid'))
+    if(/^(CT|CRAS|CREAS|ABRIGO|SEDE|PROCAD|CENTRO\s*POP|AEPETI|ASTEC|CMDCA|CMDCMA|CMAS|COGETEP|PCDIF|IGAS)/i.test(f)&&!lo.includes('nome da unid'))
       return f.replace(/\s+\d{1,2}[\/\.].*/,'').trim();
   }
   return'Unidade';
@@ -835,12 +835,9 @@ function handleFile(e){
     let rows, wb = null;
 
     if (isDocxFile(file.name)) {
-      // ── DOCX: converte tabelas para rows[][] via mammoth ──
       rows = await docxToRows(ev.target.result);
-      // Cria um wb falso para compatibilidade com detectAllUnits
       wb = { SheetNames: ['Sheet1'], Sheets: { Sheet1: {} } };
     } else {
-      // ── Excel/ODS: pipeline original ──
       wb = XLSX.read(a, {type:'array', cellDates: true});
       const ws = wb.Sheets[wb.SheetNames[0]];
       rows = getSafeRows(ws);
@@ -852,19 +849,39 @@ function handleFile(e){
     tmpParsed._rows=rows;
     if (isDocxFile(file.name)) tmpParsed.formato = 'docx';
     
-    // Tenta arranjar um nome razoável se a unidade for "Unidade"
+    // ── Tenta arranjar nome da unidade ──
     if (tmpParsed.unitName === 'Unidade' || tmpParsed.unitName === 'Desconhecida') {
-        const m = file.name.match(/(CRAS|CREAS|CENTRO POP|CT|PROCAD|AEPETI|ASTEC|ILPI|CAT|POP RUA)[a-z\s_0-9-ãõáéíóú]+/i);
+        const m = file.name.match(/(CRAS|CREAS|CENTRO POP|CT|PROCAD|AEPETI|ASTEC|ILPI|CAT|POP RUA|CMDCA|CMDCMA|CMAS)[a-z\s_0-9\-ãõáéíóúâêîôû]+/i);
         if(m) tmpParsed.unitName = normalizeUnit(m[0].replace(/[-_]/g, ' ').trim());
     }
 
+    // ── Detectar período da planilha ──
+    const per = parsePeriodFromRows(rows);
+    const fy = new Date().getFullYear();
+    const fin = finalizePeriod(per, fy);
+    tmpParsed._detectedPeriod = fin;
+
+    // ── Auto-preencher data do pedido ──
+    const rDateEl = document.getElementById('rDate');
+    const rDateWarn = document.getElementById('rDateWarn');
+    if (rDateEl) {
+      if (fin && fin.ws && !fin.yearAssumed && fin.label !== '? (sem data)') {
+        rDateEl.value = fin.ws; // ISO date
+        if (rDateWarn) rDateWarn.style.display = 'none';
+        tmpParsed._dateDetected = true;
+      } else {
+        rDateEl.value = '';
+        if (rDateWarn) rDateWarn.style.display = 'block';
+        tmpParsed._dateDetected = false;
+      }
+    }
+
+    // ── Montar info de detecção visual ──
     const el=document.getElementById('detectInfo');
     const totalItens=tmpParsed.categories.reduce((s,c)=>s+c.items.length,0);
-    const per=typeof parsePeriodFromRows==='function'?parsePeriodFromRows(rows):null;
-    const fy=typeof finalizePeriod==='function'?finalizePeriod(per,new Date().getFullYear()):null;
-    const perTag=fy&&fy.label!=='?'
-      ?'<span style="font-size:10px;color:var(--muted);margin-left:4px">📅 '+fy.label+(fy.yearAssumed?' <span style="color:#f59e0b">⚠️ ano assumido</span>':'')+'</span>'
-      :'';
+    const perTag=fin&&fin.label!=='? (sem data)'
+      ?'<span style="font-size:10px;color:var(--muted);margin-left:4px">📅 '+fin.label+(fin.yearAssumed?' <span style="color:#f59e0b">⚠️ ano assumido</span>':'')+'</span>'
+      :'<span style="font-size:10px;color:#d97706;margin-left:4px">⚠️ Data não detectada</span>';
     const fmtTag=tmpParsed.formato==='docx'
       ?'<span class="format-tag" style="background:#e0e7ff;color:#3730a3">Formato DOCX</span>'
       :tmpParsed.formato==='abrigo'
@@ -877,10 +894,54 @@ function handleFile(e){
     el.innerHTML='<b>'+esc(tmpParsed.unitName)+'</b> '+fmtTag+multiTag+perTag
       +'<br>'+tiposPills(tmpParsed.tipos)
       +' <span style="font-size:11px;color:var(--muted)">('+totalItens+' itens)</span>';
-    const uSel=document.getElementById('rU');const det=tmpParsed.unitName.toUpperCase();
-    let found=false;
-    for(let i=0;i<uSel.options.length;i++){if(uSel.options[i].value&&det.includes(uSel.options[i].value.toUpperCase())){uSel.selectedIndex=i;found=true;break}}
-    if(!found)uSel.selectedIndex=0;
+
+    // ── Matching contra unidades da Gestão + aliases ──
+    const uSel=document.getElementById('rU');
+    const rUWarn = document.getElementById('rUWarn');
+    const det = (tmpParsed.unitName || '').trim();
+    const detUp = rmAcc(det).toUpperCase();
+    let found = false;
+
+    // Passo 1: Match exato (case-insensitive, sem acento)
+    for(let i=1;i<uSel.options.length;i++){
+      const optVal = uSel.options[i].value;
+      if (!optVal) continue;
+      const optUp = rmAcc(optVal).toUpperCase();
+      if (detUp === optUp) { uSel.selectedIndex=i; found=true; break; }
+    }
+
+    // Passo 2: Match parcial (detectado contém o nome da unidade ou vice-versa)
+    if (!found) {
+      for(let i=1;i<uSel.options.length;i++){
+        const optVal = uSel.options[i].value;
+        if (!optVal) continue;
+        const optUp = rmAcc(optVal).toUpperCase();
+        if (detUp.includes(optUp) || optUp.includes(detUp)) { uSel.selectedIndex=i; found=true; break; }
+      }
+    }
+
+    // Passo 3: Match via aliases (nome da planilha → nome canônico → selecionar)
+    if (!found) {
+      const canonical = normalizeUnit(det);
+      if (canonical && canonical !== 'Desconhecida' && canonical !== det) {
+        const canUp = rmAcc(canonical).toUpperCase();
+        for(let i=1;i<uSel.options.length;i++){
+          const optUp = rmAcc(uSel.options[i].value || '').toUpperCase();
+          if (canUp === optUp || canUp.includes(optUp) || optUp.includes(canUp)) { uSel.selectedIndex=i; found=true; break; }
+        }
+      }
+    }
+
+    // Se não encontrou, mostra warning
+    if (!found || det === 'Unidade' || det === 'Desconhecida') {
+      uSel.selectedIndex=0;
+      if (rUWarn) rUWarn.style.display = 'block';
+      tmpParsed._unitDetected = false;
+    } else {
+      if (rUWarn) rUWarn.style.display = 'none';
+      tmpParsed._unitDetected = true;
+    }
+
     ck();
   }catch(err){toast('Erro ao ler: '+err.message,'red')}};
   reader.readAsArrayBuffer(file);
@@ -903,10 +964,32 @@ function detectAllUnits(wb,rows){
   return colCount||1;
 }
 function ck(){
-  const canReg = !!tmpParsed;
-  document.getElementById('bR').disabled=!canReg;
+  const hasParsed = !!tmpParsed;
+  const uSel = document.getElementById('rU');
+  const rDate = document.getElementById('rDate');
+  const rUWarn = document.getElementById('rUWarn');
+  const rDateWarn = document.getElementById('rDateWarn');
+  
+  // Unidade: precisa ter sido detectada OU selecionada manualmente
+  const hasUnit = !!(uSel && uSel.value);
+  const unitOk = hasUnit || (hasParsed && tmpParsed._unitDetected);
+
+  // Data: precisa ter sido detectada OU preenchida manualmente
+  const hasDate = !!(rDate && rDate.value);
+  const dateOk = hasDate;
+
+  // Warnings visuais
+  if (hasParsed && rUWarn) {
+    rUWarn.style.display = (!unitOk) ? 'block' : 'none';
+  }
+  if (hasParsed && rDateWarn) {
+    rDateWarn.style.display = (!dateOk) ? 'block' : 'none';
+  }
+
+  const canReg = hasParsed && (unitOk || hasUnit) && dateOk;
+  document.getElementById('bR').disabled = !canReg;
   const bPreview = document.getElementById('bPreview');
-  if(bPreview) bPreview.disabled=!canReg;
+  if (bPreview) bPreview.disabled = !hasParsed;
 }
 
 function stripVolatileParsed(parsed) {
@@ -1004,20 +1087,43 @@ function previewReq() {
 
 async function registrar(){
   const uSel=document.getElementById('rU');
-  const unidade=uSel.value||normalizeUnit(tmpParsed.unitName)||tmpParsed.unitName;
+  const rDate=document.getElementById('rDate');
+
+  // ── Validação: unidade obrigatória ──
+  const unidade = uSel.value || '';
+  if (!unidade) {
+    toast('Selecione a unidade antes de registrar.', 'red');
+    uSel.focus();
+    return;
+  }
+
+  // ── Validação: data obrigatória ──
+  const dateVal = rDate?.value || '';
+  if (!dateVal) {
+    toast('Informe a data do pedido antes de registrar.', 'red');
+    if (rDate) rDate.focus();
+    return;
+  }
+
+  const dtReq = new Date(dateVal + 'T12:00:00');
+  if (isNaN(dtReq.getTime())) {
+    toast('Data inválida. Corrija e tente novamente.', 'red');
+    return;
+  }
+
   const itemsMap={};tmpParsed.categories.forEach(c=>c.items.forEach(it=>{itemsMap[it.id]={...it}}));
   const parsedSafe = stripVolatileParsed(tmpParsed);
-  const fy = new Date().getFullYear();
-  const per = (tmpParsed && tmpParsed._rows) ? bestPeriod(tmpParsed._rows, tmpParsed.fileName) : parsePeriodFromFileName(tmpParsed.fileName);
-  const fin = finalizePeriod(per, fy);
-  const dtReq = fin?.ws ? new Date(fin.ws + 'T12:00:00') : new Date();
+
+  // Período detectado (já calculado no handleFile)
+  const fin = tmpParsed._detectedPeriod || {};
+
   const req={id:nextId++,unidade,tipos:tmpParsed.tipos,formato:tmpParsed.formato,
     resp:document.getElementById('rR').value||'Admin',
     obs:document.getElementById('rO').value,dt:dtReq,
     fileName:tmpParsed.fileName,parsed:parsedSafe,items:itemsMap,
     periodLabel: fin?.label || '',
-    periodStart: fin?.ws || '',
-    periodEnd: fin?.we || '',
+    periodStart: fin?.ws || dateVal,
+    periodEnd: fin?.we || dateVal,
     status:'requisitado',separador:null,entreguePor:null,retiradoPor:null,histEntryId:null,dbAdded:false};
   REQS.push(req);
 
@@ -1048,6 +1154,9 @@ async function registrar(){
 
   tmpParsed=null;document.getElementById('fi').value='';document.getElementById('fname').style.display='none';
   document.getElementById('rU').selectedIndex=0;document.getElementById('rO').value='';
+  const rDateReset=document.getElementById('rDate');if(rDateReset)rDateReset.value='';
+  const rUWarnReset=document.getElementById('rUWarn');if(rUWarnReset)rUWarnReset.style.display='none';
+  const rDateWarnReset=document.getElementById('rDateWarn');if(rDateWarnReset)rDateWarnReset.style.display='none';
   document.getElementById('detectInfo').innerHTML='<span style="color:var(--muted);font-size:12px">Anexe a planilha...</span>';
   document.getElementById('bR').disabled=true;
   toast('Requisição registrada! Os dados irão para o Relatório após a Entrega.', 'green');
@@ -2323,9 +2432,11 @@ const UNIT_MAP=[
 ];
 function normalizeUnit(raw){
   if(!raw)return'Desconhecida';
-  const s=raw.trim().replace(/\s+/g,' ');
+  const s=String(raw).replace(/\u00A0/g,' ').trim().replace(/\s+/g,' ').replace(/[\u2010-\u2015\u2212]/g,'-');
   const k=rmAcc(s).toUpperCase();
   if(HIST_ALIASES[k])return HIST_ALIASES[k];
+  const k2=rmAcc(s.replace(/\s*\/\s*/g,'/')).toUpperCase();
+  if(HIST_ALIASES[k2])return HIST_ALIASES[k2];
   for(const [re,canon] of UNIT_MAP){if(re.test(s)||re.test(rmAcc(s)))return canon;}
   if(/^(fornecimento|data:|unidade de acolhimento$|separado|entregue|recebido)/i.test(s))return'Desconhecida';
   return s;
@@ -3798,6 +3909,20 @@ const UNIT_TYPES = [
 
 function classifyUnit(name) {
   if (!name) return { id:'outros', label:'Outros', icon:'❓', color:'#94a3b8' };
+  try {
+    const nm = rmAcc(String(name)).toLowerCase().trim().replace(/\s+/g,' ');
+    const u = (getUnidades() || []).find(x => rmAcc(String(x?.nome||'')).toLowerCase().trim().replace(/\s+/g,' ') === nm);
+    if (u?.tipo) {
+      let t = String(u.tipo).toLowerCase().trim();
+      if (t === 'semcas') t = 'sede';
+      const byId = UNIT_TYPES.find(x => x.id === t);
+      if (byId) return byId;
+      if (t === 'cras') return UNIT_TYPES.find(x => x.id === 'cras');
+      if (t === 'creas') return UNIT_TYPES.find(x => x.id === 'creas');
+      if (t === 'ct') return UNIT_TYPES.find(x => x.id === 'ct');
+      if (t.includes('consel')) return UNIT_TYPES.find(x => x.id === 'conselho');
+    }
+  } catch (_) {}
   for (const t of UNIT_TYPES) {
     if (t.re.test(name)) return t;
   }
