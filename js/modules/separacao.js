@@ -828,7 +828,8 @@ async function pdfToRows(arrayBuffer) {
 
   const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) });
   const pdf = await loadingTask.promise;
-  const allRows = [];
+  const rawRows = []; // {cols:[], page}
+  let globalColBounds = null; // persiste entre páginas
 
   for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
     const page = await pdf.getPage(pageNum);
@@ -836,8 +837,8 @@ async function pdfToRows(arrayBuffer) {
     const items = textContent.items.filter(item => item.str.trim());
     if (!items.length) continue;
 
-    // ── Agrupar itens por coordenada Y (mesma linha) ──
-    const yThreshold = 4;
+    // ── 1. Agrupar itens por Y (mesma linha visual) ──
+    const yThreshold = 8;
     const rowBuckets = [];
 
     items.forEach(item => {
@@ -851,72 +852,115 @@ async function pdfToRows(arrayBuffer) {
         bucket = { y, cells: [] };
         rowBuckets.push(bucket);
       }
+      // Atualiza Y para média ponderada do grupo
       bucket.cells.push({ x, text, width });
     });
 
-    // Ordenar linhas de cima para baixo (Y decresce no PDF)
+    // Ordenar: topo → baixo (Y decresce no PDF)
     rowBuckets.sort((a, b) => b.y - a.y);
 
-    // ── Detectar fronteiras de coluna via header "Material" ──
-    // Procura a linha que contém "Material" + "Quantidade"
-    let colBoundaries = null;
+    // ── 2. Detectar fronteiras de coluna nesta página ──
+    let colBounds = null;
     for (const bucket of rowBuckets) {
       const sorted = [...bucket.cells].sort((a, b) => a.x - b.x);
       const fullText = sorted.map(c => c.text).join(' ').toLowerCase();
+
+      // Procura header com "material" + "quantidade"
       if (fullText.includes('material') && fullText.includes('quantidade')) {
-        // Detecta posições X das colunas
+        // Achar X da coluna "Material"
         const matCell = sorted.find(c => /^material$/i.test(c.text.trim()));
+        // Achar X de todas as ocorrências de "Quantidade" ou "quantidade"
         const qtdCells = sorted.filter(c => /quantidade/i.test(c.text));
+
         if (matCell && qtdCells.length >= 1) {
           const xMat = matCell.x;
-          const xQtd1 = qtdCells[0]?.x || 999;
-          const xQtd2 = qtdCells.length > 1 ? qtdCells[1]?.x : xQtd1 + 120;
-          // Fronteiras: [col0_start, col1_start, col2_start]
-          colBoundaries = [xMat, (xMat + xQtd1) / 2, (xQtd1 + xQtd2) / 2];
+          const xQtd1 = qtdCells[0].x;
+          // Se tem 2 "Quantidade" (solicitada + atendida), usa ambas
+          // Se só tem 1, estima a segunda ~130px à direita
+          const xQtd2 = qtdCells.length > 1 ? qtdCells[1].x : xQtd1 + 130;
+          colBounds = {
+            col0: xMat,           // Material
+            col1: (xMat + xQtd1) / 2, // Fronteira entre Material e Qtd Solicitada
+            col2: (xQtd1 + xQtd2) / 2 // Fronteira entre Qtd Solicitada e Qtd Atendida
+          };
+          break;
         }
-        break;
       }
     }
 
-    // ── Converter cada linha em array de colunas ──
+    // Usa as fronteiras desta página ou herda da página anterior
+    if (colBounds) globalColBounds = colBounds;
+    const bounds = globalColBounds;
+
+    // ── 3. Converter cada linha em array [col0, col1, col2] ──
     for (const bucket of rowBuckets) {
       const sorted = [...bucket.cells].sort((a, b) => a.x - b.x);
 
-      if (colBoundaries && sorted.length >= 1) {
-        // Usar fronteiras detectadas para distribuir em 3-4 colunas
-        const cols = ['', '', '', ''];
+      if (bounds) {
+        const cols = ['', '', ''];
         for (const cell of sorted) {
           let colIdx = 0;
-          if (cell.x >= colBoundaries[2]) colIdx = 2;
-          else if (cell.x >= colBoundaries[1]) colIdx = 1;
+          if (cell.x >= bounds.col2) colIdx = 2;
+          else if (cell.x >= bounds.col1) colIdx = 1;
           cols[colIdx] += (cols[colIdx] ? ' ' : '') + cell.text.trim();
         }
-        // Remove colunas vazias no final
-        while (cols.length && !cols[cols.length - 1].trim()) cols.pop();
-        if (cols.some(c => c.trim())) allRows.push(cols.map(c => c.trim()));
+        // FIX: Texto centrado (ex: "MATERIAL DESCARTÁVEL") pode cair em col1/col2
+        // Se apenas 1 coluna tem conteúdo e não é col0, move para col0
+        const nonEmpty = cols.filter(c => c.trim());
+        if (nonEmpty.length === 1 && !cols[0].trim()) {
+          const val = nonEmpty[0];
+          cols[0] = val;
+          cols[1] = '';
+          cols[2] = '';
+        }
+        if (cols.some(c => c)) rawRows.push(cols.map(c => c.trim()));
       } else {
-        // Fallback: detecta colunas por gaps grandes (>40px)
+        // Fallback sem fronteiras: detectar colunas por gap >40px
         const columns = [];
-        let currentCol = '';
+        let cur = '';
         let lastRight = -999;
-
         for (const cell of sorted) {
           const gap = cell.x - lastRight;
-          if (gap > 40 && currentCol.trim()) {
-            columns.push(currentCol.trim());
-            currentCol = cell.text;
-          } else {
-            currentCol += (currentCol ? ' ' : '') + cell.text;
-          }
+          if (gap > 40 && cur.trim()) { columns.push(cur.trim()); cur = cell.text; }
+          else { cur += (cur ? ' ' : '') + cell.text; }
           lastRight = cell.x + (cell.width || cell.text.length * 5);
         }
-        if (currentCol.trim()) columns.push(currentCol.trim());
-        if (columns.length) allRows.push(columns);
+        if (cur.trim()) columns.push(cur.trim());
+        if (columns.length) rawRows.push(columns);
       }
     }
   }
 
-  return allRows;
+  // ── 4. MERGE DE LINHAS ÓRFÃS ──
+  // Quando "5UND" aparece numa linha separada sem nome de material,
+  // ela pertence à linha anterior (mesma célula da tabela no PDF).
+  const finalRows = [];
+  for (let i = 0; i < rawRows.length; i++) {
+    const row = rawRows[i];
+    const hasCol0 = row[0] && row[0].trim();
+    const isOrphan = !hasCol0 && (row[1]?.trim() || row[2]?.trim());
+
+    if (isOrphan && finalRows.length > 0) {
+      // Junta com a linha anterior
+      const prev = finalRows[finalRows.length - 1];
+      for (let c = 0; c < row.length; c++) {
+        if (row[c] && row[c].trim()) {
+          if (prev[c] && prev[c].trim()) {
+            prev[c] += ' ' + row[c].trim();
+          } else {
+            // Garante que prev tem coluna suficiente
+            while (prev.length <= c) prev.push('');
+            prev[c] = row[c].trim();
+          }
+        }
+      }
+    } else if (row.some(c => c && c.trim())) {
+      finalRows.push([...row]);
+    }
+  }
+
+  // ── 5. Retorna as linhas finais com merge aplicado ──
+  return finalRows;
 }
 const dz=document.getElementById('fdrop');
 if (dz) {
