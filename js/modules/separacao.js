@@ -959,7 +959,34 @@ async function pdfToRows(arrayBuffer) {
     }
   }
 
-  // ── 5. Retorna as linhas finais com merge aplicado ──
+  // ── 5. PADRONIZAR PARA 4 COLUNAS ──
+  // parsePadrao espera: [Material, Unidade, QtdSolicitada, QtdAtendida]
+  // PDFs típicos da SEMCAS têm 3 colunas: [Material, QtdSolicitada, QtdAtendida]
+  // Detecta se o header tem coluna "Unidade" ou não; se não, insere coluna vazia em index 1.
+  let hasUnidadeCol = false;
+  for (const row of finalRows) {
+    const f = (row[0] || '').toLowerCase().trim();
+    if (f === 'material' || f === 'materiais') {
+      // Checa se alguma outra coluna é "Unidade" / "Unid." / "Und"
+      for (let c = 1; c < row.length; c++) {
+        const val = (row[c] || '').toLowerCase().trim();
+        if (/^(unid|und|unidade)\.?$/i.test(val)) { hasUnidadeCol = true; break; }
+      }
+      break;
+    }
+  }
+
+  if (!hasUnidadeCol) {
+    // Insere coluna vazia no index 1 para todas as linhas
+    // [Material, QtdSol, QtdAte] → [Material, "", QtdSol, QtdAte]
+    for (let i = 0; i < finalRows.length; i++) {
+      const f = (finalRows[i][0] || '').toLowerCase().trim();
+      // Não insere no header "Material" nem em linhas de texto puro (categorias, unidade etc.)
+      // Insere em TODAS para manter alinhamento uniforme
+      finalRows[i].splice(1, 0, '');
+    }
+  }
+
   return finalRows;
 }
 const dz=document.getElementById('fdrop');
