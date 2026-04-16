@@ -1,4 +1,4 @@
-import { setDoc, deleteDoc, doc, writeBatch, getDocs, query, orderBy, limit, startAfter, serverTimestamp, Timestamp, documentId } from "firebase/firestore";
+import { setDoc, deleteDoc, doc, writeBatch, getDocs, query, orderBy, limit, startAfter, serverTimestamp, Timestamp, documentId } from "firebase/firestore";import { setDoc, deleteDoc, doc, writeBatch, getDocs, query, orderBy, limit, startAfter, serverTimestamp, Timestamp, documentId } from "firebase/firestore";
 import { auth, COLLECTIONS } from "../services/firestore-service.js";
 import { getMateriais, getUnidades, getUserRole, getSemcasHistDB, getSemcasAliases } from "../utils/cache.js";
 import { showAlert } from "../utils/dom-helpers.js";
@@ -521,8 +521,10 @@ function tiposPills(a){return(a||[]).map(tipoPill).join(' ')}
 function displayUnit(unidade){
   if(!unidade)return'Unidade';
   const units=getUnidades()||[];
-  const lo=String(unidade).toLowerCase().trim();
-  const u=units.find(x=>String(x?.nome||x?.unidadeNome||'').toLowerCase().trim()===lo);
+  // Matching robusto: sem acento, sem maiúscula, whitespace normalizado
+  const norm=s=>rmAcc(String(s||'')).toLowerCase().trim().replace(/\s+/g,' ');
+  const target=norm(unidade);
+  const u=units.find(x=>norm(x?.nome||x?.unidadeNome||'')===target);
   if(u?.tipo){
     let tipo=String(u.tipo).toUpperCase().trim();
     if(tipo==='SEMCAS')tipo='SEDE';
@@ -4145,18 +4147,44 @@ function buildDetailRow(rid,r,colspan){
 // CLASSIFICAÇÃO DE UNIDADES POR TIPO
 // ═══════════════════════════════════════════════════════════════════
 const UNIT_TYPES = [
-  { id:'sede',     label:'Sede/Admin',       icon:'🏛️', color:'#6366f1', re:/sede|semcas|admin|astec|arquivo|contrato|alta\s*complex/i },
+  { id:'sede',     label:'Sede/Admin',       icon:'🏛️', color:'#6366f1', re:/sede|semcas|admin|astec|arquivo|contrato|alta\s*complex|coordena[cç][aã]o|diretoria|superintend[eê]ncia|secret[aá]ria|gabinete|assessoria|abordagem|comunica[cç][aã]o|auditoria|recep[cç][aã]o|sub\s*solo|planejamento|recursos\s*humanos|inform[aá]tica|manuten[cç][aã]o|transporte|almoxarifado|patrim[oô]nio|protocolo|cadastro|fundo|regula[cç][aã]o|vigil[aâ]ncia|medida|socio\s*educativ|cmdca|cmas|cogetep|pcdif|igas|articula[cç][aã]o|or[cç]ament|contabilidade|presta[cç][aã]o|paif|scfv|paefi|furo\s*de\s*estoque|casa\s*do\s*bairro|circo\s*escola|n[uú]cleo/i },
   { id:'cras',     label:'CRAS',             icon:'🏠', color:'#3b82f6', re:/^cras\b/i },
   { id:'creas',    label:'CREAS',            icon:'🏢', color:'#8b5cf6', re:/^creas\b/i },
-  { id:'ct',       label:'CT',               icon:'🏫', color:'#06b6d4', re:/^ct\b/i },
+  { id:'ct',       label:'CT',               icon:'🏫', color:'#06b6d4', re:/^ct\b|conselho\s*tutelar/i },
   { id:'centropop',label:'Centro Pop',       icon:'🤝', color:'#14b8a6', re:/centro\s*pop/i },
-  { id:'conselho', label:'Conselho/PROCAD',  icon:'📋', color:'#f59e0b', re:/conselho|procad|aepeti/i },
-  { id:'abrigo',   label:'Abrigo/Acolhimento',icon:'🛏️', color:'#ef4444', re:/abrigo|acolh|resid[eê]ncia|rep[uú]blica|luz\s*e\s*vida|recanto|ilpi|casa|mulher|elizangela|pop\s*rua/i },
-  { id:'externo',  label:'Unidade Externa',  icon:'🔗', color:'#64748b', re:/abordagem|externo/i },
+  { id:'conselho', label:'Conselho/PROCAD',  icon:'📋', color:'#f59e0b', re:/procad|aepeti/i },
+  { id:'abrigo',   label:'Abrigo/Acolhimento',icon:'🛏️', color:'#ef4444', re:/abrigo|acolh|resid[eê]ncia|rep[uú]blica|luz\s*e\s*vida|recanto|ilpi|casa\s*de|mulher|elizangela|pop\s*rua/i },
+  { id:'externo',  label:'Unidade Externa',  icon:'🔗', color:'#64748b', re:/^externo$/i },
 ];
 
 function classifyUnit(name) {
   if (!name) return { id:'outros', label:'Outros', icon:'❓', color:'#94a3b8' };
+  
+  // ── PRIORIDADE 1: Buscar no cadastro de Gestão de Unidades ──
+  // O tipo cadastrado na Gestão é SEMPRE a verdade absoluta.
+  try {
+    const norm = s => rmAcc(String(s||'')).toLowerCase().trim().replace(/\s+/g,' ');
+    const target = norm(name);
+    const units = getUnidades() || [];
+    const u = units.find(x => norm(x?.nome || x?.unidadeNome || '') === target);
+    if (u?.tipo) {
+      let t = String(u.tipo).toLowerCase().trim();
+      if (t === 'semcas') t = 'sede';
+      // Procura nos UNIT_TYPES pelo id
+      const byId = UNIT_TYPES.find(x => x.id === t);
+      if (byId) return byId;
+      // Tenta match parcial do tipo
+      if (t.includes('cras')) return UNIT_TYPES.find(x => x.id === 'cras');
+      if (t.includes('creas')) return UNIT_TYPES.find(x => x.id === 'creas');
+      if (t.includes('ct') || t.includes('conselho tutelar')) return UNIT_TYPES.find(x => x.id === 'ct');
+      if (t.includes('abrigo') || t.includes('acolhimento')) return UNIT_TYPES.find(x => x.id === 'abrigo');
+      if (t.includes('pop')) return UNIT_TYPES.find(x => x.id === 'centropop');
+      // Se o tipo está no cadastro mas não é nenhum dos acima, é SEDE/Admin
+      return UNIT_TYPES.find(x => x.id === 'sede');
+    }
+  } catch (_) {}
+  
+  // ── PRIORIDADE 2: Fallback por regex no nome (só se não encontrou no cadastro) ──
   for (const t of UNIT_TYPES) {
     if (t.re.test(name)) return t;
   }
