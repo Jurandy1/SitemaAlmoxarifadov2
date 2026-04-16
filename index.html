@@ -20,7 +20,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    <script>if(typeof pdfjsLib!=='undefined')pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+    <script>if(typeof pdfjsLib!=="undefined")pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";</script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
 </head>
 <body class="v2-app semcas-shell">
@@ -1458,34 +1459,35 @@
                         <div class="tab" data-tab="hi" onclick="goTab('hi')">📂 Histórico <span class="bc zero" id="c4">0</span></div>
                         <div class="tab" data-tab="db" onclick="goTab('db')">🗄️ Banco de Dados</div>
                         <div class="tab" data-tab="pan" onclick="goTab('pan')">📈 Painel</div>
-                        <div class="tab" data-tab="rel" onclick="goTab('rel')">📊 Relatório</div>
+                        <div class="tab" data-tab="rel" onclick="goTab('rel')">🔧 Correção de Itens</div>
                     </div>
 
                     <div class="view active" id="tab-req">
                         <div class="card">
                             <h2>📋 Registrar Nova Requisição</h2>
-                            <p class="desc">Anexe a planilha. O sistema detecta automaticamente unidade, tipos, data e formato.</p>
+                            <p class="desc">Anexe a planilha. O sistema detecta automaticamente unidade, tipos e formato.</p>
                             <div class="row mb-3">
                                 <div>
                                     <label class="lbl">Unidade (auto-detectada ou selecione)</label>
                                     <select class="sel" id="rU" onchange="ck()"><option value="">-- Auto-detectar da planilha --</option></select>
-                                    <div id="rUWarn" style="display:none;font-size:11px;color:#d97706;margin-top:4px;background:#fefce8;border:1px solid #fde047;border-radius:6px;padding:4px 8px">⚠️ Unidade não identificada na planilha. <b>Selecione manualmente.</b></div>
+                                    <div id="rUWarn" style="display:none;background:#fef3c7;border:1px solid #fde047;border-radius:6px;padding:6px 10px;font-size:11px;color:#92400e;margin-top:4px">⚠️ Unidade não identificada. Selecione manualmente acima.</div>
                                 </div>
                                 <div><label class="lbl">Detectado</label><div id="detectInfo" style="min-height:36px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:6px 0"><span style="color:var(--muted);font-size:12px">Anexe a planilha...</span></div></div>
                             </div>
                             <div class="mb-3"><label class="lbl">Planilha do Pedido</label>
-                                <div class="fd" id="fdrop" onclick="document.getElementById('fi').click()"><div style="font-size:24px">📎</div><div style="font-size:13px;font-weight:600">Clique ou arraste</div><div style="font-size:11px;color:var(--muted)">.xlsx .xls .ods .docx .pdf</div><input type="file" id="fi" accept=".xlsx,.xls,.ods,.docx,.doc,.pdf" style="display:none" onchange="handleFile(event)"><div class="fn" id="fname" style="display:none"></div></div>
+                                <div class="fd" id="fdrop" onclick="document.getElementById('fi').click()"><div style="font-size:24px">📎</div><div style="font-size:13px;font-weight:600">Clique ou arraste</div><div style="font-size:11px;color:var(--muted)">.xlsx .xls .ods .docx .odt .pdf</div><input type="file" id="fi" accept=".xlsx,.xls,.ods,.docx,.doc,.odt,.pdf" style="display:none" onchange="handleFile(event)"><div class="fn" id="fname" style="display:none"></div></div>
+                            </div>
+                            <div class="row mb-3">
+                                <div><label class="lbl">Lançado por</label><input class="input" id="rR" value="Admin"></div>
+                                <div><label class="lbl">Observações</label><input class="input" id="rO" placeholder="Opcional"></div>
                             </div>
                             <div class="row mb-3">
                                 <div>
-                                    <label class="lbl">Data do Pedido (auto-detectada ou informe)</label>
+                                    <label class="lbl">Data do pedido</label>
                                     <input type="date" class="input" id="rDate" onchange="ck()">
-                                    <div id="rDateWarn" style="display:none;font-size:11px;color:#d97706;margin-top:4px;background:#fefce8;border:1px solid #fde047;border-radius:6px;padding:4px 8px">⚠️ Data não identificada na planilha. <b>Informe manualmente.</b></div>
+                                    <div id="rDateWarn" style="display:none;background:#fef3c7;border:1px solid #fde047;border-radius:6px;padding:6px 10px;font-size:11px;color:#92400e;margin-top:4px"></div>
                                 </div>
-                                <div><label class="lbl">Lançado por</label><input class="input" id="rR" value="Admin"></div>
-                            </div>
-                            <div class="mb-3">
-                                <label class="lbl">Observações</label><input class="input" id="rO" placeholder="Opcional">
+                                <div></div>
                             </div>
                             <div style="display:flex; gap:8px;">
                                 <button class="btn btn-s w-full" id="bPreview" disabled onclick="previewReq()" style="flex:1;">👁️ Visualizar</button>
@@ -1580,8 +1582,8 @@
                                         <div class="fd" id="rDrop" onclick="document.getElementById('rFi').click()" style="margin-bottom:10px;padding:14px">
                                             <div style="font-size:18px">📎</div>
                                             <div style="font-size:12px;font-weight:600">Importar planilhas</div>
-                                            <div style="font-size:10px;color:var(--muted)">.xlsx .xls .ods .docx .pdf — múltiplos arquivos</div>
-                                            <input type="file" id="rFi" accept=".xlsx,.xls,.ods,.docx,.doc,.pdf" style="display:none" multiple onchange="handleHistFiles(event)">
+                                            <div style="font-size:10px;color:var(--muted)">.xlsx .xls .ods .docx .odt .pdf — múltiplos arquivos</div>
+                                            <input type="file" id="rFi" accept=".xlsx,.xls,.ods,.docx,.doc,.odt,.pdf" style="display:none" multiple onchange="handleHistFiles(event)">
                                         </div>
                                         <div id="rProgress" style="display:none;font-size:11px;color:var(--muted);margin-bottom:8px">
                                             <span id="rProgressMsg">Processando...</span>
@@ -1605,80 +1607,66 @@
                                     <div style="font-size:10px;color:var(--muted);margin-top:8px">🟢 Ano detectado automaticamente &nbsp;⚠️ Ano não encontrado — clique para corrigir</div>
                                 </div>
                             </div>
+                            <!-- Relatório de Consumo (colapsável) -->
+                            <div class="card" style="margin-top:12px">
+                                <div style="cursor:pointer;display:flex;align-items:center;justify-content:space-between" onclick="var x=document.getElementById('reportSection');x.style.display=(x.style.display==='none'?'block':'none')">
+                                    <h2 style="margin:0">📊 Relatório de Consumo</h2>
+                                    <span style="color:var(--muted);font-size:18px">▾</span>
+                                </div>
+                                <div id="reportSection" style="display:none;margin-top:14px">
+                                    <div class="filter-grid">
+                                        <div>
+                                            <label class="lbl">Unidades</label>
+                                            <select class="sel-multi" id="rFiltUnits" multiple size="4" onchange="showOrigemUnidade()"></select>
+                                            <div id="origemUnidade" style="margin-top:4px"></div>
+                                        </div>
+                                        <div>
+                                            <label class="lbl">Categorias</label>
+                                            <select class="sel-multi" id="rFiltCats" multiple size="4" onchange="showOrigemCategoria()"></select>
+                                            <div id="origemCategoria" style="margin-top:4px"></div>
+                                        </div>
+                                        <div>
+                                            <label class="lbl">Período</label>
+                                            <div style="display:flex;gap:6px;margin-bottom:6px">
+                                                <input type="month" class="input" id="rFiltDateFrom" style="font-size:11px;padding:5px 8px">
+                                                <span style="color:var(--muted);font-size:11px;align-self:center">a</span>
+                                                <input type="month" class="input" id="rFiltDateTo" style="font-size:11px;padding:5px 8px">
+                                            </div>
+                                            <label class="lbl">Anos</label>
+                                            <div id="rYearChecks" style="display:flex;flex-wrap:wrap;gap:6px;padding:4px 0;min-height:28px"><span style="font-size:11px;color:var(--muted)">Carregue arquivos...</span></div>
+                                        </div>
+                                        <div>
+                                            <label class="lbl">Análise</label>
+                                            <select class="sel" id="rFiltMode" style="font-size:11px;padding:6px 8px" onchange="onModeChange()">
+                                                <option value="standard">📊 Consumo Real</option>
+                                                <option value="ranking">🏆 Ranking</option>
+                                                <option value="yearcomp">📅 Ano a ano</option>
+                                            </select>
+                                            <select class="sel" id="rFiltGroup" style="font-size:11px;padding:6px 8px;margin-top:6px">
+                                                <option value="unit">Por Unidade</option>
+                                                <option value="cat">Por Categoria</option>
+                                                <option value="item">Por Item</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div id="rankingOpts" style="display:none;margin-bottom:8px">
+                                        <input class="input" id="rRankItem" placeholder="Filtrar item (ex: ARROZ)" style="font-size:11px;padding:6px 8px">
+                                    </div>
+                                    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+                                        <button class="btn btn-p btn-sm" onclick="gerarRelatorio()">📊 Gerar</button>
+                                        <button class="btn btn-s btn-sm" onclick="exportarCSV()">⬇️ CSV</button>
+                                        <button class="btn btn-s btn-sm" onclick="selAllYears()">☑ Anos</button>
+                                        <button class="btn btn-s btn-sm" onclick="clearYears()">✕</button>
+                                        <label style="display:flex;align-items:center;gap:3px;font-size:10px;cursor:pointer"><input type="checkbox" id="rFiltZeros"> Zeros</label>
+                                    </div>
+                                    <div id="rReport"><div class="rel-empty"><div class="ic">📊</div>Clique em Gerar.</div></div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
                     <div class="view" id="tab-rel">
-                        <div style="max-width:1100px;margin:0 auto">
-                            <div class="rel-layout" style="display:block">
-                                <div>
-                                    <div class="rel-panel" style="margin-bottom:12px">
-                                        <h3>🔍 Filtros</h3>
-                                        <div class="filter-grid">
-                                            <div>
-                                                <label class="lbl">Unidades</label>
-                                                <select class="sel-multi" id="rFiltUnits" multiple size="5" onchange="showOrigemUnidade()"></select>
-                                                <div style="font-size:10px;color:var(--muted);margin-top:3px">Ctrl+clique = múltiplas. Vazio = todas.</div>
-                                                <div id="origemUnidade" style="margin-top:6px"></div>
-                                            </div>
-                                            <div>
-                                                <label class="lbl">Categorias</label>
-                                                <select class="sel-multi" id="rFiltCats" multiple size="5" onchange="showOrigemCategoria()"></select>
-                                                <div style="font-size:10px;color:var(--muted);margin-top:3px">Ctrl+clique = múltiplas. Vazio = todas.</div>
-                                                <div id="origemCategoria" style="margin-top:6px"></div>
-                                            </div>
-                                            <div>
-                                                <label class="lbl">Período</label>
-                                                <div style="display:flex;gap:6px;margin-bottom:6px">
-                                                    <input type="month" class="input" id="rFiltDateFrom" style="font-size:11px;padding:5px 8px" title="De (mês/ano)">
-                                                    <span style="color:var(--muted);font-size:11px;align-self:center">a</span>
-                                                    <input type="month" class="input" id="rFiltDateTo" style="font-size:11px;padding:5px 8px" title="Até (mês/ano)">
-                                                </div>
-                                                <label class="lbl">Anos <span style="font-size:10px;color:var(--muted);font-weight:400">(vazio = todos)</span></label>
-                                                <div id="rYearChecks" style="display:flex;flex-wrap:wrap;gap:6px;padding:4px 0;min-height:32px">
-                                                    <span style="font-size:11px;color:var(--muted)">Carregue arquivos...</span>
-                                                </div>
-                                                <div style="display:flex;gap:6px;margin-top:6px">
-                                                    <button class="btn btn-s btn-sm" style="font-size:10px" onclick="selAllYears()">Todos</button>
-                                                    <button class="btn btn-s btn-sm" style="font-size:10px" onclick="clearYears()">Nenhum</button>
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <label class="lbl">Tipo de análise</label>
-                                                <select class="sel" id="rFiltMode" style="font-size:12px;padding:7px 10px" onchange="onModeChange()">
-                                                    <option value="standard">📊 Consumo Real (Totais e Médias)</option>
-                                                    <option value="ranking">🏆 Ranking — quem mais consome</option>
-                                                    <option value="yearcomp">📅 Comparação ano a ano</option>
-                                                </select>
-                                                <label class="lbl" style="margin-top:8px">Agrupar por</label>
-                                                <select class="sel" id="rFiltGroup" style="font-size:12px;padding:7px 10px">
-                                                    <option value="unit">Unidade → Categoria → Item</option>
-                                                    <option value="cat">Categoria → Item → Unidade</option>
-                                                    <option value="item">Item consolidado</option>
-                                                </select>
-                                            </div>
-                                        </div>
-                                        <div id="rankingOpts" style="display:none;background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:10px;font-size:12px">
-                                            <label class="lbl">Item específico para ranking</label>
-                                            <input class="input" id="rRankItem" placeholder="Ex: ARROZ (deixe vazio para todos)" style="font-size:12px;padding:7px 10px;margin-bottom:0">
-                                        </div>
-                                        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-                                            <button class="btn btn-p" onclick="gerarRelatorio()">📊 Gerar Relatório</button>
-                                            <button class="btn btn-s" onclick="exportarCSV()">⬇️ Exportar CSV</button>
-                                            <button class="btn btn-s btn-sm" onclick="selAllUnits()">☑ Todas unid.</button>
-                                            <button class="btn btn-s btn-sm" onclick="selAllCats()">☑ Todas categ.</button>
-                                            <button class="btn btn-s btn-sm" onclick="clearFilters()">✕ Limpar</button>
-                                            <label style="display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;margin-left:4px">
-                                                <input type="checkbox" id="rFiltZeros"> Mostrar zeros
-                                            </label>
-                                        </div>
-                                    </div>
-                                    <div class="rel-panel" id="rReport">
-                                        <div class="rel-empty"><div class="ic">📊</div>Carregue arquivos e clique em Gerar Relatório.</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        <!-- renderCorrecaoItens() preenche este container dinamicamente -->
                     </div>
 
                     <div class="modal-ficha" id="fichaModal">
