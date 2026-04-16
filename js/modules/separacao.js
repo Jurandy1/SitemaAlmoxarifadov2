@@ -518,6 +518,20 @@ function fdt(d){return d.toLocaleDateString('pt-BR')+' '+d.toLocaleTimeString('p
 function today(){return new Date().toLocaleDateString('pt-BR')}
 function tipoPill(t){return`<span class="tipo-pill ${TIPO_CLS[t]||'tipo-outros'}">${t}</span>`}
 function tiposPills(a){return(a||[]).map(tipoPill).join(' ')}
+function displayUnit(unidade){
+  if(!unidade)return'Unidade';
+  const units=getUnidades()||[];
+  const lo=String(unidade).toLowerCase().trim();
+  const u=units.find(x=>String(x?.nome||x?.unidadeNome||'').toLowerCase().trim()===lo);
+  if(u?.tipo){
+    let tipo=String(u.tipo).toUpperCase().trim();
+    if(tipo==='SEMCAS')tipo='SEDE';
+    const uUp=rmAcc(unidade).toUpperCase();
+    // Não duplica se já começa com o tipo
+    if(!uUp.startsWith(tipo))return tipo+' '+unidade;
+  }
+  return unidade;
+}
 function sumHTML(v){return`<span style="color:#059669">✓${v.filter(i=>i.status==='atendido').length}</span> <span style="color:#d97706">◐${v.filter(i=>i.status==='parcial').length}</span> <span style="color:#dc2626">✗${v.filter(i=>i.status==='sem_estoque').length}</span> <span style="color:#7c3aed">⊘${v.filter(i=>i.status==='nao_atendido').length}</span> <span style="color:#b45309">↑${v.filter(i=>i.status==='excedido').length}</span>`}
 function sumText(v){return v.length+' itens | <span style="color:#059669">'+v.filter(i=>i.status==='atendido').length+' atendidos</span> | <span style="color:#d97706">'+v.filter(i=>i.status==='parcial').length+' parciais</span> | <span style="color:#dc2626">'+v.filter(i=>i.status==='sem_estoque').length+' sem estoque</span> | <span style="color:#7c3aed">'+v.filter(i=>i.status==='nao_atendido').length+' não atendidos</span>'}
 
@@ -1252,7 +1266,7 @@ function previewReq() {
   const statsEl = document.getElementById('fichaStats');
   if (!titleEl || !bodyEl || !modalEl || !statsEl) { toast('Tela de pré-visualização indisponível.', 'red'); return; }
   
-  titleEl.textContent='👁️ Pré-visualização: '+req.unidade;
+  titleEl.textContent='👁️ Pré-visualização: '+displayUnit(req.unidade);
   
   const actions = document.getElementById('fichaModalActions');
   const legend = document.getElementById('fichaModalLegend');
@@ -1632,8 +1646,8 @@ function renderPS(){
   const pg=paginate(all, PAGE_STATE.ps);
   const offset=(pg.page-1)*PAGE_SIZE;
   const canCancel = getUserRole() === 'admin';
-  let h='<div class="tbl-wrap"><table class="qt"><thead><tr><th>#</th><th>Unidade</th><th>Tipos</th><th>Data</th><th>Itens</th><th>Ação</th></tr></thead><tbody>';
-  pg.items.forEach((r,i)=>{const ni=Object.keys(r.items).length;const pos=offset+i;h+=`<tr class="${pos===0?'first-row':''}"><td style="text-align:center;font-weight:800;color:${pos===0?'var(--accent)':'#94a3b8'}">${pos+1}º</td><td style="font-weight:700">${esc(r.unidade)}</td><td>${tiposPills(r.tipos)}</td><td style="font-size:11px">${fdt(r.dt)}</td><td><span class="pill pr">${ni} itens</span></td><td style="display:flex;gap:6px"><button class="btn btn-p btn-sm" onclick="pegarParaSeparar(${jsArg(r.id)})">📦 Pegar</button>${canCancel?`<button class="btn btn-s btn-sm" style="color:var(--red);border-color:#fca5a5" onclick="cancelarReq(${jsArg(r.id)})" title="Cancelar">🗑️</button>`:''}</td></tr>`});
+  let h='<div class="tbl-wrap"><table class="qt"><thead><tr><th>#</th><th>Unidade</th><th>Tipos</th><th>Requisitado por</th><th>Data</th><th>Itens</th><th>Ação</th></tr></thead><tbody>';
+  pg.items.forEach((r,i)=>{const ni=Object.keys(r.items).length;const pos=offset+i;h+=`<tr class="${pos===0?'first-row':''}"><td style="text-align:center;font-weight:800;color:${pos===0?'var(--accent)':'#94a3b8'}">${pos+1}º</td><td style="font-weight:700">${esc(displayUnit(r.unidade))}</td><td>${tiposPills(r.tipos)}</td><td style="font-size:11px;color:#475569">${esc(r.resp||'')}</td><td style="font-size:11px">${fdt(r.dt)}</td><td><span class="pill pr">${ni} itens</span></td><td style="display:flex;gap:6px"><button class="btn btn-p btn-sm" onclick="pegarParaSeparar(${jsArg(r.id)})">📦 Pegar</button>${canCancel?`<button class="btn btn-s btn-sm" style="color:var(--red);border-color:#fca5a5" onclick="cancelarReq(${jsArg(r.id)})" title="Cancelar">🗑️</button>`:''}</td></tr>`});
   h+='</tbody></table></div>';
   h+=paginationHTML('ps', pg.page, pg.total, pg.count);
   el.innerHTML=h;
@@ -1647,7 +1661,7 @@ function renderES(){
   const pg=paginate(all, PAGE_STATE.es);
   const canCancel = getUserRole() === 'admin';
   let h='<div class="tbl-wrap"><table class="qt"><thead><tr><th>Unidade</th><th>Tipos</th><th>Separador</th><th>Resumo</th><th>Ações</th></tr></thead><tbody>';
-  pg.items.forEach(r=>{const v=Object.values(r.items);h+=`<tr><td style="font-weight:700">${esc(r.unidade)}</td><td>${tiposPills(r.tipos)}</td><td>${esc(r.separador)}</td><td>${sumHTML(v)}</td><td style="display:flex;gap:6px"><button class="btn btn-p btn-sm" onclick="abrirFicha(${jsArg(r.id)})">📝 Editar</button><button class="btn btn-s btn-sm" onclick="printReq(${jsArg(r.id)})" title="Imprimir">🖨️</button><button type="button" class="btn btn-g btn-sm" onclick="marcarProntoLista(${jsArg(r.id)}, event)" title="Marcar Pronto">✅</button>${canCancel?`<button class="btn btn-s btn-sm" style="color:var(--red);border-color:#fca5a5" onclick="cancelarReq(${jsArg(r.id)})" title="Cancelar">🗑️</button>`:''}</td></tr>`});
+  pg.items.forEach(r=>{const v=Object.values(r.items);h+=`<tr><td style="font-weight:700">${esc(displayUnit(r.unidade))}</td><td>${tiposPills(r.tipos)}</td><td>${esc(r.separador)}</td><td>${sumHTML(v)}</td><td style="display:flex;gap:6px"><button class="btn btn-p btn-sm" onclick="abrirFicha(${jsArg(r.id)})">📝 Editar</button><button class="btn btn-s btn-sm" onclick="printReq(${jsArg(r.id)})" title="Imprimir">🖨️</button><button type="button" class="btn btn-g btn-sm" onclick="marcarProntoLista(${jsArg(r.id)}, event)" title="Marcar Pronto">✅</button>${canCancel?`<button class="btn btn-s btn-sm" style="color:var(--red);border-color:#fca5a5" onclick="cancelarReq(${jsArg(r.id)})" title="Cancelar">🗑️</button>`:''}</td></tr>`});
   h+='</tbody></table></div>';
   h+=paginationHTML('es', pg.page, pg.total, pg.count);
   el.innerHTML=h;
@@ -1661,7 +1675,7 @@ function renderPE(){
   const pg=paginate(all, PAGE_STATE.pe);
   const canCancel = getUserRole() === 'admin';
   let h='<div class="tbl-wrap"><table class="qt"><thead><tr><th>Unidade</th><th>Tipos</th><th>Separador</th><th>Resumo</th><th>Ação</th></tr></thead><tbody>';
-  pg.items.forEach(r=>{const v=Object.values(r.items);h+=`<tr><td style="font-weight:700">${esc(r.unidade)}</td><td>${tiposPills(r.tipos)}</td><td>${esc(r.separador)}</td><td>${sumHTML(v)}</td><td style="display:flex;gap:6px"><button class="btn btn-s btn-sm" onclick="printReq(${jsArg(r.id)})" title="Imprimir">🖨️</button><button class="btn btn-r btn-sm" onclick="entregarReq(${jsArg(r.id)})">📦 Entregar</button><button class="btn btn-s btn-sm" onclick="voltarSeparacao(${jsArg(r.id)})" title="Voltar p/ Separação">↩️</button>${canCancel?`<button class="btn btn-s btn-sm" style="color:var(--red);border-color:#fca5a5" onclick="cancelarReq(${jsArg(r.id)})" title="Cancelar">🗑️</button>`:''}</td></tr>`});
+  pg.items.forEach(r=>{const v=Object.values(r.items);h+=`<tr><td style="font-weight:700">${esc(displayUnit(r.unidade))}</td><td>${tiposPills(r.tipos)}</td><td>${esc(r.separador)}</td><td>${sumHTML(v)}</td><td style="display:flex;gap:6px"><button class="btn btn-s btn-sm" onclick="printReq(${jsArg(r.id)})" title="Imprimir">🖨️</button><button class="btn btn-r btn-sm" onclick="entregarReq(${jsArg(r.id)})">📦 Entregar</button><button class="btn btn-s btn-sm" onclick="voltarSeparacao(${jsArg(r.id)})" title="Voltar p/ Separação">↩️</button>${canCancel?`<button class="btn btn-s btn-sm" style="color:var(--red);border-color:#fca5a5" onclick="cancelarReq(${jsArg(r.id)})" title="Cancelar">🗑️</button>`:''}</td></tr>`});
   h+='</tbody></table></div>';
   h+=paginationHTML('pe', pg.page, pg.total, pg.count);
   el.innerHTML=h;
@@ -1677,7 +1691,7 @@ function renderHI(){
   const pg=paginate(all, PAGE_STATE.hi);
   const isAdmin = getUserRole() === 'admin';
   let h='<div class="tbl-wrap"><table class="qt"><thead><tr><th>Unidade</th><th>Tipos</th><th>Separador</th><th>Retirado por</th><th>Data</th><th>Resumo</th><th></th></tr></thead><tbody>';
-  pg.items.forEach(r=>{const v=Object.values(r.items);h+=`<tr><td style="font-weight:700">${esc(r.unidade)}</td><td>${tiposPills(r.tipos)}</td><td>${esc(r.separador)}</td><td>${esc(r.retiradoPor)}</td><td style="font-size:11px">${fdt(r.dtEntrega||r.dt)}</td><td>${sumHTML(v)}</td><td style="display:flex;gap:6px;justify-content:flex-end"><button class="btn btn-s btn-sm" onclick="printReq(${jsArg(r.id)})" title="Reimprimir">🖨️</button>${isAdmin?`<button class="btn btn-s btn-sm" style="color:var(--red);border-color:#fca5a5" onclick="excluirHistoricoReq(${jsArg(r.id)})" title="Excluir do Histórico">🗑️</button>`:''}</td></tr>`});
+  pg.items.forEach(r=>{const v=Object.values(r.items);h+=`<tr><td style="font-weight:700">${esc(displayUnit(r.unidade))}</td><td>${tiposPills(r.tipos)}</td><td>${esc(r.separador)}</td><td>${esc(r.retiradoPor)}</td><td style="font-size:11px">${fdt(r.dtEntrega||r.dt)}</td><td>${sumHTML(v)}</td><td style="display:flex;gap:6px;justify-content:flex-end"><button class="btn btn-s btn-sm" onclick="printReq(${jsArg(r.id)})" title="Reimprimir">🖨️</button>${isAdmin?`<button class="btn btn-s btn-sm" style="color:var(--red);border-color:#fca5a5" onclick="excluirHistoricoReq(${jsArg(r.id)})" title="Excluir do Histórico">🗑️</button>`:''}</td></tr>`});
   h+='</tbody></table></div>';
   h+=paginationHTML('hi', pg.page, pg.total, pg.count);
   el.innerHTML=h;
@@ -1825,11 +1839,11 @@ async function persistReq(r){
 const debouncedPersistCurrent=debounce(()=>{if(!curId)return;const r=findReq(curId);if(r)persistReq(r)},700);
 function markDirty(r){if(!r)return;r.__dirty=true;r.__dirtyAt=Date.now();}
 
-function pegarParaSeparar(reqId){const f=reqId?REQS.find(r=>String(r.id)===String(reqId)&&r.status==='requisitado'):REQS.find(r=>r.status==='requisitado');if(!f)return;showModal('Nome do Separador','Quem vai separar?','',async nm=>{f.separador=nm;f.status='separando';markDirty(f);await persistReq(f);printReq(f.id);toast(f.unidade+' → Em Separação','green');goTab('es')})}
+function pegarParaSeparar(reqId){const f=reqId?REQS.find(r=>String(r.id)===String(reqId)&&r.status==='requisitado'):REQS.find(r=>r.status==='requisitado');if(!f)return;showModal('Nome do Separador','Quem vai separar?','',async nm=>{f.separador=nm;f.status='separando';markDirty(f);await persistReq(f);printReq(f.id);toast(displayUnit(f.unidade)+' → Em Separação','green');goTab('es')})}
 
 function abrirFicha(id, readOnly = false){
   curId=id;const r=findReq(id);if(!r)return;
-  document.getElementById('fichaTitle').textContent=(readOnly ? '👁️ ' : '📋 ') + r.unidade + (r.separador ? ' — ' + r.separador : '');
+  document.getElementById('fichaTitle').textContent=(readOnly ? '👁️ ' : '📋 ') + displayUnit(r.unidade) + (r.separador ? ' — ' + r.separador : '');
   
   // Hide actions if readOnly
   const actions = document.getElementById('fichaModalActions');
@@ -1847,6 +1861,14 @@ function abrirFicha(id, readOnly = false){
       row.querySelector('.ficha-input-qty')?.addEventListener('change',function(){editQty(iid,this.value)});
       row.querySelector('.badge-status')?.addEventListener('click',function(){cycleStatus(iid,this)});
       row.querySelector('.ficha-input-obs')?.addEventListener('change',function(){editObs(iid,this.value)});
+      row.querySelector('.ficha-input-mat')?.addEventListener('change',function(){editMaterial(iid,this.value)});
+    });
+    // Botões de adicionar/remover item
+    document.getElementById('fichaBody').querySelectorAll('[data-addcat]').forEach(btn=>{
+      btn.addEventListener('click',function(){addFichaItem(this.getAttribute('data-addcat'))});
+    });
+    document.getElementById('fichaBody').querySelectorAll('[data-delitem]').forEach(btn=>{
+      btn.addEventListener('click',function(){removeFichaItem(+this.getAttribute('data-delitem'))});
     });
   }
 }
@@ -1881,27 +1903,37 @@ function buildFichaHTML(r,isPrint){
     +`<div style="font-size:${hdr.t4}px;font-weight:800">COORDENAÇÃO DE ADMINISTRAÇÃO E PATRIMÔNIO</div>`
     +`</div>`
     +`</div>`;
-  h+=`<div class="ficha-header"><div><h1>FICHA DE SEPARAÇÃO DE MATERIAIS</h1><div class="ficha-unit">${esc(d.unitName)}</div></div><div style="text-align:right;font-size:11px;color:#64748b">Pedido: <b>${pedido}</b><br>Entrega: <b>${entrega}</b>${perLbl?`<br><span style="font-size:10px;color:#64748b">📅 ${perLbl}</span>`:''}${reqId?`<br><span style="font-size:10px;color:#64748b">ID: <b>${reqId}</b></span>`:''}<br><span style="font-size:9px;color:#94a3b8">${esc(d.fileName||'')}</span></div></div>`;
+  h+=`<div class="ficha-header"><div><h1>FICHA DE SEPARAÇÃO DE MATERIAIS</h1><div class="ficha-unit">${esc(displayUnit(r.unidade||d.unitName))}</div></div><div style="text-align:right;font-size:11px;color:#64748b">Pedido: <b>${pedido}</b><br>Entrega: <b>${entrega}</b>${perLbl?`<br><span style="font-size:10px;color:#64748b">📅 ${perLbl}</span>`:''}${reqId?`<br><span style="font-size:10px;color:#64748b">ID: <b>${reqId}</b></span>`:''}<br><span style="font-size:9px;color:#94a3b8">${esc(d.fileName||'')}</span></div></div>`;
   const sep = esc(r.separador||'');
   const ent = esc(r.entreguePor||'');
   const ret = esc(r.retiradoPor||'');
-  h+=`<div class="ficha-info-bar"><span><b>Separador:</b> ${sep}</span>${ent?`<span style="color:#64748b">|</span><span><b>Entregue por:</b> ${ent}</span>`:''}${ret?`<span style="color:#64748b">|</span><span><b>Retirado por:</b> ${ret}</span>`:''}<span style="color:#64748b">|</span><span><b>Tipos:</b> ${tiposPills(r.tipos)}</span></div>`;
-  d.categories.forEach(cat=>{
+  const reqPor = esc(r.resp||'');
+  h+=`<div class="ficha-info-bar">${reqPor?`<span><b>Requisitado por:</b> ${reqPor}</span><span style="color:#64748b">|</span>`:''}<span><b>Separador:</b> ${sep}</span>${ent?`<span style="color:#64748b">|</span><span><b>Entregue por:</b> ${ent}</span>`:''}${ret?`<span style="color:#64748b">|</span><span><b>Retirado por:</b> ${ret}</span>`:''}<span style="color:#64748b">|</span><span><b>Tipos:</b> ${tiposPills(r.tipos)}</span></div>`;
+  d.categories.forEach((cat,catIdx)=>{
     let catItems = cat.items.map(x => items[x.id]).filter(m => !!m);
     if(isPrint && r.status === 'separando') {
       catItems = catItems.filter(m => m.status !== 'sem_estoque' && m.status !== 'nao_atendido');
     }
-    if(catItems.length === 0) return; // skip empty categories
+    if(catItems.length === 0 && isPrint) return; // skip empty categories only for print
     
-    h+=`<div class="ficha-cat">${esc(cat.name)}</div><table class="ficha-table"><thead><tr><th class="col-num">#</th><th class="col-mat">Material</th><th class="col-unid">Unid.</th><th class="col-sol">Solicit.</th><th class="col-ate">Qtd. Atendida</th><th class="col-status">Status</th><th class="col-obs">Obs</th></tr></thead><tbody>`;
+    h+=`<div class="ficha-cat">${esc(cat.name)}</div><table class="ficha-table"><thead><tr><th class="col-num">#</th><th class="col-mat">Material</th><th class="col-unid">Unid.</th><th class="col-sol">Solicit.</th><th class="col-ate">Qtd. Atendida</th><th class="col-status">Status</th><th class="col-obs">${isPrint?'Obs':'Obs / Ações'}</th></tr></thead><tbody>`;
     catItems.forEach((m,i)=>{
       const originalId = Object.keys(items).find(key => items[key] === m);
-      h+=`<tr class="${rc2(m.status)}" data-id="${originalId}"><td class="col-num" style="color:#94a3b8;font-weight:600;font-size:10px">${i+1}</td><td class="col-mat" style="font-weight:600">${esc(m.material)}</td><td class="col-unid" style="color:#64748b;font-size:10px">${esc(m.unidade)}</td><td class="col-sol" style="font-weight:700;color:#1e40af">${esc(m.qtdSolicitada)}</td>`;
-      if(isPrint){const qaDisplay=m.qtdAtendida?esc(m.qtdAtendida):'<span style="display:inline-block;width:90%;border-bottom:1px dotted #94a3b8;min-height:14px">&nbsp;</span>';h+=`<td class="col-ate" style="font-weight:700">${qaDisplay}</td><td class="col-status" style="overflow:visible"><span class="${bc2(m.status)}" style="cursor:default;display:inline-block;max-width:100%;white-space:normal;line-height:1.05">${sl(m.status)}</span></td><td class="col-obs" style="font-size:10px;color:#475569">${esc(m.obs||'')}</td>`}
-      else{h+=`<td class="col-ate" style="padding:2px 4px"><input class="ficha-input-qty${m.status==='sem_estoque'?' no-stock':''}" value="${esc(m.qtdAtendida)}" placeholder="—"></td><td class="col-status" style="padding:2px;overflow:visible"><span class="${bc2(m.status)}" style="display:inline-block;max-width:100%;white-space:normal;line-height:1.05">${sl(m.status)}</span></td><td class="col-obs" style="padding:2px 4px"><input class="ficha-input-obs" value="${esc(m.obs)}" placeholder="Obs..."></td>`}
+      if(isPrint){
+        h+=`<tr class="${rc2(m.status)}" data-id="${originalId}"><td class="col-num" style="color:#94a3b8;font-weight:600;font-size:10px">${i+1}</td><td class="col-mat" style="font-weight:600">${esc(m.material)}</td><td class="col-unid" style="color:#64748b;font-size:10px">${esc(m.unidade)}</td><td class="col-sol" style="font-weight:700;color:#1e40af">${esc(m.qtdSolicitada)}</td>`;
+        const qaDisplay=m.qtdAtendida?esc(m.qtdAtendida):'<span style="display:inline-block;width:90%;border-bottom:1px dotted #94a3b8;min-height:14px">&nbsp;</span>';
+        h+=`<td class="col-ate" style="font-weight:700">${qaDisplay}</td><td class="col-status" style="overflow:visible"><span class="${bc2(m.status)}" style="cursor:default;display:inline-block;max-width:100%;white-space:normal;line-height:1.05">${sl(m.status)}</span></td><td class="col-obs" style="font-size:10px;color:#475569">${esc(m.obs||'')}</td>`;
+      } else {
+        h+=`<tr class="${rc2(m.status)}" data-id="${originalId}"><td class="col-num" style="color:#94a3b8;font-weight:600;font-size:10px">${i+1}</td><td class="col-mat" style="padding:2px 4px"><input class="ficha-input-mat" value="${esc(m.material)}" style="width:100%;border:1px solid #e2e8f0;border-radius:3px;padding:3px 5px;font-family:inherit;font-size:11px;font-weight:600"></td><td class="col-unid" style="color:#64748b;font-size:10px">${esc(m.unidade)}</td><td class="col-sol" style="font-weight:700;color:#1e40af">${esc(m.qtdSolicitada)}</td>`;
+        h+=`<td class="col-ate" style="padding:2px 4px"><input class="ficha-input-qty${m.status==='sem_estoque'?' no-stock':''}" value="${esc(m.qtdAtendida)}" placeholder="—"></td><td class="col-status" style="padding:2px;overflow:visible"><span class="${bc2(m.status)}" style="display:inline-block;max-width:100%;white-space:normal;line-height:1.05">${sl(m.status)}</span></td><td class="col-obs" style="padding:2px 4px"><div style="display:flex;gap:3px;align-items:center"><input class="ficha-input-obs" value="${esc(m.obs)}" placeholder="Obs..." style="flex:1"><button data-delitem="${originalId}" title="Remover item" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px;padding:0 2px;flex-shrink:0">✕</button></div></td>`;
+      }
       h+=`</tr>`;
     });
     h+=`</tbody></table>`;
+    // Botão adicionar item (só no modo edição)
+    if(!isPrint){
+      h+=`<div style="text-align:right;margin-top:4px;margin-bottom:8px"><button data-addcat="${catIdx}" style="font-size:10px;color:var(--accent);background:none;border:1px dashed var(--border);border-radius:4px;padding:3px 10px;cursor:pointer;font-family:inherit">+ Adicionar item nesta categoria</button></div>`;
+    }
   });
   const v=Object.values(items);
   h+=`<div class="ficha-summary"><b>Resumo:</b> ${sumText(v)}</div>`;
@@ -1953,6 +1985,39 @@ function editQty(id,v){
   debouncedPersistCurrent();
 }
 function editObs(id,v){const r=findReq(curId);if(r){r.items[id].obs=v;markDirty(r);debouncedPersistCurrent();}}
+function editMaterial(id,v){const r=findReq(curId);if(r&&r.items[id]){r.items[id].material=v;markDirty(r);debouncedPersistCurrent();}}
+function addFichaItem(catIdxStr){
+  const r=findReq(curId);if(!r)return;
+  const catIdx=parseInt(catIdxStr);
+  const d=r.parsed;if(!d||!d.categories||!d.categories[catIdx])return;
+  // Gera próximo ID único
+  const maxId=Math.max(0,...Object.keys(r.items).map(Number).filter(Number.isFinite));
+  const newId=maxId+1;
+  const catName=d.categories[catIdx].name||'Outros';
+  // Adiciona no parsed.categories
+  d.categories[catIdx].items.push({id:newId, material:'Novo Item'});
+  // Adiciona no items map
+  r.items[newId]={id:newId,material:'Novo Item',unidade:'',qtdSolicitada:'1',qtdAtendida:'',status:'nao_atendido',tipo:detectTipo(catName),obs:''};
+  markDirty(r);
+  // Re-renderiza a ficha mantendo aberta
+  abrirFicha(curId, false);
+  toast('Item adicionado. Edite o nome e a quantidade.','green');
+}
+function removeFichaItem(id){
+  const r=findReq(curId);if(!r)return;
+  if(!r.items[id])return;
+  if(!confirm('Remover "'+r.items[id].material+'" da lista?'))return;
+  delete r.items[id];
+  // Remove do parsed.categories também
+  if(r.parsed&&r.parsed.categories){
+    r.parsed.categories.forEach(c=>{
+      c.items=(c.items||[]).filter(it=>it.id!==id);
+    });
+  }
+  markDirty(r);
+  abrirFicha(curId, false);
+  toast('Item removido.','red');
+}
 function isEmpty(v){
   const s=String(v||'').trim();
   return s===''||s==='-'||s==='—'||s==='0'||s==='00.'||s.toLowerCase()==='nt';
@@ -1992,7 +2057,7 @@ function marcarPronto(e){
   persistReq(r);
   curId=null;
   document.getElementById('fichaModal').classList.remove('open');
-  toast(r.unidade+' → Pronto!','green');
+  toast(displayUnit(r.unidade)+' → Pronto!','green');
   goTab('pe');
 }
 function marcarProntoLista(id, e){
@@ -2000,9 +2065,9 @@ function marcarProntoLista(id, e){
   if(e && e.stopPropagation) e.stopPropagation();
   const r=findReq(id);if(!r)return;
   if(!confirm('Tem certeza que deseja marcar como Pronto?')) return;
-  r.status='pronto';markDirty(r);persistReq(r);toast(r.unidade+' → Pronto!','green');renderAll();
+  r.status='pronto';markDirty(r);persistReq(r);toast(displayUnit(r.unidade)+' → Pronto!','green');renderAll();
 }
-function voltarSeparacao(id){const r=findReq(id);if(!r)return;r.status='separando';markDirty(r);persistReq(r);toast(r.unidade+' ↩️ Voltou para Separação','green');goTab('es')}
+function voltarSeparacao(id){const r=findReq(id);if(!r)return;r.status='separando';markDirty(r);persistReq(r);toast(displayUnit(r.unidade)+' ↩️ Voltou para Separação','green');goTab('es')}
 
 function entregarReq(id){
   const r0=findReq(id);if(!r0)return;
@@ -2056,7 +2121,7 @@ function entregarReq(id){
     
       const nItens = Object.values(r2.items).filter(i=>i.status==='atendido'||i.status==='parcial'||i.status==='excedido').length;
       const nZero = Object.values(r2.items).filter(i=>i.status==='sem_estoque'||i.status==='nao_atendido').length;
-      toast(r2.unidade+' entregue para '+nm+' · '+nItens+' itens → banco | '+nZero+' sem atendimento','green');
+      toast(displayUnit(r2.unidade)+' entregue para '+nm+' · '+nItens+' itens → banco | '+nZero+' sem atendimento','green');
       
       // Abre a impressão do comprovante (via do almoxarifado) com as assinaturas prontas
       printReq(r2.id);
@@ -5829,7 +5894,7 @@ export function initSeparacao() {
   try { populateUnidadesSelect(); } catch (e) { console.error(e); }
   try { applySeparacaoRoleUI(); } catch (e) { console.error(e); }
   try {
-    const EXPORTS = { goTab, registrar, previewReq, pegarParaSeparar, entregarReq, abrirFicha, fecharFicha, marcarPronto, marcarProntoLista, voltarSeparacao, printReq, printFicha, cancelarReq, excluirHistoricoReq, renderBuracos, renderUnificar, buildPainel, gerarRelatorio, exportarCSV, handleFile, handleHistFiles, ck, okModal, closeModal, showModal, editEntryYear, editEntryPeriod, toggleDetail, removeHistEntry, openEditor, closeEditor, saveEditor, edRemoveItem, edAddItem, edAddCat, clearHistDB, clearMateriaisDB, removeDuplicatesAuto, recalcAllDates, exportBackup, importBackup, goToFile, goPage, onModeChange, clearFilters, clearPanFilters, clearYears, selAllYears, clearAllAliases, doUnifMerge, toggleUnifSel, unifRemoveSel, clearUnifSel, removeAlias, openPrintBuracos, doPrintBuracos, showOrigemUnidade, showOrigemCategoria, renderRelatorio, setPanTipo, loadAllHistDBAndRefresh, PAGE_STATE, debouncedRenderPS, debouncedRenderES, debouncedRenderPE, debouncedRenderHI };
+    const EXPORTS = { goTab, registrar, previewReq, pegarParaSeparar, entregarReq, abrirFicha, fecharFicha, marcarPronto, marcarProntoLista, voltarSeparacao, printReq, printFicha, cancelarReq, excluirHistoricoReq, renderBuracos, renderUnificar, buildPainel, gerarRelatorio, exportarCSV, handleFile, handleHistFiles, ck, okModal, closeModal, showModal, editEntryYear, editEntryPeriod, toggleDetail, removeHistEntry, openEditor, closeEditor, saveEditor, edRemoveItem, edAddItem, edAddCat, clearHistDB, clearMateriaisDB, removeDuplicatesAuto, recalcAllDates, exportBackup, importBackup, goToFile, goPage, onModeChange, clearFilters, clearPanFilters, clearYears, selAllYears, clearAllAliases, doUnifMerge, toggleUnifSel, unifRemoveSel, clearUnifSel, removeAlias, openPrintBuracos, doPrintBuracos, showOrigemUnidade, showOrigemCategoria, renderRelatorio, setPanTipo, loadAllHistDBAndRefresh, addFichaItem, removeFichaItem, editMaterial, PAGE_STATE, debouncedRenderPS, debouncedRenderES, debouncedRenderPE, debouncedRenderHI };
     Object.entries(EXPORTS).forEach(([k, v]) => { window[k] = v; });
   } catch (e) { console.error(e); }
   try { loadHistDB(); } catch (e) { console.error(e); }
