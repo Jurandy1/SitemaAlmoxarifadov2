@@ -671,40 +671,110 @@ function extractUnit(rows){
 function parsePadrao(rows){
   const un=extractUnit(rows);
   const cats=[];let cat=null,id=0;
+  
+  // ── DETECÇÃO DE FORMATO: Escaneia headers para determinar layout de colunas ──
+  // Formato A (4 colunas): Material | Unidade | Qtd Solicitada | Qtd Atendida
+  // Formato B (3 colunas): Material | Qtd Solicitada | Qtd Atendida (sem coluna Unidade)
+  let colMode = 'auto'; // 'standard' | 'no-unit'
+  for (const row of rows) {
+    const r = row.map(c => c == null ? '' : c);
+    const f = n(r[0]).toLowerCase();
+    if (/^materia/i.test(f)) {
+      const c1 = n(r[1]).toLowerCase();
+      const c2 = n(r[2]).toLowerCase();
+      // Se col B é "Quantidade solicitada" ou "Qtd" (não "Unidade"), é formato sem coluna Unidade
+      if (/quantid|qtd|solicita/i.test(c1) && !/unid/i.test(c1)) {
+        colMode = 'no-unit';
+      } else if (/^(unid|und)/i.test(c1)) {
+        colMode = 'standard';
+      }
+      // Também verifica "Qualidade solicitada" (typo comum do ODT)
+      if (/qualid/i.test(c1) && !/unid/i.test(c1)) {
+        colMode = 'no-unit';
+      }
+      break;
+    }
+  }
+  
   for(const row of rows){
     const r=row.map(c=>c==null?'':c);
     if(r.every(c=>!n(c)))continue;
     const f=n(r[0]);
     if(isFooter(r)||isSkipLine(f))continue;
-    if(isHeader(r)){if(cat&&cat.items.length>0){cat={name:'Outros Itens',items:[]};cats.push(cat)}continue}
+    if(isHeader(r)){
+      // Re-detecta colMode para cada header (pode mudar dentro do mesmo arquivo)
+      const c1h = n(r[1]).toLowerCase();
+      if (/quantid|qtd|solicita|qualid/i.test(c1h) && !/unid/i.test(c1h)) colMode = 'no-unit';
+      else if (/^(unid|und)/i.test(c1h)) colMode = 'standard';
+      if(cat&&cat.items.length>0){cat={name:'Outros Itens',items:[]};cats.push(cat)}
+      continue;
+    }
     if(isCategory(r)){cat={name:f,items:[]};cats.push(cat);continue}
     if(!f)continue;
     
-    let unid=n(r[1]), qs=n(r[2]), qa=n(r[3]);
+    let unid, qs, qa;
     
-    // ── FIX: Coluna vazia entre solicitada e atendida (ODT com 5 colunas) ──
-    if(!qa && r.length > 4 && n(r[4])) qa = n(r[4]);
-    
-    // ── FIX: Formato 3 colunas (Material | "01 PCT" | "1PCT") ──
-    // Quando col B tem "01 PCT" (qty+unidade misturado) e col C é a qtd atendida
-    // Detecta: col B começa com número + espaço + texto de unidade, e col C parece atendida
-    if (!qa && unid && /^\d+\s*[A-Za-z]/.test(unid)) {
-      const m = unid.match(/^(\d+)\s*(.*)$/);
-      if (m) {
-        // Se col C (qs aqui) parece "atendida" (tem número+unidade ou é "0" ou vazio)
-        const potentialQa = qs;
-        if (!potentialQa || /^\d/.test(potentialQa) || potentialQa === '0' || /^\d*\s*[A-Za-z]+$/i.test(potentialQa)) {
-          qa = potentialQa || '';
-          qs = m[1];
-          unid = m[2].trim();
+    if (colMode === 'no-unit') {
+      // ── FORMATO 3 COLUNAS: Material | QtdSolicitada | QtdAtendida ──
+      // Col B contém qty+unidade misturados ex: "01 PCT", "05 UND", "02UND"
+      const raw1 = n(r[1]); // ex: "01 PCT"
+      const raw2 = n(r[2]); // ex: "1PCT", "PCT", "0", 0
+      
+      // Extrair número e unidade da coluna "Qtd Solicitada"
+      const mSol = raw1.match(/^(\d+)\s*(.*)$/);
+      if (mSol) {
+        qs = mSol[1]; // "01"
+        unid = mSol[2].trim(); // "PCT"
+      } else {
+        qs = raw1;
+        unid = '';
+      }
+      
+      // Qtd Atendida: pode ser "1PCT", "PCT" (=1), "0", 0, ""
+      const rawQa = String(raw2).trim();
+      if (!rawQa || rawQa === '0') {
+        qa = rawQa;
+      } else {
+        // Se é só unidade sem número (ex: "PCT", "UND") → assume qty = 1
+        const mAte = rawQa.match(/^(\d+)\s*(.*)$/);
+        if (mAte) {
+          qa = mAte[1]; // "1" de "1PCT"
+        } else if (/^[A-Za-z]+$/i.test(rawQa)) {
+          // Puro texto de unidade sem número → é 1 (ex: "PCT" = 1 PCT)
+          qa = '1';
+        } else {
+          qa = rawQa;
         }
       }
-    }
-    
-    // Tratamento para formato de 2 colunas (Material | Quantidade) onde a quantidade cai na coluna de unidade
-    if(!qs && !qa && /^\d+/.test(unid) && !isNaN(extractNum(unid))) {
-        qs = unid;
-        unid = '';
+    } else {
+      // ── FORMATO PADRÃO 4 COLUNAS ──
+      unid = n(r[1]);
+      qs = n(r[2]);
+      qa = n(r[3]);
+      
+      // ── FIX: Coluna vazia entre solicitada e atendida (ODT com 5 colunas) ──
+      if(!qa && r.length > 4 && n(r[4])) qa = n(r[4]);
+      
+      // ── FIX: Fallback para 3-col mesmo sem header (auto-detect por row) ──
+      if (!qa && unid && /^\d+\s*[A-Za-z]/.test(unid)) {
+        const m = unid.match(/^(\d+)\s*(.*)$/);
+        if (m) {
+          const potentialQa = qs;
+          if (!potentialQa || /^\d/.test(potentialQa) || potentialQa === '0' || /^[A-Za-z]+$/i.test(potentialQa)) {
+            qa = potentialQa || '';
+            qs = m[1];
+            unid = m[2].trim();
+            // Se qa é só unidade sem número → 1
+            if (qa && /^[A-Za-z]+$/i.test(qa)) qa = '1';
+          }
+        }
+      }
+      
+      // Tratamento para formato de 2 colunas (Material | Quantidade)
+      if(!qs && !qa && /^\d+/.test(unid) && !isNaN(extractNum(unid))) {
+          qs = unid;
+          unid = '';
+      }
     }
 
     if(!unid&&!qs&&!qa){if(cat&&f.length>=3&&!isSkipLine(f)){id++;cat.items.push({id,material:f,unidade:'',qtdSolicitada:'',qtdAtendida:'',status:'nao_atendido',tipo:detectTipo(cat.name),obs:''})}continue}
