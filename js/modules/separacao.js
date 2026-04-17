@@ -1790,7 +1790,7 @@ function buildFichaHTML(r,isPrint){
   const ret = esc(r.retiradoPor||'');
   const reqPor = esc(r.resp||'');
   h+=`<div class="ficha-info-bar">${reqPor?`<span><b>Requisitado por:</b> ${reqPor}</span><span style="color:#64748b">|</span>`:''}<span><b>Separador:</b> ${sep}</span>${ent?`<span style="color:#64748b">|</span><span><b>Entregue por:</b> ${ent}</span>`:''}${ret?`<span style="color:#64748b">|</span><span><b>Retirado por:</b> ${ret}</span>`:''}<span style="color:#64748b">|</span><span><b>Tipos:</b> ${tiposPills(r.tipos)}</span></div>`;
-  d.categories.forEach(cat=>{
+  d.categories.forEach((cat,catIdx)=>{
     let catItems = cat.items.map(x => items[x.id]).filter(m => !!m);
     if(isPrint && r.status === 'separando') {
       catItems = catItems.filter(m => m.status !== 'sem_estoque' && m.status !== 'nao_atendido');
