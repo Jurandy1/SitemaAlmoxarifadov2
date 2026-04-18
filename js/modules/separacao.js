@@ -1,4 +1,4 @@
-import { setDoc, deleteDoc, doc, writeBatch, getDocs, query, orderBy, limit, startAfter, serverTimestamp, Timestamp, documentId } from "firebase/firestore";
+import { setDoc, deleteDoc, doc, writeBatch, getDocs, query, orderBy, limit, startAfter, serverTimestamp, Timestamp, documentId } from "firebase/firestore";import { setDoc, deleteDoc, doc, writeBatch, getDocs, query, orderBy, limit, startAfter, serverTimestamp, Timestamp, documentId } from "firebase/firestore";
 import { auth, COLLECTIONS } from "../services/firestore-service.js";
 import { getMateriais, getUnidades, getUserRole, getSemcasHistDB, getSemcasAliases } from "../utils/cache.js";
 import { showAlert } from "../utils/dom-helpers.js";
@@ -1236,7 +1236,7 @@ const KNOWN_COLORS = /\b(AZUL|AZUIS|PRETA|PRETAS|VERMELHA|VERMELHAS|VERDE|AMAREL
 const KNOWN_SIZES = /\b(\d+\s*L|\d+\s*ML|\d+\s*G|\d+\s*KG|GRANDE|PEQUENO|MEDIO|MEDIO|P|M|G|GG)\b/i;
 
 // Anotações inúteis que as unidades colocam nos nomes dos materiais
-const JUNK_PARENS = /\s*\(\s*(URGENTE|FALTA|SEM\s*ESTOQUE|REPOSI[ÇC][AÃ]O|FALTANDO|PRECISA|NECESSARIO|NECESS[AÁ]RIO|IMPORTANTE|PRIORIDADE|VERIFICAR|FAVOR|POR\s*FAVOR|OBS|OBSERVA[ÇC][AÃ]O|ATEN[ÇC][AÃ]O|SOLICITA[ÇC][AÃ]O|PEDIDO)\s*\)\s*$/i;
+const JUNK_PARENS = /\s*\(\s*(URGENTE|FALTA|SEM\s*ESTOQUE|REPOSI[ÇC][AÃ]O|FALTANDO|PRECISA|NECESSARIO|NECESS[AÁ]RIO|IMPORTANTE|PRIORIDADE|VERIFICAR|FAVOR|POR\s*FAVOR|OBS|OBSERVA[ÇC][AÃ]O|ATEN[ÇC][AÃ]O|SOLICITA[ÇC][AÃ]O|PEDIDO|\d+\s*(?:PACOTE|PCT|UND|UNID|CX|CAIXA|LITRO|KG|ROLO|RESMA|PAR)S?)\s*\)\s*$/i;
 const JUNK_SUFFIX = /\s*[-–—]\s*$|^\s*[""]|[""]\s*$/g;
 const JUNK_TRAILING = /\s+(URGENTE|FALTA|SEM\s*ESTOQUE)\s*$/i;
 
@@ -1251,6 +1251,24 @@ function cleanMaterialJunk(name) {
   s = s.replace(JUNK_TRAILING, '').trim();
   // Remove traço/dash solto no final: "PAPEL HIGIÊNICO –"
   s = s.replace(/\s*[-–—]+\s*$/, '').trim();
+  
+  // ─── Normaliza parênteses com qualificador simples ───
+  // "Canetas ( azul)" → "Canetas azul"
+  // "Cola (branca)" → "Cola branca"
+  // Mas NÃO mexe em "(cores variadas)", "(15L/50L)", "(doce e salgado)"
+  s = s.replace(/\(\s*([^)]{1,20})\s*\)\s*$/i, (match, inner) => {
+    const innerTrim = inner.trim();
+    const words = innerTrim.split(/\s+/);
+    // Se é 1 palavra simples (cor, tipo) → remove parens
+    if (words.length === 1 && !/\/|,/.test(innerTrim) && !/urgente|falta|estoque/i.test(innerTrim)) {
+      return ' ' + innerTrim;
+    }
+    // Se contém "/" ou "E" ou "," → deixa (será tratado pelo detector de splits)
+    if (/\/|\bE\b|,/i.test(innerTrim)) return match;
+    // Se é descritivo (2+ palavras) → mantém parens
+    return match;
+  }).trim();
+  
   // Remove espaços duplos
   s = s.replace(/\s+/g, ' ').trim();
   return s || name;
@@ -1274,11 +1292,14 @@ function singularizePT(word) {
   if (!word || word.length < 4) return word;
   const w = rmAcc(word).toUpperCase().replace(/[^A-Z]/g,'');
   if (SINGULAR_EXCEPTIONS.has(w)) return word;
-  if (/[ÕO][Ee][Ss]$/i.test(word)) return word.replace(/[ÕO][Ee][Ss]$/i, 'ÃO');
-  if (/[ÃA][Ee][Ss]$/i.test(word)) return word.replace(/[ÃA][Ee][Ss]$/i, 'ÃO');
-  if (/[ÉE][Ii][Ss]$/i.test(word)) return word.replace(/[ÉE][Ii][Ss]$/i, 'EL');
-  if (/[Uu][Ii][Ss]$/i.test(word)) return word.replace(/[Uu][Ii][Ss]$/i, 'UL');
-  if (/[ÓO][Ii][Ss]$/i.test(word)) return word.replace(/[ÓO][Ii][Ss]$/i, 'OL');
+  // Detecta se o sufixo é lowercase para preservar case
+  const isLower = word.slice(-1) === word.slice(-1).toLowerCase();
+  const rep = (s) => isLower ? s.toLowerCase() : s;
+  if (/[ÕO][Ee][Ss]$/i.test(word)) return word.replace(/[ÕO][Ee][Ss]$/i, rep('ÃO'));
+  if (/[ÃA][Ee][Ss]$/i.test(word)) return word.replace(/[ÃA][Ee][Ss]$/i, rep('ÃO'));
+  if (/[ÉE][Ii][Ss]$/i.test(word)) return word.replace(/[ÉE][Ii][Ss]$/i, rep('EL'));
+  if (/[Uu][Ii][Ss]$/i.test(word)) return word.replace(/[Uu][Ii][Ss]$/i, rep('UL'));
+  if (/[ÓO][Ii][Ss]$/i.test(word)) return word.replace(/[ÓO][Ii][Ss]$/i, rep('OL'));
   if (/[RSZ][Ee][Ss]$/i.test(word) && word.length > 5) return word.replace(/[Ee][Ss]$/i, '');
   if (/[AEIOUÃÕaeiouãõ][Ss]$/i.test(word)) return word.replace(/[Ss]$/, '');
   return word;
@@ -1287,10 +1308,19 @@ function singularizePT(word) {
 function singularizeMaterial(name) {
   if (!name) return name;
   const SKIP = new Set(['DE','DO','DA','DOS','DAS','EM','NO','NA','PARA','POR','COM','E','OU','P/','C/','S/']);
-  return name.split(/\s+/).map(w => {
+  
+  // Separa a parte principal da parte entre parênteses
+  const parenMatch = name.match(/^(.+?)(\s*\([^)]*\)\s*)$/);
+  let mainPart = parenMatch ? parenMatch[1] : name;
+  const parenPart = parenMatch ? parenMatch[2] : '';
+  
+  // Singulariza apenas a parte principal (fora dos parênteses)
+  mainPart = mainPart.split(/\s+/).map(w => {
     if (SKIP.has(w.toUpperCase()) || w.length < 3 || !/[Ss]$/.test(w)) return w;
     return singularizePT(w);
   }).join(' ');
+  
+  return (mainPart + parenPart).trim();
 }
 
 const SPELLING_FIXES = [
@@ -1328,8 +1358,40 @@ function detectItemIssues(parsed) {
 
   parsed.categories.forEach((cat, catIdx) => {
     cat.items.forEach((item, itemIdx) => {
-      const mat = String(item.material || '').trim();
-      if (mat.length < 3) return;
+      const rawMat = String(item.material || '').trim();
+      if (rawMat.length < 3) return;
+      
+      // Pré-limpeza: remove junk ANTES de analisar splits
+      const mat = cleanMaterialJunk(rawMat);
+
+      // ═══ FASE 0: PARÊNTESES COM VARIANTES — "Biscoito (doce e salgado)" ═══
+      const parenEMatch = mat.match(/^(.+?)\s*\(([^)]+)\)\s*$/);
+      if (parenEMatch) {
+        const base = parenEMatch[1].trim();
+        const inner = parenEMatch[2].trim();
+        
+        // Detecta "VAR1 e VAR2" ou "VAR1, VAR2" ou "VAR1/VAR2" dentro dos parens
+        let variants = null;
+        if (/\bE\b/i.test(inner) && !/urgente|falta|estoque|cores|tamanhos|pacote|unid/i.test(inner)) {
+          variants = inner.split(/\s+E\s+/i).map(v => v.trim()).filter(v => v.length >= 1);
+        } else if (inner.includes(',') && !/urgente|falta|cores|tamanhos/i.test(inner)) {
+          variants = inner.split(',').map(v => v.trim()).filter(v => v.length >= 1);
+        } else if (inner.includes('/') && !/urgente|falta/i.test(inner)) {
+          variants = inner.split('/').map(v => v.trim()).filter(v => v.length >= 1);
+        }
+        
+        if (variants && variants.length >= 2) {
+          issues.push({
+            type: 'split', catIdx, itemIdx, original: rawMat, item,
+            splits: variants.map(v => {
+              const name = base + ' ' + v.charAt(0).toUpperCase() + v.slice(1).toLowerCase();
+              return { material: autoDisplayName(normMat(name), name), unidade: item.unidade };
+            }),
+            reason: variants.length + ' variantes entre parênteses'
+          });
+          return;
+        }
+      }
 
       // ═══ FASE 1: DETECTAR "/" — itens múltiplos na mesma linha ═══
       if (mat.includes('/')) {
@@ -1341,7 +1403,7 @@ function detectItemIssues(parsed) {
           const variants = mParens[2].split('/').map(v => v.trim()).filter(Boolean);
           if (variants.length >= 2) {
             issues.push({
-              type: 'split', catIdx, itemIdx, original: mat, item,
+              type: 'split', catIdx, itemIdx, original: rawMat, item,
               splits: variants.map(v => {
                 const name = base + ' ' + v.toUpperCase();
                 return { material: autoDisplayName(normMat(name), name), unidade: item.unidade };
@@ -1368,7 +1430,7 @@ function detectItemIssues(parsed) {
           if (looksLikeFullItems) {
             // Cada parte é um item completo diferente
             issues.push({
-              type: 'split', catIdx, itemIdx, original: mat, item,
+              type: 'split', catIdx, itemIdx, original: rawMat, item,
               splits: slashParts.map(p => ({
                 material: autoDisplayName(normMat(p), p), unidade: item.unidade
               })),
@@ -1394,7 +1456,7 @@ function detectItemIssues(parsed) {
                 const name1 = base + ' ' + v1.toUpperCase();
                 const name2 = base + ' ' + v2.toUpperCase();
                 issues.push({
-                  type: 'split', catIdx, itemIdx, original: mat, item,
+                  type: 'split', catIdx, itemIdx, original: rawMat, item,
                   splits: [
                     { material: autoDisplayName(normMat(name1), name1), unidade: item.unidade },
                     { material: autoDisplayName(normMat(name2), name2), unidade: item.unidade }
@@ -1415,7 +1477,7 @@ function detectItemIssues(parsed) {
               const base = firstWords.slice(0, -1).join(' ');
               const allVariants = [lastWord, ...slashParts.slice(1)];
               issues.push({
-                type: 'split', catIdx, itemIdx, original: mat, item,
+                type: 'split', catIdx, itemIdx, original: rawMat, item,
                 splits: allVariants.map(v => {
                   const name = base + ' ' + v.trim().toUpperCase();
                   return { material: autoDisplayName(normMat(name), name), unidade: item.unidade };
@@ -1444,7 +1506,7 @@ function detectItemIssues(parsed) {
           // Caso A: Dois itens completos → "LEITE EM PÓ E LEITE LIQUIDO"
           if (p1Words.length >= 2 && p2Words.length >= 2) {
             issues.push({
-              type: 'split', catIdx, itemIdx, original: mat, item,
+              type: 'split', catIdx, itemIdx, original: rawMat, item,
               splits: [p1, p2].map(p => ({
                 material: autoDisplayName(normMat(p), p), unidade: item.unidade
               })),
@@ -1465,7 +1527,7 @@ function detectItemIssues(parsed) {
               const name1 = base + ' ' + v1.toUpperCase();
               const name2 = base + ' ' + numPrefix[1].toUpperCase() + v2;
               issues.push({
-                type: 'split', catIdx, itemIdx, original: mat, item,
+                type: 'split', catIdx, itemIdx, original: rawMat, item,
                 splits: [
                   { material: autoDisplayName(normMat(name1), name1), unidade: item.unidade },
                   { material: autoDisplayName(normMat(name2), name2), unidade: item.unidade }
@@ -1482,7 +1544,7 @@ function detectItemIssues(parsed) {
               const name1 = base + ' ' + v1.toUpperCase();
               const name2 = base + ' ' + v2Full.toUpperCase();
               issues.push({
-                type: 'split', catIdx, itemIdx, original: mat, item,
+                type: 'split', catIdx, itemIdx, original: rawMat, item,
                 splits: [
                   { material: autoDisplayName(normMat(name1), name1), unidade: item.unidade },
                   { material: autoDisplayName(normMat(name2), name2), unidade: item.unidade }
@@ -1495,7 +1557,7 @@ function detectItemIssues(parsed) {
             const name1 = base + ' ' + v1.toUpperCase();
             const name2 = base + ' ' + v2.toUpperCase();
             issues.push({
-              type: 'split', catIdx, itemIdx, original: mat, item,
+              type: 'split', catIdx, itemIdx, original: rawMat, item,
               splits: [
                 { material: autoDisplayName(normMat(name1), name1), unidade: item.unidade },
                 { material: autoDisplayName(normMat(name2), name2), unidade: item.unidade }
@@ -1525,14 +1587,14 @@ function detectItemIssues(parsed) {
         if (catalogName) reasons.push('catálogo');
         
         issues.push({
-          type: 'rename', catIdx, itemIdx, original: mat, item,
+          type: 'rename', catIdx, itemIdx, original: rawMat, item,
           suggested: finalName,
           reason: reasons.length ? '📝 ' + reasons.join(' + ') : 'Padronização do nome'
         });
       } else if (step1 !== mat) {
         // Apenas junk removal (caso acento/case seja igual mas tinha lixo)
         issues.push({
-          type: 'rename', catIdx, itemIdx, original: mat, item,
+          type: 'rename', catIdx, itemIdx, original: rawMat, item,
           suggested: autoDisplayName(nk, step1),
           reason: 'Anotação desnecessária removida'
         });
