@@ -1443,11 +1443,18 @@
             <!-- PAINEL ENTREGA DE MATERIAIS (ID: content-materiais)      -->
             <!-- ========================================================== -->
             <div id="content-materiais" class="fade-in hidden">
+                <!-- ═══ SUB-MENU PRINCIPAL DO ALMOXARIFADO ═══ -->
+                <div style="display:flex;align-items:center;gap:0;background:#0f172a;border-radius:12px;overflow:hidden;margin-bottom:12px;box-shadow:0 4px 12px rgba(0,0,0,.15)">
+                    <button class="mat-main-tab active" id="matTabEntrega" onclick="switchMatView('entrega')" style="flex:1;padding:14px 20px;border:none;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;transition:.2s;background:#1e40af;color:#fff">📦 Entrega de Materiais</button>
+                    <button class="mat-main-tab" id="matTabPainel" onclick="switchMatView('painel')" style="flex:1;padding:14px 20px;border:none;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;transition:.2s;background:transparent;color:#94a3b8">📊 Painel do Almoxarifado</button>
+                </div>
+
+                <!-- ═══ BLOCO 1: ENTREGA DE MATERIAIS ═══ -->
+                <div id="matViewEntrega">
                 <div class="separacao-module">
-                    <!-- Backup/Restore toolbar (topbar hidden, buttons kept accessible) -->
                     <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:6px 0;flex-wrap:wrap">
-                        <button class="btn btn-s btn-sm" style="font-size:10px;padding:4px 10px;border:1px solid #cbd5e1;color:#64748b;background:#f8fafc;border-radius:6px" onclick="exportBackup()" title="Exportar backup completo">⬇️ Backup</button>
-                        <button class="btn btn-s btn-sm" style="font-size:10px;padding:4px 10px;border:1px solid #cbd5e1;color:#64748b;background:#f8fafc;border-radius:6px" onclick="document.getElementById('impBackup').click()" title="Importar backup">⬆️ Restaurar</button>
+                        <button class="btn btn-s btn-sm" style="font-size:10px;padding:4px 10px;border:1px solid #cbd5e1;color:#64748b;background:#f8fafc;border-radius:6px" onclick="exportBackup()">⬇️ Backup</button>
+                        <button class="btn btn-s btn-sm" style="font-size:10px;padding:4px 10px;border:1px solid #cbd5e1;color:#64748b;background:#f8fafc;border-radius:6px" onclick="document.getElementById('impBackup').click()">⬆️ Restaurar</button>
                         <input type="file" id="impBackup" accept=".json" style="display:none" onchange="importBackup(event)">
                         <span style="color:#94a3b8;font-size:11px" id="td"></span>
                     </div>
@@ -1458,10 +1465,10 @@
                         <div class="tab" data-tab="pe" onclick="goTab('pe')">✅ Pronto <span class="bc zero" id="c3">0</span></div>
                         <div class="tab" data-tab="hi" onclick="goTab('hi')">📂 Histórico <span class="bc zero" id="c4">0</span></div>
                         <div class="tab" data-tab="db" onclick="goTab('db')">🗄️ Banco de Dados</div>
-                        <div class="tab" data-tab="pan" onclick="goTab('pan')">📈 Painel</div>
                         <div class="tab" data-tab="rel" onclick="goTab('rel')">🔧 Correção de Itens</div>
                     </div>
 
+                    <!-- tab-req -->
                     <div class="view active" id="tab-req">
                         <div class="card">
                             <h2>📋 Registrar Nova Requisição</h2>
@@ -1470,7 +1477,7 @@
                                 <div>
                                     <label class="lbl">Unidade (auto-detectada ou selecione)</label>
                                     <select class="sel" id="rU" onchange="ck()"><option value="">-- Auto-detectar da planilha --</option></select>
-                                    <div id="rUWarn" style="display:none;background:#fef3c7;border:1px solid #fde047;border-radius:6px;padding:6px 10px;font-size:11px;color:#92400e;margin-top:4px">⚠️ Unidade não identificada. Selecione manualmente acima.</div>
+                                    <div id="rUWarn" style="display:none;background:#fef3c7;border:1px solid #fde047;border-radius:6px;padding:6px 10px;font-size:11px;color:#92400e;margin-top:4px">⚠️ Unidade não identificada. Selecione manualmente.</div>
                                 </div>
                                 <div><label class="lbl">Detectado</label><div id="detectInfo" style="min-height:36px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:6px 0"><span style="color:var(--muted);font-size:12px">Anexe a planilha...</span></div></div>
                             </div>
@@ -1489,9 +1496,9 @@
                                 </div>
                                 <div></div>
                             </div>
-                            <div style="display:flex; gap:8px;">
-                                <button class="btn btn-s w-full" id="bPreview" disabled onclick="previewReq()" style="flex:1;">👁️ Visualizar</button>
-                                <button class="btn btn-p w-full" id="bR" disabled onclick="registrar()" style="flex:2;">📝 Registrar Requisição</button>
+                            <div style="display:flex;gap:8px">
+                                <button class="btn btn-s w-full" id="bPreview" disabled onclick="previewReq()" style="flex:1">👁️ Visualizar</button>
+                                <button class="btn btn-p w-full" id="bR" disabled onclick="registrar()" style="flex:2">📝 Registrar Requisição</button>
                             </div>
                         </div>
                     </div>
@@ -1532,27 +1539,7 @@
                         </div>
                     </div>
 
-                    <div class="view" id="tab-pan">
-                        <div style="max-width:1100px;margin:0 auto">
-                            <div class="pan-filters" id="panFilters" style="display:none">
-                                <h3>🔍 Filtrar Painel</h3>
-                                <div style="margin-bottom:8px">
-                                    <label class="lbl">Tipo de Unidade</label>
-                                    <div class="tipo-chips" id="panTipoChips"></div>
-                                </div>
-                                <div class="pan-unit-sel">
-                                    <div style="flex:1">
-                                        <label class="lbl">Unidade Específica <span style="font-size:10px;color:var(--muted);font-weight:400">(vazio = todas do tipo)</span></label>
-                                        <select class="sel" id="panUnitSel" onchange="buildPainel()"><option value="">— Todas —</option></select>
-                                    </div>
-                                    <button class="btn btn-s btn-sm" onclick="clearPanFilters()" style="margin-top:18px">✕ Limpar</button>
-                                </div>
-                            </div>
-                            <div id="panContent">
-                                <div class="pan-empty"><div class="ic">📈</div><b>Painel de Gestão</b><br><span style="font-size:13px">Carregue planilhas na aba Relatório para gerar análise automática.</span></div>
-                            </div>
-                        </div>
-                    </div>
+                    <!-- tab-pan moved to standalone Painel do Almoxarifado -->
 
                     <div class="view" id="tab-db">
                         <div style="max-width:1100px;margin:0 auto">
@@ -1582,7 +1569,7 @@
                                         <div class="fd" id="rDrop" onclick="document.getElementById('rFi').click()" style="margin-bottom:10px;padding:14px">
                                             <div style="font-size:18px">📎</div>
                                             <div style="font-size:12px;font-weight:600">Importar planilhas</div>
-                                            <div style="font-size:10px;color:var(--muted)">.xlsx .xls .ods .docx .odt .pdf — múltiplos arquivos</div>
+                                            <div style="font-size:10px;color:var(--muted)">.xlsx .xls .ods .docx .odt .pdf — múltiplos</div>
                                             <input type="file" id="rFi" accept=".xlsx,.xls,.ods,.docx,.doc,.odt,.pdf" style="display:none" multiple onchange="handleHistFiles(event)">
                                         </div>
                                         <div id="rProgress" style="display:none;font-size:11px;color:var(--muted);margin-bottom:8px">
@@ -1666,7 +1653,7 @@
                     </div>
 
                     <div class="view" id="tab-rel">
-                        <!-- renderCorrecaoItens() preenche este container dinamicamente -->
+                        <!-- renderCorrecaoItens() preenche dinamicamente -->
                     </div>
 
                     <div class="modal-ficha" id="fichaModal">
@@ -1707,6 +1694,42 @@
                         </div>
                     </div>
                 </div>
+                </div><!-- /matViewEntrega -->
+
+                <!-- ═══ BLOCO 2: PAINEL DO ALMOXARIFADO (standalone) ═══ -->
+                <div id="matViewPainel" style="display:none">
+                    <div style="max-width:1200px;margin:0 auto">
+                        <!-- Sub-abas do Painel -->
+                        <div style="display:flex;gap:0;background:#fff;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,.04)">
+                            <button class="pan-sub-tab active" data-pansub="visao" onclick="switchPanSub('visao')" style="flex:1;padding:11px 14px;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;background:#2563eb;color:#fff;transition:.2s;display:flex;align-items:center;justify-content:center;gap:6px">📈 Visão Geral</button>
+                            <button class="pan-sub-tab" data-pansub="entregas" onclick="switchPanSub('entregas')" style="flex:1;padding:11px 14px;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;background:transparent;color:#64748b;transition:.2s;display:flex;align-items:center;justify-content:center;gap:6px">📦 Entregas</button>
+                            <button class="pan-sub-tab" data-pansub="medias" onclick="switchPanSub('medias')" style="flex:1;padding:11px 14px;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;background:transparent;color:#64748b;transition:.2s;display:flex;align-items:center;justify-content:center;gap:6px">📊 Médias</button>
+                            <button class="pan-sub-tab" data-pansub="rankings" onclick="switchPanSub('rankings')" style="flex:1;padding:11px 14px;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;background:transparent;color:#64748b;transition:.2s;display:flex;align-items:center;justify-content:center;gap:6px">🏆 Rankings</button>
+                        </div>
+                        <!-- Filtros do Painel -->
+                        <div id="panFilters" style="display:none;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,.04)">
+                            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                                <span style="font-size:12px;font-weight:800;color:#475569">🔍 Filtrar</span>
+                                <button class="btn btn-s btn-sm" onclick="clearPanFilters()" style="font-size:10px">✕ Limpar</button>
+                            </div>
+                            <div id="panTipoChips" class="tipo-chips" style="margin-bottom:8px"></div>
+                            <div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap">
+                                <div style="flex:1;min-width:200px">
+                                    <label style="font-size:10px;font-weight:700;color:#64748b;display:block;margin-bottom:3px">Unidade</label>
+                                    <select class="sel" id="panUnitSel" onchange="buildPainel()" style="font-size:12px"><option value="">— Todas —</option></select>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Conteúdo dinâmico -->
+                        <div id="panContent">
+                            <div style="text-align:center;padding:60px 20px;color:#64748b">
+                                <div style="font-size:48px;margin-bottom:12px">📊</div>
+                                <b style="font-size:16px;color:#0f172a">Painel do Almoxarifado</b>
+                                <br><span style="font-size:13px">Carregue planilhas no <b>Banco de Dados</b> para gerar o painel.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div><!-- /matViewPainel -->
             </div>
 
             <!-- ========================================================== -->
