@@ -2000,6 +2000,7 @@ function marcarPronto(e){
     if(i.status==='nao_atendido'&&!String(i.qtdAtendida||'').trim())i.status='nao_atendido';
   });
   r.status='pronto';
+  r.dtPronto=new Date();
   markDirty(r);
   persistReq(r);
   curId=null;
@@ -2012,7 +2013,7 @@ function marcarProntoLista(id, e){
   if(e && e.stopPropagation) e.stopPropagation();
   const r=findReq(id);if(!r)return;
   if(!confirm('Tem certeza que deseja marcar como Pronto?')) return;
-  r.status='pronto';markDirty(r);persistReq(r);toast(displayUnit(r.unidade)+' → Pronto!','green');renderAll();
+  r.status='pronto';r.dtPronto=new Date();markDirty(r);persistReq(r);toast(displayUnit(r.unidade)+' → Pronto!','green');renderAll();
 }
 function voltarSeparacao(id){const r=findReq(id);if(!r)return;r.status='separando';markDirty(r);persistReq(r);toast(displayUnit(r.unidade)+' ↩️ Voltou para Separação','green');goTab('es')}
 
@@ -2129,6 +2130,7 @@ function toast(msg,c){const t=document.createElement('div');t.textContent=msg;Ob
 // ═══════════════════════════════════════════════════════════════════
 let HIST_DB=[], HIST_ALIASES={}, LAST_REPORT_DATA=[];
 let MAT_ALIASES={};
+let CAT_ALIASES={};
 let HIST_DB_PARTIAL=false;
 let HIST_DB_LOADING_ALL=false;
 
@@ -3701,15 +3703,16 @@ function buildAgg(entries,selUnits,selCats){
       unitActiveWeeks[u.unitName].add(wk);
 
       (u.categories||[]).forEach(c=>{
-        if(selCats.size&&!selCats.has(c.catName))return;
+        const catDisplay = getCanonicalCat(c.catName) || c.catName;
+        if(selCats.size&&!selCats.has(catDisplay)&&!selCats.has(c.catName))return;
         (c.items||[]).forEach(it=>{
           const matKey=normMat(it.material);
-          const k=u.unitName+'\x00'+c.catName+'\x00'+matKey;
+          const k=u.unitName+'\x00'+catDisplay+'\x00'+matKey;
           // Usa nome canônico do MAT_ALIASES se disponível
           const rawKey=_origNormMat(it.material);
           for(const [re,repl] of MAT_SYNONYMS){if(re.test(rawKey)){break;}}
           const displayMat=(MAT_ALIASES&&MAT_ALIASES[_origNormMat(it.material)])?MAT_ALIASES[_origNormMat(it.material)]:it.material;
-          if(!agg[k])agg[k]={unit:u.unitName,cat:c.catName,material:displayMat,
+          if(!agg[k])agg[k]={unit:u.unitName,cat:catDisplay,material:displayMat,
             weekQtys:{},monthQtys:{},yearQtys:{}, total: 0};
           
           const wkKey=u.unitName+'\x01'+wk;
@@ -4102,7 +4105,7 @@ function buildDetailRow(rid,r,colspan){
 // CORREÇÃO DE ITENS — Normalização e Unificação de Materiais
 // ═══════════════════════════════════════════════════════════════════
 let _fixSearchTerm = '';
-let _fixView = 'sugestoes'; // sugestoes | todos | regras
+let _fixView = 'sugestoes'; // sugestoes | todos | regras | categorias
 let _fixPage = 1;
 const FIX_PAGE_SIZE = 50;
 // Expose for oninput handlers
@@ -4113,13 +4116,14 @@ async function saveMatAliases() {
   try {
     await setDoc(doc(COLLECTIONS.semcasAliases, 'matConfig'), {
       matAliases: MAT_ALIASES || {},
+      catAliases: CAT_ALIASES || {},
       updatedAt: serverTimestamp(),
       updatedBy: auth.currentUser?.email || 'Sistema'
     }, { merge: true });
     invalidateAggCache();
     return true;
   } catch (e) {
-    console.error('Erro ao salvar aliases de materiais:', e);
+    console.error('Erro ao salvar aliases:', e);
     toast('Erro ao salvar correção: ' + (e.message || ''), 'red');
     return false;
   }
@@ -4129,11 +4133,86 @@ async function loadMatAliases() {
   try {
     const snap = await getDocs(query(COLLECTIONS.semcasAliases));
     snap.forEach(d => {
-      if (d.id === 'matConfig' && d.data()?.matAliases) {
-        MAT_ALIASES = d.data().matAliases;
+      if (d.id === 'matConfig') {
+        if (d.data()?.matAliases) MAT_ALIASES = d.data().matAliases;
+        if (d.data()?.catAliases) CAT_ALIASES = d.data().catAliases;
       }
     });
-  } catch (e) { console.warn('Erro ao carregar matAliases:', e); }
+  } catch (e) { console.warn('Erro ao carregar aliases:', e); }
+}
+
+function normCatKey(s) {
+  return rmAcc(s).trim().replace(/\s+/g,' ').toUpperCase();
+}
+
+function getCanonicalCat(cat) {
+  if (!cat) return cat;
+  const key = normCatKey(cat);
+  if (CAT_ALIASES[key]) return CAT_ALIASES[key];
+  return cat;
+}
+
+async function applyCatFix(fromKey, toName) {
+  CAT_ALIASES[fromKey] = toName;
+  const ok = await saveMatAliases();
+  if (ok) { invalidateAggCache(); toast('Categoria corrigida → ' + toName, 'green'); renderCorrecaoItens(); }
+}
+
+async function removeCatFix(key) {
+  delete CAT_ALIASES[key];
+  const ok = await saveMatAliases();
+  if (ok) { toast('Regra de categoria removida.', 'green'); renderCorrecaoItens(); }
+}
+
+async function clearAllCatFixes() {
+  if (!confirm('Remover TODAS as regras de categoria?')) return;
+  CAT_ALIASES = {};
+  await saveMatAliases();
+  toast('Todas as regras de categoria removidas.', 'green');
+  renderCorrecaoItens();
+}
+
+function scanAllCategories() {
+  const cats = new Map();
+  const addCat = (raw) => {
+    if (!raw || raw.length < 3) return;
+    const key = normCatKey(raw);
+    if (!cats.has(key)) cats.set(key, { names: new Map(), count: 0 });
+    const entry = cats.get(key);
+    entry.names.set(raw, (entry.names.get(raw) || 0) + 1);
+    entry.count++;
+  };
+  REQS.forEach(r => {
+    if (r.parsed?.categories) r.parsed.categories.forEach(c => addCat(c.name));
+  });
+  HIST_DB.forEach(e => {
+    if (e.categories) e.categories.forEach(c => addCat(c.name));
+  });
+  return cats;
+}
+
+// ─── Dias úteis (exclui sáb/dom/feriados) ────────────────
+function countWorkingDays(startISO, endISO, feriadosSet) {
+  if (!startISO || !endISO) return 0;
+  const start = new Date(startISO + 'T00:00:00');
+  const end = new Date(endISO + 'T00:00:00');
+  if (isNaN(start) || isNaN(end) || start > end) return 0;
+  let count = 0;
+  const d = new Date(start);
+  while (d <= end) {
+    const dow = d.getDay();
+    const iso = d.toISOString().slice(0, 10);
+    if (dow !== 0 && dow !== 6 && (!feriadosSet || !feriadosSet.has(iso))) count++;
+    d.setDate(d.getDate() + 1);
+  }
+  return count;
+}
+
+function getWorkingDaysInMonth(year, month, feriadosSet) {
+  const start = `${year}-${String(month).padStart(2,'0')}-01`;
+  const d = new Date(year, month, 0);
+  const end = `${year}-${String(month).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  return countWorkingDays(start, end, feriadosSet);
 }
 
 function getCanonicalMat(material) {
@@ -4304,29 +4383,36 @@ function renderCorrecaoItens() {
 
   // Header
   h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">'
-    + '<div><h1 style="font-size:18px;font-weight:800;margin:0">🔧 Correção de Itens</h1>'
-    + '<div style="font-size:11px;color:var(--muted)">Unifique nomes de materiais para que o Painel identifique corretamente cada item</div></div>'
+    + '<div><h1 style="font-size:18px;font-weight:800;margin:0">🔧 Padronização do Sistema</h1>'
+    + '<div style="font-size:11px;color:var(--muted)">Unifique nomes de materiais e categorias para manter o sistema organizado</div></div>'
     + '<button class="btn btn-s btn-sm" onclick="renderCorrecaoItens()">🔄 Atualizar</button></div>';
 
+  // Scan categories
+  const allCats = scanAllCategories();
+  const nCatRules = Object.keys(CAT_ALIASES).length;
+  const nCats = allCats.size;
+
   // Stats
-  h += '<div class="pan-grid" style="grid-template-columns:repeat(auto-fill,minmax(140px,1fr))">'
-    + '<div class="kpi"><div class="kpi-val" style="color:#2563eb">' + nTotal + '</div><div class="kpi-lbl">Itens Únicos</div></div>'
-    + '<div class="kpi"><div class="kpi-val" style="color:#f59e0b">' + withVariations.length + '</div><div class="kpi-lbl">Com Variações</div></div>'
-    + '<div class="kpi"><div class="kpi-val" style="color:#8b5cf6">' + pendingSimilar.length + '</div><div class="kpi-lbl">Similares</div></div>'
-    + '<div class="kpi"><div class="kpi-val" style="color:#10b981">' + nRules + '</div><div class="kpi-lbl">Regras Ativas</div></div>'
+  h += '<div class="pan-grid" style="grid-template-columns:repeat(auto-fill,minmax(120px,1fr))">'
+    + '<div class="kpi"><div class="kpi-val" style="color:#2563eb">' + nTotal + '</div><div class="kpi-lbl">Itens</div></div>'
+    + '<div class="kpi"><div class="kpi-val" style="color:#f59e0b">' + withVariations.length + '</div><div class="kpi-lbl">Variações</div></div>'
+    + '<div class="kpi"><div class="kpi-val" style="color:#10b981">' + nRules + '</div><div class="kpi-lbl">Regras Itens</div></div>'
+    + '<div class="kpi"><div class="kpi-val" style="color:#8b5cf6">' + nCats + '</div><div class="kpi-lbl">Categorias</div></div>'
+    + '<div class="kpi"><div class="kpi-val" style="color:#059669">' + nCatRules + '</div><div class="kpi-lbl">Regras Categ.</div></div>'
     + '</div>';
 
-  if (!items.size) {
-    h += '<div class="empty"><div class="ic">📦</div>Nenhum item encontrado. Registre requisições ou carregue planilhas no Banco de Dados.</div>';
+  if (!items.size && !allCats.size) {
+    h += '<div class="pan-empty"><div class="ic">📦</div>Nenhum dado encontrado. Registre requisições ou carregue planilhas no Banco de Dados.</div>';
     tabEl.innerHTML = h + '</div>';
     return;
   }
 
-  // Sub-nav
-  h += '<div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap">'
-    + '<button class="btn ' + (_fixView === 'sugestoes' ? 'btn-p' : 'btn-s') + ' btn-sm" onclick="setFixView(\'sugestoes\')">🤖 Sugestões' + (nSugestoes ? ' (' + nSugestoes + ')' : '') + '</button>'
-    + '<button class="btn ' + (_fixView === 'todos' ? 'btn-p' : 'btn-s') + ' btn-sm" onclick="setFixView(\'todos\')">📋 Todos os Itens (' + nTotal + ')</button>'
-    + '<button class="btn ' + (_fixView === 'regras' ? 'btn-p' : 'btn-s') + ' btn-sm" onclick="setFixView(\'regras\')">📜 Regras Ativas (' + nRules + ')</button>'
+  // Sub-nav with category tab
+  h += '<div style="display:flex;gap:0;margin-bottom:16px;border:1.5px solid var(--border);border-radius:8px;overflow:hidden">'
+    + '<button class="fix-tab' + (_fixView === 'sugestoes' ? ' act' : '') + '" onclick="setFixView(\'sugestoes\')">🤖 Sugestões' + (nSugestoes ? ' (' + nSugestoes + ')' : '') + '</button>'
+    + '<button class="fix-tab' + (_fixView === 'todos' ? ' act' : '') + '" onclick="setFixView(\'todos\')">📋 Itens (' + nTotal + ')</button>'
+    + '<button class="fix-tab' + (_fixView === 'regras' ? ' act' : '') + '" onclick="setFixView(\'regras\')">📜 Regras (' + nRules + ')</button>'
+    + '<button class="fix-tab' + (_fixView === 'categorias' ? ' act' : '') + '" onclick="setFixView(\'categorias\')">🗂️ Categorias (' + nCats + ')</button>'
     + '</div>';
 
   // Search
@@ -4339,6 +4425,8 @@ function renderCorrecaoItens() {
     h += renderFixSugestoes(withVariations, pendingSimilar, items, searchLo);
   } else if (_fixView === 'todos') {
     h += renderFixTodos(items, searchLo);
+  } else if (_fixView === 'categorias') {
+    h += renderFixCategorias(allCats, searchLo);
   } else {
     h += renderFixRegras(searchLo);
   }
@@ -4554,6 +4642,101 @@ function renderFixRegras(searchLo) {
   h += '</div>';
   return h;
 }
+
+function renderFixCategorias(allCats, searchLo) {
+  let h = '';
+  
+  // ─── CATEGORIAS EXISTENTES ───
+  const catEntries = [...allCats.entries()];
+  let filtered = catEntries;
+  if (searchLo) filtered = filtered.filter(([k, v]) => rmAcc(k).toLowerCase().includes(searchLo) || [...v.names.keys()].some(n => rmAcc(n).toLowerCase().includes(searchLo)));
+  
+  filtered.sort((a, b) => b[1].count - a[1].count);
+  
+  const catRules = Object.entries(CAT_ALIASES);
+  
+  // ─── REGRAS DE CATEGORIA ATIVAS ───
+  if (catRules.length > 0) {
+    h += '<div class="pan-section"><h2>✅ Regras de Categoria Ativas (' + catRules.length + ')</h2>'
+      + '<p class="sub">Categorias que serão renomeadas automaticamente nos relatórios e no Painel</p>';
+    
+    catRules.sort((a, b) => a[1].localeCompare(b[1])).forEach(([fromKey, toName]) => {
+      h += '<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;margin-bottom:4px;font-size:12px">'
+        + '<span style="color:#991b1b;text-decoration:line-through;font-weight:500">' + esc(fromKey) + '</span>'
+        + '<span style="color:#64748b">→</span>'
+        + '<span style="color:#065f46;font-weight:700">' + esc(toName) + '</span>'
+        + '<button class="btn btn-s btn-sm" style="margin-left:auto;font-size:9px;padding:2px 6px;color:#dc2626;border-color:#fca5a5" onclick="removeCatFix(\'' + esc(fromKey).replace(/'/g, "\\'") + '\')">✕</button>'
+        + '</div>';
+    });
+    
+    h += '<div style="margin-top:8px"><button class="btn btn-s btn-sm" style="color:#dc2626;border-color:#fca5a5;font-size:10px" onclick="clearAllCatFixes()">🗑️ Remover todas</button></div>';
+    h += '</div>';
+  }
+  
+  // ─── TODAS AS CATEGORIAS ───
+  h += '<div class="pan-section"><h2>🗂️ Todas as Categorias (' + filtered.length + ')</h2>'
+    + '<p class="sub">Clique em "Renomear" para padronizar uma categoria. Todas as planilhas do banco serão afetadas.</p>';
+  
+  if (!filtered.length) {
+    h += '<div style="text-align:center;padding:20px;color:#64748b">Nenhuma categoria encontrada.</div>';
+  } else {
+    // Categorias padrão sugeridas
+    const STD_CATS = ['MATERIAL DE EXPEDIENTE', 'MATERIAL DE LIMPEZA', 'MATERIAL DE HIGIENE PESSOAL', 'MATERIAL DESCARTÁVEL', 'ALIMENTOS PROCESSADOS', 'ALIMENTOS PERECÍVEIS', 'MATERIAL DE ATIVIDADES'];
+    
+    h += '<table class="pan-table"><thead><tr><th>Categoria</th><th>Variações</th><th>Ocorrências</th><th>Ações</th></tr></thead><tbody>';
+    
+    filtered.forEach(([key, data]) => {
+      const namesArr = [...data.names.entries()].sort((a, b) => b[1] - a[1]);
+      const mainName = namesArr[0][0];
+      const hasAlias = !!CAT_ALIASES[key];
+      const displayName = hasAlias ? CAT_ALIASES[key] : mainName;
+      
+      h += '<tr' + (hasAlias ? ' style="background:#f0fdf4"' : '') + '>';
+      h += '<td style="font-weight:700;font-size:12px">' + esc(displayName);
+      if (hasAlias) h += ' <span style="font-size:9px;color:#10b981;font-weight:600">✅ padronizado</span>';
+      h += '</td>';
+      
+      h += '<td style="font-size:11px">';
+      if (namesArr.length > 1) {
+        namesArr.forEach(([name, count]) => {
+          h += '<span style="display:inline-block;background:#f1f5f9;padding:1px 6px;border-radius:4px;font-size:10px;margin:1px">' + esc(name) + ' (' + count + ')</span> ';
+        });
+      } else {
+        h += '<span style="color:#94a3b8;font-size:10px">—</span>';
+      }
+      h += '</td>';
+      
+      h += '<td style="text-align:center;font-weight:700;font-size:12px">' + data.count + '</td>';
+      
+      // Actions: rename with dropdown of standard names
+      const inputId = 'catFix_' + key.replace(/[^A-Za-z0-9]/g, '_');
+      h += '<td style="min-width:200px"><div style="display:flex;gap:4px;align-items:center">'
+        + '<select id="' + inputId + '" class="sel" style="font-size:11px;padding:4px 8px;flex:1">'
+        + '<option value="">Selecione...</option>';
+      STD_CATS.forEach(sc => {
+        h += '<option value="' + esc(sc) + '"' + (displayName === sc ? ' selected' : '') + '>' + esc(sc) + '</option>';
+      });
+      // Add option for custom input
+      h += '<option value="__custom__">Digitar outro...</option>';
+      h += '</select>'
+        + '<button class="btn btn-g btn-sm" style="font-size:9px;padding:2px 8px" onclick="'
+        + 'var sel=document.getElementById(\'' + inputId + '\');'
+        + 'var v=sel.value;'
+        + 'if(v===\'__custom__\'){v=prompt(\'Nome da categoria:\',\'' + esc(mainName).replace(/'/g, "\\'") + '\');}'
+        + 'if(v)applyCatFix(\'' + esc(key).replace(/'/g, "\\'") + '\',v)'
+        + '">✅</button>'
+        + '</div></td>';
+      
+      h += '</tr>';
+    });
+    
+    h += '</tbody></table>';
+  }
+  
+  h += '</div>';
+  return h;
+}
+
 // PAINEL DE GESTÃO
 // ═══════════════════════════════════════════════════════════════════
 
@@ -5930,28 +6113,58 @@ function _buildPainelImpl(){
   // ═══════════════════════════════════════════════════
   else if (_panSub === 'medias') {
     h+='<h2 style="font-size:16px;font-weight:800;margin-bottom:4px">📊 Médias de Consumo</h2>'
-      +'<p style="font-size:12px;color:var(--muted);margin-bottom:14px">Média mensal por categoria, tipo de unidade e unidade individual.</p>';
+      +'<p style="font-size:12px;color:var(--muted);margin-bottom:14px">Médias semanal, mensal e anual — por categoria, tipo de unidade e unidade individual.</p>';
     
-    // Média por categoria
+    const totalYears = allYears.length || 1;
+    
+    // ── Média por Unidade Individual (semanal/mensal/anual) ──
+    h += '<div class="pan-section"><h3>🏢 Média por Unidade</h3>'
+      +'<p class="sub">Consumo total e médias por período de cada unidade (baseado em dias úteis, seg-sex, excluindo feriados)</p>'
+      +'<table class="pan-table"><thead><tr><th>Unidade</th><th>Tipo</th><th>Total Entregue</th><th>Média/Semana</th><th>Média/Mês</th><th>Média/Ano</th></tr></thead><tbody>';
+    
+    const unitTotals = {};
+    allAgg.forEach(r => {
+      if (!unitTotals[r.unit]) unitTotals[r.unit] = 0;
+      unitTotals[r.unit] += r.total;
+    });
+    const unitSorted = Object.entries(unitTotals).sort((a,b) => b[1] - a[1]);
+    
+    unitSorted.forEach(([unit, total]) => {
+      const tipo = classifyUnit(unit);
+      const avgWeek = totalWeeks > 0 ? (total / totalWeeks).toFixed(1) : '—';
+      const avgMonth = totalMonths > 0 ? (total / totalMonths).toFixed(1) : '—';
+      const avgYear = totalYears > 0 ? (total / totalYears).toFixed(0) : '—';
+      h += '<tr><td style="font-weight:700;font-size:12px;cursor:pointer" onclick="document.getElementById(\'panUnitSel\').value=\''+esc(unit)+'\';buildPainel()">'+tipo.icon+' '+esc(unit)+'</td>'
+        +'<td style="font-size:11px;color:var(--muted)">'+tipo.label+'</td>'
+        +'<td style="font-weight:700">'+total.toLocaleString('pt-BR')+'</td>'
+        +'<td style="color:#0891b2;font-weight:700">'+avgWeek+'</td>'
+        +'<td style="color:#2563eb;font-weight:700">'+avgMonth+'</td>'
+        +'<td style="color:#7c3aed;font-weight:700">'+avgYear+'</td></tr>';
+    });
+    h += '</tbody></table></div>';
+    
+    // ── Média por Categoria ──
     const catMap = {};
     allAgg.forEach(r => {
-      if (!catMap[r.cat]) catMap[r.cat] = { total: 0, items: new Set() };
-      catMap[r.cat].total += r.total;
-      catMap[r.cat].items.add(r.item);
+      const cat = getCanonicalCat(r.cat) || r.cat;
+      if (!catMap[cat]) catMap[cat] = { total: 0, items: new Set() };
+      catMap[cat].total += r.total;
+      catMap[cat].items.add(normMat(r.item || r.material));
     });
     const catSorted = Object.entries(catMap).sort((a,b) => b[1].total - a[1].total);
-    h += '<div class="pan-section"><h3 style="font-size:14px;font-weight:700;margin-bottom:8px">📁 Média Mensal por Categoria</h3>'
-      +'<table class="pan-table"><thead><tr><th>Categoria</th><th>Total Entregue</th><th>Média/Mês</th><th>Itens Distintos</th></tr></thead><tbody>';
+    h += '<div class="pan-section"><h3>📁 Média por Categoria</h3>'
+      +'<table class="pan-table"><thead><tr><th>Categoria</th><th>Total</th><th>Média/Semana</th><th>Média/Mês</th><th>Média/Ano</th><th>Itens</th></tr></thead><tbody>';
     catSorted.forEach(([cat, data]) => {
-      const avg = totalMonths > 0 ? (data.total / totalMonths).toFixed(1) : '—';
       h += '<tr><td style="font-weight:600">'+esc(cat)+'</td>'
         +'<td>'+data.total.toLocaleString('pt-BR')+'</td>'
-        +'<td style="font-weight:700;color:#2563eb">'+avg+'</td>'
+        +'<td style="color:#0891b2;font-weight:600">'+(totalWeeks>0?(data.total/totalWeeks).toFixed(1):'—')+'</td>'
+        +'<td style="color:#2563eb;font-weight:700">'+(totalMonths>0?(data.total/totalMonths).toFixed(1):'—')+'</td>'
+        +'<td style="color:#7c3aed;font-weight:600">'+(totalYears>0?(data.total/totalYears).toFixed(0):'—')+'</td>'
         +'<td>'+data.items.size+'</td></tr>';
     });
     h += '</tbody></table></div>';
     
-    // Média por tipo de unidade
+    // ── Média por Tipo de Unidade ──
     const tipoMap = {};
     allAgg.forEach(r => {
       const tipo = classifyUnit(r.unit);
@@ -5960,22 +6173,21 @@ function _buildPainelImpl(){
       tipoMap[key].total += r.total;
       tipoMap[key].units.add(r.unit);
     });
-    h += '<div class="pan-section"><h3 style="font-size:14px;font-weight:700;margin-bottom:8px">🏷️ Média Mensal por Tipo de Unidade</h3>'
-      +'<table class="pan-table"><thead><tr><th>Tipo</th><th>Unidades</th><th>Total</th><th>Média/Mês</th><th>Média/Mês/Unid.</th></tr></thead><tbody>';
+    h += '<div class="pan-section"><h3>🏷️ Média por Tipo de Unidade</h3>'
+      +'<table class="pan-table"><thead><tr><th>Tipo</th><th>Unidades</th><th>Total</th><th>Média/Mês</th><th>Média/Mês por Unid.</th><th>Média/Ano</th></tr></thead><tbody>';
     Object.entries(tipoMap).sort((a,b) => b[1].total - a[1].total).forEach(([tipo, data]) => {
       const avg = totalMonths > 0 ? (data.total / totalMonths).toFixed(1) : '—';
       const avgPerUnit = totalMonths > 0 && data.units.size > 0 ? (data.total / totalMonths / data.units.size).toFixed(1) : '—';
+      const avgYear = totalYears > 0 ? (data.total / totalYears).toFixed(0) : '—';
       h += '<tr><td>'+data.icon+' '+esc(tipo)+'</td><td>'+data.units.size+'</td>'
         +'<td>'+data.total.toLocaleString('pt-BR')+'</td>'
         +'<td style="font-weight:700;color:#2563eb">'+avg+'</td>'
-        +'<td style="color:#059669;font-weight:600">'+avgPerUnit+'</td></tr>';
+        +'<td style="color:#059669;font-weight:600">'+avgPerUnit+'</td>'
+        +'<td style="color:#7c3aed;font-weight:600">'+avgYear+'</td></tr>';
     });
     h += '</tbody></table></div>';
     
-    // Média por unidade individual
-    h += panSection('🏢 Média Mensal por Unidade', 'Consumo médio de cada unidade por mês', buildUnitDetail(allAgg, allUnits));
-    
-    h += panSection('📊 Variabilidade', 'CV alto = consumo irregular', buildVariabilidade(allAgg));
+    h += panSection('📊 Variabilidade', 'CV alto = consumo irregular — itens com maior oscilação de demanda', buildVariabilidade(allAgg));
   }
 
   // ═══════════════════════════════════════════════════
@@ -6428,7 +6640,7 @@ export function initSeparacao() {
   try { populateUnidadesSelect(); } catch (e) { console.error(e); }
   try { applySeparacaoRoleUI(); } catch (e) { console.error(e); }
   try {
-    const EXPORTS = { goTab, registrar, previewReq, pegarParaSeparar, entregarReq, abrirFicha, fecharFicha, marcarPronto, marcarProntoLista, voltarSeparacao, printReq, printFicha, cancelarReq, excluirHistoricoReq, renderBuracos, renderUnificar, buildPainel, gerarRelatorio, exportarCSV, handleFile, handleHistFiles, ck, okModal, closeModal, showModal, editEntryYear, editEntryPeriod, toggleDetail, removeHistEntry, openEditor, closeEditor, saveEditor, edRemoveItem, edAddItem, edAddCat, clearHistDB, clearMateriaisDB, removeDuplicatesAuto, recalcAllDates, exportBackup, importBackup, goToFile, goPage, onModeChange, clearFilters, clearPanFilters, clearYears, selAllYears, clearAllAliases, doUnifMerge, toggleUnifSel, unifRemoveSel, clearUnifSel, removeAlias, openPrintBuracos, doPrintBuracos, showOrigemUnidade, showOrigemCategoria, renderRelatorio, renderCorrecaoItens, setFixView, fixGoPage, applyMatFix, applyMatFixBulk, removeMatFix, clearAllMatFixes, setPanTipo, loadAllHistDBAndRefresh, addFichaItem, removeFichaItem, editMaterial, switchMatView, switchPanSub, PAGE_STATE, debouncedRenderPS, debouncedRenderES, debouncedRenderPE, debouncedRenderHI };
+    const EXPORTS = { goTab, registrar, previewReq, pegarParaSeparar, entregarReq, abrirFicha, fecharFicha, marcarPronto, marcarProntoLista, voltarSeparacao, printReq, printFicha, cancelarReq, excluirHistoricoReq, renderBuracos, renderUnificar, buildPainel, gerarRelatorio, exportarCSV, handleFile, handleHistFiles, ck, okModal, closeModal, showModal, editEntryYear, editEntryPeriod, toggleDetail, removeHistEntry, openEditor, closeEditor, saveEditor, edRemoveItem, edAddItem, edAddCat, clearHistDB, clearMateriaisDB, removeDuplicatesAuto, recalcAllDates, exportBackup, importBackup, goToFile, goPage, onModeChange, clearFilters, clearPanFilters, clearYears, selAllYears, clearAllAliases, doUnifMerge, toggleUnifSel, unifRemoveSel, clearUnifSel, removeAlias, openPrintBuracos, doPrintBuracos, showOrigemUnidade, showOrigemCategoria, renderRelatorio, renderCorrecaoItens, setFixView, fixGoPage, applyMatFix, applyMatFixBulk, removeMatFix, clearAllMatFixes, applyCatFix, removeCatFix, clearAllCatFixes, setPanTipo, loadAllHistDBAndRefresh, addFichaItem, removeFichaItem, editMaterial, switchMatView, switchPanSub, PAGE_STATE, debouncedRenderPS, debouncedRenderES, debouncedRenderPE, debouncedRenderHI };
     Object.entries(EXPORTS).forEach(([k, v]) => { window[k] = v; });
   } catch (e) { console.error(e); }
   try { loadHistDB(); } catch (e) { console.error(e); }
