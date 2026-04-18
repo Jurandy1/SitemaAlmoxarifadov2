@@ -1,4 +1,4 @@
-import { setDoc, deleteDoc, doc, writeBatch, getDocs, query, orderBy, limit, startAfter, serverTimestamp, Timestamp, documentId } from "firebase/firestore";import { setDoc, deleteDoc, doc, writeBatch, getDocs, query, orderBy, limit, startAfter, serverTimestamp, Timestamp, documentId } from "firebase/firestore";
+import { setDoc, deleteDoc, doc, writeBatch, getDocs, query, orderBy, limit, startAfter, serverTimestamp, Timestamp, documentId } from "firebase/firestore";
 import { auth, COLLECTIONS } from "../services/firestore-service.js";
 import { getMateriais, getUnidades, getUserRole, getSemcasHistDB, getSemcasAliases } from "../utils/cache.js";
 import { showAlert } from "../utils/dom-helpers.js";
