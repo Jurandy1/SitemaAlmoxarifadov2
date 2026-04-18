@@ -600,6 +600,22 @@ function isCategory(r){
   if(filled===1&&f.length>8&&!/^\d/.test(f)&&!isSkipLine(f)&&!isFooter(r)&&!isHeader(r)&&looksLikeCategory(f))return true;
   return false;
 }
+// Limpa nome de categoria: remove unidade/data embutidos
+// Ex: "1- ALIMENTOS PROCESSADO- CRAS / SCFV-16/04/2026" → "ALIMENTOS PROCESSADO"
+function cleanCatName(raw) {
+  let s = raw;
+  // Strip número+traço do início
+  s = s.replace(/^\d+\s*[-–—.]\s*/, '');
+  // Strip data dd/mm/aaaa ou dd\mm\aaaa no final ou no meio
+  s = s.replace(/[-–\s]*\d{1,2}[\\/\.]\d{1,2}[\\/\.]\d{2,4}\s*$/, '');
+  // Strip "- UNIDADE / PROGRAMA" do final (ex: "- CRAS / SCFV")
+  s = s.replace(/[-–]\s*(CRAS|CREAS|CT|SEDE|SCFV|PCF|PAIF|PAEFI)\b.*$/i, '');
+  // Strip trailing dashes/spaces
+  s = s.replace(/[-–\s]+$/, '').trim();
+  // Se ficou vazio, volta o original sem o número
+  if (!s) s = raw.replace(/^\d+\s*[-–—.]\s*/, '').replace(/[-–\s]+$/, '').trim();
+  return s || raw;
+}
 function detectTipo(c){
   const lo=String(c||'').toLowerCase();
   if(/expediente|escrit[oó]rio|papelaria/i.test(lo))return'Expediente';
@@ -709,7 +725,7 @@ function parsePadrao(rows){
       if(cat&&cat.items.length>0){cat={name:'Outros Itens',items:[]};cats.push(cat)}
       continue;
     }
-    if(isCategory(r)){cat={name:f,items:[]};cats.push(cat);continue}
+    if(isCategory(r)){cat={name:cleanCatName(f),items:[]};cats.push(cat);continue}
     if(!f)continue;
     
     let unid, qs, qa;
@@ -847,7 +863,7 @@ function parseSingleAbrigo(rows,matCol,unitHint){
     if(!f)continue;
     if(isFooter([f])||isSkipLine(f))continue;
     if(f.toLowerCase()==='material')continue;
-    if(isCategory([f])){cat={name:f,items:[]};cats.push(cat);continue}
+    if(isCategory([f])){cat={name:cleanCatName(f),items:[]};cats.push(cat);continue}
     if(!cat){cat={name:'Itens',items:[]};cats.push(cat)}
     id++;
     cat.items.push({id,material:f,unidade:'',qtdSolicitada:qty||'0',qtdAtendida:'',status:'nao_atendido',tipo:detectTipo(cat.name),obs:''});
@@ -909,7 +925,6 @@ function isOdtFile(name) {
 }
 
 async function odtToRows(arrayBuffer) {
-  // ODT = ZIP com content.xml. Usa JSZip se disponível, senão tenta extrair manualmente.
   let xmlText = '';
   if (typeof JSZip !== 'undefined') {
     const zip = await JSZip.loadAsync(arrayBuffer);
@@ -917,7 +932,7 @@ async function odtToRows(arrayBuffer) {
     if (!contentFile) throw new Error('ODT sem content.xml');
     xmlText = await contentFile.async('string');
   } else {
-    throw new Error('JSZip não carregado. Adicione: <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>');
+    throw new Error('JSZip não carregado.');
   }
   
   const doc = new DOMParser().parseFromString(xmlText, 'text/xml');
@@ -925,20 +940,48 @@ async function odtToRows(arrayBuffer) {
   const NS_TABLE = 'urn:oasis:names:tc:opendocument:xmlns:table:1.0';
   const NS_OFFICE = 'urn:oasis:names:tc:opendocument:xmlns:office:1.0';
   
+  // ── Extrai texto de um elemento com espaços entre sub-elementos ──
+  function extractCellText(cell) {
+    const parts = [];
+    const paras = cell.getElementsByTagNameNS(NS_TEXT, 'p');
+    if (paras.length > 0) {
+      for (let pi = 0; pi < paras.length; pi++) {
+        const spans = paras[pi].getElementsByTagNameNS(NS_TEXT, 'span');
+        if (spans.length > 0) {
+          const spanTexts = [];
+          for (let si = 0; si < spans.length; si++) {
+            const t = (spans[si].textContent || '').trim();
+            if (t) spanTexts.push(t);
+          }
+          if (spanTexts.length) parts.push(spanTexts.join(' '));
+          else {
+            const t = (paras[pi].textContent || '').trim();
+            if (t) parts.push(t);
+          }
+        } else {
+          const t = (paras[pi].textContent || '').trim();
+          if (t) parts.push(t);
+        }
+      }
+    } else {
+      const t = (cell.textContent || '').trim();
+      if (t) parts.push(t);
+    }
+    return parts.join(' ').replace(/\s+/g, ' ').trim();
+  }
+  
   const rows = [];
   const body = doc.getElementsByTagNameNS(NS_OFFICE, 'text')[0] || doc.getElementsByTagNameNS(NS_OFFICE, 'body')[0];
   if (!body) return rows;
   
-  // Itera filhos na ordem: parágrafos (categorias) e tabelas (itens)
   const children = body.children || body.childNodes;
   for (let ci = 0; ci < children.length; ci++) {
     const el = children[ci];
     
     // Parágrafo de texto → pode ser nome de categoria
     if (el.localName === 'p') {
-      const txt = (el.textContent || '').trim();
+      const txt = extractCellText(el);
       if (txt && txt.length > 2) {
-        // Adiciona como linha de 1 coluna (será detectada como categoria pelo parser)
         rows.push([txt]);
       }
     }
@@ -953,14 +996,12 @@ async function odtToRows(arrayBuffer) {
         for (let xi = 0; xi < cells.length; xi++) {
           const cell = cells[xi];
           const repeat = parseInt(cell.getAttribute('table:number-columns-repeated') || '1');
-          const text = (cell.textContent || '').replace(/\s+/g, ' ').trim();
-          // Ignora grandes repetições de células vazias
+          const text = extractCellText(cell);
           if (repeat > 10 && !text) continue;
           for (let rp = 0; rp < Math.min(repeat, 6); rp++) {
             rowData.push(text);
           }
         }
-        // Limpa vazios no final
         while (rowData.length > 0 && !rowData[rowData.length - 1]) rowData.pop();
         if (rowData.length > 0 && rowData.some(c => c)) rows.push(rowData);
       }
@@ -1363,7 +1404,7 @@ function getSeparacaoRoot() {
 }
 
 function isTabAllowedForRole(role, tab) {
-  if (role === "admin") return ["req", "ps", "es", "pe", "hi", "pan", "rel", "db"].includes(tab);
+  if (role === "admin") return ["req", "ps", "es", "pe", "hi", "rel", "db"].includes(tab);
   if (role === "editor") return ["ps", "es", "pe"].includes(tab);
   return false;
 }
@@ -1487,16 +1528,46 @@ function goTab(t){
   if (!targetTab) { console.warn('goTab: tab-'+t+' não encontrado'); return; }
   targetTab.classList.add('active');
   updateCounts();
-  // Renderiza só a aba que foi ativada
   if(t==='ps') renderPS();
   else if(t==='es') renderES();
   else if(t==='pe') renderPE();
   else if(t==='hi') renderHI();
   else if(t==='rel') renderCorrecaoItens();
   else if(t==='db') renderRelatorio();
-  else if(t==='pan') buildPainel();
   else if(t==='bur') renderBuracos();
   else if(t==='unif') renderUnificar();
+}
+
+let _panSub = 'visao';
+
+function switchMatView(view) {
+  const vEntrega = document.getElementById('matViewEntrega');
+  const vPainel = document.getElementById('matViewPainel');
+  const bEntrega = document.getElementById('matTabEntrega');
+  const bPainel = document.getElementById('matTabPainel');
+  if (!vEntrega || !vPainel) return;
+  if (view === 'painel') {
+    vEntrega.style.display = 'none';
+    vPainel.style.display = 'block';
+    if (bEntrega) { bEntrega.style.background = 'transparent'; bEntrega.style.color = '#94a3b8'; }
+    if (bPainel) { bPainel.style.background = '#1e40af'; bPainel.style.color = '#fff'; }
+    buildPainel();
+  } else {
+    vEntrega.style.display = 'block';
+    vPainel.style.display = 'none';
+    if (bEntrega) { bEntrega.style.background = '#1e40af'; bEntrega.style.color = '#fff'; }
+    if (bPainel) { bPainel.style.background = 'transparent'; bPainel.style.color = '#94a3b8'; }
+  }
+}
+
+function switchPanSub(sub) {
+  _panSub = sub;
+  document.querySelectorAll('.pan-sub-tab').forEach(btn => {
+    const active = btn.getAttribute('data-pansub') === sub;
+    btn.style.background = active ? '#2563eb' : 'transparent';
+    btn.style.color = active ? '#fff' : '#64748b';
+  });
+  buildPainel();
 }
 function updateCounts(){const c=s=>REQS.filter(r=>r.status===s).length;setB('c1',c('requisitado'));setB('c2',c('separando'));setB('c3',c('pronto'));setB('c4',c('entregue'))}
 function setB(id,nn){const e=document.getElementById(id);if(!e)return;e.textContent=nn;if(nn>0){e.classList.remove('bg-gray-200','text-gray-700');e.classList.add('bg-blue-100','text-blue-700');}else{e.classList.remove('bg-blue-100','text-blue-700');e.classList.add('bg-gray-200','text-gray-700');}}
@@ -5738,9 +5809,9 @@ function _buildPainelImpl(){
     document.getElementById('panFilters').style.display='none';
     const reqStats = buildReqStats();
     if(!reqStats) {
-      el.innerHTML='<div class="pan-empty"><div class="ic">📈</div><b>Painel de Gestão</b>'
-        +'<br><span style="font-size:13px">Carregue planilhas na aba Relatório '
-        +'<b>ou registre requisições</b> para gerar análise automática.</span></div>';
+      el.innerHTML='<div style="text-align:center;padding:60px 20px;color:#64748b"><div style="font-size:48px;margin-bottom:12px">📊</div>'
+        +'<b style="font-size:16px;color:#0f172a">Painel do Almoxarifado</b>'
+        +'<br><span style="font-size:13px">Carregue planilhas no <b>Banco de Dados</b> para gerar o painel.</span></div>';
     } else {
       el.innerHTML=reqStats;
     }
@@ -5751,18 +5822,15 @@ function _buildPainelImpl(){
   if(!allAggFull.length){
     el.innerHTML='<div class="pan-empty"><div class="ic">⚠️</div>'
       +'<b>Sem itens com quantidade no banco.</b>'
-      +'<br><span style="font-size:12px">'+HIST_DB.length+' arquivo(s) carregado(s), mas sem itens com qtd > 0.'
-      +'<br>Verifique se as planilhas têm a coluna "Quantidade solicitada" preenchida.</span></div>';
+      +'<br><span style="font-size:12px">'+HIST_DB.length+' arquivo(s) carregado(s), mas sem itens com qtd > 0.</span></div>';
     return;
   }
 
   const allUnitsRaw=[...new Set(allAggFull.map(r=>r.unit))].sort();
   const allYears=[...new Set(HIST_DB.map(e=>e.year).filter(Boolean))].sort();
   
-  // Render filtros
   renderPanFilters(allUnitsRaw);
   
-  // Aplicar filtros
   let allAgg = allAggFull;
   let allUnits = allUnitsRaw;
   const filteredTipo = _panTipo ? UNIT_TYPES.find(t => t.id === _panTipo) : null;
@@ -5778,91 +5846,188 @@ function _buildPainelImpl(){
   const totalWeeks=new Set(HIST_DB.map(e=>e.weekStart)).size;
   const totalMonths=new Set(HIST_DB.map(e=>weekMonth(e))).size;
   const totalDeliveries=allAgg.reduce((s,r)=>s+r.total,0);
-  const totalDeliveriesGlobal=allAggFull.reduce((s,r)=>s+r.total,0);
   const nAssumed=HIST_DB.filter(e=>e.yearAssumed).length;
 
-  const unitStats={};
-  allUnits.forEach(u=>{
-    const rows=allAgg.filter(r=>r.unit===u);
-    const tot=rows.reduce((s,r)=>s+r.total,0);
-    unitStats[u]={total:tot,items:rows.length,rows};
-  });
-
-  const totalItems=allAgg.length;
   let h='';
 
-  h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">'
-    +'<div><h1 style="font-size:18px;font-weight:800;margin:0">📈 Painel de Gestão'
-    +(_panUnit?' — '+esc(_panUnit):_panTipo&&filteredTipo?' — '+filteredTipo.icon+' '+filteredTipo.label:' (Geral)')
-    +'</h1>'
-    +'<div style="font-size:11px;color:var(--muted)">Gerado automaticamente · '
-    +allYears.map(y=>'<span class="year-badge" style="font-size:9px">'+y+'</span>').join('')
-    +'</div></div>'
-    +'<button class="btn btn-s btn-sm" onclick="buildPainel()">🔄 Atualizar</button></div>';
-
+  // ─── Alertas comuns ───
   if(HIST_DB_PARTIAL){
     h+='<div class="alert-card alert-blue"><div class="alert-icon">📉</div>'
-      +'<div class="alert-body"><b>Modo econômico ativo</b>'
-      +'O sistema carregou apenas uma parte do banco histórico para economizar leituras no Firebase. '
+      +'<div class="alert-body"><b>Modo econômico ativo</b> '
       +'<button class="btn btn-s btn-sm" style="margin-left:6px" onclick="loadAllHistDBAndRefresh()">Carregar tudo</button>'
       +'</div></div>';
   }
-
   if(nAssumed>0){
     h+='<div class="alert-card alert-yellow"><div class="alert-icon">⚠️</div>'
-      +'<div class="alert-body"><b>'+nAssumed+' arquivo(s) com ano não detectado</b>'
-      +'As médias anuais podem estar imprecisas. Corrija os anos na aba Relatório → Banco de Dados.</div></div>';
+      +'<div class="alert-body"><b>'+nAssumed+' arquivo(s) com ano não detectado</b></div></div>';
   }
 
-  // Fluxo de requisições (se houver)
-  const reqStatsHtml = buildReqStats();
-  if(reqStatsHtml) h += reqStatsHtml;
+  // ═══════════════════════════════════════════════════
+  // SUB-ABA: VISÃO GERAL
+  // ═══════════════════════════════════════════════════
+  if (_panSub === 'visao') {
+    const reqStatsHtml = buildReqStats();
+    if(reqStatsHtml) h += reqStatsHtml;
 
-  h+='<div class="pan-grid">'
-    +kpi(allYears.length,'Anos','de dados',allYears.join(', '),'#6d28d9')
-    +kpi(HIST_DB.length,'Arquivos',totalWeeks+' envios ativos','','#0284c7')
-    +kpi(totalMonths,'Meses','de histórico','','#0891b2')
-    +kpi(allUnits.length,'Unidades','monitoradas','','#059669')
-    +kpi(totalItems,'Combinações','item × unidade','','#d97706')
-    +kpi(totalDeliveries.toLocaleString('pt-BR'),'Itens','total acumulado planilhas','','#dc2626')
-    +'</div>';
+    h+='<div class="pan-grid">'
+      +kpi(allYears.length,'Anos','de dados',allYears.join(', '),'#6d28d9')
+      +kpi(HIST_DB.length,'Arquivos',totalWeeks+' envios','','#0284c7')
+      +kpi(totalMonths,'Meses','de histórico','','#0891b2')
+      +kpi(allUnits.length,'Unidades','ativas','','#059669')
+      +kpi(allAgg.length,'Combinações','item × unidade','','#d97706')
+      +kpi(totalDeliveries.toLocaleString('pt-BR'),'Total Itens','entregues (acumulado)','','#dc2626')
+      +'</div>';
 
-  // ─── Modo Perfil de Unidade ───────────────────────────────
-  if (_panUnit) {
-    h += panSection('📋 Perfil Detalhado', 'Análise completa de ' + esc(_panUnit), buildUnitProfile(allAgg, _panUnit, allYears));
-  }
-  
-  // ─── Modo Comparativo por Tipo ──────────────────────────
-  if (_panTipo && filteredTipo && !_panUnit && allUnits.length >= 2) {
-    h += panSection(filteredTipo.icon + ' Comparativo — ' + filteredTipo.label, 
-      'Ranking e análise entre as ' + allUnits.length + ' unidades do tipo ' + filteredTipo.label,
-      buildComparativo(allAgg, allUnits, filteredTipo.label, filteredTipo.color));
+    h+=panSection('🚨 Alertas e Atenção','Situações que exigem atenção',buildAlertas(allAgg,totalWeeks,totalMonths));
+    h+=panSection('🗂️ Distribuição por Categoria','Quanto cada categoria representa',buildCatDistrib(allAgg,totalDeliveries));
+    h+=panSection('📅 Sazonalidade Mensal','Meses com maior e menor demanda',buildSazonalidade());
     
-    h += panSection('🗂️ Ranking por Categoria — ' + filteredTipo.label,
-      'Total entregue por categoria neste tipo de unidade',
-      buildRankingCategoriaTipo(allAgg, allUnits, filteredTipo.color));
-
-    h += panSection('📦 Itens mais consumidos — ' + filteredTipo.label,
-      'Top 15 itens entre todas as unidades ' + filteredTipo.label,
-      buildTopItemsTipo(allAgg, allUnits));
-  }
-  
-  h+=panSection('🚨 Alertas e Atenção','Situações que exigem atenção do coordenador',buildAlertas(allAgg,totalWeeks,totalMonths));
-
-  h+='<div class="two-col">'
-    +panSection('📦 Top 10 Itens mais Consumidos','Total acumulado em todas as unidades',buildTopItems(allAgg))
-    +panSection('🏢 Consumo por Unidade','Total acumulado e ranking',buildUnitRanking(allAgg,allUnits))
-    +'</div>';
-
-  h+=panSection('📊 Análise de Variabilidade','CV (Coef. de Variação) alto = consumo irregular = risco de desperdício ou falta',buildVariabilidade(allAgg));
-  h+=panSection('🗂️ Distribuição por Categoria','Quanto cada categoria representa do total',buildCatDistrib(allAgg,totalDeliveries));
-  h+=panSection('📅 Sazonalidade Mensal','Meses com maior e menor demanda (todos os itens somados)',buildSazonalidade());
-
-  if(allYears.length>=2){
-    h+=panSection('📈 Evolução Anual por Unidade','Comparação do total consumido por unidade entre os anos disponíveis',buildEvolucaoAnual(allAgg,allYears,allUnits));
+    if(allYears.length>=2){
+      h+=panSection('📈 Evolução Anual','Comparação do total por unidade entre anos',buildEvolucaoAnual(allAgg,allYears,allUnits));
+    }
   }
 
-  h+=panSection('🔍 Detalhamento por Unidade','Top 5 itens mais consumidos em cada unidade (baseado em média mensal)',buildUnitDetail(allAgg,allUnits));
+  // ═══════════════════════════════════════════════════
+  // SUB-ABA: ENTREGAS REALIZADAS
+  // ═══════════════════════════════════════════════════
+  else if (_panSub === 'entregas') {
+    h+='<h2 style="font-size:16px;font-weight:800;margin-bottom:4px">📦 Entregas Realizadas</h2>'
+      +'<p style="font-size:12px;color:var(--muted);margin-bottom:14px">Quantidade real entregue a cada unidade — dados do banco de planilhas.</p>';
+    
+    // Se filtrou por unidade, mostra detalhamento completo
+    if (_panUnit) {
+      h += buildUnitProfile(allAgg, _panUnit, allYears);
+    } else {
+      // Lista cada unidade com seus itens entregues
+      const sorted = [...allUnits].sort((a,b) => {
+        const ta = allAgg.filter(r=>r.unit===a).reduce((s,r)=>s+r.total,0);
+        const tb = allAgg.filter(r=>r.unit===b).reduce((s,r)=>s+r.total,0);
+        return tb - ta;
+      });
+      sorted.forEach(u => {
+        const rows = allAgg.filter(r => r.unit === u).sort((a,b) => b.total - a.total);
+        const tot = rows.reduce((s,r) => s + r.total, 0);
+        const tipo = classifyUnit(u);
+        h += '<div class="pan-section" style="margin-bottom:12px">'
+          +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;cursor:pointer" onclick="document.getElementById(\'panUnitSel\').value=\''+esc(u)+'\';buildPainel()">'
+          +'<h3 style="font-size:14px;font-weight:700;margin:0">'+tipo.icon+' '+esc(u)+'</h3>'
+          +'<span style="font-size:12px;color:#059669;font-weight:700">'+tot.toLocaleString('pt-BR')+' itens entregues</span>'
+          +'</div>'
+          +'<table class="pan-table"><thead><tr><th>Material</th><th>Categoria</th><th>Total Entregue</th><th>Envios</th></tr></thead><tbody>';
+        rows.slice(0, 10).forEach(r => {
+          h += '<tr><td style="font-weight:600">'+esc(normMat(r.item))+'</td><td style="font-size:11px;color:var(--muted)">'+esc(r.cat)+'</td>'
+            +'<td style="font-weight:700;color:#059669">'+r.total.toLocaleString('pt-BR')+'</td>'
+            +'<td style="font-size:11px;color:var(--muted)">'+r.count+'x</td></tr>';
+        });
+        if (rows.length > 10) h += '<tr><td colspan="4" style="font-size:11px;color:var(--muted);text-align:center">... e mais '+(rows.length-10)+' itens. Clique na unidade para ver tudo.</td></tr>';
+        h += '</tbody></table></div>';
+      });
+    }
+  }
+
+  // ═══════════════════════════════════════════════════
+  // SUB-ABA: MÉDIAS
+  // ═══════════════════════════════════════════════════
+  else if (_panSub === 'medias') {
+    h+='<h2 style="font-size:16px;font-weight:800;margin-bottom:4px">📊 Médias de Consumo</h2>'
+      +'<p style="font-size:12px;color:var(--muted);margin-bottom:14px">Média mensal por categoria, tipo de unidade e unidade individual.</p>';
+    
+    // Média por categoria
+    const catMap = {};
+    allAgg.forEach(r => {
+      if (!catMap[r.cat]) catMap[r.cat] = { total: 0, items: new Set() };
+      catMap[r.cat].total += r.total;
+      catMap[r.cat].items.add(r.item);
+    });
+    const catSorted = Object.entries(catMap).sort((a,b) => b[1].total - a[1].total);
+    h += '<div class="pan-section"><h3 style="font-size:14px;font-weight:700;margin-bottom:8px">📁 Média Mensal por Categoria</h3>'
+      +'<table class="pan-table"><thead><tr><th>Categoria</th><th>Total Entregue</th><th>Média/Mês</th><th>Itens Distintos</th></tr></thead><tbody>';
+    catSorted.forEach(([cat, data]) => {
+      const avg = totalMonths > 0 ? (data.total / totalMonths).toFixed(1) : '—';
+      h += '<tr><td style="font-weight:600">'+esc(cat)+'</td>'
+        +'<td>'+data.total.toLocaleString('pt-BR')+'</td>'
+        +'<td style="font-weight:700;color:#2563eb">'+avg+'</td>'
+        +'<td>'+data.items.size+'</td></tr>';
+    });
+    h += '</tbody></table></div>';
+    
+    // Média por tipo de unidade
+    const tipoMap = {};
+    allAgg.forEach(r => {
+      const tipo = classifyUnit(r.unit);
+      const key = tipo.label;
+      if (!tipoMap[key]) tipoMap[key] = { total: 0, units: new Set(), icon: tipo.icon };
+      tipoMap[key].total += r.total;
+      tipoMap[key].units.add(r.unit);
+    });
+    h += '<div class="pan-section"><h3 style="font-size:14px;font-weight:700;margin-bottom:8px">🏷️ Média Mensal por Tipo de Unidade</h3>'
+      +'<table class="pan-table"><thead><tr><th>Tipo</th><th>Unidades</th><th>Total</th><th>Média/Mês</th><th>Média/Mês/Unid.</th></tr></thead><tbody>';
+    Object.entries(tipoMap).sort((a,b) => b[1].total - a[1].total).forEach(([tipo, data]) => {
+      const avg = totalMonths > 0 ? (data.total / totalMonths).toFixed(1) : '—';
+      const avgPerUnit = totalMonths > 0 && data.units.size > 0 ? (data.total / totalMonths / data.units.size).toFixed(1) : '—';
+      h += '<tr><td>'+data.icon+' '+esc(tipo)+'</td><td>'+data.units.size+'</td>'
+        +'<td>'+data.total.toLocaleString('pt-BR')+'</td>'
+        +'<td style="font-weight:700;color:#2563eb">'+avg+'</td>'
+        +'<td style="color:#059669;font-weight:600">'+avgPerUnit+'</td></tr>';
+    });
+    h += '</tbody></table></div>';
+    
+    // Média por unidade individual
+    h += panSection('🏢 Média Mensal por Unidade', 'Consumo médio de cada unidade por mês', buildUnitDetail(allAgg, allUnits));
+    
+    h += panSection('📊 Variabilidade', 'CV alto = consumo irregular', buildVariabilidade(allAgg));
+  }
+
+  // ═══════════════════════════════════════════════════
+  // SUB-ABA: RANKINGS
+  // ═══════════════════════════════════════════════════
+  else if (_panSub === 'rankings') {
+    h+='<h2 style="font-size:16px;font-weight:800;margin-bottom:4px">🏆 Rankings</h2>'
+      +'<p style="font-size:12px;color:var(--muted);margin-bottom:14px">Quem mais recebe cada material, quais itens são mais pedidos, e ranking geral.</p>';
+    
+    h+='<div class="two-col">'
+      +panSection('📦 Top 15 Itens mais Entregues','Total acumulado de todas as unidades',buildTopItems(allAgg))
+      +panSection('🏢 Ranking de Unidades','Quem mais recebeu materiais',buildUnitRanking(allAgg,allUnits))
+      +'</div>';
+    
+    // Ranking: para cada item popular, quais unidades mais recebem
+    const itemMap = {};
+    allAgg.forEach(r => {
+      const mat = normMat(r.item);
+      if (!itemMap[mat]) itemMap[mat] = { total: 0, units: {} };
+      itemMap[mat].total += r.total;
+      if (!itemMap[mat].units[r.unit]) itemMap[mat].units[r.unit] = 0;
+      itemMap[mat].units[r.unit] += r.total;
+    });
+    const topItems = Object.entries(itemMap).sort((a,b) => b[1].total - a[1].total).slice(0, 12);
+    
+    h += '<div class="pan-section"><h3 style="font-size:14px;font-weight:700;margin-bottom:10px">🔍 Quem mais recebe cada item</h3>';
+    topItems.forEach(([item, data]) => {
+      const unitsSorted = Object.entries(data.units).sort((a,b) => b[1] - a[1]).slice(0, 5);
+      const maxVal = unitsSorted[0]?.[1] || 1;
+      h += '<div style="margin-bottom:14px;padding:10px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0">'
+        +'<div style="font-weight:700;font-size:13px;margin-bottom:6px">'+esc(item)+' <span style="color:var(--muted);font-weight:400;font-size:11px">('+data.total.toLocaleString('pt-BR')+' total)</span></div>';
+      unitsSorted.forEach(([unit, qty], idx) => {
+        const pct = Math.round(qty / maxVal * 100);
+        const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '  ';
+        h += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;font-size:11px">'
+          +'<span style="width:18px;text-align:center">'+medal+'</span>'
+          +'<span style="width:140px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+esc(unit)+'">'+esc(unit)+'</span>'
+          +'<div style="flex:1;background:#e2e8f0;border-radius:4px;height:14px;overflow:hidden">'
+          +'<div style="width:'+pct+'%;background:#2563eb;height:100%;border-radius:4px;transition:.3s"></div></div>'
+          +'<span style="width:50px;text-align:right;font-weight:700;color:#0f172a">'+qty.toLocaleString('pt-BR')+'</span></div>';
+      });
+      h += '</div>';
+    });
+    h += '</div>';
+    
+    // Comparativo por tipo
+    if (filteredTipo && !_panUnit && allUnits.length >= 2) {
+      h += panSection(filteredTipo.icon + ' Comparativo — ' + filteredTipo.label, 
+        'Ranking entre as ' + allUnits.length + ' unidades do tipo',
+        buildComparativo(allAgg, allUnits, filteredTipo.label, filteredTipo.color));
+    }
+  }
 
   el.innerHTML=h;
 }
@@ -6263,7 +6428,7 @@ export function initSeparacao() {
   try { populateUnidadesSelect(); } catch (e) { console.error(e); }
   try { applySeparacaoRoleUI(); } catch (e) { console.error(e); }
   try {
-    const EXPORTS = { goTab, registrar, previewReq, pegarParaSeparar, entregarReq, abrirFicha, fecharFicha, marcarPronto, marcarProntoLista, voltarSeparacao, printReq, printFicha, cancelarReq, excluirHistoricoReq, renderBuracos, renderUnificar, buildPainel, gerarRelatorio, exportarCSV, handleFile, handleHistFiles, ck, okModal, closeModal, showModal, editEntryYear, editEntryPeriod, toggleDetail, removeHistEntry, openEditor, closeEditor, saveEditor, edRemoveItem, edAddItem, edAddCat, clearHistDB, clearMateriaisDB, removeDuplicatesAuto, recalcAllDates, exportBackup, importBackup, goToFile, goPage, onModeChange, clearFilters, clearPanFilters, clearYears, selAllYears, clearAllAliases, doUnifMerge, toggleUnifSel, unifRemoveSel, clearUnifSel, removeAlias, openPrintBuracos, doPrintBuracos, showOrigemUnidade, showOrigemCategoria, renderRelatorio, renderCorrecaoItens, setFixView, fixGoPage, applyMatFix, applyMatFixBulk, removeMatFix, clearAllMatFixes, setPanTipo, loadAllHistDBAndRefresh, addFichaItem, removeFichaItem, editMaterial, PAGE_STATE, debouncedRenderPS, debouncedRenderES, debouncedRenderPE, debouncedRenderHI };
+    const EXPORTS = { goTab, registrar, previewReq, pegarParaSeparar, entregarReq, abrirFicha, fecharFicha, marcarPronto, marcarProntoLista, voltarSeparacao, printReq, printFicha, cancelarReq, excluirHistoricoReq, renderBuracos, renderUnificar, buildPainel, gerarRelatorio, exportarCSV, handleFile, handleHistFiles, ck, okModal, closeModal, showModal, editEntryYear, editEntryPeriod, toggleDetail, removeHistEntry, openEditor, closeEditor, saveEditor, edRemoveItem, edAddItem, edAddCat, clearHistDB, clearMateriaisDB, removeDuplicatesAuto, recalcAllDates, exportBackup, importBackup, goToFile, goPage, onModeChange, clearFilters, clearPanFilters, clearYears, selAllYears, clearAllAliases, doUnifMerge, toggleUnifSel, unifRemoveSel, clearUnifSel, removeAlias, openPrintBuracos, doPrintBuracos, showOrigemUnidade, showOrigemCategoria, renderRelatorio, renderCorrecaoItens, setFixView, fixGoPage, applyMatFix, applyMatFixBulk, removeMatFix, clearAllMatFixes, setPanTipo, loadAllHistDBAndRefresh, addFichaItem, removeFichaItem, editMaterial, switchMatView, switchPanSub, PAGE_STATE, debouncedRenderPS, debouncedRenderES, debouncedRenderPE, debouncedRenderHI };
     Object.entries(EXPORTS).forEach(([k, v]) => { window[k] = v; });
   } catch (e) { console.error(e); }
   try { loadHistDB(); } catch (e) { console.error(e); }
