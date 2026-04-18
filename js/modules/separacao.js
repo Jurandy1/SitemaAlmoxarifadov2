@@ -1228,7 +1228,296 @@ function previewReq() {
   statsEl.innerHTML='';
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// VALIDAÇÃO PRÉ-REGISTRO — Detecta itens compostos e erros de nome
+// ═══════════════════════════════════════════════════════════════════
+
+const KNOWN_COLORS = /\b(AZUL|AZUIS|PRETA|PRETAS|VERMELHA|VERMELHAS|VERDE|AMARELA|BRANCA|BRANCO|PRETO|ROSA|LARANJA)\b/i;
+const KNOWN_SIZES = /\b(\d+\s*L|\d+\s*ML|\d+\s*G|\d+\s*KG|GRANDE|PEQUENO|MEDIO|MEDIO|P|M|G|GG)\b/i;
+
+function detectItemIssues(parsed) {
+  if (!parsed || !parsed.categories) return [];
+  const issues = [];
+  let globalId = 9000; // IDs altos para não conflitar
+
+  parsed.categories.forEach((cat, catIdx) => {
+    cat.items.forEach((item, itemIdx) => {
+      const mat = String(item.material || '').trim();
+      const qa = String(item.qtdAtendida || '').trim();
+      const numA = extractNum(qa);
+      
+      // Só analisa itens com nome > 3 chars
+      if (mat.length < 3) return;
+
+      // ─── PADRÃO 1: Parênteses com / → "SACO DE LIXO (15L/50L/100L)" ───
+      const mParens = mat.match(/^(.+?)\s*\(([^)]*\/[^)]*)\)\s*$/);
+      if (mParens) {
+        const base = mParens[1].trim();
+        const variants = mParens[2].split('/').map(v => v.trim()).filter(Boolean);
+        if (variants.length >= 2) {
+          issues.push({
+            type: 'split', catIdx, itemIdx, original: mat, item,
+            splits: variants.map(v => {
+              const name = base + ' ' + v.toUpperCase();
+              return { material: autoDisplayName(normMat(name), name), unidade: item.unidade };
+            }),
+            reason: 'Múltiplos tipos entre parênteses: ' + variants.join(', ')
+          });
+          return;
+        }
+      }
+
+      // ─── PADRÃO 2: Barra sem parênteses → "SACO DE LIXO 15L/50L/100L" ───
+      const mSlash = mat.match(/^(.+?)\s+(\d+\s*[A-Za-z]+(?:\s*\/\s*\d+\s*[A-Za-z]+)+)\s*$/);
+      if (mSlash) {
+        const base = mSlash[1].trim();
+        const variants = mSlash[2].split('/').map(v => v.trim()).filter(Boolean);
+        if (variants.length >= 2) {
+          issues.push({
+            type: 'split', catIdx, itemIdx, original: mat, item,
+            splits: variants.map(v => {
+              const name = base + ' ' + v.toUpperCase();
+              return { material: autoDisplayName(normMat(name), name), unidade: item.unidade };
+            }),
+            reason: 'Múltiplos tamanhos: ' + variants.join(', ')
+          });
+          return;
+        }
+      }
+
+      // ─── PADRÃO 3: "COR1 E COR2" → "CANETA AZUL E PRETA" ───
+      const eMatch = mat.match(/^(.+?)\s+(\S+)\s+E\s+(\S+)\s*$/i);
+      if (eMatch) {
+        const base = eMatch[1].trim();
+        const var1 = eMatch[2].trim();
+        const var2 = eMatch[3].trim();
+        // Verifica se são cores ou qualificadores conhecidos
+        if (KNOWN_COLORS.test(var1) || KNOWN_COLORS.test(var2) ||
+            KNOWN_SIZES.test(var1) || KNOWN_SIZES.test(var2)) {
+          const name1 = base + ' ' + var1.toUpperCase();
+          const name2 = base + ' ' + var2.toUpperCase();
+          issues.push({
+            type: 'split', catIdx, itemIdx, original: mat, item,
+            splits: [
+              { material: autoDisplayName(normMat(name1), name1), unidade: item.unidade },
+              { material: autoDisplayName(normMat(name2), name2), unidade: item.unidade }
+            ],
+            reason: 'Dois tipos/cores no mesmo item: ' + var1 + ' e ' + var2
+          });
+          return;
+        }
+      }
+
+      // ─── PADRÃO 4: "DOCE/SALGADO" → "BISCOITO DOCE/SALGADO" ───
+      const dualMatch = mat.match(/^(.+?)\s+(\S+)\/(\S+)\s*$/);
+      if (dualMatch && !mSlash) {
+        const base = dualMatch[1].trim();
+        const v1 = dualMatch[2].trim();
+        const v2 = dualMatch[3].trim();
+        if (v1.length > 1 && v2.length > 1) {
+          const name1 = base + ' ' + v1.toUpperCase();
+          const name2 = base + ' ' + v2.toUpperCase();
+          issues.push({
+            type: 'split', catIdx, itemIdx, original: mat, item,
+            splits: [
+              { material: autoDisplayName(normMat(name1), name1), unidade: item.unidade },
+              { material: autoDisplayName(normMat(name2), name2), unidade: item.unidade }
+            ],
+            reason: 'Dois tipos separados por /: ' + v1 + ' e ' + v2
+          });
+          return;
+        }
+      }
+
+      // ─── PADRÃO 5: Nome no catálogo com correção de acento/case ───
+      const nk = normMat(mat);
+      const catalogName = MATERIAL_CATALOG[nk];
+      if (catalogName && catalogName !== mat && rmAcc(catalogName).toUpperCase() !== rmAcc(mat).toUpperCase().trim()) {
+        // Nome diferente do catálogo (não é só case/acento, tem diferença real)
+        issues.push({
+          type: 'rename', catIdx, itemIdx, original: mat, item,
+          suggested: catalogName,
+          reason: 'Nome padronizado disponível no catálogo'
+        });
+      }
+    });
+  });
+  return issues;
+}
+
+function applyItemFixes(parsed, fixes) {
+  if (!fixes || !fixes.length) return parsed;
+  
+  // Aplica de trás para frente para não invalidar índices
+  const sortedFixes = [...fixes].sort((a, b) => {
+    if (a.catIdx !== b.catIdx) return b.catIdx - a.catIdx;
+    return b.itemIdx - a.itemIdx;
+  });
+  
+  let nextSplitId = Math.max(...parsed.categories.flatMap(c => c.items.map(i => i.id || 0))) + 100;
+  
+  sortedFixes.forEach(fix => {
+    if (!fix.accepted) return;
+    const cat = parsed.categories[fix.catIdx];
+    if (!cat) return;
+    const item = cat.items[fix.itemIdx];
+    if (!item) return;
+    
+    if (fix.type === 'split') {
+      // Remove o item original e insere os splits
+      const baseQs = item.qtdSolicitada || '';
+      const baseQa = item.qtdAtendida || '';
+      const baseUnid = item.unidade || '';
+      const baseStatus = item.status || 'nao_atendido';
+      
+      cat.items.splice(fix.itemIdx, 1);
+      fix.splits.forEach((sp, si) => {
+        cat.items.splice(fix.itemIdx + si, 0, {
+          id: nextSplitId++,
+          material: sp.material,
+          unidade: sp.unidade || baseUnid,
+          qtdSolicitada: baseQs,
+          qtdAtendida: baseQa,
+          status: baseStatus,
+          tipo: item.tipo,
+          obs: si === 0 ? (item.obs || '') : ''
+        });
+      });
+    } else if (fix.type === 'rename') {
+      item.material = fix.suggested;
+    }
+  });
+  
+  return parsed;
+}
+
+function showPreRegDialog(issues, onConfirm) {
+  // Marca todas como aceitas por padrão
+  issues.forEach(f => { f.accepted = true; });
+  
+  let h = '<div style="max-width:650px;margin:0 auto">';
+  h += '<div style="text-align:center;margin-bottom:16px">'
+    + '<div style="font-size:32px;margin-bottom:6px">🔍</div>'
+    + '<h2 style="font-size:16px;font-weight:800;margin:0">Revisão antes de Registrar</h2>'
+    + '<p style="font-size:12px;color:#64748b;margin-top:4px">O sistema detectou ' + issues.length + ' item(ns) que podem ser melhorados</p>'
+    + '</div>';
+  
+  issues.forEach((fix, idx) => {
+    const checkId = 'preRegFix_' + idx;
+    
+    if (fix.type === 'split') {
+      h += '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:12px;margin-bottom:10px">'
+        + '<div style="display:flex;align-items:flex-start;gap:8px">'
+        + '<input type="checkbox" id="' + checkId + '" checked onchange="this.closest(\'[data-fix]\').dataset.accepted=this.checked" style="margin-top:3px;flex-shrink:0">'
+        + '<div style="flex:1" data-fix data-accepted="true">'
+        + '<div style="font-size:10px;color:#1e40af;font-weight:700;margin-bottom:4px">✂️ SEPARAR ITEM</div>'
+        + '<div style="font-size:11px;color:#64748b;margin-bottom:6px">' + esc(fix.reason) + '</div>'
+        
+        // Antes
+        + '<div style="background:#fee2e2;border:1px solid #fecaca;border-radius:6px;padding:6px 10px;margin-bottom:6px">'
+        + '<span style="font-size:9px;color:#991b1b;font-weight:700">ANTES:</span> '
+        + '<span style="font-size:12px;font-weight:700;color:#991b1b;text-decoration:line-through">' + esc(fix.original) + '</span>'
+        + ' <span style="font-size:10px;color:#991b1b">(' + esc(fix.item.qtdSolicitada || '?') + ' ' + esc(fix.item.unidade || '') + ')</span>'
+        + '</div>'
+        
+        // Depois
+        + '<div style="background:#d1fae5;border:1px solid #a7f3d0;border-radius:6px;padding:6px 10px">'
+        + '<span style="font-size:9px;color:#065f46;font-weight:700">DEPOIS:</span>';
+      
+      fix.splits.forEach((sp, si) => {
+        h += '<div style="font-size:12px;font-weight:700;color:#065f46;margin-top:' + (si ? '3' : '2') + 'px">→ ' + esc(sp.material) + '</div>';
+      });
+      
+      h += '</div></div></div></div>';
+      
+    } else if (fix.type === 'rename') {
+      h += '<div style="background:#fefce8;border:1px solid #fde047;border-radius:10px;padding:12px;margin-bottom:10px">'
+        + '<div style="display:flex;align-items:flex-start;gap:8px">'
+        + '<input type="checkbox" id="' + checkId + '" checked onchange="this.closest(\'[data-fix]\').dataset.accepted=this.checked" style="margin-top:3px;flex-shrink:0">'
+        + '<div style="flex:1" data-fix data-accepted="true">'
+        + '<div style="font-size:10px;color:#92400e;font-weight:700;margin-bottom:4px">📝 PADRONIZAR NOME</div>'
+        + '<div style="font-size:11px;color:#64748b;margin-bottom:4px">' + esc(fix.reason) + '</div>'
+        + '<span style="font-size:12px;color:#991b1b;text-decoration:line-through">' + esc(fix.original) + '</span>'
+        + ' → <span style="font-size:12px;font-weight:700;color:#065f46">' + esc(fix.suggested) + '</span>'
+        + '</div></div></div>';
+    }
+  });
+  
+  h += '<div style="display:flex;gap:8px;justify-content:center;margin-top:16px">'
+    + '<button class="btn btn-s" onclick="closePreRegDialog()">Cancelar</button>'
+    + '<button class="btn btn-s" onclick="skipPreRegDialog()">Ignorar e Registrar</button>'
+    + '<button class="btn btn-p" onclick="confirmPreRegDialog()">✅ Aplicar e Registrar</button>'
+    + '</div></div>';
+  
+  // Usa o modal existente
+  const modal = document.getElementById('fichaModal');
+  const inner = modal.querySelector('.modal-inner');
+  const toolbar = modal.querySelector('.modal-toolbar');
+  const legend = document.getElementById('fichaModalLegend');
+  const actions = document.getElementById('fichaModalActions');
+  const body = document.getElementById('fichaBody');
+  const stats = document.getElementById('fichaStats');
+  
+  if (toolbar) toolbar.querySelector('.title').textContent = '🔍 Revisão de Itens';
+  if (stats) stats.innerHTML = '';
+  if (actions) actions.style.display = 'none';
+  if (legend) legend.style.display = 'none';
+  body.innerHTML = '<div style="padding:20px">' + h + '</div>';
+  modal.classList.add('open');
+  
+  // Store callback
+  window._preRegIssues = issues;
+  window._preRegCallback = onConfirm;
+}
+
+function closePreRegDialog() {
+  document.getElementById('fichaModal').classList.remove('open');
+  window._preRegIssues = null;
+  window._preRegCallback = null;
+}
+
+function skipPreRegDialog() {
+  document.getElementById('fichaModal').classList.remove('open');
+  const cb = window._preRegCallback;
+  window._preRegIssues = null;
+  window._preRegCallback = null;
+  if (cb) cb(false); // false = don't apply fixes
+}
+
+function confirmPreRegDialog() {
+  const issues = window._preRegIssues || [];
+  // Read checkbox states
+  issues.forEach((fix, idx) => {
+    const cb = document.getElementById('preRegFix_' + idx);
+    fix.accepted = cb ? cb.checked : false;
+  });
+  document.getElementById('fichaModal').classList.remove('open');
+  const cb = window._preRegCallback;
+  window._preRegIssues = null;
+  window._preRegCallback = null;
+  if (cb) cb(true, issues); // true = apply fixes
+}
+
 async function registrar(){
+  if (!tmpParsed) { toast('Anexe uma planilha primeiro.', 'red'); return; }
+  
+  // ─── VALIDAÇÃO PRÉ-REGISTRO ───
+  const issues = detectItemIssues(tmpParsed);
+  if (issues.length > 0) {
+    showPreRegDialog(issues, (apply, fixes) => {
+      if (apply && fixes) {
+        applyItemFixes(tmpParsed, fixes);
+        toast(fixes.filter(f => f.accepted).length + ' correção(ões) aplicada(s).', 'green');
+      }
+      doRegistrar();
+    });
+    return;
+  }
+  
+  doRegistrar();
+}
+
+async function doRegistrar(){
   const uSel=document.getElementById('rU');
   const unidade=uSel.value||normalizeUnit(tmpParsed.unitName)||tmpParsed.unitName;
   const itemsMap={};tmpParsed.categories.forEach(c=>c.items.forEach(it=>{itemsMap[it.id]={...it}}));
@@ -2580,6 +2869,127 @@ async function clearMateriaisDB(){
 function rmAcc(s){return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'');}
 function normMat(s){return rmAcc(s).trim().replace(/\s+/g,' ').toUpperCase().replace(/[^A-Z0-9\s\/().-]/g,'');}
 
+// ═══════════════════════════════════════════════════════════════════
+// CATÁLOGO DE MATERIAIS PADRÃO DO ALMOXARIFADO
+// Chave = normMat key (sem acento, MAIÚSCULO), Valor = nome canônico com acentos
+// ═══════════════════════════════════════════════════════════════════
+const MATERIAL_CATALOG = {
+  // ─── EXPEDIENTE ────────────────────────────
+  'RESMA DE PAPEL A4':'RESMA DE PAPEL A4','RESMA PAPEL CHAMEX A4':'RESMA DE PAPEL A4','RESMA PAPEL CHAMEX':'RESMA DE PAPEL A4',
+  'RESMA DE CHAMEX':'RESMA DE PAPEL A4','CHAMEX':'RESMA DE PAPEL A4','PAPEL A4':'RESMA DE PAPEL A4',
+  'CANETA AZUL':'CANETA AZUL','CANETAS AZUIS':'CANETA AZUL','CANETA PRETA':'CANETA PRETA','CANETAS PRETAS':'CANETA PRETA',
+  'CANETA VERMELHA':'CANETA VERMELHA','CANETAS':'CANETA','LAPIS':'LÁPIS','LAPIS GRAFITE':'LÁPIS GRAFITE',
+  'LAPIS DE COR':'LÁPIS DE COR','BORRACHA':'BORRACHA','APONTADOR':'APONTADOR',
+  'COLA BRANCA':'COLA BRANCA','COLA DE ISOPOR':'COLA DE ISOPOR','COLA BASTAO':'COLA BASTÃO','COLA EM BASTAO':'COLA BASTÃO',
+  'FITA DUREX':'FITA DUREX','FITA GOMADA':'FITA GOMADA','FITA ADESIVA':'FITA ADESIVA','FITA CREPE':'FITA CREPE',
+  'CLIPS':'CLIPS','CLIPS PEQUENO':'CLIPS PEQUENO','CLIPS MEDIO':'CLIPS MÉDIO','CLIPS GRANDE':'CLIPS GRANDE',
+  'GRAMPEADOR':'GRAMPEADOR','GRAMPOS':'GRAMPOS','GRAMPO TRILHO':'GRAMPO TRILHO',
+  'PERFURADOR':'PERFURADOR','TESOURA':'TESOURA','ESTILETE':'ESTILETE','REGUA':'RÉGUA',
+  'CADERNO PEQUENO':'CADERNO PEQUENO','CADERNO GRANDE':'CADERNO GRANDE','CADERNO UNIVERSITARIO':'CADERNO UNIVERSITÁRIO',
+  'PASTA AZ':'PASTA AZ','PASTA A - Z':'PASTA AZ','PASTA PARA ARQUIVO':'PASTA AZ','PASTA ARQUIVO':'PASTA AZ',
+  'PASTA COM ELASTICO':'PASTA COM ELÁSTICO','PASTA C/ELASTICO':'PASTA COM ELÁSTICO','PASTA POLIONDA C/ELASTICO':'PASTA POLIONDA COM ELÁSTICO',
+  'PASTA SANFONADA':'PASTA SANFONADA','PASTA SANFONADA A4':'PASTA SANFONADA A4','PASTA PLASTICA SAFONADA':'PASTA SANFONADA',
+  'PASTA SUSPENSA':'PASTA SUSPENSA','PASTA POLIONDA':'PASTA POLIONDA','PASTA FINA':'PASTA FINA','PASTA GROSSA':'PASTA GROSSA',
+  'PASTA ESCARCELA':'PASTA ESCARCELA','PASTA DE DOCUMENTOS':'PASTA DE DOCUMENTOS',
+  'ENVELOPE A4':'ENVELOPE A4','ENVELOPES A4':'ENVELOPE A4','ENVELOPES DOS GRANDES':'ENVELOPE GRANDE',
+  'ESCARCELAS':'ESCARCELA','ESCARCELAS (GROSSA E FINA)':'ESCARCELA',
+  'EXTRATOR DE GRAMPOS':'EXTRATOR DE GRAMPOS','MARCA TEXTO':'MARCA-TEXTO','PINCEL ATOMICO':'PINCEL ATÔMICO',
+  'BLOCO DE NOTAS':'BLOCO DE NOTAS','BLOCO ADESIVO':'BLOCO ADESIVO','POST IT':'POST-IT','POST-IT':'POST-IT',
+  'PRANCHETA':'PRANCHETA','LIVRO ATA':'LIVRO ATA','LIVRO PROTOCOLO':'LIVRO PROTOCOLO',
+  'CARTUCHO':'CARTUCHO','TONER':'TONER','CARTOLINA':'CARTOLINA','PAPEL CARTAO':'PAPEL CARTÃO',
+  'TNT':'TNT','EVA':'EVA','PAPEL CREPOM':'PAPEL CREPOM','PAPEL SEDA':'PAPEL SEDA',
+  'BARBANTE':'BARBANTE','PINCEL':'PINCEL','TINTA GUACHE':'TINTA GUACHE',
+  
+  // ─── LIMPEZA ───────────────────────────────
+  'AGUA SANITARIA':'ÁGUA SANITÁRIA','DESINFETANTE':'DESINFETANTE','DETERGENTE':'DETERGENTE',
+  'SABAO EM PO':'SABÃO EM PÓ','SABAO EM BARRA':'SABÃO EM BARRA','SABAO LIQUIDO':'SABÃO LÍQUIDO',
+  'ALCOOL EM GEL':'ÁLCOOL EM GEL','ALCOOL GEL':'ÁLCOOL EM GEL','ALCOOL LIQUIDO':'ÁLCOOL LÍQUIDO',
+  'ALCOOL':'ÁLCOOL','ALCOOL (GEL OU LIQUIDO)':'ÁLCOOL (GEL OU LÍQUIDO)',
+  'ESPONJA':'ESPONJA','ESPONJA DE LOUÇA':'ESPONJA DE LOUÇA','ESPONJA DE LAVAR':'ESPONJA DE LAVAR',
+  'VASSOURA':'VASSOURA','RODO':'RODO','ESCOVAO':'ESCOVÃO','BALDE':'BALDE','BALDES':'BALDE',
+  'BALDES P/LIMPEZA':'BALDE','PANO DE CHAO':'PANO DE CHÃO','PANO DE PRATO':'PANO DE PRATO',
+  'PANO MULTIUSO':'PANO MULTIUSO','FLANELA':'FLANELA',
+  'PALHA DE ACO':'PALHA DE AÇO','LUVA':'LUVA','LUVA DE BORRACHA':'LUVA DE BORRACHA',
+  'SACO DE LIXO':'SACO DE LIXO','SACO DE LIXO GRANDE':'SACO DE LIXO GRANDE','SACO DE LIXO PEQUENO':'SACO DE LIXO PEQUENO',
+  'SACO PARA LIXO':'SACO DE LIXO','SACO PARA LIXO 50L':'SACO DE LIXO 50L','SACO PARA LIXO 100L':'SACO DE LIXO 100L',
+  'SACO PARA LIXO 50 L':'SACO DE LIXO 50L',
+  'CESTO DE LIXO':'CESTO DE LIXO','CESTO PARA LIXO':'CESTO DE LIXO','CESTO DE LIXO GRANDE':'CESTO DE LIXO GRANDE',
+  'CESTO PARA LIXO PEQUENO':'CESTO DE LIXO PEQUENO','CESTO DE LIXO COM TAMPA':'CESTO DE LIXO COM TAMPA',
+  'MULTIUSO':'MULTIUSO','LIMPADOR MULTIUSO':'LIMPADOR MULTIUSO',
+  'BOM AR':'BOM AR','SPLAY BOM AR':'BOM AR','BAYGON':'BAYGON','INSETICIDA':'INSETICIDA',
+  
+  // ─── HIGIENE PESSOAL ───────────────────────
+  'PAPEL HIGIENICO':'PAPEL HIGIÊNICO','PAPEL TOALHA':'PAPEL TOALHA','PORTA PAPEL TOALHA':'PORTA PAPEL TOALHA',
+  'SABONETE':'SABONETE','SABONETE LIQUIDO':'SABONETE LÍQUIDO',
+  'MASCARA DESCARTAVEL':'MÁSCARA DESCARTÁVEL','TOALHA DE ROSTO':'TOALHA DE ROSTO','TOALHA DE BANHO':'TOALHA DE BANHO',
+  'ABSORVENTE':'ABSORVENTE','FRALDA':'FRALDA','ESCOVA DENTAL':'ESCOVA DENTAL','CREME DENTAL':'CREME DENTAL',
+  'SHAMPOO':'SHAMPOO','CONDICIONADOR':'CONDICIONADOR','DESODORANTE':'DESODORANTE',
+  
+  // ─── DESCARTÁVEL ───────────────────────────
+  'COPO DESCARTAVEL PARA AGUA':'COPO DESCARTÁVEL PARA ÁGUA',
+  'COPO DESCARTAVEL P/ AGUA':'COPO DESCARTÁVEL PARA ÁGUA',
+  'COPO DESCARTAVEL P/AGUA':'COPO DESCARTÁVEL PARA ÁGUA',
+  'COPO DESCARTAVEL DE AGUA':'COPO DESCARTÁVEL PARA ÁGUA',
+  'COPO DESCARTAVEL -AGUA':'COPO DESCARTÁVEL PARA ÁGUA',
+  'COPO DESCARTAVEL - AGUA':'COPO DESCARTÁVEL PARA ÁGUA',
+  'COPO DESCARTAVEL ( PARA AGUA)':'COPO DESCARTÁVEL PARA ÁGUA',
+  'COPO DESCARTAVEL DE AGUA ( URGENTE)':'COPO DESCARTÁVEL PARA ÁGUA',
+  'COPOS DE AGUA':'COPO DESCARTÁVEL PARA ÁGUA','COPOS PARA AGUA':'COPO DESCARTÁVEL PARA ÁGUA',
+  'COPO DESCARTAVEL PARA CAFE':'COPO DESCARTÁVEL PARA CAFÉ',
+  'COPO DESCARTAVEL P/ CAFE':'COPO DESCARTÁVEL PARA CAFÉ',
+  'COPO DESCARTAVEL P/CAFE':'COPO DESCARTÁVEL PARA CAFÉ',
+  'COPO DESCARTAVEL - CAFE':'COPO DESCARTÁVEL PARA CAFÉ',
+  'COPO DESCARTAVEL- CAFE':'COPO DESCARTÁVEL PARA CAFÉ',
+  'COPOS PARA CAFE':'COPO DESCARTÁVEL PARA CAFÉ','COPO DE CAFE':'COPO DESCARTÁVEL PARA CAFÉ',
+  'COPO DESCARTAVEL':'COPO DESCARTÁVEL',
+  'COPO DESCARTAVEL 250ML':'COPO DESCARTÁVEL 250ML','COPO DESCARTAVEL DE 50ML':'COPO DESCARTÁVEL 50ML',
+  'GUARDANAPO':'GUARDANAPO','PRATO DESCARTAVEL':'PRATO DESCARTÁVEL',
+  'COLHER DESCARTAVEL':'COLHER DESCARTÁVEL','GARFO DESCARTAVEL':'GARFO DESCARTÁVEL',
+  'SACOLA PLASTICA':'SACOLA PLÁSTICA',
+  
+  // ─── ALIMENTÍCIO ───────────────────────────
+  'CAFE':'CAFÉ','ACUCAR':'AÇÚCAR','LEITE EM PO':'LEITE EM PÓ','LEITE EM PO INTEGRAL':'LEITE EM PÓ INTEGRAL',
+  'LEITE':'LEITE','LEITE LIQUIDO':'LEITE LÍQUIDO','LEITE LIQUIDO INTEGRAL':'LEITE LÍQUIDO INTEGRAL',
+  'LEITE CONDENSADO':'LEITE CONDENSADO','CREME DE LEITE':'CREME DE LEITE',
+  'MARGARINA':'MARGARINA','MANTEIGA':'MANTEIGA','OLEO':'ÓLEO','OLEO DE SOJA':'ÓLEO DE SOJA',
+  'ARROZ':'ARROZ','FEIJAO':'FEIJÃO','MACARRAO':'MACARRÃO','FARINHA':'FARINHA','FARINHA DE TRIGO':'FARINHA DE TRIGO',
+  'SAL':'SAL','VINAGRE':'VINAGRE','EXTRATO DE TOMATE':'EXTRATO DE TOMATE','TEMPERO':'TEMPERO',
+  'BISCOITO':'BISCOITO','BISCOITO DOCE':'BISCOITO DOCE','BISCOITO SALGADO':'BISCOITO SALGADO',
+  'BISCOITO AGUA E SAL':'BISCOITO ÁGUA E SAL','BISCOITO DOCE/SALGADO':'BISCOITO DOCE E SALGADO',
+  'FLOCAO':'FLOCÃO','MILHO DE PIPOCA':'MILHO DE PIPOCA','AVEIA':'AVEIA','TAPIOCA':'TAPIOCA',
+  'FECULA DE MANDIOCA':'FÉCULA DE MANDIOCA','CREMOGEMA':'CREMOGEMA','MUCILON':'MUCILON',
+  'COLORAU':'COLORAU','CORANTE':'CORANTE',
+  
+  // ─── EQUIPAMENTOS ──────────────────────────
+  'GARRAFA TERMICA':'GARRAFA TÉRMICA','GARRAFA TERMICA CAFE':'GARRAFA TÉRMICA DE CAFÉ',
+  'GARRAFA TERMICA DE CAFE':'GARRAFA TÉRMICA DE CAFÉ',
+};
+
+// Auto-display: dado o normMat key, retorna o nome canônico com acentos
+function autoDisplayName(normKey, rawName) {
+  // 1. MAT_ALIASES tem prioridade absoluta
+  if (MAT_ALIASES && MAT_ALIASES[normKey]) return MAT_ALIASES[normKey];
+  // 2. Catálogo padrão
+  if (MATERIAL_CATALOG[normKey]) return MATERIAL_CATALOG[normKey];
+  // 3. Retorna o nome original (será usado como fallback)
+  return rawName || normKey;
+}
+
+// Busca no catálogo por nome parcial (para sugestões)
+function searchCatalog(query) {
+  if (!query || query.length < 2) return [];
+  const q = rmAcc(query).toUpperCase();
+  const results = [];
+  const seen = new Set();
+  for (const [key, canonical] of Object.entries(MATERIAL_CATALOG)) {
+    if (key.includes(q) && !seen.has(canonical)) {
+      seen.add(canonical);
+      results.push(canonical);
+    }
+  }
+  return results.slice(0, 10);
+}
+
 // ─── Sinônimos de materiais (normalização inteligente) ───────
 const MAT_SYNONYMS = [
   [/^DET\.?\s/i, 'DETERGENTE '],
@@ -3711,7 +4121,7 @@ function buildAgg(entries,selUnits,selCats){
           // Usa nome canônico do MAT_ALIASES se disponível
           const rawKey=_origNormMat(it.material);
           for(const [re,repl] of MAT_SYNONYMS){if(re.test(rawKey)){break;}}
-          const displayMat=(MAT_ALIASES&&MAT_ALIASES[_origNormMat(it.material)])?MAT_ALIASES[_origNormMat(it.material)]:it.material;
+          const displayMat = autoDisplayName(matKey, it.material);
           if(!agg[k])agg[k]={unit:u.unitName,cat:catDisplay,material:displayMat,
             weekQtys:{},monthQtys:{},yearQtys:{}, total: 0};
           
@@ -4263,11 +4673,18 @@ function findSimilarGroups(items) {
   const groups = [];
   const used = new Set();
 
-  // Split each key into words for comparison
+  // Palavras que diferenciam itens (se um tem e outro não, são itens diferentes)
+  const QUALIFIERS = /\b(GRANDE|PEQUENO|MEDIO|50L|100L|200L|250ML|50ML|A4|A3|AZ|SANFONADA|SUSPENSA|POLIONDA|FINA|GROSSA|ELASTICO|AZUL|AZUIS|PRETA|PRETAS|VERMELHA|GRAFITE|LIQUIDO|LIQUIDA|GEL|BARRA|PO|CAFE|AGUA|DENTAL|BANHO|ROSTO|INTEGRAL|CONDENSADO|DOCE|SALGADO|TAMPA|URGENTE|BANHEIRO|CREPOM|SEDA|CARTAO)\b/;
+
+  // Split each key into words and base word (without qualifiers)
   const wordSets = new Map();
+  const baseKeys = new Map();
   keys.forEach(k => {
     const words = k.split(/\s+/).filter(w => w.length > 2);
     wordSets.set(k, new Set(words));
+    // Base = key sem qualificadores
+    const base = k.replace(QUALIFIERS, '').replace(/\s+/g, ' ').trim();
+    baseKeys.set(k, base);
   });
 
   for (let i = 0; i < keys.length; i++) {
@@ -4275,11 +4692,18 @@ function findSimilarGroups(items) {
     const group = [keys[i]];
     const wordsA = wordSets.get(keys[i]);
     if (!wordsA || wordsA.size < 1) continue;
+    
+    // Se já tem mapeamento no catálogo, usa como referência
+    const catA = MATERIAL_CATALOG[keys[i]] || null;
 
     for (let j = i + 1; j < keys.length; j++) {
       if (used.has(keys[j])) continue;
       const wordsB = wordSets.get(keys[j]);
       if (!wordsB || wordsB.size < 1) continue;
+      
+      // Se ambos mapeiam para entradas DIFERENTES no catálogo, NÃO agrupar
+      const catB = MATERIAL_CATALOG[keys[j]] || null;
+      if (catA && catB && catA !== catB) continue;
 
       // Check overlap
       let overlap = 0;
@@ -4287,13 +4711,30 @@ function findSimilarGroups(items) {
       const minW = Math.min(wordsA.size, wordsB.size);
       const maxW = Math.max(wordsA.size, wordsB.size);
 
-      // Similarity: >60% word overlap AND at most 1 word difference
-      if (minW > 0 && overlap / minW >= 0.6 && (maxW - overlap) <= 2) {
-        // Extra check: one key contains the other or starts the same
+      // Exige >70% overlap (mais restritivo que antes)
+      if (minW > 0 && overlap / minW >= 0.7 && (maxW - overlap) <= 2) {
+        // Um deve conter o outro OU começar igual
         if (keys[i].includes(keys[j]) || keys[j].includes(keys[i]) || 
-            keys[i].substring(0, 6) === keys[j].substring(0, 6)) {
-          group.push(keys[j]);
-          used.add(keys[j]);
+            keys[i].substring(0, 7) === keys[j].substring(0, 7)) {
+          
+          // Verifica se os qualificadores são diferentes
+          const qualsA = keys[i].match(QUALIFIERS) || [];
+          const qualsB = keys[j].match(QUALIFIERS) || [];
+          const setA = new Set(qualsA.map(q => q.trim()));
+          const setB = new Set(qualsB.map(q => q.trim()));
+          
+          // Se ambos têm qualificadores DIFERENTES, são itens diferentes
+          let hasConflict = false;
+          for (const q of setA) { if (setB.size > 0 && !setB.has(q)) hasConflict = true; }
+          for (const q of setB) { if (setA.size > 0 && !setA.has(q)) hasConflict = true; }
+          
+          // Exceção: se um NÃO tem qualificador e o outro tem, agrupar (ex: CLIPS e CLIPS GRANDE)
+          if (setA.size === 0 || setB.size === 0) hasConflict = false;
+          
+          if (!hasConflict) {
+            group.push(keys[j]);
+            used.add(keys[j]);
+          }
         }
       }
     }
@@ -4408,6 +4849,12 @@ function renderCorrecaoItens() {
   }
 
   // Sub-nav with category tab
+  // Build datalist from catalog unique values
+  const catalogValues = [...new Set(Object.values(MATERIAL_CATALOG))].sort();
+  h += '<datalist id="catList">';
+  catalogValues.forEach(v => { h += '<option value="' + esc(v) + '">'; });
+  h += '</datalist>';
+
   h += '<div style="display:flex;gap:0;margin-bottom:16px;border:1.5px solid var(--border);border-radius:8px;overflow:hidden">'
     + '<button class="fix-tab' + (_fixView === 'sugestoes' ? ' act' : '') + '" onclick="setFixView(\'sugestoes\')">🤖 Sugestões' + (nSugestoes ? ' (' + nSugestoes + ')' : '') + '</button>'
     + '<button class="fix-tab' + (_fixView === 'todos' ? ' act' : '') + '" onclick="setFixView(\'todos\')">📋 Itens (' + nTotal + ')</button>'
@@ -4454,7 +4901,7 @@ function renderFixSugestoes(withVariations, pendingSimilar, items, searchLo) {
       + '<p class="sub">Itens que são o mesmo material mas aparecem com nomes levemente diferentes nas planilhas</p>';
 
     filteredVars.sort((a, b) => b.namesArr.length - a.namesArr.length).slice(0, 30).forEach((v, idx) => {
-      const bestName = v.namesArr[0][0]; // Most frequent name
+      const bestName = autoDisplayName(v.key, v.namesArr[0][0]); // Catalog or most frequent
       const totalOccur = v.namesArr.reduce((s, [, c]) => s + c, 0);
       const id = 'var_' + idx;
       h += '<div style="background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px">'
@@ -4470,9 +4917,11 @@ function renderFixSugestoes(withVariations, pendingSimilar, items, searchLo) {
       });
       h += '</div>';
 
+      const hasCatalog = !!MATERIAL_CATALOG[v.key];
       h += '<div style="margin-top:8px;display:flex;gap:6px;align-items:center">'
         + '<label style="font-size:10px;font-weight:700;color:#475569;white-space:nowrap">Nome correto:</label>'
-        + '<input class="input" id="' + id + '" value="' + esc(bestName) + '" style="flex:1;font-size:12px;padding:6px 10px">'
+        + '<input class="input" id="' + id + '" value="' + esc(bestName) + '" list="catList" style="flex:1;font-size:12px;padding:6px 10px' + (hasCatalog ? ';border-color:#10b981;background:#f0fdf4' : '') + '">'
+        + (hasCatalog ? '<span style="font-size:9px;color:#10b981;font-weight:700;white-space:nowrap">📗 Catálogo</span>' : '')
         + '</div></div>';
     });
 
@@ -6640,7 +7089,7 @@ export function initSeparacao() {
   try { populateUnidadesSelect(); } catch (e) { console.error(e); }
   try { applySeparacaoRoleUI(); } catch (e) { console.error(e); }
   try {
-    const EXPORTS = { goTab, registrar, previewReq, pegarParaSeparar, entregarReq, abrirFicha, fecharFicha, marcarPronto, marcarProntoLista, voltarSeparacao, printReq, printFicha, cancelarReq, excluirHistoricoReq, renderBuracos, renderUnificar, buildPainel, gerarRelatorio, exportarCSV, handleFile, handleHistFiles, ck, okModal, closeModal, showModal, editEntryYear, editEntryPeriod, toggleDetail, removeHistEntry, openEditor, closeEditor, saveEditor, edRemoveItem, edAddItem, edAddCat, clearHistDB, clearMateriaisDB, removeDuplicatesAuto, recalcAllDates, exportBackup, importBackup, goToFile, goPage, onModeChange, clearFilters, clearPanFilters, clearYears, selAllYears, clearAllAliases, doUnifMerge, toggleUnifSel, unifRemoveSel, clearUnifSel, removeAlias, openPrintBuracos, doPrintBuracos, showOrigemUnidade, showOrigemCategoria, renderRelatorio, renderCorrecaoItens, setFixView, fixGoPage, applyMatFix, applyMatFixBulk, removeMatFix, clearAllMatFixes, applyCatFix, removeCatFix, clearAllCatFixes, setPanTipo, loadAllHistDBAndRefresh, addFichaItem, removeFichaItem, editMaterial, switchMatView, switchPanSub, PAGE_STATE, debouncedRenderPS, debouncedRenderES, debouncedRenderPE, debouncedRenderHI };
+    const EXPORTS = { goTab, registrar, previewReq, pegarParaSeparar, entregarReq, abrirFicha, fecharFicha, marcarPronto, marcarProntoLista, voltarSeparacao, printReq, printFicha, cancelarReq, excluirHistoricoReq, renderBuracos, renderUnificar, buildPainel, gerarRelatorio, exportarCSV, handleFile, handleHistFiles, ck, okModal, closeModal, showModal, editEntryYear, editEntryPeriod, toggleDetail, removeHistEntry, openEditor, closeEditor, saveEditor, edRemoveItem, edAddItem, edAddCat, clearHistDB, clearMateriaisDB, removeDuplicatesAuto, recalcAllDates, exportBackup, importBackup, goToFile, goPage, onModeChange, clearFilters, clearPanFilters, clearYears, selAllYears, clearAllAliases, doUnifMerge, toggleUnifSel, unifRemoveSel, clearUnifSel, removeAlias, openPrintBuracos, doPrintBuracos, showOrigemUnidade, showOrigemCategoria, renderRelatorio, renderCorrecaoItens, setFixView, fixGoPage, applyMatFix, applyMatFixBulk, removeMatFix, clearAllMatFixes, applyCatFix, removeCatFix, clearAllCatFixes, closePreRegDialog, skipPreRegDialog, confirmPreRegDialog, setPanTipo, loadAllHistDBAndRefresh, addFichaItem, removeFichaItem, editMaterial, switchMatView, switchPanSub, PAGE_STATE, debouncedRenderPS, debouncedRenderES, debouncedRenderPE, debouncedRenderHI };
     Object.entries(EXPORTS).forEach(([k, v]) => { window[k] = v; });
   } catch (e) { console.error(e); }
   try { loadHistDB(); } catch (e) { console.error(e); }
