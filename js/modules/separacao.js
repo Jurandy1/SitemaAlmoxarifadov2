@@ -608,14 +608,54 @@ function cleanCatName(raw) {
   s = s.replace(/^\d+\s*[-–—.]\s*/, '');
   // Strip data dd/mm/aaaa ou dd\mm\aaaa no final ou no meio
   s = s.replace(/[-–\s]*\d{1,2}[\\/\.]\d{1,2}[\\/\.]\d{2,4}\s*$/, '');
+  // Strip data textual "08 DE ABRIL 2026"
+  s = s.replace(/[-–\s]*\d{1,2}\s+DE\s+\w+\s+\d{2,4}\s*$/i, '');
   // Strip "- UNIDADE / PROGRAMA" do final (ex: "- CRAS / SCFV")
   s = s.replace(/[-–]\s*(CRAS|CREAS|CT|SEDE|SCFV|PCF|PAIF|PAEFI)\b.*$/i, '');
+  // Strip prefixos descritivos: "DESCRIÇÃO DE", "PEDIDO DE", "LANCHE PARA", "FORNECIMENTO DE"
+  s = s.replace(/^(DESCRI[CÇ][AÃ]O\s+DE|PEDIDO\s+DE|LANCHE\s+PARA|FORNECIMENTO\s+DE|SOLICITA[CÇ][AÃ]O\s+DE)\s+/i, '');
   // Strip trailing dashes/spaces
   s = s.replace(/[-–\s]+$/, '').trim();
   // Se ficou vazio, volta o original sem o número
   if (!s) s = raw.replace(/^\d+\s*[-–—.]\s*/, '').replace(/[-–\s]+$/, '').trim();
   return s || raw;
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// CLASSIFICAÇÃO AUTOMÁTICA DE CATEGORIAS
+// Mapeia variações para 5 categorias padrão
+// ═══════════════════════════════════════════════════════════════════
+const STD_CATEGORIES = [
+  { id: 'descartavel', name: 'MATERIAL DESCARTÁVEL',         re: /descart[aá]vel|descartaveis/i, priority: 1 },
+  { id: 'higiene',     name: 'MATERIAL DE HIGIENE PESSOAL',  re: /\bhigi[eê]n[ei]\b|uso\s+higi[eê]nico/i, priority: 2 },
+  { id: 'limpeza',     name: 'MATERIAL DE LIMPEZA',          re: /limpeza|lavar|cozinha/i, priority: 3 },
+  { id: 'expediente',  name: 'MATERIAL DE EXPEDIENTE',       re: /expediente|escrit[oó]rio|papelaria|consumo/i, priority: 4 },
+  { id: 'processados', name: 'ALIMENTOS PROCESSADOS',        re: /aliment|processad|industrializ|lanche|scfv|pcf|kit\s*pcf|perec[íi]v|cereai?s?|gr[aã]os?/i, priority: 5 },
+];
+
+function classifyCategory(catName) {
+  if (!catName) return null;
+  const cleaned = cleanCatName(catName);
+  const lo = rmAcc(cleaned).toLowerCase();
+  
+  // Casos especiais: "HIGIENE E LIMPEZA" → prioriza LIMPEZA (mais comum)
+  if (/\bhigi[eê]n[ei].+limpeza|limpeza.+higi[eê]n/i.test(lo)) {
+    return STD_CATEGORIES.find(c => c.id === 'limpeza');
+  }
+  
+  // Aplica em ordem de prioridade (descartável antes de limpeza, etc.)
+  for (const cat of STD_CATEGORIES.sort((a, b) => a.priority - b.priority)) {
+    if (cat.re.test(lo)) return cat;
+  }
+  return null;
+}
+
+function suggestCategoryStandard(rawCatName) {
+  const matched = classifyCategory(rawCatName);
+  return matched ? matched.name : null;
+}
+
+
 function detectTipo(c){
   const lo=String(c||'').toLowerCase();
   if(/expediente|escrit[oó]rio|papelaria/i.test(lo))return'Expediente';
@@ -1324,6 +1364,45 @@ function singularizeMaterial(name) {
 }
 
 const SPELLING_FIXES = [
+  // ─── ERROS DA LISTA REAL DE REQUISIÇÕES ────
+  [/\bDESIFETANTE\b/gi,'DESINFETANTE'],
+  [/\bPAPEL\s+HIGIENIICO\b/gi,'PAPEL HIGIÊNICO'],
+  [/\bALMODADA\b/gi,'ALMOFADA'],
+  [/\bGAMPEADOR\b/gi,'GRAMPEADOR'],
+  [/\bFRANELA\b/gi,'FLANELA'],
+  [/\bPANO\s+TOLHA\b/gi,'PAPEL TOALHA'],
+  [/\bPAPEL\s+TOLHA\b/gi,'PAPEL TOALHA'],
+  [/\bTESSOURA\b/gi,'TESOURA'],
+  [/\bLEITELIQUIDO\b/gi,'LEITE LÍQUIDO'],
+  [/\bSPEDRA\b/gi,'PEDRA'],
+  [/\bPOSTICHE\b/gi,'POST-IT'],[/\bPOSTITE\b/gi,'POST-IT'],[/\bPOST IT\b/gi,'POST-IT'],
+  [/\bPRANCETA\b/gi,'PRANCHETA'],[/\bPLANCHETA\b/gi,'PRANCHETA'],
+  [/\bLAPIZ\b/gi,'LÁPIS'],
+  [/\bVASOURA\b/gi,'VASSOURA'],[/\bPIASABA\b/gi,'PIAÇAVA'],[/\bPIACAVA\b/gi,'PIAÇAVA'],
+  [/\bEMBARRA\b/gi,'EM BARRA'],[/\bEMPEDRA\b/gi,'EM PEDRA'],[/\bEMPO\b/gi,'EM PÓ'],
+  [/\bLAVRA\b/gi,'LAVAR'],[/\bDESCATAVEL\b/gi,'DESCARTÁVEL'],
+  [/\bESCANCELA\b/gi,'ESCARCELA'],[/\bESCANCELAS\b/gi,'ESCARCELAS'],
+  [/\bCANETA\s+ESFEROGR[AÃ]FICA\b/gi,'CANETA'],
+  [/\bCHAMEQUINHO\b/gi,'CHAMEX'],
+  [/\bESTRATO\b/gi,'EXTRATOR'],
+  [/\bGUARADANAPOS\b/gi,'GUARDANAPOS'],
+  [/\bVERG[EÊ]\b/gi,'VERGÊ'],
+  [/\bFOSFORO\b/gi,'FÓSFORO'],
+  [/\bOFF\s*STICK\b/gi,'POST-IT'],
+  [/\bBOM\s*BRIL\b/gi,'PALHA DE AÇO'],[/\bBOMBRIL\b/gi,'PALHA DE AÇO'],
+  [/\bLA\s+DE\s+ACO\b/gi,'PALHA DE AÇO'],[/\bLA\s+DE\s+AÇO\b/gi,'PALHA DE AÇO'],
+  [/\bMAIZENA\b/gi,'AMIDO DE MILHO'],[/\bNESCAU\b/gi,'ACHOCOLATADO EM PÓ'],
+  [/\bSABAO\s+EMBARRA\b/gi,'SABÃO EM BARRA'],
+  [/\bSABAO\s+EMPEDRA\b/gi,'SABÃO EM PEDRA'],
+  [/\bDET\.\s*LAVA\s*LOUCA\b/gi,'DETERGENTE LAVA-LOUÇAS'],
+  [/\bLAVA\s*LOU[CÇ]AS?\b/gi,'DETERGENTE LAVA-LOUÇAS'],
+  [/\bCREEM\s*CRACKER\b/gi,'CREAM CRACKER'],
+  [/\bREHEADO\b/gi,'RECHEADO'],
+  [/\bBISCOITOS?\s+DE\s+POVILHO\b/gi,'BISCOITO DE POLVILHO'],
+  [/\bMIGUAL\b/gi,'MINGAU'],[/\bMINGUAU\b/gi,'MINGAU'],
+  [/\bSAFONADA\b/gi,'SANFONADA'],[/\bPAPEL\s+CARTAO\b/gi,'PAPEL CARTÃO'],
+  [/\bEV\.?A\b/gi,'EVA'],[/\bT\.?N\.?T\b/gi,'TNT'],
+  [/\bSABONETE\s+BARRA\b/gi,'SABONETE EM BARRA'],
   // ─── ACENTUAÇÃO ─────────────────────
   [/\bACUCAR\b/gi,'AÇÚCAR'],[/\bAGUA\b/gi,'ÁGUA'],[/\bALCOOL\b/gi,'ÁLCOOL'],
   [/\bOLEO\b/gi,'ÓLEO'],[/\bSABAO\b/gi,'SABÃO'],
@@ -1418,13 +1497,13 @@ function detectItemIssues(parsed) {
       const matNorm = normMat(mat);
 
       // ═══ FASE -1: ITENS AMBÍGUOS QUE SEMPRE SEPARAM ═══
-      // Regra: todo COPO sem "água" ou "café" é ambíguo e precisa separar
+      
+      // ── COPO ──
       const isCopo = /^\s*COPO/i.test(matNorm) || /^\s*COPOS/i.test(matNorm);
       const hasAgua = /\b(AGUA|H2O)\b/i.test(matNorm);
       const hasCafe = /\b(CAFE|CAFEZINHO|EXPRESSO)\b/i.test(matNorm);
       
       if (isCopo && !hasAgua && !hasCafe) {
-        // Sempre força os 2 nomes padrão — ignora ML e qualquer outro qualificador
         issues.push({
           type: 'split', catIdx, itemIdx, original: rawMat, item,
           splits: [
@@ -1435,24 +1514,217 @@ function detectItemIssues(parsed) {
         });
         return;
       }
-      
-      // ═══ Copo com ÁGUA ou CAFÉ mas não no padrão → renomeia ═══
       if (isCopo && hasAgua && matNorm !== 'COPO DESCARTAVEL PARA AGUA') {
-        issues.push({
-          type: 'rename', catIdx, itemIdx, original: rawMat, item,
-          suggested: 'COPO DESCARTÁVEL PARA ÁGUA',
-          reason: 'Padronizar nome do copo'
-        });
+        issues.push({ type: 'rename', catIdx, itemIdx, original: rawMat, item, suggested: 'COPO DESCARTÁVEL PARA ÁGUA', reason: 'Padronizar nome do copo' });
         return;
       }
       if (isCopo && hasCafe && matNorm !== 'COPO DESCARTAVEL PARA CAFE') {
+        issues.push({ type: 'rename', catIdx, itemIdx, original: rawMat, item, suggested: 'COPO DESCARTÁVEL PARA CAFÉ', reason: 'Padronizar nome do copo' });
+        return;
+      }
+      
+      // ── SABÃO ── (em pó, em barra, em pedra, líquido)
+      const isSabao = /^\s*(SABAO|SABOES)\s*$/i.test(matNorm) || /^\s*(SABAO|SABOES)\s+(PARA|DE|P\/)/i.test(matNorm);
+      const sabaoType = matNorm.match(/\bEM\s*(PO|BARRA|PEDRA)\b|\bLIQUIDO\b|\b(PO|BARRA|PEDRA)\b/i);
+      if ((/^\s*SABAO\b/i.test(matNorm) || /^\s*SABOES\b/i.test(matNorm)) && !sabaoType && !hasAgua) {
         issues.push({
-          type: 'rename', catIdx, itemIdx, original: rawMat, item,
-          suggested: 'COPO DESCARTÁVEL PARA CAFÉ',
-          reason: 'Padronizar nome do copo'
+          type: 'split', catIdx, itemIdx, original: rawMat, item,
+          splits: [
+            { material: 'SABÃO EM PÓ', unidade: item.unidade },
+            { material: 'SABÃO EM BARRA', unidade: item.unidade },
+            { material: 'SABÃO LÍQUIDO', unidade: item.unidade }
+          ],
+          reason: 'Sabão genérico — especifique tipo (pó, barra, líquido)'
         });
         return;
       }
+      
+      // ── LEITE ── (em pó, líquido, condensado)
+      const isLeite = /^\s*LEITE\s*$/i.test(matNorm);
+      if (isLeite) {
+        issues.push({
+          type: 'split', catIdx, itemIdx, original: rawMat, item,
+          splits: [
+            { material: 'LEITE EM PÓ', unidade: item.unidade },
+            { material: 'LEITE LÍQUIDO', unidade: item.unidade },
+            { material: 'LEITE CONDENSADO', unidade: item.unidade }
+          ],
+          reason: 'Leite genérico — especifique tipo'
+        });
+        return;
+      }
+      
+      // ── COLA ── (branca, bastão, quente, isopor)
+      const isColaGeneric = /^\s*COLA\s*$/i.test(matNorm) || /^\s*COLAS\s*$/i.test(matNorm);
+      if (isColaGeneric) {
+        issues.push({
+          type: 'split', catIdx, itemIdx, original: rawMat, item,
+          splits: [
+            { material: 'COLA BRANCA', unidade: item.unidade },
+            { material: 'COLA BASTÃO', unidade: item.unidade },
+            { material: 'COLA QUENTE', unidade: item.unidade }
+          ],
+          reason: 'Cola genérica — especifique tipo (branca, bastão, quente)'
+        });
+        return;
+      }
+      
+      // ── PAPEL ── (A4, toalha, higiênico, cartão)
+      const isPapelGeneric = /^\s*PAPEL\s*$/i.test(matNorm) || /^\s*PAPEIS\s*$/i.test(matNorm);
+      if (isPapelGeneric) {
+        issues.push({
+          type: 'split', catIdx, itemIdx, original: rawMat, item,
+          splits: [
+            { material: 'RESMA DE PAPEL A4', unidade: item.unidade },
+            { material: 'PAPEL TOALHA', unidade: item.unidade },
+            { material: 'PAPEL HIGIÊNICO', unidade: item.unidade }
+          ],
+          reason: 'Papel genérico — especifique tipo'
+        });
+        return;
+      }
+      
+      // ── LUVA / MÁSCARA ── Apenas padroniza o nome, NÃO força split
+      if (/^\s*LUVAS?\s*$/i.test(matNorm)) {
+        if (rawMat !== 'LUVA') {
+          issues.push({ type: 'rename', catIdx, itemIdx, original: rawMat, item, suggested: 'LUVA', reason: 'Padronizar nome' });
+          return;
+        }
+      }
+      if (/^\s*MASCARAS?\s*$/i.test(matNorm)) {
+        if (rawMat !== 'MÁSCARA') {
+          issues.push({ type: 'rename', catIdx, itemIdx, original: rawMat, item, suggested: 'MÁSCARA', reason: 'Padronizar nome' });
+          return;
+        }
+      }
+      
+      // ── COLHER ── sempre descartável (obriga especificar)
+      const isColherGeneric = /^\s*COLHER(ES)?\s*$/i.test(matNorm) || /^\s*COLHER(ES)?\s+DESCARTAVEL/i.test(matNorm);
+      if (isColherGeneric) {
+        const target = 'COLHER DESCARTÁVEL';
+        if (rawMat !== target) {
+          issues.push({ type: 'rename', catIdx, itemIdx, original: rawMat, item, suggested: target, reason: 'Padronizar: colher é sempre descartável' });
+          return;
+        }
+      }
+      
+      // ── PRATO ── sempre descartável (obriga especificar)
+      const isPratoGeneric = /^\s*PRATOS?\s*$/i.test(matNorm) || /^\s*PRATOS?\s+DESCARTAVEL/i.test(matNorm) || /^\s*PRATINHOS?\s+DESCARTAVEL/i.test(matNorm);
+      if (isPratoGeneric) {
+        const target = 'PRATO DESCARTÁVEL';
+        if (rawMat !== target) {
+          issues.push({ type: 'rename', catIdx, itemIdx, original: rawMat, item, suggested: target, reason: 'Padronizar: prato é sempre descartável' });
+          return;
+        }
+      }
+      
+      // ── GARFO ── também descartável
+      if (/^\s*GARFOS?\s*$/i.test(matNorm) || /^\s*GARFINHOS?\s*(DESCARTAVEIS?)?\s*$/i.test(matNorm)) {
+        const target = 'GARFO DESCARTÁVEL';
+        if (rawMat !== target) {
+          issues.push({ type: 'rename', catIdx, itemIdx, original: rawMat, item, suggested: target, reason: 'Padronizar: garfo é sempre descartável' });
+          return;
+        }
+      }
+      
+      // ── CESTO DE LIXO / LIXEIRA ── sempre "CESTO DE LIXO"
+      if (/^\s*(LIXEIRA|LIXEIRAS)\b/i.test(matNorm) && !/\bCESTO\b/i.test(matNorm)) {
+        // Detecta qualificadores comuns
+        let suffix = '';
+        if (/\bCOM\s+TAMPA\b/i.test(matNorm) || /\bC\/\s*TAMPA\b/i.test(matNorm)) suffix += ' COM TAMPA';
+        if (/\bPEDAL\b/i.test(matNorm)) suffix += ' COM PEDAL';
+        if (/\bGRANDE\b/i.test(matNorm)) suffix += ' GRANDE';
+        else if (/\bPEQUEN[OA]\b/i.test(matNorm)) suffix += ' PEQUENO';
+        else if (/\bMEDIO|MÉDIA?\b/i.test(matNorm)) suffix += ' MÉDIO';
+        const target = 'CESTO DE LIXO' + suffix;
+        issues.push({ type: 'rename', catIdx, itemIdx, original: rawMat, item, suggested: target, reason: 'Padronizar: usar "Cesto de Lixo"' });
+        return;
+      }
+      
+      // ── CLIPS ── OBRIGATÓRIO especificar tamanho
+      const isClipsGeneric = /^\s*CLIPE?S?\s*$/i.test(matNorm) || /^\s*CLIPE?S?\s+PARA\s+PAPEL\s*$/i.test(matNorm);
+      if (isClipsGeneric) {
+        issues.push({
+          type: 'split', catIdx, itemIdx, original: rawMat, item,
+          splits: [
+            { material: 'CLIPS Nº 2/0', unidade: item.unidade },
+            { material: 'CLIPS Nº 3/0', unidade: item.unidade },
+            { material: 'CLIPS Nº 4/0', unidade: item.unidade },
+            { material: 'CLIPS Nº 6/0', unidade: item.unidade },
+            { material: 'CLIPS Nº 8/0', unidade: item.unidade }
+          ],
+          reason: 'Clips genérico — ESCOLHA o(s) tamanho(s) necessário(s)'
+        });
+        return;
+      }
+      
+      // ── CLIPS com tamanho informal (pequeno, médio, grande) → converte para número ──
+      if (/^\s*CLIPE?S?\s+(PEQUENO|MEDIO|GRANDE)\s*$/i.test(matNorm)) {
+        const sizeMap = { PEQUENO: '2/0', MEDIO: '4/0', GRANDE: '8/0' };
+        const sizeMatch = matNorm.match(/\b(PEQUENO|MEDIO|GRANDE)\b/i);
+        const num = sizeMap[sizeMatch[1].toUpperCase()];
+        const target = 'CLIPS Nº ' + num;
+        issues.push({ type: 'rename', catIdx, itemIdx, original: rawMat, item, suggested: target, reason: 'Padronizar clips por número' });
+        return;
+      }
+      
+      // ── CLIPS já com número mas formato diferente (CLIPS 04, CLIPS 4) → CLIPS Nº 4/0 ──
+      const clipsNumMatch = matNorm.match(/^\s*CLIPE?S?\s+(?:N[°º.]?\s*)?(\d+)(?:\/(\d+))?\s*$/i);
+      if (clipsNumMatch) {
+        const num = parseInt(clipsNumMatch[1]);
+        const denom = clipsNumMatch[2];
+        // Remove zeros à esquerda e padroniza
+        const target = 'CLIPS Nº ' + num + '/' + (denom || '0');
+        const targetNorm = target.toUpperCase();
+        if (matNorm.replace(/\s+/g,' ') !== targetNorm) {
+          issues.push({ type: 'rename', catIdx, itemIdx, original: rawMat, item, suggested: target, reason: 'Padronizar formato do clips' });
+          return;
+        }
+      }
+      
+      // ── MINGAU ── geralmente é de milho (padroniza)
+      if (/^\s*MINGAU\s*$/i.test(matNorm) || /^\s*MINGAUS?\s+DE\s+MIGUAL\s*$/i.test(matNorm)) {
+        issues.push({ type: 'rename', catIdx, itemIdx, original: rawMat, item, suggested: 'MINGAU DE MILHO', reason: 'Padronizar: mingau é de milho por padrão' });
+        return;
+      }
+      
+      // ── MILHO PARA MINGAU / MILHO P/MINGAU ── → MILHO DE MINGAU
+      if (/\bMILHO\s*(PARA|P\/|DE)\s*MI[NG]G?U?AL?\b/i.test(matNorm) || /\bMILHO\s+P\/MING/i.test(matNorm)) {
+        const target = 'MILHO DE MINGAU';
+        if (matNorm !== 'MILHO DE MINGAU') {
+          issues.push({ type: 'rename', catIdx, itemIdx, original: rawMat, item, suggested: target, reason: 'Padronizar nome' });
+          return;
+        }
+      }
+      
+      // ── MASSA PARA MINGAU ── (tapioca) → MASSA DE TAPIOCA PARA MINGAU
+      if (/\bMASSA\s*(PARA|P\/|DE)?\s*MI[NG]G?U?AL?\b/i.test(matNorm)) {
+        issues.push({ type: 'rename', catIdx, itemIdx, original: rawMat, item, suggested: 'MASSA DE TAPIOCA PARA MINGAU', reason: 'Padronizar nome' });
+        return;
+      }
+      
+      // ── MASSA PARA BOLO / MISTURA ── → MASSA PRONTA PARA BOLO
+      if (/\b(MASSA|MISTURA)\s+(PARA|P\/|DE)?\s*BOLO/i.test(matNorm)) {
+        issues.push({ type: 'rename', catIdx, itemIdx, original: rawMat, item, suggested: 'MASSA PRONTA PARA BOLO', reason: 'Padronizar nome' });
+        return;
+      }
+      
+      // ── PASTA ── só diz PASTA (sem AZ, sanfonada, etc)
+      const isPastaGeneric = /^\s*PASTAS?\s*$/i.test(matNorm);
+      if (isPastaGeneric) {
+        issues.push({
+          type: 'split', catIdx, itemIdx, original: rawMat, item,
+          splits: [
+            { material: 'PASTA AZ', unidade: item.unidade },
+            { material: 'PASTA SANFONADA', unidade: item.unidade },
+            { material: 'PASTA SUSPENSA', unidade: item.unidade },
+            { material: 'PASTA POLIONDA', unidade: item.unidade }
+          ],
+          reason: 'Pasta genérica — especifique tipo'
+        });
+        return;
+      }
+
 
       // ═══ FASE 0: PARÊNTESES COM VARIANTES — "Biscoito (doce e salgado)" ═══
       const parenEMatch = mat.match(/^(.+?)\s*\(([^)]+)\)\s*$/);
@@ -5079,33 +5351,103 @@ const FIX_PAGE_SIZE = 50;
 try { Object.defineProperty(window, '_fixSearchTerm', { get(){return _fixSearchTerm}, set(v){_fixSearchTerm=v}, configurable:true }); } catch(_){}
 
 async function saveMatAliases() {
-  if (!isReady()) return false;
+  if (!isReady || !isReady()) {
+    console.warn('[Aliases] saveMatAliases: sistema não pronto ainda');
+    toast('Sistema carregando... aguarde', 'red');
+    return false;
+  }
+  const role = typeof getUserRole === 'function' ? getUserRole() : null;
+  if (role !== 'admin') {
+    console.warn('[Aliases] saveMatAliases: usuário não é admin (role=' + role + ')');
+    toast('Apenas administradores podem salvar regras.', 'red');
+    return false;
+  }
   try {
-    await setDoc(doc(COLLECTIONS.semcasAliases, 'matConfig'), {
+    const payload = {
       matAliases: MAT_ALIASES || {},
       catAliases: CAT_ALIASES || {},
       updatedAt: serverTimestamp(),
-      updatedBy: auth.currentUser?.email || 'Sistema'
-    }, { merge: true });
+      updatedBy: (auth && auth.currentUser?.email) || 'Sistema',
+      _count: Object.keys(MAT_ALIASES || {}).length,
+      _catCount: Object.keys(CAT_ALIASES || {}).length
+    };
+    console.info('[Aliases] Salvando:', payload._count, 'itens,', payload._catCount, 'categorias');
+    await setDoc(doc(COLLECTIONS.semcasAliases, 'matConfig'), payload, { merge: true });
+    
+    // VERIFICAÇÃO: lê de volta para confirmar persistência
+    try {
+      const snap = await getDocs(query(COLLECTIONS.semcasAliases));
+      let saved = false, savedCount = 0;
+      snap.forEach(d => {
+        if (d.id === 'matConfig') {
+          saved = true;
+          savedCount = Object.keys(d.data()?.matAliases || {}).length;
+        }
+      });
+      if (saved) {
+        console.info('[Aliases] ✅ CONFIRMADO no Firebase:', savedCount, 'regras persistidas');
+      } else {
+        console.error('[Aliases] ⚠️ Doc matConfig não encontrado após salvar!');
+      }
+    } catch (verifyErr) {
+      console.warn('[Aliases] Não foi possível verificar persistência:', verifyErr);
+    }
+    
     invalidateAggCache();
     return true;
   } catch (e) {
-    console.error('Erro ao salvar aliases:', e);
-    toast('Erro ao salvar correção: ' + (e.message || ''), 'red');
+    console.error('[Aliases] ❌ Erro ao salvar:', e);
+    const code = e?.code || '';
+    const msg = e?.message || String(e);
+    if (code === 'permission-denied') {
+      toast('❌ Permissão negada no Firebase — verifique as regras do Firestore', 'red');
+    } else {
+      toast('Erro ao salvar: ' + (code ? code + ' - ' : '') + msg, 'red');
+    }
     return false;
   }
 }
 
-async function loadMatAliases() {
+// Diagnóstico do sistema de aliases
+async function diagnoseAliases() {
+  console.group('🔧 DIAGNÓSTICO ALIASES');
+  console.log('Sistema pronto (isReady):', typeof isReady === 'function' ? isReady() : 'N/A');
+  console.log('Usuário:', auth?.currentUser?.email || 'não logado');
+  console.log('Role:', typeof getUserRole === 'function' ? getUserRole() : 'N/A');
+  console.log('MAT_ALIASES em memória:', Object.keys(MAT_ALIASES || {}).length, 'regras');
+  console.log('CAT_ALIASES em memória:', Object.keys(CAT_ALIASES || {}).length, 'categorias');
+  console.log('MATERIAL_CATALOG:', Object.keys(MATERIAL_CATALOG || {}).length, 'entradas');
   try {
     const snap = await getDocs(query(COLLECTIONS.semcasAliases));
+    console.log('Documentos em semcasAliases:', snap.size);
+    snap.forEach(d => {
+      console.log('  - Doc:', d.id, '→', Object.keys(d.data()?.matAliases || {}).length, 'regras,', Object.keys(d.data()?.catAliases || {}).length, 'categorias');
+    });
+  } catch (e) {
+    console.error('  ❌ Erro ao ler coleção:', e?.code, e?.message);
+  }
+  console.groupEnd();
+  toast('Diagnóstico completo — abra o Console (F12)', 'blue');
+}
+
+async function loadMatAliases() {
+  try {
+    console.info('[Aliases] Carregando do Firebase...');
+    const snap = await getDocs(query(COLLECTIONS.semcasAliases));
+    let loaded = false;
     snap.forEach(d => {
       if (d.id === 'matConfig') {
-        if (d.data()?.matAliases) MAT_ALIASES = d.data().matAliases;
-        if (d.data()?.catAliases) CAT_ALIASES = d.data().catAliases;
+        const data = d.data();
+        if (data?.matAliases) MAT_ALIASES = data.matAliases;
+        if (data?.catAliases) CAT_ALIASES = data.catAliases;
+        loaded = true;
+        console.info('[Aliases] ✅ Carregadas:', Object.keys(MAT_ALIASES).length, 'itens,', Object.keys(CAT_ALIASES).length, 'categorias');
       }
     });
-  } catch (e) { console.warn('Erro ao carregar aliases:', e); }
+    if (!loaded) console.info('[Aliases] Nenhuma regra salva ainda — começando com catálogo padrão');
+  } catch (e) {
+    console.error('[Aliases] ❌ Erro ao carregar:', e);
+  }
 }
 
 function normCatKey(s) {
@@ -5383,7 +5725,8 @@ function renderCorrecaoItens() {
   h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">'
     + '<div><h1 style="font-size:18px;font-weight:800;margin:0">🔧 Padronização do Sistema</h1>'
     + '<div style="font-size:11px;color:var(--muted)">Unifique nomes de materiais e categorias para manter o sistema organizado</div></div>'
-    + '<button class="btn btn-s btn-sm" onclick="renderCorrecaoItens()">🔄 Atualizar</button></div>';
+    + '<div style="display:flex;gap:6px"><button class="btn btn-s btn-sm" onclick="diagnoseAliases()" title="Verifica se as regras estão sendo salvas no Firebase">🔧 Diagnóstico</button>'
+    + '<button class="btn btn-s btn-sm" onclick="renderCorrecaoItens()">🔄 Atualizar</button></div></div>';
 
   // Scan categories
   const allCats = scanAllCategories();
@@ -5769,7 +6112,6 @@ function renderFixRegras(searchLo) {
 function renderFixCategorias(allCats, searchLo) {
   let h = '';
   
-  // ─── CATEGORIAS EXISTENTES ───
   const catEntries = [...allCats.entries()];
   let filtered = catEntries;
   if (searchLo) filtered = filtered.filter(([k, v]) => rmAcc(k).toLowerCase().includes(searchLo) || [...v.names.keys()].some(n => rmAcc(n).toLowerCase().includes(searchLo)));
@@ -5778,11 +6120,125 @@ function renderFixCategorias(allCats, searchLo) {
   
   const catRules = Object.entries(CAT_ALIASES);
   
-  // ─── REGRAS DE CATEGORIA ATIVAS ───
-  if (catRules.length > 0) {
-    h += '<div class="pan-section"><h2>✅ Regras de Categoria Ativas (' + catRules.length + ')</h2>'
-      + '<p class="sub">Categorias que serão renomeadas automaticamente nos relatórios e no Painel</p>';
+  // ═══ CATEGORIAS PADRÃO — com itens agrupados ═══
+  h += '<div class="pan-section"><h2>📊 Categorias Padrão do Sistema</h2>'
+    + '<p class="sub">Todas as categorias detectadas são classificadas automaticamente em 5 categorias padrão. Expanda para ver os itens.</p>';
+  
+  // Agrupa categorias detectadas por categoria padrão
+  const grouped = {};
+  STD_CATEGORIES.forEach(std => { grouped[std.id] = { std, variations: [], totalCount: 0 }; });
+  grouped['__outros__'] = { std: { id: 'outros', name: 'OUTROS / NÃO CLASSIFICADO' }, variations: [], totalCount: 0 };
+  
+  filtered.forEach(([key, data]) => {
+    const namesArr = [...data.names.entries()].sort((a, b) => b[1] - a[1]);
+    const mainName = namesArr[0][0];
+    const matched = classifyCategory(mainName);
+    const bucket = matched ? grouped[matched.id] : grouped['__outros__'];
+    bucket.variations.push({ key, data, mainName, namesArr, hasAlias: !!CAT_ALIASES[key] });
+    bucket.totalCount += data.count;
+  });
+  
+  // Renderiza cada grupo
+  const STD_ICONS = { expediente: '📝', limpeza: '🧽', higiene: '🧼', descartavel: '♻️', processados: '🍽️', outros: '❓' };
+  
+  Object.values(grouped).forEach(g => {
+    if (g.variations.length === 0) return;
+    const groupId = 'grpCat_' + g.std.id;
+    const icon = STD_ICONS[g.std.id] || '📦';
     
+    // Coleta todos os itens dessa categoria padrão
+    const itemsInCat = new Map(); // material → count
+    g.variations.forEach(v => {
+      // Percorre HIST_DB para buscar itens dessa categoria
+      HIST_DB.forEach(entry => {
+        (entry.units || []).forEach(u => {
+          (u.categories || []).forEach(c => {
+            if (rmAcc(c.name).toUpperCase() === rmAcc(v.mainName).toUpperCase()) {
+              (c.items || []).forEach(it => {
+                const mat = autoDisplayName(normMat(it.material), it.material);
+                itemsInCat.set(mat, (itemsInCat.get(mat) || 0) + 1);
+              });
+            }
+          });
+        });
+      });
+      // Também nas requisições ativas
+      REQS.forEach(r => {
+        (r.parsed?.categories || []).forEach(c => {
+          if (rmAcc(c.name).toUpperCase() === rmAcc(v.mainName).toUpperCase()) {
+            (c.items || []).forEach(it => {
+              const mat = autoDisplayName(normMat(it.material), it.material);
+              itemsInCat.set(mat, (itemsInCat.get(mat) || 0) + 1);
+            });
+          }
+        });
+      });
+    });
+    const itemsSorted = [...itemsInCat.entries()].sort((a, b) => b[1] - a[1]);
+    
+    h += '<div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:10px;margin-bottom:10px;overflow:hidden">'
+      + '<div style="padding:12px 14px;background:linear-gradient(90deg,#f8fafc,#fff);border-bottom:1px solid #e2e8f0;cursor:pointer;display:flex;align-items:center;justify-content:space-between" '
+      + 'onclick="var x=document.getElementById(\'' + groupId + '\');x.style.display=(x.style.display===\'none\'?\'block\':\'none\');var ic=document.getElementById(\'' + groupId + '_ic\');if(ic)ic.textContent=(x.style.display===\'none\'?\'▸\':\'▾\')">'
+      + '<div style="display:flex;align-items:center;gap:8px">'
+      + '<span style="font-size:18px">' + icon + '</span>'
+      + '<b style="font-size:14px;color:#0f172a">' + esc(g.std.name) + '</b>'
+      + '<span style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700">' + g.variations.length + ' variação(ões)</span>'
+      + '<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700">' + itemsSorted.length + ' item(ns)</span>'
+      + '</div>'
+      + '<span id="' + groupId + '_ic" style="color:#64748b;font-size:14px">▸</span>'
+      + '</div>'
+      + '<div id="' + groupId + '" style="display:none;padding:14px">';
+    
+    // Botão de "Unificar todas" se houver variações
+    if (g.variations.length > 1 && g.std.id !== 'outros') {
+      const keysToFix = g.variations.filter(v => !v.hasAlias || CAT_ALIASES[v.key] !== g.std.name).map(v => v.key);
+      if (keysToFix.length > 0) {
+        h += '<button class="btn btn-p btn-sm" style="margin-bottom:10px" onclick="'
+          + 'if(confirm(\'Unificar ' + keysToFix.length + ' variação(ões) como &quot;' + g.std.name.replace(/'/g, "\\'") + '&quot;?\')){' 
+          + keysToFix.map(k => 'applyCatFix(\'' + k.replace(/'/g,"\\'") + '\',\'' + g.std.name.replace(/'/g,"\\'") + '\')').join(';')
+          + '}">✨ Unificar todas as ' + keysToFix.length + ' variações como &quot;' + esc(g.std.name) + '&quot;</button>';
+      }
+    }
+    
+    // Lista de variações detectadas
+    h += '<div style="font-size:11px;font-weight:700;color:#64748b;margin-bottom:6px;margin-top:4px">📋 VARIAÇÕES DETECTADAS:</div>';
+    h += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px">';
+    g.variations.forEach(v => {
+      const target = v.hasAlias ? CAT_ALIASES[v.key] : null;
+      const isCorrect = target === g.std.name;
+      h += '<span style="display:inline-flex;align-items:center;gap:4px;background:' 
+        + (isCorrect ? '#d1fae5;border:1px solid #86efac' : (v.hasAlias ? '#fef3c7;border:1px solid #fde68a' : '#f1f5f9;border:1px solid #cbd5e1'))
+        + ';padding:3px 8px;border-radius:6px;font-size:11px">'
+        + (isCorrect ? '✅ ' : (v.hasAlias ? '⚠️ ' : ''))
+        + esc(v.mainName) + ' <span style="opacity:.7">(' + v.data.count + 'x)</span>';
+      if (!isCorrect && g.std.id !== 'outros') {
+        h += '<button class="btn btn-s btn-sm" style="font-size:9px;padding:1px 6px;margin-left:4px" onclick="applyCatFix(\'' + v.key.replace(/'/g,"\\'") + '\',\'' + g.std.name.replace(/'/g,"\\'") + '\')">Padronizar</button>';
+      }
+      h += '</span>';
+    });
+    h += '</div>';
+    
+    // Lista de itens (para poder revisar)
+    if (itemsSorted.length > 0) {
+      h += '<div style="font-size:11px;font-weight:700;color:#64748b;margin-bottom:6px">📦 ITENS CADASTRADOS NESSA CATEGORIA (' + itemsSorted.length + '):</div>';
+      h += '<div style="max-height:250px;overflow-y:auto;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px">';
+      h += '<table style="width:100%;font-size:11px"><tbody>';
+      itemsSorted.forEach(([mat, cnt]) => {
+        h += '<tr><td style="padding:2px 0;color:#0f172a;font-weight:500">' + esc(mat) + '</td>'
+          + '<td style="padding:2px 0;text-align:right;color:#64748b;font-size:10px">' + cnt + 'x</td></tr>';
+      });
+      h += '</tbody></table></div>';
+    }
+    
+    h += '</div></div>';
+  });
+  
+  h += '</div>';
+  
+  // ═══ REGRAS DE CATEGORIA ATIVAS ═══
+  if (catRules.length > 0) {
+    h += '<div class="pan-section"><h2>✅ Regras Ativas (' + catRules.length + ')</h2>'
+      + '<p class="sub">Categorias que já foram padronizadas</p>';
     catRules.sort((a, b) => a[1].localeCompare(b[1])).forEach(([fromKey, toName]) => {
       h += '<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;margin-bottom:4px;font-size:12px">'
         + '<span style="color:#991b1b;text-decoration:line-through;font-weight:500">' + esc(fromKey) + '</span>'
@@ -5791,72 +6247,10 @@ function renderFixCategorias(allCats, searchLo) {
         + '<button class="btn btn-s btn-sm" style="margin-left:auto;font-size:9px;padding:2px 6px;color:#dc2626;border-color:#fca5a5" onclick="removeCatFix(\'' + esc(fromKey).replace(/'/g, "\\'") + '\')">✕</button>'
         + '</div>';
     });
-    
     h += '<div style="margin-top:8px"><button class="btn btn-s btn-sm" style="color:#dc2626;border-color:#fca5a5;font-size:10px" onclick="clearAllCatFixes()">🗑️ Remover todas</button></div>';
     h += '</div>';
   }
   
-  // ─── TODAS AS CATEGORIAS ───
-  h += '<div class="pan-section"><h2>🗂️ Todas as Categorias (' + filtered.length + ')</h2>'
-    + '<p class="sub">Clique em "Renomear" para padronizar uma categoria. Todas as planilhas do banco serão afetadas.</p>';
-  
-  if (!filtered.length) {
-    h += '<div style="text-align:center;padding:20px;color:#64748b">Nenhuma categoria encontrada.</div>';
-  } else {
-    // Categorias padrão sugeridas
-    const STD_CATS = ['MATERIAL DE EXPEDIENTE', 'MATERIAL DE LIMPEZA', 'MATERIAL DE HIGIENE PESSOAL', 'MATERIAL DESCARTÁVEL', 'ALIMENTOS PROCESSADOS', 'ALIMENTOS PERECÍVEIS', 'MATERIAL DE ATIVIDADES'];
-    
-    h += '<table class="pan-table"><thead><tr><th>Categoria</th><th>Variações</th><th>Ocorrências</th><th>Ações</th></tr></thead><tbody>';
-    
-    filtered.forEach(([key, data]) => {
-      const namesArr = [...data.names.entries()].sort((a, b) => b[1] - a[1]);
-      const mainName = namesArr[0][0];
-      const hasAlias = !!CAT_ALIASES[key];
-      const displayName = hasAlias ? CAT_ALIASES[key] : mainName;
-      
-      h += '<tr' + (hasAlias ? ' style="background:#f0fdf4"' : '') + '>';
-      h += '<td style="font-weight:700;font-size:12px">' + esc(displayName);
-      if (hasAlias) h += ' <span style="font-size:9px;color:#10b981;font-weight:600">✅ padronizado</span>';
-      h += '</td>';
-      
-      h += '<td style="font-size:11px">';
-      if (namesArr.length > 1) {
-        namesArr.forEach(([name, count]) => {
-          h += '<span style="display:inline-block;background:#f1f5f9;padding:1px 6px;border-radius:4px;font-size:10px;margin:1px">' + esc(name) + ' (' + count + ')</span> ';
-        });
-      } else {
-        h += '<span style="color:#94a3b8;font-size:10px">—</span>';
-      }
-      h += '</td>';
-      
-      h += '<td style="text-align:center;font-weight:700;font-size:12px">' + data.count + '</td>';
-      
-      // Actions: rename with dropdown of standard names
-      const inputId = 'catFix_' + key.replace(/[^A-Za-z0-9]/g, '_');
-      h += '<td style="min-width:200px"><div style="display:flex;gap:4px;align-items:center">'
-        + '<select id="' + inputId + '" class="sel" style="font-size:11px;padding:4px 8px;flex:1">'
-        + '<option value="">Selecione...</option>';
-      STD_CATS.forEach(sc => {
-        h += '<option value="' + esc(sc) + '"' + (displayName === sc ? ' selected' : '') + '>' + esc(sc) + '</option>';
-      });
-      // Add option for custom input
-      h += '<option value="__custom__">Digitar outro...</option>';
-      h += '</select>'
-        + '<button class="btn btn-g btn-sm" style="font-size:9px;padding:2px 8px" onclick="'
-        + 'var sel=document.getElementById(\'' + inputId + '\');'
-        + 'var v=sel.value;'
-        + 'if(v===\'__custom__\'){v=prompt(\'Nome da categoria:\',\'' + esc(mainName).replace(/'/g, "\\'") + '\');}'
-        + 'if(v)applyCatFix(\'' + esc(key).replace(/'/g, "\\'") + '\',v)'
-        + '">✅</button>'
-        + '</div></td>';
-      
-      h += '</tr>';
-    });
-    
-    h += '</tbody></table>';
-  }
-  
-  h += '</div>';
   return h;
 }
 
@@ -7763,7 +8157,7 @@ export function initSeparacao() {
   try { populateUnidadesSelect(); } catch (e) { console.error(e); }
   try { applySeparacaoRoleUI(); } catch (e) { console.error(e); }
   try {
-    const EXPORTS = { goTab, registrar, previewReq, pegarParaSeparar, entregarReq, abrirFicha, fecharFicha, marcarPronto, marcarProntoLista, voltarSeparacao, printReq, printFicha, cancelarReq, excluirHistoricoReq, renderBuracos, renderUnificar, buildPainel, gerarRelatorio, exportarCSV, handleFile, handleHistFiles, ck, okModal, closeModal, showModal, editEntryYear, editEntryPeriod, toggleDetail, removeHistEntry, openEditor, closeEditor, saveEditor, edRemoveItem, edAddItem, edAddCat, clearHistDB, clearMateriaisDB, removeDuplicatesAuto, recalcAllDates, exportBackup, importBackup, goToFile, goPage, onModeChange, clearFilters, clearPanFilters, clearYears, selAllYears, clearAllAliases, doUnifMerge, toggleUnifSel, unifRemoveSel, clearUnifSel, removeAlias, openPrintBuracos, doPrintBuracos, showOrigemUnidade, showOrigemCategoria, renderRelatorio, renderCorrecaoItens, setFixView, fixGoPage, applyMatFix, applyMatFixBulk, removeMatFix, clearAllMatFixes, applyCatFix, removeCatFix, clearAllCatFixes, closePreRegDialog, skipPreRegDialog, confirmPreRegDialog, copyItemsList, setPanTipo, loadAllHistDBAndRefresh, addFichaItem, removeFichaItem, editMaterial, switchMatView, switchPanSub, PAGE_STATE, debouncedRenderPS, debouncedRenderES, debouncedRenderPE, debouncedRenderHI };
+    const EXPORTS = { goTab, registrar, previewReq, pegarParaSeparar, entregarReq, abrirFicha, fecharFicha, marcarPronto, marcarProntoLista, voltarSeparacao, printReq, printFicha, cancelarReq, excluirHistoricoReq, renderBuracos, renderUnificar, buildPainel, gerarRelatorio, exportarCSV, handleFile, handleHistFiles, ck, okModal, closeModal, showModal, editEntryYear, editEntryPeriod, toggleDetail, removeHistEntry, openEditor, closeEditor, saveEditor, edRemoveItem, edAddItem, edAddCat, clearHistDB, clearMateriaisDB, removeDuplicatesAuto, recalcAllDates, exportBackup, importBackup, goToFile, goPage, onModeChange, clearFilters, clearPanFilters, clearYears, selAllYears, clearAllAliases, doUnifMerge, toggleUnifSel, unifRemoveSel, clearUnifSel, removeAlias, openPrintBuracos, doPrintBuracos, showOrigemUnidade, showOrigemCategoria, renderRelatorio, renderCorrecaoItens, setFixView, fixGoPage, applyMatFix, applyMatFixBulk, removeMatFix, clearAllMatFixes, applyCatFix, removeCatFix, clearAllCatFixes, closePreRegDialog, skipPreRegDialog, confirmPreRegDialog, copyItemsList, diagnoseAliases, setPanTipo, loadAllHistDBAndRefresh, addFichaItem, removeFichaItem, editMaterial, switchMatView, switchPanSub, PAGE_STATE, debouncedRenderPS, debouncedRenderES, debouncedRenderPE, debouncedRenderHI };
     Object.entries(EXPORTS).forEach(([k, v]) => { window[k] = v; });
   } catch (e) { console.error(e); }
   try { loadHistDB(); } catch (e) { console.error(e); }
