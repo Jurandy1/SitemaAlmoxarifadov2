@@ -1,4 +1,4 @@
-import { setDoc, deleteDoc, doc, writeBatch, getDocs, query, orderBy, limit, startAfter, serverTimestamp, Timestamp, documentId } from "firebase/firestore";import { setDoc, deleteDoc, doc, writeBatch, getDocs, query, orderBy, limit, startAfter, serverTimestamp, Timestamp, documentId } from "firebase/firestore";
+import { setDoc, deleteDoc, doc, writeBatch, getDocs, query, orderBy, limit, startAfter, serverTimestamp, Timestamp, documentId } from "firebase/firestore";
 import { auth, COLLECTIONS } from "../services/firestore-service.js";
 import { getMateriais, getUnidades, getUserRole, getSemcasHistDB, getSemcasAliases } from "../utils/cache.js";
 import { showAlert } from "../utils/dom-helpers.js";
@@ -1324,17 +1324,69 @@ function singularizeMaterial(name) {
 }
 
 const SPELLING_FIXES = [
+  // ─── ACENTUAÇÃO ─────────────────────
   [/\bACUCAR\b/gi,'AÇÚCAR'],[/\bAGUA\b/gi,'ÁGUA'],[/\bALCOOL\b/gi,'ÁLCOOL'],
-  [/\bOLEO\b/gi,'ÓLEO'],[/\bSABAO\b/gi,'SABÃO'],[/\bLAPIS\b/gi,'LÁPIS'],
+  [/\bOLEO\b/gi,'ÓLEO'],[/\bSABAO\b/gi,'SABÃO'],
   [/\bFEIJAO\b/gi,'FEIJÃO'],[/\bMACARRAO\b/gi,'MACARRÃO'],[/\bFLOCAO\b/gi,'FLOCÃO'],
   [/\bESCOVAO\b/gi,'ESCOVÃO'],[/\bSANITARIA\b/gi,'SANITÁRIA'],[/\bHIGIENICO\b/gi,'HIGIÊNICO'],
-  [/\bDESCARTAVEL\b/gi,'DESCARTÁVEL'],[/\bLIQUIDO\b/gi,'LÍQUIDO'],[/\bTERMICA\b/gi,'TÉRMICA'],
-  [/\bPLASTICA\b/gi,'PLÁSTICA'],[/\bELASTICO\b/gi,'ELÁSTICO'],[/\bMASCARA\b/gi,'MÁSCARA'],
+  [/\bDESCARTAVEL\b/gi,'DESCARTÁVEL'],[/\bDESCARTAVEIS\b/gi,'DESCARTÁVEIS'],
+  [/\bLIQUIDO\b/gi,'LÍQUIDO'],[/\bLIQUIDA\b/gi,'LÍQUIDA'],
+  [/\bTERMICA\b/gi,'TÉRMICA'],[/\bTERMICO\b/gi,'TÉRMICO'],
+  [/\bPLASTICA\b/gi,'PLÁSTICA'],[/\bPLASTICO\b/gi,'PLÁSTICO'],
+  [/\bELASTICO\b/gi,'ELÁSTICO'],[/\bELASTICA\b/gi,'ELÁSTICA'],
+  [/\bMASCARA\b/gi,'MÁSCARA'],[/\bCAFE\b/gi,'CAFÉ'],[/\bCHA\b/gi,'CHÁ'],
+  [/\bLAMPADA\b/gi,'LÂMPADA'],[/\bLATEX\b/gi,'LÁTEX'],[/\bPIACAVA\b/gi,'PIAÇAVA'],
+  [/\bALCOOLICA\b/gi,'ALCOÓLICA'],[/\bLEITE EM PO\b/gi,'LEITE EM PÓ'],
+  [/\bPE\b/gi,'PÉ'],[/\bPAO\b/gi,'PÃO'],[/\bCRACHA\b/gi,'CRACHÁ'],
+  [/\bCORDAO\b/gi,'CORDÃO'],[/\bBALAO\b/gi,'BALÃO'],[/\bSOLUVEL\b/gi,'SOLÚVEL'],
+  [/\bTOPAZIO\b/gi,'TOPÁZIO'],[/\bANTIBACTER(IA)?\b/gi,'ANTIBACTERIANO'],
+  [/\bMILIMETRADO\b/gi,'MILIMETRADO'],[/\bAGUAS\b/gi,'ÁGUAS'],
+  [/\bBANHEIRO\b/gi,'BANHEIRO'],[/\bLIMPADOR\b/gi,'LIMPADOR'],
+  [/\bSAPOLIO\b/gi,'SAPÓLIO'],[/\bCATALOGO\b/gi,'CATÁLOGO'],
+  [/\bHIDRAULICO\b/gi,'HIDRÁULICO'],[/\bELETRICO\b/gi,'ELÉTRICO'],
+  [/\bAPARELHO\b/gi,'APARELHO'],[/\bPOMBO\b/gi,'POMBO'],
+  [/\bINCOLOR\b/gi,'INCOLOR'],[/\bGERIATRIA\b/gi,'GERIÁTRICA'],
+  [/\bGERIATRICA\b/gi,'GERIÁTRICA'],[/\bGERIATRICO\b/gi,'GERIÁTRICO'],
+  [/\bABELHA\b/gi,'ABELHA'],[/\bCOLONIA\b/gi,'COLÔNIA'],
+  [/\bUMEDECIDO\b/gi,'UMEDECIDO'],[/\bAZEDO\b/gi,'AZEDO'],
+  [/\bMUCILON\b/gi,'MUCILON'],[/\bCREMOGEMA\b/gi,'CREMOGEMA'],
+  [/\bQUIT\b/gi,'KIT'],[/\bKIT\b/gi,'KIT'],
+  [/\bINFANTIL\b/gi,'INFANTIL'],[/\bINSTANTANEO\b/gi,'INSTANTÂNEO'],
+  [/\bINSTANTANEA\b/gi,'INSTANTÂNEA'],[/\bQUIMICO\b/gi,'QUÍMICO'],
+  [/\bQUIMICA\b/gi,'QUÍMICA'],[/\bSANITARIO\b/gi,'SANITÁRIO'],
+  [/\bEMBALAGEM\b/gi,'EMBALAGEM'],[/\bGRATUITO\b/gi,'GRATUITO'],
+  [/\bALUMINIO\b/gi,'ALUMÍNIO'],[/\bATOMICO\b/gi,'ATÔMICO'],
+  [/\bATOMICA\b/gi,'ATÔMICA'],[/\bRECARREGAVEL\b/gi,'RECARREGÁVEL'],
+  
+  // ─── LÁPIS sempre em singular (invariável) ───
+  [/\bLAPIS\b/gi,'LÁPIS'],
+  
+  // ─── ERROS COMUNS DE DIGITAÇÃO ─────────────
   [/\bDESINFETANE\b/gi,'DESINFETANTE'],[/\bDETERJENTE\b/gi,'DETERGENTE'],
-  [/\bHIJENICO\b/gi,'HIGIÊNICO'],[/\bVASSORA\b/gi,'VASSOURA'],
-  [/\bGUADANAPO\b/gi,'GUARDANAPO'],[/\bTESORA\b/gi,'TESOURA'],
-  [/\bALCOL\b/gi,'ÁLCOOL'],[/\bACOOL\b/gi,'ÁLCOOL'],[/\bACUCAR\b/gi,'AÇÚCAR'],
+  [/\bDESINFETANTE\s+DESIENFETANTE\b/gi,'DESINFETANTE'],[/\bDISENFETANTE\b/gi,'DESINFETANTE'],
+  [/\bHIJENICO\b/gi,'HIGIÊNICO'],[/\bHIJIENICO\b/gi,'HIGIÊNICO'],
+  [/\bVASSORA\b/gi,'VASSOURA'],[/\bVASOURA\b/gi,'VASSOURA'],
+  [/\bGUADANAPO\b/gi,'GUARDANAPO'],[/\bGAUDINAPO\b/gi,'GUARDANAPO'],
+  [/\bTESORA\b/gi,'TESOURA'],[/\bALCOL\b/gi,'ÁLCOOL'],[/\bACOOL\b/gi,'ÁLCOOL'],
   [/\bSHANPOO\b/gi,'SHAMPOO'],[/\bXAMPU\b/gi,'SHAMPOO'],
+  [/\bESPOJA\b/gi,'ESPONJA'],[/\bESFREGAO\b/gi,'ESFREGÃO'],
+  [/\bMASSADORA\b/gi,'AMASSADORA'],[/\bBORACHA\b/gi,'BORRACHA'],
+  [/\bCOPOS?\s+DESCATAVEL/gi,'COPOS DESCARTÁVEIS'],
+  [/\bSABONET\b/gi,'SABONETE'],[/\bASOLHO\b/gi,'ASSOALHO'],
+  [/\bCANIVET\b/gi,'CANIVETE'],[/\bARMARIO\b/gi,'ARMÁRIO'],
+  [/\bMOVEL\b/gi,'MÓVEL'],[/\bMOVEIS\b/gi,'MÓVEIS'],
+  [/\bARMAZEM\b/gi,'ARMAZÉM'],[/\bPIRE\b/gi,'PIRES'],
+  [/\bCELOFAN\b/gi,'CELOFANE'],[/\bGRAMPIADOR\b/gi,'GRAMPEADOR'],
+  [/\bPERFURA\b/gi,'PERFURADOR'],[/\bEXTILETE\b/gi,'ESTILETE'],
+  [/\bRAZORBLADE\b/gi,'LÂMINA DE BARBEAR'],
+  
+  // ─── VARIAÇÕES DE NOME ─────────────────────
+  [/\bFITA\s+DUREX\s+TRANSPARENTE\b/gi,'FITA ADESIVA TRANSPARENTE'],
+  [/\bSABAO\s+DE\s+COCO\b/gi,'SABÃO DE COCO'],
+  [/\bOMO\b/gi,'SABÃO EM PÓ'],[/\bBRILHANTE\b/gi,'SABÃO EM PÓ'],
+  [/\bYPE\b/gi,'DETERGENTE'],[/\bYPÊ\b/gi,'DETERGENTE'],
+  [/\bQBOA\b/gi,'ÁGUA SANITÁRIA'],[/\bQBOA\b/gi,'ÁGUA SANITÁRIA'],
+  [/\bKBOA\b/gi,'ÁGUA SANITÁRIA'],
 ];
 
 function fixSpelling(name) {
@@ -1363,6 +1415,44 @@ function detectItemIssues(parsed) {
       
       // Pré-limpeza: remove junk ANTES de analisar splits
       const mat = cleanMaterialJunk(rawMat);
+      const matNorm = normMat(mat);
+
+      // ═══ FASE -1: ITENS AMBÍGUOS QUE SEMPRE SEPARAM ═══
+      // Regra: todo COPO sem "água" ou "café" é ambíguo e precisa separar
+      const isCopo = /^\s*COPO/i.test(matNorm) || /^\s*COPOS/i.test(matNorm);
+      const hasAgua = /\b(AGUA|H2O)\b/i.test(matNorm);
+      const hasCafe = /\b(CAFE|CAFEZINHO|EXPRESSO)\b/i.test(matNorm);
+      
+      if (isCopo && !hasAgua && !hasCafe) {
+        // Sempre força os 2 nomes padrão — ignora ML e qualquer outro qualificador
+        issues.push({
+          type: 'split', catIdx, itemIdx, original: rawMat, item,
+          splits: [
+            { material: 'COPO DESCARTÁVEL PARA ÁGUA', unidade: item.unidade },
+            { material: 'COPO DESCARTÁVEL PARA CAFÉ', unidade: item.unidade }
+          ],
+          reason: 'Copo genérico — separe em Água e Café'
+        });
+        return;
+      }
+      
+      // ═══ Copo com ÁGUA ou CAFÉ mas não no padrão → renomeia ═══
+      if (isCopo && hasAgua && matNorm !== 'COPO DESCARTAVEL PARA AGUA') {
+        issues.push({
+          type: 'rename', catIdx, itemIdx, original: rawMat, item,
+          suggested: 'COPO DESCARTÁVEL PARA ÁGUA',
+          reason: 'Padronizar nome do copo'
+        });
+        return;
+      }
+      if (isCopo && hasCafe && matNorm !== 'COPO DESCARTAVEL PARA CAFE') {
+        issues.push({
+          type: 'rename', catIdx, itemIdx, original: rawMat, item,
+          suggested: 'COPO DESCARTÁVEL PARA CAFÉ',
+          reason: 'Padronizar nome do copo'
+        });
+        return;
+      }
 
       // ═══ FASE 0: PARÊNTESES COM VARIANTES — "Biscoito (doce e salgado)" ═══
       const parenEMatch = mat.match(/^(.+?)\s*\(([^)]+)\)\s*$/);
@@ -3201,7 +3291,6 @@ const MATERIAL_CATALOG = {
   'COPO DESCARTAVEL- CAFE':'COPO DESCARTÁVEL PARA CAFÉ',
   'COPOS PARA CAFE':'COPO DESCARTÁVEL PARA CAFÉ','COPO DE CAFE':'COPO DESCARTÁVEL PARA CAFÉ',
   'COPO DESCARTAVEL':'COPO DESCARTÁVEL',
-  'COPO DESCARTAVEL 250ML':'COPO DESCARTÁVEL 250ML','COPO DESCARTAVEL DE 50ML':'COPO DESCARTÁVEL 50ML',
   'GUARDANAPO':'GUARDANAPO','PRATO DESCARTAVEL':'PRATO DESCARTÁVEL',
   'COLHER DESCARTAVEL':'COLHER DESCARTÁVEL','GARFO DESCARTAVEL':'GARFO DESCARTÁVEL',
   'SACOLA PLASTICA':'SACOLA PLÁSTICA',
@@ -3222,23 +3311,223 @@ const MATERIAL_CATALOG = {
   // ─── EQUIPAMENTOS ──────────────────────────
   'GARRAFA TERMICA':'GARRAFA TÉRMICA','GARRAFA TERMICA CAFE':'GARRAFA TÉRMICA DE CAFÉ',
   'GARRAFA TERMICA DE CAFE':'GARRAFA TÉRMICA DE CAFÉ',
+  'JARRA':'JARRA','JARRA DE AGUA':'JARRA DE ÁGUA','BULE':'BULE','BULE DE CAFE':'BULE DE CAFÉ',
+  'VENTILADOR':'VENTILADOR','PILHA':'PILHA','PILHA AA':'PILHA AA','PILHA AAA':'PILHA AAA',
+  'BATERIA':'BATERIA','LAMPADA':'LÂMPADA','LAMPADA LED':'LÂMPADA LED','EXTENSAO':'EXTENSÃO',
+  'REGUA DE TOMADA':'RÉGUA DE TOMADA','ADAPTADOR':'ADAPTADOR',
+  
+  // ─── EXPEDIENTE — EXPANSÃO ─────────────────
+  'CANETA GEL':'CANETA GEL','CANETA HIDROGRAFICA':'CANETA HIDROGRÁFICA','HIDROCOR':'HIDROCOR',
+  'GIZ DE CERA':'GIZ DE CERA','GIZ':'GIZ','CADERNO':'CADERNO',
+  'BLOCO DE RECADO':'BLOCO DE RECADO','CARIMBO':'CARIMBO','ALMOFADA DE CARIMBO':'ALMOFADA DE CARIMBO',
+  'TINTA CARIMBO':'TINTA PARA CARIMBO','CALCULADORA':'CALCULADORA',
+  'AGENDA':'AGENDA','CALENDARIO':'CALENDÁRIO','PORTA LAPIS':'PORTA-LÁPIS','PORTA CANETA':'PORTA-CANETAS',
+  'ESCANINHO':'ESCANINHO','CAIXA ORGANIZADORA':'CAIXA ORGANIZADORA','CAIXA ARQUIVO':'CAIXA ARQUIVO',
+  'CAIXA ARQUIVO MORTO':'CAIXA ARQUIVO MORTO',
+  'ELASTICO':'ELÁSTICO','ELASTICO DE DINHEIRO':'ELÁSTICO','COLA QUENTE':'COLA QUENTE',
+  'COLA INSTANTANEA':'COLA INSTANTÂNEA','SUPER BONDER':'SUPER BONDER',
+  'FITA DUPLA FACE':'FITA DUPLA FACE','FITA ISOLANTE':'FITA ISOLANTE','FITA LARGA':'FITA LARGA',
+  'FITA TRANSPARENTE':'FITA TRANSPARENTE','DUREX':'FITA DUREX',
+  'PASTA L':'PASTA L','PASTA CATALOGO':'PASTA CATÁLOGO','PASTA REGISTRADORA':'PASTA REGISTRADORA',
+  'PLASTICO BOLHA':'PLÁSTICO BOLHA','SACO PLASTICO':'SACO PLÁSTICO','SACOLA':'SACOLA',
+  'PAPEL ALMACO':'PAPEL ALMAÇO','PAPEL MILIMETRADO':'PAPEL MILIMETRADO',
+  'PAPEL CAMURCA':'PAPEL CAMURÇA','PAPEL LAMINADO':'PAPEL LAMINADO','PAPEL ADESIVO':'PAPEL ADESIVO',
+  'PAPEL CONTACT':'PAPEL CONTACT','PAPEL KRAFT':'PAPEL KRAFT','PAPEL PARAFINADO':'PAPEL PARAFINADO',
+  'PAPEL MADEIRA':'PAPEL MADEIRA','PAPEL 40KG':'PAPEL 40KG','PAPEL 80G':'PAPEL 80G',
+  'CORRETIVO':'CORRETIVO','CORRETIVO LIQUIDO':'CORRETIVO LÍQUIDO','CORRETIVO FITA':'CORRETIVO EM FITA',
+  'LIVRO CAIXA':'LIVRO CAIXA','LIVRO PONTO':'LIVRO PONTO',
+  'CRACHA':'CRACHÁ','PORTA CRACHA':'PORTA-CRACHÁ','CORDAO':'CORDÃO','CORDAO CRACHA':'CORDÃO DE CRACHÁ',
+  'ETIQUETA':'ETIQUETA','ETIQUETA ADESIVA':'ETIQUETA ADESIVA','ETIQUETA A4':'ETIQUETA A4',
+  'IMPRESSOR':'IMPRESSORA','IMPRESSORA':'IMPRESSORA','TINTA PARA IMPRESSORA':'TINTA PARA IMPRESSORA',
+  'CARTUCHO TINTA':'CARTUCHO DE TINTA','CARTUCHO PRETO':'CARTUCHO PRETO','CARTUCHO COLORIDO':'CARTUCHO COLORIDO',
+  'TONER PRETO':'TONER PRETO','TONER COLORIDO':'TONER COLORIDO',
+  'PAPEL FOTOGRAFICO':'PAPEL FOTOGRÁFICO','PAPEL TERMICO':'PAPEL TÉRMICO','BOBINA':'BOBINA',
+  'BOBINA TERMICA':'BOBINA TÉRMICA','BOBINA DE CAIXA':'BOBINA DE CAIXA',
+  
+  // ─── LIMPEZA — EXPANSÃO ────────────────────
+  'CLORO':'CLORO','AMONIACA':'AMONÍACA','SODA CAUSTICA':'SODA CÁUSTICA','AMACIANTE':'AMACIANTE',
+  'LUSTRA MOVEIS':'LUSTRA-MÓVEIS','PINHO':'PINHO','PINHO SOL':'PINHO SOL','VEJA':'VEJA',
+  'LIMPA VIDRO':'LIMPA-VIDRO','LIMPADOR VIDRO':'LIMPA-VIDRO','LIMPADOR COZINHA':'LIMPADOR DE COZINHA',
+  'LIMPADOR BANHEIRO':'LIMPADOR DE BANHEIRO','LIMPA ALUMINIO':'LIMPA-ALUMÍNIO','LIMPA INOX':'LIMPA-INOX',
+  'REMOVEDOR':'REMOVEDOR','TIRA MANCHA':'TIRA-MANCHAS','SAPOLIO':'SAPÓLIO',
+  'ESCOVA':'ESCOVA','ESCOVA DE LAVAR':'ESCOVA DE LAVAR','ESCOVA SANITARIA':'ESCOVA SANITÁRIA',
+  'ESCOVA VASO':'ESCOVA SANITÁRIA','ESCOVA ROUPA':'ESCOVA DE ROUPA',
+  'ESFREGAO':'ESFREGÃO','MOP':'MOP','MOP PO':'MOP PÓ','MOP UMIDO':'MOP ÚMIDO',
+  'VASSOURA PLASTICA':'VASSOURA PLÁSTICA','VASSOURA PIACAVA':'VASSOURA DE PIAÇAVA','VASSOURAO':'VASSOURÃO',
+  'VASSOURA BANHEIRO':'VASSOURA DE BANHEIRO','RODO PEQUENO':'RODO PEQUENO','RODO GRANDE':'RODO GRANDE',
+  'RODINHO':'RODINHO','PA DE LIXO':'PÁ DE LIXO','PA':'PÁ','PAR DE LUVA':'PAR DE LUVAS',
+  'LUVA LATEX':'LUVA DE LÁTEX','LUVA NITRILICA':'LUVA NITRÍLICA','LUVA PVC':'LUVA DE PVC',
+  'LUVA DESCARTAVEL':'LUVA DESCARTÁVEL','MASCARA CIRURGICA':'MÁSCARA CIRÚRGICA',
+  'TOUCA':'TOUCA','AVENTAL':'AVENTAL','BOTA':'BOTA','BOTA DE BORRACHA':'BOTA DE BORRACHA',
+  'PREGADOR DE ROUPA':'PREGADOR DE ROUPA','VARAL':'VARAL','CABIDE':'CABIDE',
+  
+  // ─── DESCARTÁVEL — EXPANSÃO ────────────────
+  // Copos por ML removidos — padronização única: água ou café
+  'MARMITEX':'MARMITEX','MARMITA':'MARMITA','EMBALAGEM':'EMBALAGEM',
+  'BANDEJA DESCARTAVEL':'BANDEJA DESCARTÁVEL','PRATO RASO':'PRATO RASO','PRATO FUNDO':'PRATO FUNDO',
+  'POTE':'POTE','POTE PLASTICO':'POTE PLÁSTICO','POTE COM TAMPA':'POTE COM TAMPA',
+  'ROLO PAPEL ALUMINIO':'PAPEL ALUMÍNIO','PAPEL ALUMINIO':'PAPEL ALUMÍNIO','FILME PVC':'FILME PVC',
+  'PAPEL MANTEIGA':'PAPEL MANTEIGA','FORMA DESCARTAVEL':'FORMA DESCARTÁVEL',
+  'PALITO':'PALITO','PALITO DE DENTE':'PALITO DE DENTE','PALITO CHURRASCO':'PALITO DE CHURRASCO',
+  'CANUDO':'CANUDO','CANUDO DESCARTAVEL':'CANUDO DESCARTÁVEL','MEXEDOR':'MEXEDOR',
+  'TALHER DESCARTAVEL':'TALHER DESCARTÁVEL','KIT TALHER':'KIT TALHER',
+  
+  // ─── HIGIENE — EXPANSÃO ────────────────────
+  'ALGODAO':'ALGODÃO','COTONETE':'COTONETE','LENCO UMEDECIDO':'LENÇO UMEDECIDO',
+  'LENCO DE PAPEL':'LENÇO DE PAPEL','FRALDA GERIATRICA':'FRALDA GERIÁTRICA','FRALDA INFANTIL':'FRALDA INFANTIL',
+  'FRALDA DESCARTAVEL':'FRALDA DESCARTÁVEL','ABSORVENTE NOTURNO':'ABSORVENTE NOTURNO',
+  'ABSORVENTE COM ABAS':'ABSORVENTE COM ABAS','PROTETOR DIARIO':'PROTETOR DIÁRIO',
+  'SABONETE BARRA':'SABONETE EM BARRA','SABONETE LIQUIDO':'SABONETE LÍQUIDO',
+  'SABONETE ANTIBACTERIANO':'SABONETE ANTIBACTERIANO','SABONETE NEUTRO':'SABONETE NEUTRO',
+  'SHAMPOO INFANTIL':'SHAMPOO INFANTIL','SABONETE INFANTIL':'SABONETE INFANTIL',
+  'CONDICIONADOR INFANTIL':'CONDICIONADOR INFANTIL','COLONIA':'COLÔNIA','COLONIA INFANTIL':'COLÔNIA INFANTIL',
+  'HIDRATANTE':'HIDRATANTE','CREME HIDRATANTE':'CREME HIDRATANTE','TALCO':'TALCO',
+  'ENXAGUANTE BUCAL':'ENXAGUANTE BUCAL','FIO DENTAL':'FIO DENTAL','PASTA DE DENTE':'PASTA DE DENTE',
+  'ESPONJA DE BANHO':'ESPONJA DE BANHO','BUCHA DE BANHO':'BUCHA DE BANHO',
+  'SACO DE FRALDAS':'SACO DE FRALDAS','PROTETOR SOLAR':'PROTETOR SOLAR','REPELENTE':'REPELENTE',
+  'POMADA':'POMADA','CURATIVO':'CURATIVO','BAND AID':'BAND-AID','GAZE':'GAZE',
+  'ESPARADRAPO':'ESPARADRAPO','ATADURA':'ATADURA',
+  
+  // ─── ALIMENTÍCIO — EXPANSÃO ────────────────
+  'ARROZ BRANCO':'ARROZ BRANCO','ARROZ INTEGRAL':'ARROZ INTEGRAL','ARROZ PARBOILIZADO':'ARROZ PARBOILIZADO',
+  'FEIJAO CARIOCA':'FEIJÃO CARIOCA','FEIJAO PRETO':'FEIJÃO PRETO','FEIJAO BRANCO':'FEIJÃO BRANCO',
+  'FEIJAO VERDE':'FEIJÃO VERDE','FEIJAO FRADINHO':'FEIJÃO FRADINHO',
+  'MACARRAO ESPAGUETE':'MACARRÃO ESPAGUETE','MACARRAO PARAFUSO':'MACARRÃO PARAFUSO',
+  'MACARRAO PENNE':'MACARRÃO PENNE','MACARRAO INSTANTANEO':'MACARRÃO INSTANTÂNEO',
+  'MIOJO':'MACARRÃO INSTANTÂNEO','MACARRAO DE ARROZ':'MACARRÃO DE ARROZ',
+  'LASANHA':'MASSA DE LASANHA','MASSA DE LASANHA':'MASSA DE LASANHA',
+  'FARINHA DE MILHO':'FARINHA DE MILHO','FARINHA DE MANDIOCA':'FARINHA DE MANDIOCA',
+  'FARINHA DE ROSCA':'FARINHA DE ROSCA','FUBA':'FUBÁ',
+  'GOMA DE TAPIOCA':'GOMA DE TAPIOCA','POLVILHO':'POLVILHO','POLVILHO DOCE':'POLVILHO DOCE',
+  'POLVILHO AZEDO':'POLVILHO AZEDO','AMIDO DE MILHO':'AMIDO DE MILHO','MAIZENA':'AMIDO DE MILHO',
+  'OLEO VEGETAL':'ÓLEO VEGETAL','AZEITE':'AZEITE','AZEITE DE OLIVA':'AZEITE DE OLIVA',
+  'VINAGRE BRANCO':'VINAGRE BRANCO','VINAGRE TINTO':'VINAGRE TINTO',
+  'SAL REFINADO':'SAL REFINADO','SAL GROSSO':'SAL GROSSO',
+  'ACUCAR REFINADO':'AÇÚCAR REFINADO','ACUCAR CRISTAL':'AÇÚCAR CRISTAL','ACUCAR DEMERARA':'AÇÚCAR DEMERARA',
+  'CAFE PO':'CAFÉ EM PÓ','CAFE EM PO':'CAFÉ EM PÓ','CAFE SOLUVEL':'CAFÉ SOLÚVEL','CAPUCCINO':'CAPPUCCINO',
+  'CHA':'CHÁ','CHA MATE':'CHÁ MATE','CHA PRETO':'CHÁ PRETO','CHA VERDE':'CHÁ VERDE',
+  'CHOCOLATE EM PO':'CHOCOLATE EM PÓ','ACHOCOLATADO':'ACHOCOLATADO','NESCAU':'ACHOCOLATADO',
+  'SUCO EM PO':'SUCO EM PÓ','SUCO CONCENTRADO':'SUCO CONCENTRADO','REFRESCO':'REFRESCO',
+  'GELATINA':'GELATINA','GELATINA EM PO':'GELATINA EM PÓ',
+  'EXTRATO TOMATE':'EXTRATO DE TOMATE','MOLHO DE TOMATE':'MOLHO DE TOMATE','MOLHO TOMATE':'MOLHO DE TOMATE',
+  'MOLHO SHOYU':'MOLHO SHOYU','MAIONESE':'MAIONESE','MOSTARDA':'MOSTARDA','KETCHUP':'KETCHUP',
+  'CATCHUP':'KETCHUP','TEMPERO COMPLETO':'TEMPERO COMPLETO','TEMPERO VERDE':'TEMPERO VERDE',
+  'CALDO DE GALINHA':'CALDO DE GALINHA','CALDO DE CARNE':'CALDO DE CARNE','CALDO DE LEGUMES':'CALDO DE LEGUMES',
+  'PIMENTA':'PIMENTA','PIMENTA DO REINO':'PIMENTA-DO-REINO','ORÉGANO':'ORÉGANO','COMINHO':'COMINHO',
+  'ACAFRAO':'AÇAFRÃO','CANELA':'CANELA','CRAVO':'CRAVO','LOURO':'FOLHA DE LOURO',
+  'GELEIA':'GELEIA','MEL':'MEL','MEL DE ABELHA':'MEL','DOCE DE LEITE':'DOCE DE LEITE',
+  'GOIABADA':'GOIABADA','REQUEIJAO':'REQUEIJÃO','QUEIJO':'QUEIJO','QUEIJO RALADO':'QUEIJO RALADO',
+  'IOGURTE':'IOGURTE','MARGARINA':'MARGARINA','MANTEIGA COM SAL':'MANTEIGA COM SAL',
+  'MANTEIGA SEM SAL':'MANTEIGA SEM SAL',
+  'SARDINHA':'SARDINHA EM LATA','SARDINHA EM LATA':'SARDINHA EM LATA','ATUM':'ATUM EM LATA','ATUM EM LATA':'ATUM EM LATA',
+  'MILHO EM CONSERVA':'MILHO EM CONSERVA','ERVILHA EM CONSERVA':'ERVILHA EM CONSERVA',
+  'SELETA DE LEGUMES':'SELETA DE LEGUMES','PALMITO':'PALMITO EM CONSERVA',
+  'FRANGO':'FRANGO','PEITO DE FRANGO':'PEITO DE FRANGO','COXA DE FRANGO':'COXA DE FRANGO',
+  'CARNE BOVINA':'CARNE BOVINA','CARNE MOIDA':'CARNE MOÍDA','CARNE SECA':'CARNE SECA',
+  'LINGUICA':'LINGUIÇA','SALSICHA':'SALSICHA','MORTADELA':'MORTADELA','PRESUNTO':'PRESUNTO',
+  'PAO':'PÃO','PAO DE FORMA':'PÃO DE FORMA','PAO FRANCES':'PÃO FRANCÊS',
+  'OVO':'OVO','OVO DE GALINHA':'OVO DE GALINHA','OVOS':'OVO','DUZIA DE OVO':'OVO',
+  
+  // ─── ATIVIDADES / PEDAGÓGICO ──────────────
+  'MASSINHA':'MASSA DE MODELAR','MASSA DE MODELAR':'MASSA DE MODELAR','ARGILA':'ARGILA',
+  'BOLA':'BOLA','BOLA DE FUTEBOL':'BOLA DE FUTEBOL','BOLA DE VOLEI':'BOLA DE VÔLEI',
+  'BOLA DE BASQUETE':'BOLA DE BASQUETE','CORDA':'CORDA','CORDA DE PULAR':'CORDA DE PULAR',
+  'PETECA':'PETECA','BAMBOLE':'BAMBOLÊ','RAQUETE':'RAQUETE','DARDO':'DARDO',
+  'TINTA ACRILICA':'TINTA ACRÍLICA','TINTA PVA':'TINTA PVA','TINTA SPRAY':'TINTA SPRAY',
+  'PINCEL PEQUENO':'PINCEL PEQUENO','PINCEL GRANDE':'PINCEL GRANDE','PINCEL CHATO':'PINCEL CHATO',
+  'TESOURA SEM PONTA':'TESOURA SEM PONTA','TESOURA INFANTIL':'TESOURA INFANTIL',
+  'LAPIS PRETO':'LÁPIS PRETO','LAPIS 2B':'LÁPIS 2B','LAPIS 6B':'LÁPIS 6B',
+  'CANETINHA':'CANETINHA','CANETINHA HIDROCOR':'CANETINHA HIDROCOR',
+  'PEGA':'PEGA','CARRINHO':'CARRINHO','BONECO':'BONECO','BONECA':'BONECA',
+  'JOGO':'JOGO','JOGO EDUCATIVO':'JOGO EDUCATIVO','QUEBRA CABECA':'QUEBRA-CABEÇA',
+  'LIVRO INFANTIL':'LIVRO INFANTIL','LIVRO DE HISTORIA':'LIVRO DE HISTÓRIA',
+  'BALAO':'BALÃO','BALAO DE FESTA':'BALÃO DE FESTA','BEXIGA':'BALÃO','CHAPEU DE ANIVERSARIO':'CHAPÉU DE ANIVERSÁRIO',
+  'VELA':'VELA','VELA DE ANIVERSARIO':'VELA DE ANIVERSÁRIO','PRENDEDOR DE BALAO':'PRENDEDOR DE BALÃO',
+  
+  // ─── ELÉTRICO / HIDRÁULICO ─────────────────
+  'TORNEIRA':'TORNEIRA','REGISTRO':'REGISTRO','DUCHA':'DUCHA','CHUVEIRO':'CHUVEIRO',
+  'TUBO':'TUBO','JOELHO':'JOELHO','CONEXAO':'CONEXÃO','VEDA ROSCA':'VEDA ROSCA',
+  'SILICONE':'SILICONE','COLA EPOXI':'COLA EPÓXI','MASSA CORRIDA':'MASSA CORRIDA',
+  'TINTA LATEX':'TINTA LÁTEX','TINTA PAREDE':'TINTA PAREDE',
+  'INTERRUPTOR':'INTERRUPTOR','TOMADA':'TOMADA','CABO ELETRICO':'CABO ELÉTRICO','FIO ELETRICO':'FIO ELÉTRICO',
+  'DISJUNTOR':'DISJUNTOR','FITA ISOLANTE':'FITA ISOLANTE',
 };
+
+// ═══════════════════════════════════════════════════════════════════
+// PADRÕES DE EXTRAÇÃO DE QUALIFICADORES
+// Quando o material tem tamanho/cor embutido, extrair e normalizar
+// ═══════════════════════════════════════════════════════════════════
+const VOLUME_PATTERNS = [
+  { re: /\b(\d+)\s*ML\b/i, fmt: m => m[1]+'ML' },
+  { re: /\b(\d+)\s*L\b/i, fmt: m => m[1]+'L' },
+  { re: /\b(\d+[.,]?\d*)\s*LITRO?S?\b/i, fmt: m => m[1].replace(',','.')+'L' },
+  { re: /\b(\d+)\s*KG\b/i, fmt: m => m[1]+'KG' },
+  { re: /\b(\d+)\s*G\b/i, fmt: m => m[1]+'G' },
+  { re: /\b(\d+)\s*CM\b/i, fmt: m => m[1]+'CM' },
+  { re: /\b(\d+)\s*MM\b/i, fmt: m => m[1]+'MM' },
+];
+
+const COLOR_WORDS = ['AZUL','PRETA','PRETO','VERMELHA','VERMELHO','VERDE','AMARELA','AMARELO',
+  'BRANCA','BRANCO','ROSA','LARANJA','ROXA','ROXO','MARROM','CINZA','BEGE','DOURADO','PRATA'];
 
 // Auto-display: dado o normMat key, retorna o nome canônico com acentos
 function autoDisplayName(normKey, rawName) {
   // 1. MAT_ALIASES tem prioridade absoluta
   if (MAT_ALIASES && MAT_ALIASES[normKey]) return MAT_ALIASES[normKey];
-  // 2. Catálogo padrão
+  // 2. Catálogo padrão (chave exata)
   if (MATERIAL_CATALOG[normKey]) return MATERIAL_CATALOG[normKey];
-  // 3. Tenta limpar junk + ortografia + singular e buscar
+  // 3. Tenta limpar junk + ortografia + singular e buscar de novo
   const normalized = normalizeMaterialName(rawName || normKey);
   const normKey2 = _origNormMat(normalized);
   if (normKey2 !== normKey) {
     if (MAT_ALIASES && MAT_ALIASES[normKey2]) return MAT_ALIASES[normKey2];
     if (MATERIAL_CATALOG[normKey2]) return MATERIAL_CATALOG[normKey2];
   }
-  // 4. Retorna nome normalizado (limpo + singular + spelling fix)
-  return normalized || rawName || normKey;
+  
+  // 4. Busca inteligente: tenta encontrar uma entrada do catálogo que é PREFIXO do nome
+  // Ex: "SABONETE LIQUIDO ANTIBACTERIANO" → encontra "SABONETE LIQUIDO" + sufixo
+  const searchKey = normKey2 || normKey;
+  let bestMatch = null;
+  let bestLen = 0;
+  for (const [catKey, canonical] of Object.entries(MATERIAL_CATALOG)) {
+    if (catKey.length > bestLen && searchKey.startsWith(catKey + ' ')) {
+      bestMatch = canonical;
+      bestLen = catKey.length;
+    }
+  }
+  if (bestMatch && bestLen >= 5) {
+    // Pega o sufixo não mapeado e acrescenta ao canônico
+    const suffix = searchKey.substring(bestLen).trim();
+    if (suffix) {
+      // Normaliza o sufixo (singulariza, corrige ortografia)
+      const suffixNorm = normalizeMaterialName(suffix);
+      return bestMatch + ' ' + suffixNorm;
+    }
+    return bestMatch;
+  }
+  
+  // 5. Retorna nome normalizado (limpo + singular + spelling fix) com case apropriado
+  return toTitleCasePT(normalized || rawName || normKey);
+}
+
+// Converte para title case preservando palavras especiais
+function toTitleCasePT(s) {
+  if (!s) return s;
+  const LOWER = new Set(['DE','DO','DA','DOS','DAS','EM','NO','NA','PARA','POR','COM','E','OU','A','O','AO','À','AS','OS']);
+  const UPPER = new Set(['A4','A3','A5','UV','PVC','LED','XL','GG','PET','SKU','USB','HD','DNA','EPI','EUA']);
+  
+  // Se está tudo maiúsculo ou tudo minúsculo, aplica title case
+  const isAllUpper = s === s.toUpperCase();
+  const isAllLower = s === s.toLowerCase();
+  if (!isAllUpper && !isAllLower) return s; // mantém case original
+  
+  return s.split(/\s+/).map((w, i) => {
+    const up = w.toUpperCase();
+    if (UPPER.has(up)) return up;
+    if (i > 0 && LOWER.has(up)) return w.toLowerCase();
+    // Preserva números/pontuação; capitaliza primeira letra
+    return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+  }).join(' ');
 }
 
 // Busca no catálogo por nome parcial (para sugestões)
@@ -5269,6 +5558,16 @@ function renderFixTodos(items, searchLo) {
 
   let h = '<div class="pan-section"><h2>📋 Todos os Itens (' + total + ')</h2>'
     + '<p class="sub">Lista completa de materiais — clique no lápis para renomear</p>';
+  
+  // ─── TOOLBAR: Copiar itens ───
+  h += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;padding:10px;background:#f8fafc;border:1px solid var(--border);border-radius:8px">'
+    + '<span style="font-size:11px;color:#475569;font-weight:700;align-self:center;margin-right:4px">📋 COPIAR:</span>'
+    + '<button class="btn btn-s btn-sm" style="font-size:10px" onclick="copyItemsList(\'names\')">📝 Apenas nomes</button>'
+    + '<button class="btn btn-s btn-sm" style="font-size:10px" onclick="copyItemsList(\'detailed\')">📊 Detalhado (TSV)</button>'
+    + '<button class="btn btn-s btn-sm" style="font-size:10px" onclick="copyItemsList(\'variations\')">🔀 Com variações</button>'
+    + '<button class="btn btn-s btn-sm" style="font-size:10px" onclick="copyItemsList(\'csv\')">📥 CSV (excel)</button>'
+    + '<button class="btn btn-s btn-sm" style="font-size:10px" onclick="copyItemsList(\'json\')">⚙️ JSON</button>'
+    + '</div>';
 
   h += '<div class="tbl-wrap"><table class="rel-table"><thead><tr>'
     + '<th>Item</th>'
@@ -5310,6 +5609,113 @@ function renderFixTodos(items, searchLo) {
 
   h += '</div>';
   return h;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// COPIAR ITENS CADASTRADOS — diversos formatos
+// ═══════════════════════════════════════════════════════════════════
+function copyItemsList(format) {
+  const items = scanAllItems();
+  if (!items.size) { toast('Nenhum item para copiar.', 'red'); return; }
+  
+  const list = [...items.entries()].map(([key, val]) => {
+    const canonical = MAT_ALIASES[key] || null;
+    const displayName = canonical || [...val.names.keys()][0] || key;
+    const totalOccur = [...val.names.values()].reduce((s, v) => s + v, 0);
+    const variations = [...val.names.entries()].sort((a, b) => b[1] - a[1]);
+    return {
+      key, displayName, canonical, totalOccur,
+      nVariations: val.names.size, nUnits: val.units.size,
+      totalQty: val.totalQty || 0, cats: [...val.cats], variations
+    };
+  });
+  list.sort((a, b) => rmAcc(a.displayName).localeCompare(rmAcc(b.displayName)));
+  
+  let text = '';
+  
+  if (format === 'names') {
+    // Apenas os nomes únicos, um por linha
+    text = list.map(r => r.displayName).join('\n');
+  }
+  
+  else if (format === 'detailed') {
+    // TSV para colar no Google Sheets / Excel
+    text = 'Nome Padrão\tOcorrências\tVariações\tUnidades que usam\tCategorias\tJá corrigido?\n';
+    list.forEach(r => {
+      text += [
+        r.displayName,
+        r.totalOccur,
+        r.nVariations,
+        r.nUnits,
+        r.cats.join(' | '),
+        r.canonical ? 'SIM' : 'NÃO'
+      ].join('\t') + '\n';
+    });
+  }
+  
+  else if (format === 'variations') {
+    // Com todas as variações encontradas
+    text = 'Nome Padrão\tVariações Encontradas\tOcorrências\n';
+    list.forEach(r => {
+      const varsStr = r.variations.map(([n, c]) => n + ' (' + c + 'x)').join(' | ');
+      text += r.displayName + '\t' + varsStr + '\t' + r.totalOccur + '\n';
+    });
+  }
+  
+  else if (format === 'csv') {
+    // CSV (vírgulas, com aspas)
+    const esc = s => '"' + String(s).replace(/"/g, '""') + '"';
+    text = 'Nome,Ocorrencias,Variacoes,Unidades,Categorias,Corrigido\n';
+    list.forEach(r => {
+      text += [esc(r.displayName), r.totalOccur, r.nVariations, r.nUnits, esc(r.cats.join('; ')), r.canonical ? 'SIM' : 'NAO'].join(',') + '\n';
+    });
+  }
+  
+  else if (format === 'json') {
+    // JSON estruturado
+    const data = list.map(r => ({
+      nome: r.displayName,
+      ocorrencias: r.totalOccur,
+      variacoes: r.variations.map(([n, c]) => ({ nome: n, vezes: c })),
+      unidades: r.nUnits,
+      categorias: r.cats,
+      corrigido: !!r.canonical
+    }));
+    text = JSON.stringify(data, null, 2);
+  }
+  
+  // Copia para clipboard
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(
+      () => toast('✅ ' + list.length + ' itens copiados para área de transferência!', 'green'),
+      () => fallbackCopy(text, list.length)
+    );
+  } else {
+    fallbackCopy(text, list.length);
+  }
+}
+
+function fallbackCopy(text, count) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  try {
+    document.execCommand('copy');
+    toast('✅ ' + count + ' itens copiados!', 'green');
+  } catch (_) {
+    // Último fallback: modal com texto
+    const w = window.open('', '_blank');
+    if (w) {
+      w.document.write('<pre style="font-family:monospace;padding:20px;white-space:pre-wrap">' + text.replace(/</g,'&lt;') + '</pre>');
+      w.document.title = 'Itens - SEMCAS';
+    }
+    toast('Texto aberto em nova janela — selecione e copie (Ctrl+A, Ctrl+C)', 'blue');
+  }
+  document.body.removeChild(ta);
 }
 
 function renderFixRegras(searchLo) {
@@ -7357,7 +7763,7 @@ export function initSeparacao() {
   try { populateUnidadesSelect(); } catch (e) { console.error(e); }
   try { applySeparacaoRoleUI(); } catch (e) { console.error(e); }
   try {
-    const EXPORTS = { goTab, registrar, previewReq, pegarParaSeparar, entregarReq, abrirFicha, fecharFicha, marcarPronto, marcarProntoLista, voltarSeparacao, printReq, printFicha, cancelarReq, excluirHistoricoReq, renderBuracos, renderUnificar, buildPainel, gerarRelatorio, exportarCSV, handleFile, handleHistFiles, ck, okModal, closeModal, showModal, editEntryYear, editEntryPeriod, toggleDetail, removeHistEntry, openEditor, closeEditor, saveEditor, edRemoveItem, edAddItem, edAddCat, clearHistDB, clearMateriaisDB, removeDuplicatesAuto, recalcAllDates, exportBackup, importBackup, goToFile, goPage, onModeChange, clearFilters, clearPanFilters, clearYears, selAllYears, clearAllAliases, doUnifMerge, toggleUnifSel, unifRemoveSel, clearUnifSel, removeAlias, openPrintBuracos, doPrintBuracos, showOrigemUnidade, showOrigemCategoria, renderRelatorio, renderCorrecaoItens, setFixView, fixGoPage, applyMatFix, applyMatFixBulk, removeMatFix, clearAllMatFixes, applyCatFix, removeCatFix, clearAllCatFixes, closePreRegDialog, skipPreRegDialog, confirmPreRegDialog, setPanTipo, loadAllHistDBAndRefresh, addFichaItem, removeFichaItem, editMaterial, switchMatView, switchPanSub, PAGE_STATE, debouncedRenderPS, debouncedRenderES, debouncedRenderPE, debouncedRenderHI };
+    const EXPORTS = { goTab, registrar, previewReq, pegarParaSeparar, entregarReq, abrirFicha, fecharFicha, marcarPronto, marcarProntoLista, voltarSeparacao, printReq, printFicha, cancelarReq, excluirHistoricoReq, renderBuracos, renderUnificar, buildPainel, gerarRelatorio, exportarCSV, handleFile, handleHistFiles, ck, okModal, closeModal, showModal, editEntryYear, editEntryPeriod, toggleDetail, removeHistEntry, openEditor, closeEditor, saveEditor, edRemoveItem, edAddItem, edAddCat, clearHistDB, clearMateriaisDB, removeDuplicatesAuto, recalcAllDates, exportBackup, importBackup, goToFile, goPage, onModeChange, clearFilters, clearPanFilters, clearYears, selAllYears, clearAllAliases, doUnifMerge, toggleUnifSel, unifRemoveSel, clearUnifSel, removeAlias, openPrintBuracos, doPrintBuracos, showOrigemUnidade, showOrigemCategoria, renderRelatorio, renderCorrecaoItens, setFixView, fixGoPage, applyMatFix, applyMatFixBulk, removeMatFix, clearAllMatFixes, applyCatFix, removeCatFix, clearAllCatFixes, closePreRegDialog, skipPreRegDialog, confirmPreRegDialog, copyItemsList, setPanTipo, loadAllHistDBAndRefresh, addFichaItem, removeFichaItem, editMaterial, switchMatView, switchPanSub, PAGE_STATE, debouncedRenderPS, debouncedRenderES, debouncedRenderPE, debouncedRenderHI };
     Object.entries(EXPORTS).forEach(([k, v]) => { window[k] = v; });
   } catch (e) { console.error(e); }
   try { loadHistDB(); } catch (e) { console.error(e); }
