@@ -388,6 +388,11 @@ function findDOMElements() {
         ['#btn-social-import-data', 'btnSocialImportData'],
         ['#alert-social-import', 'alertSocialImport'],
 
+        // Relatório de Gás
+        ['#relatorio-gas-data-inicio', 'relatorioGasDataInicio'],
+        ['#relatorio-gas-data-fim',    'relatorioGasDataFim'],
+        ['#btn-gerar-relatorio-gas',   'btnGerarRelatorioGas'],
+
         // ELEMENTOS ESPECÍFICOS DO NOVO PAINEL TV
         ['#tv-list-separacao', 'tvListSeparacao'],
         ['#tv-list-pronto', 'tvListPronto'],
