@@ -7,8 +7,10 @@ import { isReady } from "./auth.js";
 import { COLLECTIONS } from "../services/firestore-service.js";
 import { executeFinalMovimentacao } from "./movimentacao-modal-handler.js";
 import { BaseControl } from "./base-control.js";
+// [ADD] Import do módulo de relatório
+import { generateGasReport } from "./gas-report.js";
 
-// VARIÁVEL DE ESTADO LOCAL (Movida para o topo)
+// VARIÁVEL DE ESTADO LOCAL
 let debitoGasMode = 'devendo';
 
 // Instância do BaseControl para Gás
@@ -160,7 +162,6 @@ export async function handleGasSubmit(e) {
         showAlert('alert-gas', "Permissão negada. Usuário Anônimo não pode lançar movimentações.", 'error'); return; 
     }
 
-    // Desabilitar botão para evitar duplo clique (BUG-01 fix)
     const submitBtn = e.submitter || e.target.querySelector('button[type="submit"]');
     if (submitBtn) submitBtn.disabled = true;
 
@@ -192,7 +193,6 @@ export async function handleGasSubmit(e) {
             if (!isEstoqueInicialDefinido('gas')) {
                 throw new Error('Defina o Estoque Inicial de Gás antes de lançar saídas.');
             }
-            // BUG-03 fix: calcular estoque do cache, não do DOM
             const estoqueData = getEstoqueGas() || [];
             const movs = (getGasMovimentacoes() || []);
             const estoqueInicial = estoqueData.filter(e => e.tipo === 'inicial').reduce((sum, e) => sum + (parseInt(e.quantidade, 10) || 0), 0);
@@ -285,7 +285,6 @@ export function renderGasStatus(newFilter = null) {
             const dataMovimentacao = formatTimestampComTempo(ultimoLancamento.data);
             const respAlmox = ultimoLancamento.respAlmox;
             const respUnidade = ultimoLancamento.respUnidade;
-            
             lancamentoDetalhes = `<span>${dataMovimentacao}</span> (Almox: ${respAlmox} / Unid: ${respUnidade})`;
         }
         
@@ -477,8 +476,12 @@ export function renderGasEstoqueHistory() {
     
     historicoOrdenado.forEach(m => {
         const isInicial = m.tipo === 'inicial';
+        // [FIX] Labels mais claros para o tipo de lançamento
         const tipoClass = isInicial ? 'badge-blue' : 'badge-green';
-        const tipoText = isInicial ? 'Inicial' : 'Entrada';
+        const tipoText = isInicial ? 'Inicial (Sistema)' : 'Entrada Manual';
+        const tipoTitle = isInicial
+            ? 'Saldo inicial definido como ponto de partida — não representa compra'
+            : 'Compra / reposição registrada manualmente';
         
         const dataMov = formatTimestampComTempo(m.data);
         const dataLancamento = formatTimestampComTempo(m.registradoEm);
@@ -494,7 +497,7 @@ export function renderGasEstoqueHistory() {
             : `<span class="text-gray-400 btn-icon" title="Apenas Admin pode excluir"><i data-lucide="slash"></i></span>`;
 
         html += `<tr title="Lançado em: ${dataLancamento}">
-            <td><span class="badge ${tipoClass}">${tipoText}</span></td>
+            <td><span class="badge ${tipoClass}" title="${tipoTitle}">${tipoText}</span></td>
             <td class="text-center font-medium">${m.quantidade}</td>
             <td class="whitespace-nowrap">${dataMov}</td>
             <td>${notaFiscal}</td>
@@ -521,7 +524,7 @@ export function renderGasMovimentacoesHistory() {
         .sort((a, b) => (b.registradoEm?.toMillis() || 0) - (a.registradoEm?.toMillis() || 0));
 
     if (historicoOrdenado.length === 0) {
-        DOM_ELEMENTS.tableHistoricoGasAll.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-slate-500">Nenhuma movimentação de unidade registrada.</td></tr>`;
+        DOM_ELEMENTS.tableHistoricoGasAll.innerHTML = `<tr><td colspan="9" class="text-center py-4 text-slate-500">Nenhuma movimentação de unidade registrada.</td></tr>`;
         return;
     }
     
@@ -598,26 +601,30 @@ function populateGasFilterUnidades() {
     }
 }
 
+// [FIX] IDs corrigidos: 'filtro-data-ini-gas' → 'filtro-data-inicio-gas'
+//       e remoção do ID duplicado 'filtro-data-fim-gas'
 function getFilteredGasMovimentacoes() {
-    const tipoEl = document.getElementById('filtro-tipo-gas');
-    const unidadeEl = document.getElementById('filtro-unidade-gas');
+    const tipoEl        = document.getElementById('filtro-tipo-gas');
+    const unidadeEl     = document.getElementById('filtro-unidade-gas');
     const unidadeTipoEl = document.getElementById('filtro-unidade-tipo-gas');
-    const respEl = document.getElementById('filtro-responsavel-gas');
-    const origemEl = document.getElementById('filtro-origem-gas');
-    const dataIniEl = document.getElementById('filtro-data-ini-gas') || document.getElementById('filtro-data-inicio-gas');
-    const dataFimEl = document.getElementById('filtro-data-fim-gas') || document.getElementById('filtro-data-fim-gas');
+    const respEl        = document.getElementById('filtro-responsavel-gas');
+    const origemEl      = document.getElementById('filtro-origem-gas');
+    const dataIniEl     = document.getElementById('filtro-data-inicio-gas');  // [FIX] corrigido
+    const dataFimEl     = document.getElementById('filtro-data-fim-gas');
 
-    const tipo = tipoEl?.value || '';
-    const unidadeId = unidadeEl?.value || '';
+    const tipo                   = tipoEl?.value || '';
+    const unidadeId              = unidadeEl?.value || '';
     const unidadeTipoSelecionado = (unidadeTipoEl?.value || '').toUpperCase();
-    const respQuery = (respEl?.value || '').trim().toLowerCase();
-    const origem = origemEl?.value || '';
-    const dataIniStr = dataIniEl?.value || '';
-    const dataFimStr = dataFimEl?.value || '';
+    const respQuery              = (respEl?.value || '').trim().toLowerCase();
+    const origem                 = origemEl?.value || '';
+    const dataIniStr             = dataIniEl?.value || '';
+    const dataFimStr             = dataFimEl?.value || '';
 
-    const base = getGasMovimentacoes().filter(m => (m.tipo === 'entrega' || m.tipo === 'retorno' || m.tipo === 'retirada'));
+    const base      = getGasMovimentacoes().filter(m => (m.tipo === 'entrega' || m.tipo === 'retorno' || m.tipo === 'retirada'));
     const dataIniMs = dataIniStr ? dateToTimestamp(dataIniStr)?.toMillis() : null;
     const dataFimMs = dataFimStr ? dateToTimestamp(dataFimStr)?.toMillis() : null;
+    // [FIX] Incluir o dia inteiro do fim (23:59:59.999)
+    const dataFimEOD = dataFimMs ? dataFimMs + 86_399_999 : null;
 
     const unidadesMap = new Map(getUnidades().map(u => {
         let uTipo = (u.tipo || 'N/A').toUpperCase();
@@ -632,17 +639,18 @@ function getFilteredGasMovimentacoes() {
             const info = unidadesMap.get(m.unidadeId);
             if (!info || info.tipo !== unidadeTipoSelecionado) return false;
         }
-        const isImport = ((m.responsavel || '').toLowerCase().includes('importa')) || ((m.observacao || '').toLowerCase().includes('importado'));
+        const isImport = ((m.responsavel || '').toLowerCase().includes('importa'))
+                      || ((m.observacao  || '').toLowerCase().includes('importado'));
         if (origem === 'importacao' && !isImport) return false;
-        if (origem === 'manual' && isImport) return false;
+        if (origem === 'manual'     &&  isImport) return false;
         if (respQuery) {
-            const ru = (m.responsavel || '').toLowerCase();
+            const ru = (m.responsavel             || '').toLowerCase();
             const ra = (m.responsavelAlmoxarifado || '').toLowerCase();
             if (!ru.includes(respQuery) && !ra.includes(respQuery)) return false;
         }
-        const movMs = m.data?.toMillis?.() || null;
-        if (dataIniMs && movMs && movMs < dataIniMs) return false;
-        if (dataFimMs && movMs && movMs > dataFimMs) return false;
+        const movMs = m.data?.toMillis?.() ?? null;
+        if (dataIniMs  && movMs && movMs < dataIniMs)  return false;
+        if (dataFimEOD && movMs && movMs > dataFimEOD) return false;
         return true;
     });
 }
@@ -739,7 +747,10 @@ export function initGasListeners() {
     if (DOM_ELEMENTS.btnVerStatusGas) {
         DOM_ELEMENTS.btnVerStatusGas.addEventListener('click', () => switchSubTabView('gas', 'status-gas'));
     }
-    ['filtro-tipo-gas','filtro-unidade-gas','filtro-responsavel-gas','filtro-origem-gas','filtro-data-ini-gas','filtro-data-fim-gas']
+
+    // [FIX] IDs corrigidos para os filtros de data do histórico geral
+    ['filtro-tipo-gas','filtro-unidade-gas','filtro-responsavel-gas',
+     'filtro-origem-gas','filtro-data-inicio-gas','filtro-data-fim-gas']
         .forEach(id => {
             const el = document.getElementById(id);
             if (el) el.addEventListener('input', () => {
@@ -748,6 +759,7 @@ export function initGasListeners() {
                 if (free && free.value) filterTable(free, 'table-historico-gas-all');
             });
         });
+
     const tipoGas = document.getElementById('filtro-tipo-gas');
     if (tipoGas) tipoGas.addEventListener('input', populateGasFilterUnidades);
     const tipoUnidadeGas = document.getElementById('filtro-unidade-tipo-gas');
@@ -757,7 +769,9 @@ export function initGasListeners() {
     });
     const btnClear = document.getElementById('btn-limpar-filtros-gas');
     if (btnClear) btnClear.addEventListener('click', () => {
-        ['filtro-tipo-gas','filtro-unidade-tipo-gas','filtro-unidade-gas','filtro-responsavel-gas','filtro-origem-gas','filtro-data-ini-gas','filtro-data-fim-gas']
+        // [FIX] IDs corrigidos
+        ['filtro-tipo-gas','filtro-unidade-tipo-gas','filtro-unidade-gas','filtro-responsavel-gas',
+         'filtro-origem-gas','filtro-data-inicio-gas','filtro-data-fim-gas']
             .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
         populateGasFilterUnidades();
         renderGasMovimentacoesHistory();
@@ -827,6 +841,18 @@ export function initGasListeners() {
             if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { setTimeout(() => lucide.createIcons(), 50); }
         });
     }
+
+    // [ADD] Listener do botão de gerar relatório
+    const btnGerarRelGas = document.getElementById('btn-gerar-relatorio-gas');
+    if (btnGerarRelGas) {
+        btnGerarRelGas.addEventListener('click', () => {
+            const startEl = document.getElementById('relatorio-gas-data-inicio');
+            const endEl   = document.getElementById('relatorio-gas-data-fim');
+            const start   = startEl?.value || '';
+            const end     = endEl?.value   || '';
+            generateGasReport(start, end);
+        });
+    }
 }
 
 export function onGasTabChange() {
@@ -848,6 +874,12 @@ export function onGasTabChange() {
     if (filtroStatus) filtroStatus.value = '';
     const filtroHistorico = document.getElementById('filtro-historico-gas');
     if (filtroHistorico) filtroHistorico.value = '';
+
+    // [ADD] Reset dos filtros do relatório ao trocar de aba
+    const relIni = document.getElementById('relatorio-gas-data-inicio');
+    const relFim = document.getElementById('relatorio-gas-data-fim');
+    if (relIni) relIni.value = '';
+    if (relFim) relFim.value = '';
 
     populateGasFilterUnidades();
     checkGasHistoryIntegrity();
