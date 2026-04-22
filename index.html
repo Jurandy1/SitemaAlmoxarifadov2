@@ -1034,6 +1034,10 @@
                         <i data-lucide="calendar-range"></i>
                         <span>Consumo Semanal</span>
                     </button>
+                    <button class="sub-nav-btn" data-subview="relatorio-gas">
+                        <i data-lucide="printer"></i>
+                        <span>Relatório</span>
+                    </button>
                 </div>
 
                 <!-- Sub-view: Movimentação (Lançamento) -->
@@ -1435,6 +1439,95 @@
                             </table>
                         </div>
                         <div id="resumo-consumo-semanal-gas" class="mt-4 text-sm text-gray-700"></div>
+                    </div>
+                </div>
+
+                <!-- Sub-view: Relatório de Gás -->
+                <div id="subview-relatorio-gas" class="hidden">
+                    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 max-w-3xl">
+
+                        <!-- Cabeçalho da seção -->
+                        <div class="flex items-center gap-3 mb-6">
+                            <div class="flex items-center justify-center w-10 h-10 rounded-xl bg-orange-100">
+                                <i data-lucide="printer" class="w-5 h-5 text-orange-700"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-xl font-bold text-gray-900 tracking-tight">Relatório de Controle de Gás</h2>
+                                <p class="text-xs text-gray-500">Gera um relatório completo de Entradas de Estoque e Movimentações (saídas e retornos) com o brasão da Prefeitura.</p>
+                            </div>
+                        </div>
+
+                        <!-- Filtro de período -->
+                        <div class="bg-orange-50 border border-orange-200 rounded-xl p-5 mb-6">
+                            <h3 class="text-sm font-bold text-orange-800 mb-4 flex items-center gap-2">
+                                <i data-lucide="calendar-range" class="w-4 h-4"></i>
+                                Filtro de Período (opcional)
+                            </h3>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label for="relatorio-gas-data-inicio" class="form-label text-xs">Data Início</label>
+                                    <input type="date" id="relatorio-gas-data-inicio" class="form-input">
+                                    <p class="text-xs text-orange-600 mt-1">Deixe em branco para incluir desde o início.</p>
+                                </div>
+                                <div>
+                                    <label for="relatorio-gas-data-fim" class="form-label text-xs">Data Fim</label>
+                                    <input type="date" id="relatorio-gas-data-fim" class="form-input">
+                                    <p class="text-xs text-orange-600 mt-1">Deixe em branco para incluir até hoje.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Informações sobre o conteúdo do relatório -->
+                        <div class="space-y-3 mb-6">
+                            <div class="flex items-start gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                <div class="flex-shrink-0 mt-0.5">
+                                    <i data-lucide="package" class="w-4 h-4 text-blue-600"></i>
+                                </div>
+                                <div>
+                                    <p class="text-xs font-bold text-blue-800">Seção 1 — Entradas de Estoque</p>
+                                    <p class="text-xs text-blue-700 mt-0.5">
+                                        Tipo (Inicial do Sistema / Entrada Manual) · Qtd. · Data · Nota Fiscal · Responsável · Lançado Em
+                                    </p>
+                                    <p class="text-xs text-blue-600 mt-1 italic">
+                                        O <strong>Inicial (Sistema)</strong> é o saldo inserido como ponto de partida — não representa uma compra real.
+                                        A <strong>Entrada Manual</strong> representa cada compra ou reposição registrada.
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="flex items-start gap-3 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                                <div class="flex-shrink-0 mt-0.5">
+                                    <i data-lucide="truck" class="w-4 h-4 text-orange-600"></i>
+                                </div>
+                                <div>
+                                    <p class="text-xs font-bold text-orange-800">Seção 2 — Movimentações (Saídas e Retornos)</p>
+                                    <p class="text-xs text-orange-700 mt-0.5">
+                                        Unidade · Tipo · Tipo de Mov. · Qtd. · Data · Resp. Almox. · Resp. Unidade · Lançado Em
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="flex items-start gap-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                                <div class="flex-shrink-0 mt-0.5">
+                                    <i data-lucide="image" class="w-4 h-4 text-gray-500"></i>
+                                </div>
+                                <div>
+                                    <p class="text-xs font-bold text-gray-700">Cabeçalho Institucional</p>
+                                    <p class="text-xs text-gray-600 mt-0.5">
+                                        O relatório inclui o brasão da Prefeitura de São Luís e os dados de identificação da SEMCAS.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Botão de gerar -->
+                        <button id="btn-gerar-relatorio-gas" type="button"
+                                class="btn-primary w-full flex items-center justify-center gap-2 py-3 text-sm">
+                            <i data-lucide="printer" class="w-5 h-5"></i>
+                            <span>Gerar e Imprimir Relatório Completo</span>
+                        </button>
+
+                        <p class="text-xs text-gray-400 text-center mt-3">
+                            O relatório abrirá em uma nova aba no formato A4 paisagem e o diálogo de impressão será iniciado automaticamente.
+                        </p>
                     </div>
                 </div>
             </div>
