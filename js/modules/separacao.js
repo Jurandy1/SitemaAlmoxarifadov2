@@ -1140,13 +1140,43 @@ function handleFile(e){
     const multiTag=nUnitsInFile>1
       ?'<span style="font-size:10px;background:#dcfce7;color:#166534;padding:1px 7px;border-radius:8px;margin-left:4px">'+nUnitsInFile+' unidades</span>'
       :'';
-    el.innerHTML='<b>'+esc(tmpParsed.unitName)+'</b> '+fmtTag+multiTag+perTag
+    const uSel=document.getElementById('rU');
+    // Normaliza o nome da unidade contra o banco de dados
+    const normalizedDetected = normalizeUnit(tmpParsed.unitName) || tmpParsed.unitName;
+    const isUnknown = !normalizedDetected || normalizedDetected === 'Desconhecida' || normalizedDetected === 'Unidade';
+    const unitDisplayTag = isUnknown
+      ? '<b style="color:#ef4444">⚠️ Unidade não detectada — selecione manualmente</b>'
+      : '<b>'+esc(normalizedDetected)+'</b>';
+    el.innerHTML=unitDisplayTag+' '+fmtTag+multiTag+perTag
       +'<br>'+tiposPills(tmpParsed.tipos)
       +' <span style="font-size:11px;color:var(--muted)">('+totalItens+' itens)</span>';
-    const uSel=document.getElementById('rU');const det=tmpParsed.unitName.toUpperCase();
-    let found=false;
-    for(let i=0;i<uSel.options.length;i++){if(uSel.options[i].value&&det.includes(uSel.options[i].value.toUpperCase())){uSel.selectedIndex=i;found=true;break}}
-    if(!found)uSel.selectedIndex=0;
+    const normFn = (x) => rmAcc(String(x||'')).toUpperCase().replace(/\s+/g,' ').trim();
+    const normDet = normFn(normalizedDetected);
+    let found = false;
+    // Busca correspondência exata primeiro
+    for (let i = 0; i < uSel.options.length; i++) {
+      if (uSel.options[i].value && normFn(uSel.options[i].value) === normDet) {
+        uSel.selectedIndex = i; found = true; break;
+      }
+    }
+    // Depois busca parcial
+    if (!found) {
+      for (let i = 0; i < uSel.options.length; i++) {
+        const optNorm = normFn(uSel.options[i].value);
+        if (uSel.options[i].value && optNorm.length >= 4 && normDet.includes(optNorm)) {
+          uSel.selectedIndex = i; found = true; break;
+        }
+      }
+    }
+    if (!found) uSel.selectedIndex = 0;
+    // Destaca o select se a unidade não foi detectada
+    if (isUnknown || !found) {
+      uSel.style.borderColor = '#f59e0b';
+      uSel.style.boxShadow = '0 0 0 3px rgba(245,158,11,.15)';
+    } else {
+      uSel.style.borderColor = '';
+      uSel.style.boxShadow = '';
+    }
     ck();
   }catch(err){toast('Erro ao ler: '+err.message,'red')}};
   reader.readAsArrayBuffer(file);
@@ -1986,8 +2016,9 @@ function applyItemFixes(parsed, fixes) {
     
     if (fix.type === 'split') {
       // Remove o item original e insere os splits
-      const baseQs = item.qtdSolicitada || '';
-      const baseQa = item.qtdAtendida || '';
+      // IMPORTANTE: Não copiamos qtdSolicitada/qtdAtendida para os itens gerados.
+      // A quantidade original pertence a UM item; ao dividir, o separador deve
+      // preencher cada sub-item manualmente. Copiar triplicaria (ou mais) os valores.
       const baseUnid = item.unidade || '';
       const baseStatus = item.status || 'nao_atendido';
       
@@ -1997,9 +2028,9 @@ function applyItemFixes(parsed, fixes) {
           id: nextSplitId++,
           material: sp.material,
           unidade: sp.unidade || baseUnid,
-          qtdSolicitada: baseQs,
-          qtdAtendida: baseQa,
-          status: baseStatus,
+          qtdSolicitada: '',  // vazio: separador preenche cada sub-item
+          qtdAtendida: '',
+          status: 'nao_atendido',
           tipo: item.tipo,
           obs: si === 0 ? (item.obs || '') : ''
         });
@@ -2013,8 +2044,9 @@ function applyItemFixes(parsed, fixes) {
 }
 
 function showPreRegDialog(issues, onConfirm) {
-  // Marca todas como aceitas por padrão
-  issues.forEach(f => { f.accepted = true; });
+  // Splits: NÃO aceitos por padrão (usuário deve marcar explicitamente)
+  // Renomeações: aceitas por padrão (são seguras e não multiplicam itens)
+  issues.forEach(f => { f.accepted = f.type !== 'split'; });
   
   let h = '<div style="max-width:650px;margin:0 auto">';
   h += '<div style="text-align:center;margin-bottom:16px">'
@@ -2027,12 +2059,17 @@ function showPreRegDialog(issues, onConfirm) {
     const checkId = 'preRegFix_' + idx;
     
     if (fix.type === 'split') {
-      h += '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:12px;margin-bottom:10px">'
+      h += '<div style="background:#f8fafc;border:1.5px solid #94a3b8;border-radius:10px;padding:12px;margin-bottom:10px">'
         + '<div style="display:flex;align-items:flex-start;gap:8px">'
-        + '<input type="checkbox" id="' + checkId + '" checked onchange="this.closest(\'[data-fix]\').dataset.accepted=this.checked" style="margin-top:3px;flex-shrink:0">'
-        + '<div style="flex:1" data-fix data-accepted="true">'
-        + '<div style="font-size:10px;color:#1e40af;font-weight:700;margin-bottom:4px">✂️ SEPARAR ITEM</div>'
+        + '<input type="checkbox" id="' + checkId + '" onchange="this.closest(\'[data-fix]\').dataset.accepted=this.checked" style="margin-top:3px;flex-shrink:0">'
+        + '<div style="flex:1" data-fix data-accepted="false">'
+        + '<div style="font-size:10px;color:#475569;font-weight:700;margin-bottom:4px">✂️ SEPARAR ITEM <span style="font-weight:400;color:#94a3b8">(desmarcado por padrão — marque somente se necessário)</span></div>'
         + '<div style="font-size:11px;color:#64748b;margin-bottom:6px">' + esc(fix.reason) + '</div>'
+        
+        // Aviso de quantidade
+        + '<div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:6px;padding:5px 10px;margin-bottom:6px;font-size:11px;color:#92400e">'
+        + '⚠️ <b>Atenção:</b> ao separar, as quantidades do item original <b>não são copiadas</b>. O separador deverá preencher cada sub-item manualmente.'
+        + '</div>'
         
         // Antes
         + '<div style="background:#fee2e2;border:1px solid #fecaca;border-radius:6px;padding:6px 10px;margin-bottom:6px">'
@@ -2119,10 +2156,77 @@ function confirmPreRegDialog() {
   if (cb) cb(true, issues); // true = apply fixes
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// CONFIRMAÇÃO DE UNIDADE — popup antes de registrar
+// ═══════════════════════════════════════════════════════════════════
+function showUnitConfirmDialog(unitName) {
+  return new Promise((resolve) => {
+    // Monta HTML do popup no modal existente
+    const modal = document.getElementById('fichaModal');
+    const toolbar = modal.querySelector('.modal-toolbar');
+    const legend = document.getElementById('fichaModalLegend');
+    const actions = document.getElementById('fichaModalActions');
+    const body = document.getElementById('fichaBody');
+    const stats = document.getElementById('fichaStats');
+    if (!modal || !body) { resolve(true); return; }
+
+    if (toolbar) toolbar.querySelector('.title').textContent = '✅ Confirmar Unidade';
+    if (stats) stats.innerHTML = '';
+    if (actions) actions.style.display = 'none';
+    if (legend) legend.style.display = 'none';
+
+    body.innerHTML = `
+      <div style="padding:28px 20px;text-align:center;max-width:480px;margin:0 auto">
+        <div style="font-size:44px;margin-bottom:12px">🏢</div>
+        <h2 style="font-size:17px;font-weight:800;margin:0 0 8px">Confirmar Unidade</h2>
+        <p style="font-size:13px;color:#64748b;margin:0 0 18px">A requisição será registrada para a seguinte unidade:</p>
+        <div style="background:#eff6ff;border:2px solid #2563eb;border-radius:12px;padding:14px 18px;margin-bottom:24px">
+          <div style="font-size:18px;font-weight:800;color:#1e40af">${esc(unitName)}</div>
+        </div>
+        <p style="font-size:13px;color:#64748b;margin:0 0 22px">Esta unidade está <b>correta</b>?</p>
+        <div style="display:flex;gap:10px;justify-content:center">
+          <button class="btn btn-s" style="min-width:120px;border-color:#ef4444;color:#ef4444"
+            onclick="window.__unitConfirmResolve(false)">
+            ✗ Não / Corrigir
+          </button>
+          <button class="btn btn-p" style="min-width:140px"
+            onclick="window.__unitConfirmResolve(true)">
+            ✓ Sim, registrar
+          </button>
+        </div>
+      </div>`;
+
+    window.__unitConfirmResolve = (result) => {
+      modal.classList.remove('open');
+      window.__unitConfirmResolve = null;
+      resolve(result);
+    };
+
+    modal.classList.add('open');
+  });
+}
+
 async function registrar(){
   if (!tmpParsed) { toast('Anexe uma planilha primeiro.', 'red'); return; }
-  
-  // ─── VALIDAÇÃO PRÉ-REGISTRO ───
+
+  // ─── VALIDAÇÃO: UNIDADE OBRIGATÓRIA ───
+  const uSel = document.getElementById('rU');
+  const detectedUnit = normalizeUnit(tmpParsed.unitName) || tmpParsed.unitName;
+  const finalUnit = uSel.value || (detectedUnit !== 'Desconhecida' ? detectedUnit : '');
+  if (!finalUnit || finalUnit === 'Desconhecida' || finalUnit === 'Unidade') {
+    toast('⚠️ Unidade não identificada. Selecione manualmente no campo "Unidade" antes de registrar.', 'red');
+    uSel.focus();
+    uSel.style.borderColor = '#ef4444';
+    uSel.style.boxShadow = '0 0 0 3px rgba(239,68,68,.2)';
+    setTimeout(() => { uSel.style.borderColor = ''; uSel.style.boxShadow = ''; }, 3000);
+    return;
+  }
+
+  // ─── POPUP DE CONFIRMAÇÃO DE UNIDADE ───
+  const continueWithUnit = await showUnitConfirmDialog(finalUnit);
+  if (!continueWithUnit) return; // usuário clicou "Não / Corrigir"
+
+  // ─── VALIDAÇÃO PRÉ-REGISTRO (itens) ───
   const issues = detectItemIssues(tmpParsed);
   if (issues.length > 0) {
     showPreRegDialog(issues, (apply, fixes) => {
@@ -2130,17 +2234,17 @@ async function registrar(){
         applyItemFixes(tmpParsed, fixes);
         toast(fixes.filter(f => f.accepted).length + ' correção(ões) aplicada(s).', 'green');
       }
-      doRegistrar();
+      doRegistrar(finalUnit);
     });
     return;
   }
-  
-  doRegistrar();
+
+  doRegistrar(finalUnit);
 }
 
-async function doRegistrar(){
+async function doRegistrar(finalUnit){
   const uSel=document.getElementById('rU');
-  const unidade=uSel.value||normalizeUnit(tmpParsed.unitName)||tmpParsed.unitName;
+  const unidade = finalUnit || uSel.value || normalizeUnit(tmpParsed.unitName) || tmpParsed.unitName;
   const itemsMap={};tmpParsed.categories.forEach(c=>c.items.forEach(it=>{itemsMap[it.id]={...it}}));
   const parsedSafe = stripVolatileParsed(tmpParsed);
   const fy = new Date().getFullYear();
@@ -2734,7 +2838,18 @@ function abrirFicha(id, readOnly = false){
     });
   }
 }
-function fecharFicha(){document.getElementById('fichaModal').classList.remove('open');curId=null;renderAll()}
+function fecharFicha(){
+  // Se o popup de confirmação de unidade estiver ativo, resolve como "não" antes de fechar
+  if (typeof window.__unitConfirmResolve === 'function') {
+    const fn = window.__unitConfirmResolve;
+    window.__unitConfirmResolve = null;
+    fn(false);
+    return;
+  }
+  document.getElementById('fichaModal').classList.remove('open');
+  curId=null;
+  renderAll();
+}
 const fichaModalEl = document.getElementById('fichaModal');
 if (fichaModalEl) {
   fichaModalEl.addEventListener('click',e=>{if(e.target.id==='fichaModal')fecharFicha()});
@@ -3882,6 +3997,40 @@ function normalizeUnit(raw){
   if(HIST_ALIASES[k])return HIST_ALIASES[k];
   for(const [re,canon] of UNIT_MAP){if(re.test(s)||re.test(rmAcc(s)))return canon;}
   if(/^(fornecimento|data:|unidade de acolhimento$|separado|entregue|recebido)/i.test(s))return'Desconhecida';
+
+  // ── Correspondência contra unidades reais do banco de dados ──
+  const unidades = getUnidades() || [];
+  if (unidades.length > 0) {
+    const norm = (x) => rmAcc(String(x||'')).toUpperCase().replace(/\s+/g,' ').trim();
+    const normRaw = norm(s);
+    if (normRaw.length < 3) return s;
+
+    // 1. Correspondência exata (sem acentos, case-insensitive)
+    const exact = unidades.find(u => norm(u.nome||u.unidadeNome||'') === normRaw);
+    if (exact) return (exact.nome||exact.unidadeNome||'').trim();
+
+    // 2. Nome do banco está contido no texto detectado
+    //    Ex: detectado "CRAS SÃO FRANCISCO 22" → banco "Cras São Francisco"
+    // Ordena por tamanho decrescente para preferir o match mais específico
+    const byLen = [...unidades].sort((a,b)=>{
+      const la=norm(a.nome||a.unidadeNome||'').length;
+      const lb=norm(b.nome||b.unidadeNome||'').length;
+      return lb-la;
+    });
+    const startsWith = byLen.find(u => {
+      const nu = norm(u.nome||u.unidadeNome||'');
+      return nu.length >= 4 && (normRaw.startsWith(nu) || nu.startsWith(normRaw));
+    });
+    if (startsWith) return (startsWith.nome||startsWith.unidadeNome||'').trim();
+
+    // 3. O texto detectado contém o nome do banco (ou vice-versa) — palavras-chave
+    const contains = byLen.find(u => {
+      const nu = norm(u.nome||u.unidadeNome||'');
+      return nu.length >= 5 && (normRaw.includes(nu) || nu.includes(normRaw));
+    });
+    if (contains) return (contains.nome||contains.unidadeNome||'').trim();
+  }
+
   return s;
 }
 
@@ -8157,11 +8306,22 @@ export function initSeparacao() {
   try { populateUnidadesSelect(); } catch (e) { console.error(e); }
   try { applySeparacaoRoleUI(); } catch (e) { console.error(e); }
   try {
-    const EXPORTS = { goTab, registrar, previewReq, pegarParaSeparar, entregarReq, abrirFicha, fecharFicha, marcarPronto, marcarProntoLista, voltarSeparacao, printReq, printFicha, cancelarReq, excluirHistoricoReq, renderBuracos, renderUnificar, buildPainel, gerarRelatorio, exportarCSV, handleFile, handleHistFiles, ck, okModal, closeModal, showModal, editEntryYear, editEntryPeriod, toggleDetail, removeHistEntry, openEditor, closeEditor, saveEditor, edRemoveItem, edAddItem, edAddCat, clearHistDB, clearMateriaisDB, removeDuplicatesAuto, recalcAllDates, exportBackup, importBackup, goToFile, goPage, onModeChange, clearFilters, clearPanFilters, clearYears, selAllYears, clearAllAliases, doUnifMerge, toggleUnifSel, unifRemoveSel, clearUnifSel, removeAlias, openPrintBuracos, doPrintBuracos, showOrigemUnidade, showOrigemCategoria, renderRelatorio, renderCorrecaoItens, setFixView, fixGoPage, applyMatFix, applyMatFixBulk, removeMatFix, clearAllMatFixes, applyCatFix, removeCatFix, clearAllCatFixes, closePreRegDialog, skipPreRegDialog, confirmPreRegDialog, copyItemsList, diagnoseAliases, setPanTipo, loadAllHistDBAndRefresh, addFichaItem, removeFichaItem, editMaterial, switchMatView, switchPanSub, PAGE_STATE, debouncedRenderPS, debouncedRenderES, debouncedRenderPE, debouncedRenderHI };
+    const EXPORTS = { goTab, registrar, previewReq, showUnitConfirmDialog, pegarParaSeparar, entregarReq, abrirFicha, fecharFicha, marcarPronto, marcarProntoLista, voltarSeparacao, printReq, printFicha, cancelarReq, excluirHistoricoReq, renderBuracos, renderUnificar, buildPainel, gerarRelatorio, exportarCSV, handleFile, handleHistFiles, ck, okModal, closeModal, showModal, editEntryYear, editEntryPeriod, toggleDetail, removeHistEntry, openEditor, closeEditor, saveEditor, edRemoveItem, edAddItem, edAddCat, clearHistDB, clearMateriaisDB, removeDuplicatesAuto, recalcAllDates, exportBackup, importBackup, goToFile, goPage, onModeChange, clearFilters, clearPanFilters, clearYears, selAllYears, clearAllAliases, doUnifMerge, toggleUnifSel, unifRemoveSel, clearUnifSel, removeAlias, openPrintBuracos, doPrintBuracos, showOrigemUnidade, showOrigemCategoria, renderRelatorio, renderCorrecaoItens, setFixView, fixGoPage, applyMatFix, applyMatFixBulk, removeMatFix, clearAllMatFixes, applyCatFix, removeCatFix, clearAllCatFixes, closePreRegDialog, skipPreRegDialog, confirmPreRegDialog, copyItemsList, diagnoseAliases, setPanTipo, loadAllHistDBAndRefresh, addFichaItem, removeFichaItem, editMaterial, switchMatView, switchPanSub, PAGE_STATE, debouncedRenderPS, debouncedRenderES, debouncedRenderPE, debouncedRenderHI };
     Object.entries(EXPORTS).forEach(([k, v]) => { window[k] = v; });
   } catch (e) { console.error(e); }
   try { loadHistDB(); } catch (e) { console.error(e); }
   try { wrapPermissions(); } catch (_) {}
+
+  // ── Limpa destaque de aviso quando o usuário seleciona manualmente ──
+  try {
+    const uSel = document.getElementById('rU');
+    if (uSel) {
+      uSel.addEventListener('change', () => {
+        uSel.style.borderColor = '';
+        uSel.style.boxShadow = '';
+      });
+    }
+  } catch (_) {}
 }
 
 export function onSeparacaoTabChange() {
