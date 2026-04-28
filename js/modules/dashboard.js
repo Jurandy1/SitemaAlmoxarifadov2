@@ -1,8 +1,16 @@
-// js/modules/dashboard.js
+// js/modules/dashboard.js// js/modules/dashboard.js
 import { getAguaMovimentacoes, getGasMovimentacoes, getEstoqueAgua, getEstoqueGas, getMateriais, getEntregas, getCurrentDashboardMaterialFilter, setCurrentDashboardMaterialFilter } from "../utils/cache.js";
 import { DOM_ELEMENTS } from "../utils/dom-helpers.js";
 import { formatTimestamp } from "../utils/formatters.js";
 import Chart from 'chart.js/auto';
+
+// ── Corte de data para cálculo do estoque de gás ──────────────────────────
+// Apenas registros a partir de 13/04/2026 são contabilizados no estoque.
+// Isso garante que o número exibido no Modo TV bata com o painel de Gás.
+const GAS_CUTOFF_MS = new Date('2026-04-13T00:00:00.000').getTime();
+function filterGasAfterCutoff(items) {
+    return (items || []).filter(item => (item.data?.toMillis?.() ?? 0) >= GAS_CUTOFF_MS);
+}
 
 let dashboardAguaChartInstance, dashboardGasChartInstance;
 let dashboardRefreshInterval = null;
@@ -203,25 +211,29 @@ function renderDashboardAguaSummary() {
 
 function renderDashboardGasSummary() {
     try {
-        const movs = (getGasMovimentacoes() || []).filter(m => !isHistoricoImportado(m));
-        const estoqueGas = getEstoqueGas() || [];
+        // ✅ FIX: aplica corte de 13/04/2026 — igual ao painel "Controle de Gás"
+        const estoqueGas = filterGasAfterCutoff(getEstoqueGas() || []);
+        const movs = filterGasAfterCutoff(
+            (getGasMovimentacoes() || []).filter(m => !isHistoricoImportado(m))
+        );
 
-        const estoqueInicial = estoqueGas.filter(e => e.tipo === 'inicial').reduce((sum, e) => sum + (e.quantidade || 0), 0);
-        const totalEntradas = estoqueGas.filter(e => e.tipo === 'entrada').reduce((sum, e) => sum + (e.quantidade || 0), 0);
-        const totalSaidas = movs.filter(m => m.tipo === 'entrega').reduce((sum, m) => sum + (m.quantidade || 0), 0);
+        const estoqueInicial = estoqueGas.filter(e => e.tipo === 'inicial').reduce((sum, e) => sum + (parseInt(e.quantidade, 10) || 0), 0);
+        const totalEntradas = estoqueGas.filter(e => e.tipo === 'entrada').reduce((sum, e) => sum + (parseInt(e.quantidade, 10) || 0), 0);
+        const totalSaidas = movs.filter(m => m.tipo === 'entrega').reduce((sum, m) => sum + (parseInt(m.quantidade, 10) || 0), 0);
         const estoqueAtual = Math.max(0, estoqueInicial + totalEntradas - totalSaidas);
         
-        const totalEntregueGeral = movs.filter(m => m.tipo === 'entrega').reduce((sum, m) => sum + (m.quantidade || 0), 0);
-        const totalRecebidoGeral = movs.filter(m => (m.tipo === 'retorno' || m.tipo === 'retirada')).reduce((sum, m) => sum + (m.quantidade || 0), 0);
+        const totalEntregueGeral = movs.filter(m => m.tipo === 'entrega').reduce((sum, m) => sum + (parseInt(m.quantidade, 10) || 0), 0);
+        const totalRecebidoGeral = movs.filter(m => (m.tipo === 'retorno' || m.tipo === 'retirada')).reduce((sum, m) => sum + (parseInt(m.quantidade, 10) || 0), 0);
         
         const movs30Dias = filterLast30Days(movs);
-        const totalEntregue30d = movs30Dias.filter(m => m.tipo === 'entrega').reduce((sum, m) => sum + (m.quantidade || 0), 0);
-        const totalRecebido30d = movs30Dias.filter(m => (m.tipo === 'retorno' || m.tipo === 'retirada')).reduce((sum, m) => sum + (m.quantidade || 0), 0);
+        const totalEntregue30d = movs30Dias.filter(m => m.tipo === 'entrega').reduce((sum, m) => sum + (parseInt(m.quantidade, 10) || 0), 0);
+        const totalRecebido30d = movs30Dias.filter(m => (m.tipo === 'retorno' || m.tipo === 'retirada')).reduce((sum, m) => sum + (parseInt(m.quantidade, 10) || 0), 0);
 
         if (DOM_ELEMENTS.summaryGasPendente) DOM_ELEMENTS.summaryGasPendente.textContent = totalEntregueGeral - totalRecebidoGeral; 
         if (DOM_ELEMENTS.summaryGasEntregue) DOM_ELEMENTS.summaryGasEntregue.textContent = totalEntregue30d;
         if (DOM_ELEMENTS.summaryGasRecebido) DOM_ELEMENTS.summaryGasRecebido.textContent = totalRecebido30d;
 
+        // ✅ Este é o valor exibido no Modo TV (id="dashboard-estoque-gas")
         if (DOM_ELEMENTS.dashboardEstoqueGasEl) DOM_ELEMENTS.dashboardEstoqueGasEl.textContent = estoqueAtual;
     } catch (e) { console.error("Erro ao renderizar sumário Gás:", e); }
 }
