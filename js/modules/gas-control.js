@@ -1,4 +1,4 @@
-// js/modules/gas-control.js
+// js/modules/gas-control.js// js/modules/gas-control.js
 // Módulo de Controle de Gás — SEMCAS Almoxarifado v2
 
 import { Timestamp, addDoc, serverTimestamp } from "firebase/firestore";
@@ -19,7 +19,9 @@ import { COLLECTIONS }               from "../services/firestore-service.js";
 import { executeFinalMovimentacao }  from "./movimentacao-modal-handler.js";
 import { generateGasReport }         from "./gas-report.js";
 
-// ─── CORTE DE DATA: apenas dados a partir de 13/04/2026 contam ───────────────
+// ─── CORTE DE DATA: apenas dados a partir de 13/04/2026 contam nos CÁLCULOS ──
+// ATENÇÃO: Este filtro NÃO é aplicado ao Histórico Geral (exibição).
+//          Ele é aplicado somente em: estoque atual, status de saldo, dashboard.
 const GAS_CUTOFF_MS = new Date('2026-04-13T00:00:00.000').getTime();
 
 function _filterAfterCutoff(items) {
@@ -27,26 +29,31 @@ function _filterAfterCutoff(items) {
 }
 
 // =========================================================================
+// FIX 1 — DASHBOARD TV
+// Exporta um resumo já filtrado pelo corte para uso no dashboard.js
+// No dashboard.js, substitua os cálculos manuais de gás por esta função:
+//   import { getGasStockSummaryFiltered } from "./gas-control.js";
+//   const { atual } = getGasStockSummaryFiltered();
+// =========================================================================
+export function getGasStockSummaryFiltered() {
+    const estoqueData = _filterAfterCutoff(getEstoqueGas() || []);
+    const movs        = _filterAfterCutoff(getGasMovimentacoes() || []);
+    const inicial  = estoqueData.filter(e => e.tipo === 'inicial').reduce((s, e) => s + (parseInt(e.quantidade, 10) || 0), 0);
+    const entradas = estoqueData.filter(e => e.tipo === 'entrada').reduce((s, e) => s + (parseInt(e.quantidade, 10) || 0), 0);
+    const saidas   = movs.filter(m => m.tipo === 'entrega').reduce((s, m) => s + (parseInt(m.quantidade, 10) || 0), 0);
+    const atual    = Math.max(0, inicial + entradas - saidas);
+    return { inicial, entradas, saidas, atual };
+}
+
+// =========================================================================
 // UTILITÁRIOS INTERNOS
 // =========================================================================
 
-/**
- * Renderiza ícones Lucide com escopo no elemento recebido.
- * Evita re-processar ícones já existentes no restante da página.
- */
 function _lucide(el) {
     if (typeof lucide === 'undefined') return;
-    try {
-        lucide.createIcons({ el: el ?? document.body });
-    } catch (_) {
-        lucide.createIcons();
-    }
+    try { lucide.createIcons({ el: el ?? document.body }); } catch (_) { lucide.createIcons(); }
 }
 
-/**
- * Botão de exclusão (admin) ou ícone de bloqueio (demais perfis).
- * Usa data-attributes padrão reconhecidos pelo handler global de delete.
- */
 function _actionBtn(id, type, details, isAdmin) {
     if (isAdmin) {
         return `<button
@@ -61,37 +68,31 @@ function _actionBtn(id, type, details, isAdmin) {
         <i data-lucide="slash"></i></span>`;
 }
 
-/** Linha única de tabela vazia. */
 function _emptyRow(cols, msg) {
     return `<tr><td colspan="${cols}"
         class="text-center py-8 text-slate-400 italic text-sm">${msg}</td></tr>`;
 }
 
-/** Badge colorido. */
 function _badge(cls, text) {
     return `<span class="badge ${escapeHTML(cls)}">${escapeHTML(text)}</span>`;
 }
 
 // =========================================================================
 // ESTOQUE — PAINEL RESUMO
+// (usa corte: mostra o estoque real disponível a partir de 13/04/2026)
 // =========================================================================
 
 export function renderEstoqueGas() {
-    const estoqueEl    = document.getElementById('resumo-estoque-gas');
-    const loadingEl    = document.getElementById('loading-estoque-gas');
-    const inicialBtnEl = document.getElementById('btn-abrir-inicial-gas');
+    const estoqueEl     = document.getElementById('resumo-estoque-gas');
+    const loadingEl     = document.getElementById('loading-estoque-gas');
+    const inicialBtnEl  = document.getElementById('btn-abrir-inicial-gas');
     const inicialContEl = document.getElementById('form-inicial-gas-container');
 
     loadingEl?.classList.add('hidden');
 
-    const estoqueData = _filterAfterCutoff(getEstoqueGas() || []);
-    const movs        = _filterAfterCutoff(getGasMovimentacoes() || []);
-    const hasInicial  = estoqueData.some(e => e.tipo === 'inicial');
-
-    const inicial  = estoqueData.filter(e => e.tipo === 'inicial').reduce((s, e) => s + (parseInt(e.quantidade, 10) || 0), 0);
-    const entradas = estoqueData.filter(e => e.tipo === 'entrada').reduce((s, e) => s + (parseInt(e.quantidade, 10) || 0), 0);
-    const saidas   = movs.filter(m => m.tipo === 'entrega').reduce((s, m) => s + (parseInt(m.quantidade, 10) || 0), 0);
-    const atual    = Math.max(0, inicial + entradas - saidas);
+    // Painel de resumo usa o corte — representa o estoque contável atual
+    const { inicial, entradas, saidas, atual } = getGasStockSummaryFiltered();
+    const hasInicial = _filterAfterCutoff(getEstoqueGas() || []).some(e => e.tipo === 'inicial');
 
     if (!hasInicial) {
         inicialContEl?.classList.remove('hidden');
@@ -118,10 +119,7 @@ export function renderEstoqueGas() {
 export async function handleInicialEstoqueSubmit(e) {
     e.preventDefault();
 
-    if (!isReady()) {
-        showAlert('alert-inicial-gas', 'Erro: Não autenticado.', 'error');
-        return;
-    }
+    if (!isReady()) { showAlert('alert-inicial-gas', 'Erro: Não autenticado.', 'error'); return; }
 
     const role = getUserRole();
     if (role !== 'admin') {
@@ -129,7 +127,6 @@ export async function handleInicialEstoqueSubmit(e) {
         return;
     }
 
-    // IDs corretos do formulário #form-inicial-gas
     const qtdEl     = document.getElementById('input-inicial-qtd-gas');
     const respEl    = document.getElementById('input-inicial-responsavel-gas');
     const submitBtn = document.getElementById('btn-submit-inicial-gas');
@@ -146,23 +143,15 @@ export async function handleInicialEstoqueSubmit(e) {
         return;
     }
 
-    if (submitBtn) {
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<div class="loading-spinner-small mx-auto"></div>';
-    }
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = '<div class="loading-spinner-small mx-auto"></div>'; }
 
     try {
-        // data: Timestamp.now() garante que o registro passa o filtro _filterAfterCutoff
         await addDoc(COLLECTIONS.estoqueGas, {
-            tipo:         'inicial',
-            quantidade,
-            responsavel,
-            data:         Timestamp.now(),
-            registradoEm: serverTimestamp(),
+            tipo: 'inicial', quantidade, responsavel,
+            data: Timestamp.now(), registradoEm: serverTimestamp(),
         });
         showAlert('alert-inicial-gas', '✅ Estoque inicial de gás definido com sucesso!', 'success');
         e.target?.reset();
-        // O listener Firestore atualiza o cache e dispara renderEstoqueGas automaticamente.
     } catch (error) {
         showAlert('alert-inicial-gas', `Erro ao salvar: ${error.message}`, 'error');
     } finally {
@@ -279,13 +268,8 @@ export async function handleGasSubmit(e) {
         if (!isEstoqueInicialDefinido('gas'))
             throw new Error('Defina o Estoque Inicial de Gás antes de lançar saídas.');
 
-        const estoqueData    = _filterAfterCutoff(getEstoqueGas() || []);
-        const movsCutoff     = _filterAfterCutoff(getGasMovimentacoes() || []);
-        const estoqueInicial = estoqueData.filter(e => e.tipo === 'inicial').reduce((s, e) => s + (parseInt(e.quantidade, 10) || 0), 0);
-        const totalEntradas  = estoqueData.filter(e => e.tipo === 'entrada').reduce((s, e) => s + (parseInt(e.quantidade, 10) || 0), 0);
-        const totalSaidas    = movsCutoff.filter(m => m.tipo === 'entrega').reduce((s, m) => s + (parseInt(m.quantidade, 10) || 0), 0);
-        const estoqueAtual   = Math.max(0, estoqueInicial + totalEntradas - totalSaidas);
-
+        // Valida estoque disponível usando o filtro de corte
+        const { atual: estoqueAtual } = getGasStockSummaryFiltered();
         if (qtdEntregue > estoqueAtual)
             throw new Error(`Estoque insuficiente. Disponível: ${estoqueAtual} botijão(ões).`);
 
@@ -302,7 +286,8 @@ export async function handleGasSubmit(e) {
 }
 
 // =========================================================================
-// STATUS — SALDO POR UNIDADE (após o corte)
+// STATUS — SALDO POR UNIDADE
+// (usa corte: saldo real a partir de 13/04/2026)
 // =========================================================================
 
 export function renderGasStatus() {
@@ -316,6 +301,7 @@ export function renderGasStatus() {
         statusMap.set(u.id, { id: u.id, nome: u.nome, tipo, totalSaidas: 0, ultimoLancamento: null });
     });
 
+    // Saldo usa o corte — representa débitos reais contabilizados
     const movs = _filterAfterCutoff([...getGasMovimentacoes()])
         .sort((a, b) => (b.data?.toMillis() || 0) - (a.data?.toMillis() || 0));
 
@@ -358,32 +344,40 @@ export function renderGasStatus() {
     if (filtro?.value) filterTable(filtro, 'table-status-gas');
 }
 
-// Mantido para compatibilidade — seção de débitos foi removida do módulo de gás
 export function renderGasDebitosResumo() {}
 export function getDebitosGasResumoList() { return []; }
 
 // =========================================================================
-// HISTÓRICO — ENTRADAS DE ESTOQUE
+// FIX 2 — HISTÓRICO DE ENTRADAS DE ESTOQUE
+// Exibe TODOS os registros, sem aplicar o corte de data.
+// O corte só afeta os cálculos de estoque disponível.
 // =========================================================================
 
 export function renderGasEstoqueHistory() {
     const table = DOM_ELEMENTS.tableHistoricoEstoqueGas;
     if (!table) return;
 
-    const isAdmin  = getUserRole() === 'admin';
-    const ordenado = [..._filterAfterCutoff(getEstoqueGas())]
+    const isAdmin = getUserRole() === 'admin';
+
+    // ✅ SEM _filterAfterCutoff — exibe todo o histórico
+    const ordenado = [...(getEstoqueGas() || [])]
         .sort((a, b) => (b.registradoEm?.toMillis() || 0) - (a.registradoEm?.toMillis() || 0));
 
     if (ordenado.length === 0) {
-        table.innerHTML = _emptyRow(7, 'Nenhuma entrada de estoque após 13/04/2026.');
+        table.innerHTML = _emptyRow(7, 'Nenhuma entrada de estoque registrada.');
         return;
     }
 
     table.innerHTML = ordenado.map(m => {
-        const isInicial = m.tipo === 'inicial';
-        const details   = `${isInicial ? 'Estoque Inicial' : 'Entrada Manual'}: ${m.quantidade} botijão(ões).`;
-        return `<tr>
-            <td>${_badge(isInicial ? 'badge-blue' : 'badge-green', isInicial ? 'Inicial (Sistema)' : 'Entrada Manual')}</td>
+        const isInicial  = m.tipo === 'inicial';
+        const isOld      = (m.data?.toMillis?.() ?? 0) < GAS_CUTOFF_MS;
+        const details    = `${isInicial ? 'Estoque Inicial' : 'Entrada Manual'}: ${m.quantidade} botijão(ões).`;
+        const oldTag     = isOld
+            ? `<span title="Anterior ao corte de 13/04/2026 — não contabilizado no estoque atual"
+                 style="font-size:9px;color:#94a3b8;margin-left:4px">⚠️ não contabilizado</span>`
+            : '';
+        return `<tr style="${isOld ? 'opacity:.65' : ''}">
+            <td>${_badge(isInicial ? 'badge-blue' : 'badge-green', isInicial ? 'Inicial (Sistema)' : 'Entrada Manual')}${oldTag}</td>
             <td class="text-center font-medium">${m.quantidade ?? '—'}</td>
             <td>${formatTimestampComTempo(m.data)}</td>
             <td>${escapeHTML(m.notaFiscal || '—')}</td>
@@ -393,7 +387,6 @@ export function renderGasEstoqueHistory() {
         </tr>`;
     }).join('');
 
-    // Escopo no tbody: garante que o ícone trash-2 seja processado no HTML dinâmico
     _lucide(table);
 
     const filtro = DOM_ELEMENTS.filtroHistoricoEstoqueGas;
@@ -401,7 +394,9 @@ export function renderGasEstoqueHistory() {
 }
 
 // =========================================================================
-// HISTÓRICO — MOVIMENTAÇÕES GERAIS (Saídas)
+// FIX 2 — HISTÓRICO GERAL DE MOVIMENTAÇÕES
+// Exibe TODOS os registros, sem aplicar o corte de data.
+// Registros anteriores a 13/04/2026 aparecem com marcação visual.
 // =========================================================================
 
 export function renderGasMovimentacoesHistory() {
@@ -409,20 +404,27 @@ export function renderGasMovimentacoesHistory() {
     if (!table) return;
 
     const isAdmin  = getUserRole() === 'admin';
+
+    // ✅ SEM _filterAfterCutoff na base — exibe todo o histórico
     const ordenado = getFilteredGasMovimentacoes()
         .sort((a, b) => (b.registradoEm?.toMillis() || 0) - (a.registradoEm?.toMillis() || 0));
 
     if (ordenado.length === 0) {
-        table.innerHTML = _emptyRow(9, 'Nenhuma movimentação após 13/04/2026.');
+        table.innerHTML = _emptyRow(9, 'Nenhuma movimentação registrada.');
         return;
     }
 
     table.innerHTML = ordenado.map(m => {
+        const isOld  = (m.data?.toMillis?.() ?? 0) < GAS_CUTOFF_MS;
         const details = `Saída — ${escapeHTML(m.unidadeNome || 'N/A')} (${m.quantidade} botijão(ões))`;
-        return `<tr>
+        const oldTag  = isOld
+            ? `<span title="Anterior ao corte de 13/04/2026 — não contabilizado no estoque atual"
+                 style="font-size:9px;color:#94a3b8;margin-left:4px">⚠️</span>`
+            : '';
+        return `<tr style="${isOld ? 'opacity:.65' : ''}">
             <td class="text-xs text-gray-400 font-mono">${escapeHTML(m.id)}</td>
             <td>${escapeHTML(m.unidadeNome || 'N/A')}</td>
-            <td>${_badge('badge-red', 'Saída')}</td>
+            <td>${_badge('badge-red', 'Saída')}${oldTag}</td>
             <td class="text-center font-medium">${m.quantidade ?? '—'}</td>
             <td>${formatTimestampComTempo(m.data)}</td>
             <td>${escapeHTML(m.responsavelAlmoxarifado || 'N/A')}</td>
@@ -443,20 +445,22 @@ export function renderGasMovimentacoesHistory() {
 // =========================================================================
 
 function checkGasHistoryIntegrity() {
-    const movs    = _filterAfterCutoff(getGasMovimentacoes()).filter(m => m.tipo === 'entrega');
-    const estoque = _filterAfterCutoff(getEstoqueGas());
-    const incons  = movs.filter(m => !m.id || !m.unidadeId || !m.data || !m.quantidade).length;
+    // Verifica apenas registros após o corte (são os que afetam o estoque)
+    const movs   = _filterAfterCutoff(getGasMovimentacoes()).filter(m => m.tipo === 'entrega');
+    const incons = movs.filter(m => !m.id || !m.unidadeId || !m.data || !m.quantidade).length;
 
     const msg  = incons === 0
-        ? 'Integridade OK — nenhuma inconsistência detectada.'
+        ? 'Integridade OK — nenhuma inconsistência nos registros contabilizados.'
         : `${incons} possível(is) inconsistência(s) detectada(s). Verifique os registros.`;
     const type = incons === 0 ? 'info' : 'warning';
 
     if (document.getElementById('alert-historico-gas'))
         showAlert('alert-historico-gas', msg, type);
+
+    const total = (getEstoqueGas() || []).length;
     if (document.getElementById('alert-historico-estoque-gas'))
         showAlert('alert-historico-estoque-gas',
-            `${estoque.length} registro(s) de estoque a partir de 13/04/2026.`, 'info');
+            `${total} registro(s) de estoque no total. Registros anteriores a 13/04/2026 aparecem esmaecidos e não contam no estoque atual.`, 'info');
 }
 
 // =========================================================================
@@ -488,6 +492,8 @@ function populateGasFilterUnidades() {
     sel.value = anterior || '';
 }
 
+// ✅ FIX 2: getFilteredGasMovimentacoes não aplica mais _filterAfterCutoff na base.
+// Mostra TODOS os registros, respeitando apenas os filtros manuais do usuário.
 function getFilteredGasMovimentacoes() {
     const unidadeId      = document.getElementById('filtro-unidade-gas')?.value     || '';
     const unidadeTipoSel = (document.getElementById('filtro-unidade-tipo-gas')?.value || '').toUpperCase();
@@ -496,7 +502,8 @@ function getFilteredGasMovimentacoes() {
     const dataIniStr     = document.getElementById('filtro-data-inicio-gas')?.value  || '';
     const dataFimStr     = document.getElementById('filtro-data-fim-gas')?.value     || '';
 
-    const base       = _filterAfterCutoff(getGasMovimentacoes()).filter(m => m.tipo === 'entrega');
+    // ✅ Usa todos os registros, sem corte de data automático
+    const base       = (getGasMovimentacoes() || []).filter(m => m.tipo === 'entrega');
     const dataIniMs  = dataIniStr ? dateToTimestamp(dataIniStr)?.toMillis() : null;
     const dataFimMs  = dataFimStr ? dateToTimestamp(dataFimStr)?.toMillis() : null;
     const dataFimEOD = dataFimMs  ? dataFimMs + 86_399_999 : null;
@@ -534,27 +541,22 @@ function getFilteredGasMovimentacoes() {
 // =========================================================================
 
 export function initGasListeners() {
-    // Formulários principais
     DOM_ELEMENTS.formGas?.addEventListener('submit',        handleGasSubmit);
     DOM_ELEMENTS.formEntradaGas?.addEventListener('submit', handleEntradaEstoqueSubmit);
     DOM_ELEMENTS.formInicialGas?.addEventListener('submit', handleInicialEstoqueSubmit);
 
-    // Unidade selecionada
     DOM_ELEMENTS.selectUnidadeGas?.addEventListener('change', checkUnidadeSaldoAlertGas);
 
-    // Botão "Definir Estoque Inicial" (reabrir form após já ter definido)
     DOM_ELEMENTS.btnAbrirInicialGas?.addEventListener('click', () => {
         document.getElementById('form-inicial-gas-container')?.classList.remove('hidden');
         DOM_ELEMENTS.btnAbrirInicialGas?.classList.add('hidden');
     });
 
-    // Busca rápida
     document.getElementById('filtro-status-gas')
         ?.addEventListener('input', e => filterTable(e.target, 'table-status-gas'));
     document.getElementById('filtro-historico-gas')
         ?.addEventListener('input', e => filterTable(e.target, 'table-historico-gas-all'));
 
-    // Filtros avançados — histórico de movimentações
     ['filtro-tipo-gas','filtro-unidade-gas','filtro-responsavel-gas',
      'filtro-origem-gas','filtro-data-inicio-gas','filtro-data-fim-gas']
         .forEach(id => document.getElementById(id)
@@ -565,14 +567,12 @@ export function initGasListeners() {
             })
         );
 
-    // Filtro por tipo de unidade → repopula select de unidades
     document.getElementById('filtro-unidade-tipo-gas')
         ?.addEventListener('change', () => {
             populateGasFilterUnidades();
             renderGasMovimentacoesHistory();
         });
 
-    // Limpar todos os filtros
     document.getElementById('btn-limpar-filtros-gas')
         ?.addEventListener('click', () => {
             ['filtro-tipo-gas','filtro-unidade-tipo-gas','filtro-unidade-gas','filtro-responsavel-gas',
@@ -582,20 +582,17 @@ export function initGasListeners() {
             renderGasMovimentacoesHistory();
         });
 
-    // Filtro no histórico de estoque
     DOM_ELEMENTS.filtroHistoricoEstoqueGas
         ?.addEventListener('input', () =>
             filterTable(DOM_ELEMENTS.filtroHistoricoEstoqueGas, DOM_ELEMENTS.tableHistoricoEstoqueGas?.id)
         );
 
-    // Sub-navegação principal (Movimentação / Histórico / Status)
     document.getElementById('sub-nav-gas')
         ?.addEventListener('click', e => {
             const btn = e.target.closest('.sub-nav-btn');
             if (btn?.dataset.subview) switchSubTabView('gas', btn.dataset.subview);
         });
 
-    // Filtros de saldo no painel de status
     document.querySelectorAll('#filtro-saldo-gas-controls button').forEach(btn =>
         btn.addEventListener('click', () => {
             document.querySelectorAll('#filtro-saldo-gas-controls button')
@@ -605,7 +602,6 @@ export function initGasListeners() {
         })
     );
 
-    // Abas do formulário (Saída / Entrada no Estoque)
     document.querySelectorAll('#content-gas .form-tab-btn').forEach(btn =>
         btn.addEventListener('click', () => {
             const formName = btn.dataset.form;
@@ -618,7 +614,6 @@ export function initGasListeners() {
         })
     );
 
-    // Inner nav do lançamento
     document.querySelector('#subview-movimentacao-gas .module-inner-subnav')
         ?.addEventListener('click', e => {
             const btn = e.target.closest('button.sub-nav-btn[data-inner]');
@@ -630,11 +625,9 @@ export function initGasListeners() {
             DOM_ELEMENTS.innerGasResumo?.classList.add('hidden');
         });
 
-    // Botão ver status
     DOM_ELEMENTS.btnVerStatusGas
         ?.addEventListener('click', () => switchSubTabView('gas', 'status-gas'));
 
-    // Gerar relatório
     document.getElementById('btn-gerar-relatorio-gas')
         ?.addEventListener('click', () => {
             const start = document.getElementById('relatorio-gas-data-inicio')?.value || '';
@@ -664,13 +657,12 @@ export function onGasTabChange() {
     if (DOM_ELEMENTS.inputDataGas)        DOM_ELEMENTS.inputDataGas.value        = getTodayDateString();
     if (DOM_ELEMENTS.inputDataEntradaGas) DOM_ELEMENTS.inputDataEntradaGas.value = getTodayDateString();
 
-    // Por padrão: exibir diretamente o formulário de lançamento
     DOM_ELEMENTS.innerGasResumo?.classList.add('hidden');
     DOM_ELEMENTS.innerGasLancamento?.classList.remove('hidden');
     DOM_ELEMENTS.btnInnerGasLancamento?.classList.add('active');
     DOM_ELEMENTS.btnInnerGasResumo?.classList.remove('active');
 
     populateGasFilterUnidades();
-    checkGasHistoryIntegrity(); // chamada única aqui — não repetida dentro de renderGasMovimentacoesHistory
+    checkGasHistoryIntegrity();
     renderPermissionsUI();
 }
