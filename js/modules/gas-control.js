@@ -66,7 +66,63 @@ export function renderEstoqueGas() {
 }
 
 export async function handleInicialEstoqueSubmit(e) {
-    await gasControl.handleInicialEstoqueSubmit(e);
+    e.preventDefault();
+
+    if (!isReady()) {
+        showAlert('alert-inicial-gas', 'Erro: Não autenticado.', 'error');
+        return;
+    }
+
+    const role = getUserRole();
+    if (role !== 'admin') {
+        showAlert('alert-inicial-gas', 'Permissão negada. Apenas Administradores podem definir o estoque inicial.', 'error');
+        return;
+    }
+
+    // ← IDs corretos do formulário #form-inicial-gas no HTML
+    const qtdEl    = document.getElementById('input-inicial-qtd-gas');
+    const respEl   = document.getElementById('input-inicial-responsavel-gas');
+    const submitBtn = document.getElementById('btn-submit-inicial-gas');
+
+    const quantidade  = parseInt(qtdEl?.value, 10);
+    const responsavel = capitalizeString((respEl?.value || '').trim());
+
+    if (isNaN(quantidade) || quantidade < 0) {
+        showAlert('alert-inicial-gas', 'Informe uma quantidade inicial válida (mínimo 0).', 'warning');
+        return;
+    }
+    if (!responsavel) {
+        showAlert('alert-inicial-gas', 'Informe o nome do responsável.', 'warning');
+        return;
+    }
+
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<div class="loading-spinner-small mx-auto"></div>';
+    }
+
+    try {
+        // ← CRÍTICO: data: Timestamp.now() garante que o registro passa o filtro _filterAfterCutoff
+        await addDoc(COLLECTIONS.estoqueGas, {
+            tipo:         'inicial',
+            quantidade,
+            responsavel,
+            data:         Timestamp.now(),   // campo obrigatório para o filtro de corte
+            registradoEm: serverTimestamp(),
+        });
+
+        showAlert('alert-inicial-gas', 'Estoque inicial de gás definido com sucesso!', 'success');
+        if (e.target) e.target.reset();
+        // O listener do Firestore atualiza o cache e chama renderEstoqueGas automaticamente.
+    } catch (error) {
+        showAlert('alert-inicial-gas', `Erro ao salvar: ${error.message}`, 'error');
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i data-lucide="save"></i><span>Salvar Inicial</span>';
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+    }
 }
 
 export async function handleEntradaEstoqueSubmit(e) {
