@@ -366,7 +366,7 @@
      * ─────────────────────────────────────────────────────────────────
      */
 
-    import { initializeFirebaseServices, COLLECTIONS }
+    import { initializeFirebaseServices, COLLECTIONS, ensureCollectionsWithData }
       from './js/services/firestore-service.js';
     import { initAuthAndListeners, signInAnonUser, isReady }
       from './js/modules/auth.js';
@@ -599,6 +599,8 @@
 
       loading = true; setUI(true); clearNotice();
       try {
+        // Detecta automaticamente onde estão os dados (primary vs legacy path)
+        await ensureCollectionsWithData();
         const data = await fetchAll();
         renderStock('waterBody', data.agua, 'galões disponíveis no almoxarifado', 10, true);
         renderStock('gasBody',   data.gas,  'botijões disponíveis no almoxarifado', 3, false);
