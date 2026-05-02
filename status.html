@@ -366,19 +366,21 @@
      * ─────────────────────────────────────────────────────────────────
      */
 
-    import { initializeFirebaseServices, COLLECTIONS, ensureCollectionsWithData }
+    import { initializeFirebaseServices }
       from './js/services/firestore-service.js';
     import { initAuthAndListeners, signInAnonUser, isReady }
       from './js/modules/auth.js';
-    import { getDocs, query, where } from 'firebase/firestore';
+    import {
+      getAguaMovimentacoes, getGasMovimentacoes,
+      getEstoqueAgua, getEstoqueGas, getMateriais
+    } from './js/utils/cache.js';
 
     // ── CONFIG ────────────────────────────────────────────────────────
-    const POLL_MS    = 10 * 60 * 1000;                           // 10 minutos
     const GAS_CUTOFF = new Date('2026-04-13T00:00:00').getTime(); // ms
 
     // ── STATE ─────────────────────────────────────────────────────────
-    let pollTimer = null, countdownTimer = null;
-    let nextAt = null, lastUpdated = null, loading = false;
+    let countdownTimer = null;
+    let nextAt = null, lastUpdated = null;
     let _lastMateriais = [];
 
     // ── HELPERS ───────────────────────────────────────────────────────
@@ -524,98 +526,58 @@
       document.getElementById('prontoBody').innerHTML = makeList(pronto, 's-pronto', '✅', false);
     }
 
-    // ── FETCH ALL (sem índice composto) ───────────────────────────────
-    async function fetchAll() {
+    // ── COMPUTE FROM CACHE (mesma lógica do dashboard.js) ─────────────
+    function computeFromCache() {
       // ÁGUA
-      const [estoqueAguaSnap, saidasAguaSnap] = await Promise.all([
-        getDocs(COLLECTIONS.estoqueAgua),
-        getDocs(query(COLLECTIONS.aguaMov, where('tipo', '==', 'entrega')))
-      ]);
+      const movsAgua = (getAguaMovimentacoes() || []).filter(m => !isHistoricoImportado(m));
+      const estoqueAgua = getEstoqueAgua() || [];
+      const aguaInicial  = estoqueAgua.filter(e => e.tipo === 'inicial').reduce((s,e) => s + (parseInt(e.quantidade,10) || 0), 0);
+      const aguaEntradas = estoqueAgua.filter(e => e.tipo === 'entrada').reduce((s,e) => s + (parseInt(e.quantidade,10) || 0), 0);
+      const aguaSaidas   = movsAgua.filter(m => m.tipo === 'entrega').reduce((s,m) => s + (parseInt(m.quantidade,10) || 0), 0);
+      const agua = Math.max(0, aguaInicial + aguaEntradas - aguaSaidas);
 
-      const estoqueAguaInicial = estoqueAguaSnap.docs
-        .filter(d => d.data().tipo === 'inicial')
-        .reduce((s, d) => s + (parseInt(d.data().quantidade, 10) || 0), 0);
+      // GÁS — corte de 13/04/2026
+      const afterCutoff = items => (items || []).filter(it => (it.data?.toMillis?.() ?? 0) >= GAS_CUTOFF);
+      const movsGas    = afterCutoff((getGasMovimentacoes() || []).filter(m => !isHistoricoImportado(m)));
+      const estoqueGas = afterCutoff(getEstoqueGas() || []);
+      const gasInicial  = estoqueGas.filter(e => e.tipo === 'inicial').reduce((s,e) => s + (parseInt(e.quantidade,10) || 0), 0);
+      const gasEntradas = estoqueGas.filter(e => e.tipo === 'entrada').reduce((s,e) => s + (parseInt(e.quantidade,10) || 0), 0);
+      const gasSaidas   = movsGas.filter(m => m.tipo === 'entrega').reduce((s,m) => s + (parseInt(m.quantidade,10) || 0), 0);
+      const gas = Math.max(0, gasInicial + gasEntradas - gasSaidas);
 
-      const estoqueAguaEntradas = estoqueAguaSnap.docs
-        .filter(d => d.data().tipo === 'entrada')
-        .reduce((s, d) => s + (parseInt(d.data().quantidade, 10) || 0), 0);
-
-      const saidasAgua = saidasAguaSnap.docs
-        .filter(d => !isHistoricoImportado(d.data()))
-        .reduce((s, d) => s + (parseInt(d.data().quantidade, 10) || 0), 0);
-
-      const agua = Math.max(0, estoqueAguaInicial + estoqueAguaEntradas - saidasAgua);
-
-      // GÁS — filtro de data (GAS_CUTOFF) aplicado em JavaScript para evitar índice composto
-      const [estoqueGasSnap, saidasGasSnap] = await Promise.all([
-        getDocs(COLLECTIONS.estoqueGas),
-        getDocs(query(COLLECTIONS.gasMov, where('tipo', '==', 'entrega')))
-      ]);
-
-      const estoqueGasInicial = estoqueGasSnap.docs
-        .filter(d => (d.data().data?.toMillis?.() ?? 0) >= GAS_CUTOFF && d.data().tipo === 'inicial')
-        .reduce((s, d) => s + (parseInt(d.data().quantidade, 10) || 0), 0);
-
-      const estoqueGasEntradas = estoqueGasSnap.docs
-        .filter(d => (d.data().data?.toMillis?.() ?? 0) >= GAS_CUTOFF && d.data().tipo === 'entrada')
-        .reduce((s, d) => s + (parseInt(d.data().quantidade, 10) || 0), 0);
-
-      const saidasGas = saidasGasSnap.docs
-        .filter(d => (d.data().data?.toMillis?.() ?? 0) >= GAS_CUTOFF && !isHistoricoImportado(d.data()))
-        .reduce((s, d) => s + (parseInt(d.data().quantidade, 10) || 0), 0);
-
-      const gas = Math.max(0, estoqueGasInicial + estoqueGasEntradas - saidasGas);
-
-      // MATERIAIS — usa os mesmos status do dashboard (v2: separacao/retirada)
-      const matsSnap = await getDocs(
-        query(COLLECTIONS.materiais, where('status', 'in', ['separacao', 'retirada', 'separando', 'pronto']))
-      );
-
-      const materiais = matsSnap.docs
-        .map(d => ({ id: d.id, ...d.data() }))
-        .filter(m => !m.deleted && (m._version === 2 || m.origemFluxo === 'v2' || m.itemsMap));
+      // MATERIAIS — apenas v2 ativos, status separacao/retirada
+      const materiais = (getMateriais() || [])
+        .filter(m => !m?.deleted && (m?._version === 2 || m?.origemFluxo === 'v2' || (m?.itemsMap && typeof m.itemsMap === 'object')))
+        .filter(m => ['separacao','retirada','separando','pronto'].includes(String(m.status || '').toLowerCase()));
 
       return { agua, gas, materiais };
     }
 
-    // ── REFRESH ───────────────────────────────────────────────────────
-    async function doRefresh() {
-      if (loading) return;
-
-      // Aguarda autenticação estar pronta
-      if (!isReady()) {
-        showNotice('⏳ Aguardando autenticação…');
-        let tries = 0;
-        while (!isReady() && tries < 20) {
-          await new Promise(r => setTimeout(r, 300));
-          tries++;
-        }
-        clearNotice();
-        if (!isReady()) {
-          showNotice('⚠️ Sem autenticação. Tente atualizar a página.', true);
-          return;
-        }
-      }
-
-      loading = true; setUI(true); clearNotice();
+    // ── RENDER ────────────────────────────────────────────────────────
+    function renderAll() {
       try {
-        // Detecta automaticamente onde estão os dados (primary vs legacy path)
-        await ensureCollectionsWithData();
-        const data = await fetchAll();
+        const data = computeFromCache();
         renderStock('waterBody', data.agua, 'galões disponíveis no almoxarifado', 10, true);
         renderStock('gasBody',   data.gas,  'botijões disponíveis no almoxarifado', 3, false);
         _lastMateriais = data.materiais;
         const currentSearch = document.getElementById('searchInput')?.value || '';
         renderMateriais(_lastMateriais, currentSearch);
         lastUpdated = new Date();
-        nextAt      = new Date(lastUpdated.getTime() + POLL_MS);
+        // Atualiza próximo countdown (5 min entre snapshots de "última atualização")
+        nextAt = new Date(lastUpdated.getTime() + 5 * 60 * 1000);
         startCountdown();
+        clearNotice();
       } catch (err) {
-        console.error('[Status]', err);
-        showNotice('⚠️ Erro ao carregar dados. Tente atualizar.', true);
-      } finally {
-        loading = false; setUI(false);
+        console.error('[Status] render:', err);
+        showNotice('⚠️ Erro ao processar dados.', true);
       }
+    }
+
+    function doRefresh() {
+      // Como usamos onSnapshot, os dados já estão sempre atualizados.
+      // Apenas re-renderiza com os dados mais recentes do cache.
+      setUI(true);
+      try { renderAll(); } finally { setTimeout(() => setUI(false), 350); }
     }
 
     // ── UI UTILS ──────────────────────────────────────────────────────
@@ -658,28 +620,21 @@
 
     async function init() {
       try {
+        // Marca body como tv-mode para que o auth chame nosso renderDash automaticamente
+        document.body.classList.add('tv-mode');
+
         initializeFirebaseServices();
 
-        // Usa o módulo de auth da aplicação (mesmo padrão do dashboard)
-        await initAuthAndListeners(
-          () => { /* onChange: pode acionar refresh se quiser */ },
-          null,
-          null
-        );
+        // O auth chama renderDash sempre que listener recebe novos dados
+        await initAuthAndListeners(renderAll, null, null);
 
         // Fallback: autentica anonimamente se ainda não estiver pronto
         setTimeout(() => {
           if (!isReady()) signInAnonUser().catch(e => console.error('[Status] signIn:', e));
         }, 1200);
 
-        // Aguarda um tick para garantir que a autenticação foi processada
-        await new Promise(r => setTimeout(r, 800));
-
-        await doRefresh();
-
-        // Auto-refresh a cada 10 minutos
-        pollTimer = setInterval(doRefresh, POLL_MS);
-
+        // Render inicial (mesmo sem dados ainda — vai mostrar 0/skeletons até listeners chegarem)
+        setTimeout(renderAll, 2000);
       } catch (err) {
         console.error('[Status] init:', err);
         showNotice('⚠️ Erro ao conectar. Tentando novamente…', true);
