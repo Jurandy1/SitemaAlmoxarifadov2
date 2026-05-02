@@ -200,28 +200,119 @@
     .skeleton.sm { height: 42px; }
     @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
 
+    .search-card { position: relative; }
+    .search-wrap { position: relative; }
     .search-input {
-      width: 100%; padding: 12px 14px; border-radius: 12px;
+      width: 100%; padding: 14px 44px 14px 44px; border-radius: 12px;
       border: 1.5px solid var(--gray-200); background: var(--gray-100);
-      font-family: 'Outfit', sans-serif; font-size: 15px; font-weight: 500;
+      font-family: 'Outfit', sans-serif; font-size: 16px; font-weight: 500;
       color: var(--gray-900); outline: none; transition: border-color .15s, box-shadow .15s;
     }
     .search-input:focus { border-color: var(--sky); box-shadow: 0 0 0 3px rgba(14,165,233,.15); background: #fff; }
     .search-input::placeholder { color: var(--gray-400); }
+    .search-icon {
+      position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+      font-size: 18px; pointer-events: none;
+    }
+    .search-clear {
+      position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+      width: 30px; height: 30px; border-radius: 50%; border: 0;
+      background: var(--gray-200); color: var(--gray-500);
+      display: none; align-items: center; justify-content: center;
+      font-size: 16px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+    }
+    .search-clear.show { display: flex; }
+
+    .chip-row {
+      display: flex; gap: 6px; margin-top: 10px; overflow-x: auto;
+      scrollbar-width: none; -ms-overflow-style: none;
+      padding-bottom: 2px;
+    }
+    .chip-row::-webkit-scrollbar { display: none; }
+    .quick-chip {
+      flex-shrink: 0; padding: 7px 13px; border-radius: 20px;
+      background: var(--gray-100); border: 1.5px solid var(--gray-200);
+      font-size: 12px; font-weight: 700; color: var(--gray-500);
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+      transition: all .12s; font-family: 'Outfit', sans-serif;
+    }
+    .quick-chip:active { transform: scale(.96); }
+    .quick-chip.active { background: var(--navy); border-color: var(--navy); color: #fff; }
+
+    .suggest-list {
+      position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+      background: #fff; border: 1px solid var(--gray-200); border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.12); z-index: 50;
+      max-height: 240px; overflow-y: auto; display: none;
+    }
+    .suggest-list.show { display: block; }
+    .suggest-item {
+      padding: 11px 14px; cursor: pointer; font-size: 14px; font-weight: 500;
+      display: flex; align-items: center; gap: 10px;
+      border-bottom: 1px solid var(--gray-100);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .suggest-item:last-child { border-bottom: 0; }
+    .suggest-item:active { background: var(--gray-100); }
+    .suggest-name { flex: 1; min-width: 0; color: var(--gray-900); }
+    .suggest-status {
+      flex-shrink: 0; font-size: 10px; font-weight: 800;
+      padding: 3px 8px; border-radius: 999px; text-transform: uppercase;
+    }
+    .suggest-status.pronto { background: var(--green-bg); color: var(--green); }
+    .suggest-status.sep    { background: var(--yellow-bg); color: var(--yellow); }
 
     .search-banner {
-      display: none; align-items: center; gap: 10px;
-      margin-top: 10px; padding: 12px 14px; border-radius: 13px; border: 2px solid;
-      font-size: 14px; font-weight: 700;
+      display: none; flex-direction: column; align-items: stretch; gap: 4px;
+      margin-top: 12px; padding: 18px 16px; border-radius: 14px; border: 2px solid;
+      text-align: center;
     }
     .search-banner.show { display: flex; }
-    .search-banner.b-pronto { background: var(--green-bg); border-color: var(--green-bd); color: #065f46; }
-    .search-banner.b-sep    { background: var(--yellow-bg); border-color: var(--yellow-bd); color: #92400e; }
+    .search-banner.b-pronto { background: var(--green-bg); border-color: var(--green); color: #065f46; }
+    .search-banner.b-sep    { background: var(--yellow-bg); border-color: var(--yellow); color: #92400e; }
     .search-banner.b-none   { background: var(--gray-100); border-color: var(--gray-200); color: var(--gray-500); }
-    .search-banner-ic { font-size: 22px; flex-shrink: 0; }
-    .search-banner-txt { flex: 1; }
-    .search-banner-txt b { display: block; font-size: 15px; }
-    .search-banner-txt span { font-size: 12px; font-weight: 500; opacity: .8; }
+    .search-banner-ic    { font-size: 38px; line-height: 1; margin-bottom: 4px; }
+    .search-banner-title { font-size: 18px; font-weight: 800; letter-spacing: -.2px; }
+    .search-banner-sub   { font-size: 13px; font-weight: 600; opacity: .85; }
+    .search-banner-unit  { font-size: 12px; font-weight: 700; opacity: .7; margin-top: 2px; }
+
+    /* Compact stock row */
+    .stock-row {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;
+    }
+    .stock-mini {
+      background: #fff; border: 1px solid var(--gray-200); border-radius: 14px;
+      padding: 12px 14px; display: flex; align-items: center; gap: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.05);
+    }
+    .stock-mini-ic {
+      width: 38px; height: 38px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; flex-shrink: 0;
+    }
+    .stock-mini.water .stock-mini-ic { background: var(--sky-bg); }
+    .stock-mini.gas   .stock-mini-ic { background: var(--orange-bg); }
+    .stock-mini-body { flex: 1; min-width: 0; }
+    .stock-mini-num {
+      font-family: var(--font-num); font-size: 26px; font-weight: 700;
+      line-height: 1; letter-spacing: -1px;
+    }
+    .stock-mini.water .stock-mini-num { color: var(--sky); }
+    .stock-mini.gas   .stock-mini-num { color: var(--orange); }
+    .stock-mini-num.low  { color: var(--yellow) !important; }
+    .stock-mini-num.zero { color: var(--red)    !important; }
+    .stock-mini-lbl {
+      font-size: 10px; font-weight: 700; color: var(--gray-500);
+      text-transform: uppercase; letter-spacing: .05em; margin-top: 3px;
+    }
+    .stock-mini-chip {
+      display: inline-block; font-size: 9.5px; font-weight: 800;
+      padding: 1px 6px; border-radius: 999px; margin-top: 3px;
+      letter-spacing: .04em;
+    }
+    .stock-mini-chip.ok   { background: var(--green-bg);  color: var(--green);  }
+    .stock-mini-chip.low  { background: var(--yellow-bg); color: var(--yellow); }
+    .stock-mini-chip.zero { background: var(--red-bg);    color: var(--red);    }
 
     @media (prefers-color-scheme:dark) {
       .search-input { background:#1e293b; border-color:#334155; color:#e2e8f0; }
@@ -291,38 +382,68 @@
   <main class="main">
     <div class="notice" id="noticeEl"></div>
 
-    <div class="card">
+    <!-- 1. BUSCA — primeira coisa que o usuário vê -->
+    <div class="card search-card">
       <div class="card-head">
-        <div class="card-ic ic-water">💧</div>
-        <span class="card-label">Água — Galões Disponíveis</span>
-      </div>
-      <div class="card-body" id="waterBody"><div class="skeleton"></div></div>
-    </div>
-
-    <div class="card">
-      <div class="card-head">
-        <div class="card-ic ic-gas">🔥</div>
-        <span class="card-label">Gás — Botijões Disponíveis</span>
-      </div>
-      <div class="card-body" id="gasBody"><div class="skeleton"></div></div>
-    </div>
-
-    <div class="card">
-      <div class="card-head">
-        <div class="card-ic ic-sep" style="background:#f0f9ff">🔍</div>
-        <span class="card-label">Verificar minha unidade</span>
+        <div class="card-ic" style="background:#eff6ff">🏛️</div>
+        <span class="card-label">Minha Unidade — Status do Pedido</span>
       </div>
       <div class="card-body">
-        <input type="search" id="searchInput" class="search-input"
-          placeholder="Digite o nome da sua unidade…" autocomplete="off" autocorrect="off">
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input type="search" id="searchInput" class="search-input"
+            placeholder="Ex: CRAS Centro, CREAS Sol e Mar…"
+            autocomplete="off" autocorrect="off" spellcheck="false">
+          <button type="button" id="searchClear" class="search-clear" aria-label="Limpar">✕</button>
+          <div id="suggestList" class="suggest-list"></div>
+        </div>
+
+        <div class="chip-row" id="chipRow">
+          <button type="button" class="quick-chip" data-q="CRAS">CRAS</button>
+          <button type="button" class="quick-chip" data-q="CREAS">CREAS</button>
+          <button type="button" class="quick-chip" data-q="Centro Pop">Centro Pop</button>
+          <button type="button" class="quick-chip" data-q="CT ">Conselho Tutelar</button>
+          <button type="button" class="quick-chip" data-q="Abrigo">Abrigos</button>
+          <button type="button" class="quick-chip" data-q="SEMCAS">Sede</button>
+        </div>
+
         <div id="searchBanner" class="search-banner">
           <div class="search-banner-ic" id="searchBannerIc"></div>
-          <div class="search-banner-txt">
-            <b id="searchBannerTitle"></b>
-            <span id="searchBannerSub"></span>
-          </div>
+          <div class="search-banner-title" id="searchBannerTitle"></div>
+          <div class="search-banner-sub"   id="searchBannerSub"></div>
+          <div class="search-banner-unit"  id="searchBannerUnit"></div>
         </div>
       </div>
+    </div>
+
+    <!-- 2. ÁGUA E GÁS — linha compacta -->
+    <div class="stock-row">
+      <div class="stock-mini water" id="waterMini">
+        <div class="stock-mini-ic">💧</div>
+        <div class="stock-mini-body">
+          <div class="stock-mini-num" id="waterNum">—</div>
+          <div class="stock-mini-lbl">Galões de água</div>
+          <span class="stock-mini-chip ok" id="waterChip" style="display:none"></span>
+        </div>
+      </div>
+      <div class="stock-mini gas" id="gasMini">
+        <div class="stock-mini-ic">🔥</div>
+        <div class="stock-mini-body">
+          <div class="stock-mini-num" id="gasNum">—</div>
+          <div class="stock-mini-lbl">Botijões de gás</div>
+          <span class="stock-mini-chip ok" id="gasChip" style="display:none"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. LISTAS — todos os pedidos -->
+    <div class="card">
+      <div class="card-head">
+        <div class="card-ic ic-ok">✅</div>
+        <span class="card-label">Pronto para Retirada</span>
+        <span class="card-badge" id="prontoBadge">—</span>
+      </div>
+      <div class="card-body" id="prontoBody"><div class="skeleton sm"></div></div>
     </div>
 
     <div class="card">
@@ -332,15 +453,6 @@
         <span class="card-badge" id="sepBadge">—</span>
       </div>
       <div class="card-body" id="sepBody"><div class="skeleton sm"></div></div>
-    </div>
-
-    <div class="card">
-      <div class="card-head">
-        <div class="card-ic ic-ok">✅</div>
-        <span class="card-label">Pronto para Retirada</span>
-        <span class="card-badge" id="prontoBadge">—</span>
-      </div>
-      <div class="card-body" id="prontoBody"><div class="skeleton sm"></div></div>
     </div>
   </main>
 
@@ -417,22 +529,24 @@
         .join('');
     }
 
-    // ── RENDER: ESTOQUE ───────────────────────────────────────────────
-    function renderStock(elId, count, label, low, isWater) {
-      const el = document.getElementById(elId);
-      let numCls, chipCls, chipTxt;
-      if (count <= 0)        { numCls = 'c-red';    chipCls = 'chip-zero'; chipTxt = 'Sem Estoque';   }
-      else if (count <= low) { numCls = 'c-yellow'; chipCls = 'chip-low';  chipTxt = 'Estoque Baixo'; }
-      else                   { numCls = isWater ? 'c-sky' : 'c-orange'; chipCls = 'chip-ok'; chipTxt = 'Disponível'; }
-
-      el.innerHTML = `
-        <div class="stock-wrap">
-          <div class="stock-num ${numCls}">${count}</div>
-          <div class="stock-right">
-            <div class="stock-unit">${esc(label)}</div>
-            <span class="status-chip ${chipCls}"><span class="chip-dot"></span>${chipTxt}</span>
-          </div>
-        </div>`;
+    // ── RENDER: ESTOQUE COMPACTO ──────────────────────────────────────
+    function renderMiniStock(numId, chipId, count, low) {
+      const num = document.getElementById(numId);
+      const chip = document.getElementById(chipId);
+      if (!num || !chip) return;
+      num.textContent = count;
+      num.classList.remove('low', 'zero');
+      chip.classList.remove('ok', 'low', 'zero');
+      if (count <= 0) {
+        num.classList.add('zero'); chip.classList.add('zero');
+        chip.textContent = 'Sem estoque'; chip.style.display = 'inline-block';
+      } else if (count <= low) {
+        num.classList.add('low'); chip.classList.add('low');
+        chip.textContent = 'Estoque baixo'; chip.style.display = 'inline-block';
+      } else {
+        chip.classList.add('ok');
+        chip.textContent = 'Disponível'; chip.style.display = 'inline-block';
+      }
     }
 
     // ── RENDER: MATERIAIS ─────────────────────────────────────────────
@@ -470,23 +584,39 @@
       const bannerIc = document.getElementById('searchBannerIc');
       const bannerTitle = document.getElementById('searchBannerTitle');
       const bannerSub   = document.getElementById('searchBannerSub');
+      const bannerUnit  = document.getElementById('searchBannerUnit');
       if (query && banner) {
+        const allMatches = [...pronto, ...sep];
+        const unitNames = [...new Set(allMatches.map(m => m.unidadeNome || m.unidade || '').filter(Boolean))];
+        const unitText = unitNames.length === 1
+          ? unitNames[0]
+          : unitNames.length > 1
+            ? `${unitNames.length} unidades correspondentes`
+            : '';
+
         banner.className = 'search-banner show ';
         if (pronto.length > 0) {
           banner.className += 'b-pronto';
           bannerIc.textContent   = '✅';
-          bannerTitle.textContent = 'Pronto para Retirada!';
-          bannerSub.textContent  = `${pronto.length} pedido(s) da sua unidade aguardando retirada.`;
+          bannerTitle.textContent = 'PRONTO PARA RETIRADA';
+          bannerSub.textContent  = pronto.length === 1
+            ? 'Seu pedido já está pronto — pode retirar.'
+            : `${pronto.length} pedidos prontos para retirada.`;
+          bannerUnit.textContent = unitText ? `📍 ${unitText}` : '';
         } else if (sep.length > 0) {
           banner.className += 'b-sep';
           bannerIc.textContent   = '⏳';
-          bannerTitle.textContent = 'Em Preparação';
-          bannerSub.textContent  = `${sep.length} pedido(s) sendo separado(s) agora.`;
+          bannerTitle.textContent = 'EM PREPARAÇÃO';
+          bannerSub.textContent  = sep.length === 1
+            ? 'Seu pedido está sendo separado agora.'
+            : `${sep.length} pedidos sendo separados.`;
+          bannerUnit.textContent = unitText ? `📍 ${unitText}` : '';
         } else {
           banner.className += 'b-none';
           bannerIc.textContent   = '📭';
-          bannerTitle.textContent = 'Nenhum pedido encontrado';
-          bannerSub.textContent  = 'Verifique o nome da unidade ou aguarde novos registros.';
+          bannerTitle.textContent = 'Nenhum pedido ativo';
+          bannerSub.textContent  = 'Não há pedidos em separação ou aguardando retirada para esta unidade.';
+          bannerUnit.textContent = '';
         }
       } else if (banner) {
         banner.className = 'search-banner';
@@ -557,13 +687,12 @@
     function renderAll() {
       try {
         const data = computeFromCache();
-        renderStock('waterBody', data.agua, 'galões disponíveis no almoxarifado', 10, true);
-        renderStock('gasBody',   data.gas,  'botijões disponíveis no almoxarifado', 3, false);
+        renderMiniStock('waterNum', 'waterChip', data.agua, 10);
+        renderMiniStock('gasNum',   'gasChip',   data.gas,  3);
         _lastMateriais = data.materiais;
         const currentSearch = document.getElementById('searchInput')?.value || '';
         renderMateriais(_lastMateriais, currentSearch);
         lastUpdated = new Date();
-        // Atualiza próximo countdown (5 min entre snapshots de "última atualização")
         nextAt = new Date(lastUpdated.getTime() + 5 * 60 * 1000);
         startCountdown();
         clearNotice();
@@ -571,6 +700,72 @@
         console.error('[Status] render:', err);
         showNotice('⚠️ Erro ao processar dados.', true);
       }
+    }
+
+    // ── AUTOCOMPLETE / SUGESTÕES ──────────────────────────────────────
+    function renderSuggestions(q) {
+      const list = document.getElementById('suggestList');
+      if (!list) return;
+      const query = q.trim().toLowerCase();
+      if (!query || query.length < 1) { list.classList.remove('show'); list.innerHTML = ''; return; }
+
+      const normalize = s => {
+        const st = String(s ?? '').toLowerCase();
+        if (st === 'separacao' || st === 'separando') return 'separando';
+        if (st === 'retirada'  || st === 'pronto')    return 'pronto';
+        return st;
+      };
+
+      // agrupa por unidade, mantendo o "melhor" status (pronto > separando)
+      const map = new Map();
+      for (const m of (_lastMateriais || [])) {
+        const nome = m.unidadeNome || m.unidade;
+        if (!nome) continue;
+        if (!nome.toLowerCase().includes(query)) continue;
+        const st = normalize(m.status);
+        const prev = map.get(nome);
+        if (!prev || (st === 'pronto' && prev !== 'pronto')) map.set(nome, st);
+      }
+
+      const items = [...map.entries()].slice(0, 8);
+      if (!items.length) { list.classList.remove('show'); list.innerHTML = ''; return; }
+
+      list.innerHTML = items.map(([nome, st]) => {
+        const stCls = st === 'pronto' ? 'pronto' : 'sep';
+        const stTxt = st === 'pronto' ? '✅ Pronto' : '⏳ Separando';
+        return `
+          <div class="suggest-item" data-name="${esc(nome)}">
+            <span class="suggest-name">${esc(nome)}</span>
+            <span class="suggest-status ${stCls}">${stTxt}</span>
+          </div>`;
+      }).join('');
+      list.classList.add('show');
+    }
+
+    function selectSuggestion(name) {
+      const input = document.getElementById('searchInput');
+      input.value = name;
+      document.getElementById('suggestList').classList.remove('show');
+      document.getElementById('searchClear').classList.add('show');
+      setActiveChip('');
+      saveLastSearch(name);
+      renderMateriais(_lastMateriais, name);
+    }
+
+    // ── PERSISTÊNCIA: LEMBRA ÚLTIMA UNIDADE ───────────────────────────
+    const LS_KEY = 'semcas_status_last_unit';
+    function saveLastSearch(v) {
+      try { localStorage.setItem(LS_KEY, v || ''); } catch (_) {}
+    }
+    function loadLastSearch() {
+      try { return localStorage.getItem(LS_KEY) || ''; } catch (_) { return ''; }
+    }
+
+    // ── CHIPS DE TIPO ─────────────────────────────────────────────────
+    function setActiveChip(query) {
+      document.querySelectorAll('.quick-chip').forEach(c => {
+        c.classList.toggle('active', c.dataset.q === query);
+      });
     }
 
     function doRefresh() {
@@ -611,8 +806,61 @@
     }
 
     // ── SEARCH ────────────────────────────────────────────────────────
-    document.getElementById('searchInput').addEventListener('input', e => {
-      renderMateriais(_lastMateriais, e.target.value);
+    const searchInput = document.getElementById('searchInput');
+    const searchClear = document.getElementById('searchClear');
+    const suggestList = document.getElementById('suggestList');
+
+    function applySearch(value, opts = {}) {
+      searchInput.value = value;
+      searchClear.classList.toggle('show', !!value);
+      renderMateriais(_lastMateriais, value);
+      if (opts.suggest) renderSuggestions(value);
+      else suggestList.classList.remove('show');
+      saveLastSearch(value);
+    }
+
+    searchInput.addEventListener('input', e => {
+      const v = e.target.value;
+      searchClear.classList.toggle('show', !!v);
+      renderMateriais(_lastMateriais, v);
+      renderSuggestions(v);
+      setActiveChip('');
+      saveLastSearch(v);
+    });
+
+    searchInput.addEventListener('focus', () => {
+      if (searchInput.value) renderSuggestions(searchInput.value);
+    });
+
+    searchInput.addEventListener('blur', () => {
+      // delay para permitir click na sugestão antes de fechar
+      setTimeout(() => suggestList.classList.remove('show'), 180);
+    });
+
+    searchClear.addEventListener('click', () => {
+      applySearch('');
+      setActiveChip('');
+      searchInput.focus();
+    });
+
+    suggestList.addEventListener('click', e => {
+      const item = e.target.closest('.suggest-item');
+      if (!item) return;
+      selectSuggestion(item.dataset.name);
+    });
+
+    document.querySelectorAll('.quick-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const q = chip.dataset.q;
+        const isActive = chip.classList.contains('active');
+        if (isActive) {
+          applySearch('');
+          setActiveChip('');
+        } else {
+          applySearch(q);
+          setActiveChip(q);
+        }
+      });
     });
 
     // ── INIT — mesmo padrão do dashboard.html ─────────────────────────
@@ -632,6 +880,13 @@
         setTimeout(() => {
           if (!isReady()) signInAnonUser().catch(e => console.error('[Status] signIn:', e));
         }, 1200);
+
+        // Restaura última unidade buscada (se houver)
+        const lastUnit = loadLastSearch();
+        if (lastUnit) {
+          searchInput.value = lastUnit;
+          searchClear.classList.add('show');
+        }
 
         // Render inicial (mesmo sem dados ainda — vai mostrar 0/skeletons até listeners chegarem)
         setTimeout(renderAll, 2000);
