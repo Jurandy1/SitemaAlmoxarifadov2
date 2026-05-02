@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <meta name="theme-color" content="#0c1a3a">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="description" content="Status do Almoxarifado SEMCAS — Água, Gás e Materiais">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <title>Status · SEMCAS Almoxarifado</title>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --navy:        #0c1a3a;
+      --navy-2:      #142454;
+      --sky:         #0ea5e9;
+      --sky-bg:      #f0f9ff;
+      --sky-bd:      #bae6fd;
+      --orange:      #ea8300;
+      --orange-bg:   #fff7ed;
+      --orange-bd:   #fed7aa;
+      --green:       #16a34a;
+      --green-bg:    #f0fdf4;
+      --green-bd:    #86efac;
+      --yellow:      #d97706;
+      --yellow-bg:   #fffbeb;
+      --yellow-bd:   #fde68a;
+      --red:         #dc2626;
+      --red-bg:      #fef2f2;
+      --red-bd:      #fecaca;
+      --gray-100:    #f1f5f9;
+      --gray-200:    #e2e8f0;
+      --gray-400:    #94a3b8;
+      --gray-500:    #64748b;
+      --gray-900:    #0f172a;
+      --font-num:    'JetBrains Mono', ui-monospace, monospace;
+    }
+
+    html { height: 100%; scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Outfit', system-ui, sans-serif;
+      background: var(--gray-100);
+      color: var(--gray-900);
+      min-height: 100vh;
+      min-height: 100dvh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .topbar {
+      background: linear-gradient(135deg, var(--navy) 0%, var(--navy-2) 60%, #1a306b 100%);
+      padding: env(safe-area-inset-top, 0px) 0 0;
+    }
+    .topbar-inner {
+      padding: 14px 18px;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    }
+    .brand { flex: 1; min-width: 0; }
+    .brand-row { display: flex; align-items: center; gap: 8px; }
+    .brand-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #22c55e; box-shadow: 0 0 8px rgba(34,197,94,.7);
+      flex-shrink: 0; animation: livepulse 2.5s ease-in-out infinite;
+    }
+    @keyframes livepulse {
+      0%,100% { opacity:1; box-shadow:0 0 8px rgba(34,197,94,.7); }
+      50%      { opacity:.5; box-shadow:0 0 4px rgba(34,197,94,.3); }
+    }
+    .brand-title { font-size: 17px; font-weight: 800; color: #fff; letter-spacing: -.3px; }
+    .brand-sub   { font-size: 11px; color: rgba(255,255,255,.5); margin-top: 2px; font-weight: 500; }
+
+    .topbar-refresh {
+      display: flex; align-items: center; gap: 6px;
+      background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.18);
+      color: rgba(255,255,255,.9); padding: 9px 14px; border-radius: 10px;
+      font-size: 13px; font-weight: 600; font-family: 'Outfit', sans-serif;
+      cursor: pointer; flex-shrink: 0; transition: background .15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .topbar-refresh:active   { background: rgba(255,255,255,.22); }
+    .topbar-refresh:disabled { opacity: .45; cursor: not-allowed; }
+    .spin { animation: spin .9s linear infinite; display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .main { padding: 14px 14px 20px; max-width: 540px; margin: 0 auto; }
+
+    .notice {
+      background:#fef3c7; border:1px solid #fde68a; border-radius:12px;
+      padding:12px 14px; margin-bottom:14px; display:none;
+      font-size:13px; color:#92400e; font-weight:500; gap:8px; align-items:flex-start;
+    }
+    .notice.show { display:flex; }
+    .notice.err  { background:var(--red-bg); border-color:var(--red-bd); color:#991b1b; }
+
+    .card {
+      background: #fff; border-radius: 18px; border: 1px solid var(--gray-200);
+      overflow: hidden; margin-bottom: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.06), 0 1px 3px rgba(0,0,0,.04);
+    }
+    .card-head {
+      padding: 13px 16px 12px; display: flex; align-items: center; gap: 10px;
+      border-bottom: 1px solid var(--gray-100);
+    }
+    .card-ic {
+      width: 38px; height: 38px; border-radius: 11px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; flex-shrink: 0;
+    }
+    .ic-water { background: var(--sky-bg); }
+    .ic-gas   { background: var(--orange-bg); }
+    .ic-sep   { background: var(--yellow-bg); }
+    .ic-ok    { background: var(--green-bg); }
+
+    .card-label {
+      flex: 1; font-size: 11px; font-weight: 800;
+      color: var(--gray-500); text-transform: uppercase; letter-spacing: .07em;
+    }
+    .card-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 26px; height: 26px; padding: 0 8px;
+      background: var(--gray-100); border: 1px solid var(--gray-200);
+      border-radius: 20px; font-size: 12px; font-weight: 800;
+      color: var(--gray-500); font-family: var(--font-num);
+    }
+    .card-badge.has { background:var(--green-bg); border-color:var(--green-bd); color:var(--green); }
+
+    .card-body { padding: 16px; }
+
+    .stock-wrap { display: flex; align-items: center; gap: 14px; }
+    .stock-num {
+      font-family: var(--font-num); font-size: 60px; font-weight: 700;
+      line-height: 1; letter-spacing: -3px; flex-shrink: 0;
+    }
+    .c-sky    { color: var(--sky);    }
+    .c-orange { color: var(--orange); }
+    .c-yellow { color: var(--yellow); }
+    .c-red    { color: var(--red);    }
+
+    .stock-right { flex: 1; min-width: 0; }
+    .stock-unit  { font-size: 14px; font-weight: 600; color: var(--gray-500); margin-bottom: 8px; }
+
+    .status-chip {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 6px 13px; border-radius: 20px;
+      font-size: 12px; font-weight: 700; border: 1.5px solid;
+    }
+    .chip-ok   { background:var(--green-bg);  color:#065f46; border-color:var(--green-bd); }
+    .chip-low  { background:var(--yellow-bg); color:#92400e; border-color:var(--yellow-bd); }
+    .chip-zero { background:var(--red-bg);    color:#991b1b; border-color:var(--red-bd); }
+    .chip-dot  { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+    .chip-ok   .chip-dot { background:var(--green);  }
+    .chip-low  .chip-dot { background:var(--yellow); }
+    .chip-zero .chip-dot { background:var(--red);    }
+
+    .mat-list  { display: flex; flex-direction: column; gap: 8px; }
+    .mat-item  {
+      display: flex; align-items: flex-start; gap: 11px;
+      padding: 12px 14px; border-radius: 13px; border: 1.5px solid;
+    }
+    .mat-item.s-sep    { background:var(--yellow-bg); border-color:var(--yellow-bd); }
+    .mat-item.s-pronto { background:var(--green-bg);  border-color:var(--green-bd); }
+    .mat-emoji { font-size: 24px; flex-shrink: 0; line-height: 1; margin-top: 1px; }
+    .mat-body  { flex: 1; min-width: 0; }
+    .mat-unit  { font-size: 16px; font-weight: 700; color:var(--gray-900); line-height:1.3; word-break:break-word; }
+    .mat-tipos { display:flex; flex-wrap:wrap; gap:4px; margin-top:5px; }
+    .tipo-tag  {
+      display:inline-block; padding:2px 9px; border-radius:6px;
+      font-size:10px; font-weight:800; letter-spacing:.05em; text-transform:uppercase;
+    }
+    .tag-cras   { background:#dbeafe; color:#1e40af; }
+    .tag-creas  { background:#fce7f3; color:#9d174d; }
+    .tag-pop    { background:#dcfce7; color:#166534; }
+    .tag-ct     { background:#e0f2fe; color:#0369a1; }
+    .tag-abrigo { background:#f3e8ff; color:#6b21a8; }
+    .tag-sede   { background:#fef9c3; color:#92400e; }
+    .tag-outros { background:var(--gray-100); color:var(--gray-500); }
+
+    .mat-sep-row {
+      display:flex; align-items:center; gap:5px; margin-top:7px;
+      font-size:12px; font-weight:600; color:#334155;
+      background:rgba(0,0,0,.06); padding:4px 9px; border-radius:7px; width:fit-content;
+    }
+    .mat-sep-row.green { background:rgba(22,163,74,.1); color:#065f46; }
+
+    .empty     { text-align:center; padding:22px 14px; color:var(--gray-400); }
+    .empty-ic  { font-size:30px; margin-bottom:6px; }
+    .empty-txt { font-size:13px; font-weight:500; }
+
+    .skeleton {
+      background: linear-gradient(90deg, var(--gray-100) 25%, var(--gray-200) 50%, var(--gray-100) 75%);
+      background-size: 200% 100%; animation: shimmer 1.6s infinite;
+      border-radius: 12px; height: 64px;
+    }
+    .skeleton.sm { height: 42px; }
+    @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+    .search-input {
+      width: 100%; padding: 12px 14px; border-radius: 12px;
+      border: 1.5px solid var(--gray-200); background: var(--gray-100);
+      font-family: 'Outfit', sans-serif; font-size: 15px; font-weight: 500;
+      color: var(--gray-900); outline: none; transition: border-color .15s, box-shadow .15s;
+    }
+    .search-input:focus { border-color: var(--sky); box-shadow: 0 0 0 3px rgba(14,165,233,.15); background: #fff; }
+    .search-input::placeholder { color: var(--gray-400); }
+
+    .search-banner {
+      display: none; align-items: center; gap: 10px;
+      margin-top: 10px; padding: 12px 14px; border-radius: 13px; border: 2px solid;
+      font-size: 14px; font-weight: 700;
+    }
+    .search-banner.show { display: flex; }
+    .search-banner.b-pronto { background: var(--green-bg); border-color: var(--green-bd); color: #065f46; }
+    .search-banner.b-sep    { background: var(--yellow-bg); border-color: var(--yellow-bd); color: #92400e; }
+    .search-banner.b-none   { background: var(--gray-100); border-color: var(--gray-200); color: var(--gray-500); }
+    .search-banner-ic { font-size: 22px; flex-shrink: 0; }
+    .search-banner-txt { flex: 1; }
+    .search-banner-txt b { display: block; font-size: 15px; }
+    .search-banner-txt span { font-size: 12px; font-weight: 500; opacity: .8; }
+
+    @media (prefers-color-scheme:dark) {
+      .search-input { background:#1e293b; border-color:#334155; color:#e2e8f0; }
+      .search-input:focus { background:#1e293b; border-color:var(--sky); }
+      .search-banner.b-pronto { background:#052e1633; border-color:#166534; color:#86efac; }
+      .search-banner.b-sep    { background:#451a0333; border-color:#92400e; color:#fcd34d; }
+      .search-banner.b-none   { background:#1e293b; border-color:#334155; color:#94a3b8; }
+    }
+
+    .footer-bar {
+      display:flex; align-items:center; justify-content:center; gap:8px;
+      padding:4px 18px 16px; font-size:11px; color:var(--gray-400); font-weight:500;
+      max-width:540px; margin:0 auto;
+    }
+    .live-dot {
+      width:6px; height:6px; border-radius:50%;
+      background:#22c55e; box-shadow:0 0 6px rgba(34,197,94,.5); flex-shrink:0;
+    }
+    #countdownEl { font-family:var(--font-num); }
+
+    @media (max-width:380px) {
+      .topbar-inner { padding:12px 14px; }
+      .brand-title  { font-size:15px; }
+      .main         { padding:10px 10px 20px; }
+      .stock-num    { font-size:50px; }
+    }
+    @media (min-width:600px) {
+      .main { padding:20px 20px 28px; }
+      .stock-num { font-size:68px; }
+    }
+
+    @media (prefers-color-scheme:dark) {
+      body       { background:#0f172a; color:#e2e8f0; }
+      .card      { background:#1e293b; border-color:#334155; }
+      .card-head { border-bottom-color:#334155; }
+      .card-badge{ background:#334155; border-color:#475569; color:#94a3b8; }
+      .stock-unit{ color:#94a3b8; }
+      .mat-unit  { color:#e2e8f0; }
+      .mat-item.s-sep    { background:#451a0333; border-color:#92400e; }
+      .mat-item.s-pronto { background:#052e1633; border-color:#166534; }
+      .mat-sep-row       { background:rgba(255,255,255,.07); color:#94a3b8; }
+      .mat-sep-row.green { background:rgba(22,163,74,.15); color:#86efac; }
+      .empty     { color:#475569; }
+      .footer-bar{ color:#475569; }
+      .skeleton  { background:linear-gradient(90deg,#1e293b 25%,#334155 50%,#1e293b 75%); background-size:200% 100%; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="brand-row">
+          <div class="brand-dot"></div>
+          <div class="brand-title">SEMCAS · Almoxarifado</div>
+        </div>
+        <div class="brand-sub">Prefeitura de São Luís · Status ao vivo</div>
+      </div>
+      <button class="topbar-refresh" id="refreshBtn">
+        <span id="refreshIcon">🔄</span>
+        <span id="refreshLabel">Atualizar</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="notice" id="noticeEl"></div>
+
+    <div class="card">
+      <div class="card-head">
+        <div class="card-ic ic-water">💧</div>
+        <span class="card-label">Água — Galões Disponíveis</span>
+      </div>
+      <div class="card-body" id="waterBody"><div class="skeleton"></div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <div class="card-ic ic-gas">🔥</div>
+        <span class="card-label">Gás — Botijões Disponíveis</span>
+      </div>
+      <div class="card-body" id="gasBody"><div class="skeleton"></div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <div class="card-ic ic-sep" style="background:#f0f9ff">🔍</div>
+        <span class="card-label">Verificar minha unidade</span>
+      </div>
+      <div class="card-body">
+        <input type="search" id="searchInput" class="search-input"
+          placeholder="Digite o nome da sua unidade…" autocomplete="off" autocorrect="off">
+        <div id="searchBanner" class="search-banner">
+          <div class="search-banner-ic" id="searchBannerIc"></div>
+          <div class="search-banner-txt">
+            <b id="searchBannerTitle"></b>
+            <span id="searchBannerSub"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <div class="card-ic ic-sep">📦</div>
+        <span class="card-label">Em Separação</span>
+        <span class="card-badge" id="sepBadge">—</span>
+      </div>
+      <div class="card-body" id="sepBody"><div class="skeleton sm"></div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <div class="card-ic ic-ok">✅</div>
+        <span class="card-label">Pronto para Retirada</span>
+        <span class="card-badge" id="prontoBadge">—</span>
+      </div>
+      <div class="card-body" id="prontoBody"><div class="skeleton sm"></div></div>
+    </div>
+  </main>
+
+  <div class="footer-bar">
+    <div class="live-dot"></div>
+    <span id="countdownEl">Carregando...</span>
+  </div>
+
+  <!-- runtime-config.js MUST load before the module script, same as dashboard.html -->
+  <script type="module" src="./runtime-config.js"></script>
+
+  <script type="module">
+    /*
+     * STATUS PAGE — SEMCAS ALMOXARIFADO
+     * ─────────────────────────────────────────────────────────────────
+     * Segue o mesmo padrão de inicialização do dashboard.html:
+     *   1. initializeFirebaseServices()
+     *   2. initAuthAndListeners() → aguarda autenticação
+     *   3. signInAnonUser() como fallback
+     *   4. Depois disso, COLLECTIONS está disponível para queries
+     *
+     * SEM ÍNDICE COMPOSTO — filtros multi-campo são feitos em JavaScript.
+     * ─────────────────────────────────────────────────────────────────
+     */
+
+    import { initializeFirebaseServices, COLLECTIONS }
+      from './js/services/firestore-service.js';
+    import { initAuthAndListeners, signInAnonUser, isReady }
+      from './js/modules/auth.js';
+    import { getDocs, query, where } from 'firebase/firestore';
+
+    // ── CONFIG ────────────────────────────────────────────────────────
+    const POLL_MS    = 10 * 60 * 1000;                           // 10 minutos
+    const GAS_CUTOFF = new Date('2026-04-13T00:00:00').getTime(); // ms
+
+    // ── STATE ─────────────────────────────────────────────────────────
+    let pollTimer = null, countdownTimer = null;
+    let nextAt = null, lastUpdated = null, loading = false;
+    let _lastMateriais = [];
+
+    // ── HELPERS ───────────────────────────────────────────────────────
+    function esc(s) {
+      const d = document.createElement('div');
+      d.textContent = String(s ?? '');
+      return d.innerHTML;
+    }
+
+    // Exclui registros importados do SQL histórico — mesmo critério do dashboard.js
+    function isHistoricoImportado(d) {
+      if (!d) return false;
+      if (d.origem === 'importador_sql') return true;
+      if (String(d.observacao ?? '').toLowerCase().includes('importado de sql')) return true;
+      if (typeof d.referenciaAno === 'number' || typeof d.referenciaMes === 'number' || typeof d.referenciaSemana === 'number') return true;
+      return false;
+    }
+
+    function tipoClass(t) {
+      const u = String(t ?? '').toUpperCase();
+      if (u.includes('CRAS'))                                    return 'tag-cras';
+      if (u.includes('CREAS'))                                   return 'tag-creas';
+      if (/POP\s*RUA|CENTRO\s*POP/.test(u))                     return 'tag-pop';
+      if (/^CT\b/.test(u))                                       return 'tag-ct';
+      if (/ABRIGO|ACOLH|RESID|REPUB|LUZ|CASA|ILPI|CAT/.test(u)) return 'tag-abrigo';
+      if (/SEDE|SEMCAS|ADMIN|ASTEC|PROCAD/.test(u))             return 'tag-sede';
+      return 'tag-outros';
+    }
+
+    function renderTipos(tipos) {
+      const arr = Array.isArray(tipos) ? tipos : (tipos ? [tipos] : []);
+      return arr.filter(Boolean)
+        .map(t => `<span class="tipo-tag ${tipoClass(t)}">${esc(t)}</span>`)
+        .join('');
+    }
+
+    // ── RENDER: ESTOQUE ───────────────────────────────────────────────
+    function renderStock(elId, count, label, low, isWater) {
+      const el = document.getElementById(elId);
+      let numCls, chipCls, chipTxt;
+      if (count <= 0)        { numCls = 'c-red';    chipCls = 'chip-zero'; chipTxt = 'Sem Estoque';   }
+      else if (count <= low) { numCls = 'c-yellow'; chipCls = 'chip-low';  chipTxt = 'Estoque Baixo'; }
+      else                   { numCls = isWater ? 'c-sky' : 'c-orange'; chipCls = 'chip-ok'; chipTxt = 'Disponível'; }
+
+      el.innerHTML = `
+        <div class="stock-wrap">
+          <div class="stock-num ${numCls}">${count}</div>
+          <div class="stock-right">
+            <div class="stock-unit">${esc(label)}</div>
+            <span class="status-chip ${chipCls}"><span class="chip-dot"></span>${chipTxt}</span>
+          </div>
+        </div>`;
+    }
+
+    // ── RENDER: MATERIAIS ─────────────────────────────────────────────
+    function renderMateriais(items, filterText) {
+      // Normaliza status: "separacao"/"separando" → separando, "retirada"/"pronto" → pronto
+      const normalize = s => {
+        const st = String(s ?? '').toLowerCase();
+        if (st === 'separacao' || st === 'separando') return 'separando';
+        if (st === 'retirada'  || st === 'pronto')    return 'pronto';
+        return st;
+      };
+
+      const query = (filterText || '').trim().toLowerCase();
+
+      const matchesFilter = m => {
+        if (!query) return true;
+        const nome = String(m.unidadeNome || m.unidade || '').toLowerCase();
+        return nome.includes(query);
+      };
+
+      const allSep    = items.filter(m => normalize(m.status) === 'separando');
+      const allPronto = items.filter(m => normalize(m.status) === 'pronto');
+
+      const sep    = allSep.filter(matchesFilter);
+      const pronto = allPronto.filter(matchesFilter);
+
+      // Atualiza badges com totais globais (não filtrados)
+      const sb = document.getElementById('sepBadge');
+      const pb = document.getElementById('prontoBadge');
+      sb.textContent = allSep.length;    sb.className = 'card-badge' + (allSep.length    ? ' has' : '');
+      pb.textContent = allPronto.length; pb.className = 'card-badge' + (allPronto.length ? ' has' : '');
+
+      // Banner de resultado da busca
+      const banner = document.getElementById('searchBanner');
+      const bannerIc = document.getElementById('searchBannerIc');
+      const bannerTitle = document.getElementById('searchBannerTitle');
+      const bannerSub   = document.getElementById('searchBannerSub');
+      if (query && banner) {
+        banner.className = 'search-banner show ';
+        if (pronto.length > 0) {
+          banner.className += 'b-pronto';
+          bannerIc.textContent   = '✅';
+          bannerTitle.textContent = 'Pronto para Retirada!';
+          bannerSub.textContent  = `${pronto.length} pedido(s) da sua unidade aguardando retirada.`;
+        } else if (sep.length > 0) {
+          banner.className += 'b-sep';
+          bannerIc.textContent   = '⏳';
+          bannerTitle.textContent = 'Em Preparação';
+          bannerSub.textContent  = `${sep.length} pedido(s) sendo separado(s) agora.`;
+        } else {
+          banner.className += 'b-none';
+          bannerIc.textContent   = '📭';
+          bannerTitle.textContent = 'Nenhum pedido encontrado';
+          bannerSub.textContent  = 'Verifique o nome da unidade ou aguarde novos registros.';
+        }
+      } else if (banner) {
+        banner.className = 'search-banner';
+      }
+
+      function makeList(arr, cls, emoji, isSep) {
+        if (!arr.length) return `
+          <div class="empty">
+            <div class="empty-ic">📭</div>
+            <div class="empty-txt">${query
+              ? 'Nenhum resultado para esta busca'
+              : isSep
+                ? 'Nenhum material sendo separado agora'
+                : 'Nenhum material aguardando retirada'}</div>
+          </div>`;
+
+        return '<div class="mat-list">' + arr.map(m => {
+          const name  = esc(m.unidadeNome || m.unidade || 'Unidade');
+          const tipos = renderTipos(m.tiposMaterial || m.tipos || m.tipoMaterial);
+          const sep   = m.responsavelSeparador || m.separador;
+          const sepR  = sep
+            ? `<div class="mat-sep-row${isSep ? '' : ' green'}">${isSep ? '👤' : '✅ Separado por:'} ${esc(sep)}</div>`
+            : '';
+          return `
+            <div class="mat-item ${cls}">
+              <div class="mat-emoji">${emoji}</div>
+              <div class="mat-body">
+                <div class="mat-unit">${name}</div>
+                ${tipos ? `<div class="mat-tipos">${tipos}</div>` : ''}
+                ${sepR}
+              </div>
+            </div>`;
+        }).join('') + '</div>';
+      }
+
+      document.getElementById('sepBody').innerHTML    = makeList(sep,    's-sep',    '📦', true);
+      document.getElementById('prontoBody').innerHTML = makeList(pronto, 's-pronto', '✅', false);
+    }
+
+    // ── FETCH ALL (sem índice composto) ───────────────────────────────
+    async function fetchAll() {
+      // ÁGUA
+      const [estoqueAguaSnap, saidasAguaSnap] = await Promise.all([
+        getDocs(COLLECTIONS.estoqueAgua),
+        getDocs(query(COLLECTIONS.aguaMov, where('tipo', '==', 'entrega')))
+      ]);
+
+      const estoqueAguaInicial = estoqueAguaSnap.docs
+        .filter(d => d.data().tipo === 'inicial')
+        .reduce((s, d) => s + (parseInt(d.data().quantidade, 10) || 0), 0);
+
+      const estoqueAguaEntradas = estoqueAguaSnap.docs
+        .filter(d => d.data().tipo === 'entrada')
+        .reduce((s, d) => s + (parseInt(d.data().quantidade, 10) || 0), 0);
+
+      const saidasAgua = saidasAguaSnap.docs
+        .filter(d => !isHistoricoImportado(d.data()))
+        .reduce((s, d) => s + (parseInt(d.data().quantidade, 10) || 0), 0);
+
+      const agua = Math.max(0, estoqueAguaInicial + estoqueAguaEntradas - saidasAgua);
+
+      // GÁS — filtro de data (GAS_CUTOFF) aplicado em JavaScript para evitar índice composto
+      const [estoqueGasSnap, saidasGasSnap] = await Promise.all([
+        getDocs(COLLECTIONS.estoqueGas),
+        getDocs(query(COLLECTIONS.gasMov, where('tipo', '==', 'entrega')))
+      ]);
+
+      const estoqueGasInicial = estoqueGasSnap.docs
+        .filter(d => (d.data().data?.toMillis?.() ?? 0) >= GAS_CUTOFF && d.data().tipo === 'inicial')
+        .reduce((s, d) => s + (parseInt(d.data().quantidade, 10) || 0), 0);
+
+      const estoqueGasEntradas = estoqueGasSnap.docs
+        .filter(d => (d.data().data?.toMillis?.() ?? 0) >= GAS_CUTOFF && d.data().tipo === 'entrada')
+        .reduce((s, d) => s + (parseInt(d.data().quantidade, 10) || 0), 0);
+
+      const saidasGas = saidasGasSnap.docs
+        .filter(d => (d.data().data?.toMillis?.() ?? 0) >= GAS_CUTOFF && !isHistoricoImportado(d.data()))
+        .reduce((s, d) => s + (parseInt(d.data().quantidade, 10) || 0), 0);
+
+      const gas = Math.max(0, estoqueGasInicial + estoqueGasEntradas - saidasGas);
+
+      // MATERIAIS — usa os mesmos status do dashboard (v2: separacao/retirada)
+      const matsSnap = await getDocs(
+        query(COLLECTIONS.materiais, where('status', 'in', ['separacao', 'retirada', 'separando', 'pronto']))
+      );
+
+      const materiais = matsSnap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(m => !m.deleted && (m._version === 2 || m.origemFluxo === 'v2' || m.itemsMap));
+
+      return { agua, gas, materiais };
+    }
+
+    // ── REFRESH ───────────────────────────────────────────────────────
+    async function doRefresh() {
+      if (loading) return;
+
+      // Aguarda autenticação estar pronta
+      if (!isReady()) {
+        showNotice('⏳ Aguardando autenticação…');
+        let tries = 0;
+        while (!isReady() && tries < 20) {
+          await new Promise(r => setTimeout(r, 300));
+          tries++;
+        }
+        clearNotice();
+        if (!isReady()) {
+          showNotice('⚠️ Sem autenticação. Tente atualizar a página.', true);
+          return;
+        }
+      }
+
+      loading = true; setUI(true); clearNotice();
+      try {
+        const data = await fetchAll();
+        renderStock('waterBody', data.agua, 'galões disponíveis no almoxarifado', 10, true);
+        renderStock('gasBody',   data.gas,  'botijões disponíveis no almoxarifado', 3, false);
+        _lastMateriais = data.materiais;
+        const currentSearch = document.getElementById('searchInput')?.value || '';
+        renderMateriais(_lastMateriais, currentSearch);
+        lastUpdated = new Date();
+        nextAt      = new Date(lastUpdated.getTime() + POLL_MS);
+        startCountdown();
+      } catch (err) {
+        console.error('[Status]', err);
+        showNotice('⚠️ Erro ao carregar dados. Tente atualizar.', true);
+      } finally {
+        loading = false; setUI(false);
+      }
+    }
+
+    // ── UI UTILS ──────────────────────────────────────────────────────
+    function setUI(busy) {
+      const btn = document.getElementById('refreshBtn');
+      document.getElementById('refreshIcon').className    = busy ? 'spin' : '';
+      document.getElementById('refreshLabel').textContent = busy ? 'Atualizando…' : 'Atualizar';
+      btn.disabled = busy;
+    }
+    function showNotice(msg, err) {
+      const el = document.getElementById('noticeEl');
+      el.textContent = msg;
+      el.className = 'notice show' + (err ? ' err' : '');
+    }
+    function clearNotice() { document.getElementById('noticeEl').className = 'notice'; }
+
+    function startCountdown() {
+      if (countdownTimer) clearInterval(countdownTimer);
+      const el = document.getElementById('countdownEl');
+      const tick = () => {
+        if (!nextAt || !lastUpdated) return;
+        const hhmm = lastUpdated.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        const rem  = nextAt - Date.now();
+        if (rem <= 0) { el.textContent = `Atualizado às ${hhmm} · atualizando…`; return; }
+        const m = Math.floor(rem / 60000);
+        const s = Math.floor((rem % 60000) / 1000).toString().padStart(2, '0');
+        el.textContent = `Atualizado às ${hhmm} · próxima em ${m}m${s}s`;
+      };
+      tick();
+      countdownTimer = setInterval(tick, 1000);
+    }
+
+    // ── SEARCH ────────────────────────────────────────────────────────
+    document.getElementById('searchInput').addEventListener('input', e => {
+      renderMateriais(_lastMateriais, e.target.value);
+    });
+
+    // ── INIT — mesmo padrão do dashboard.html ─────────────────────────
+    document.getElementById('refreshBtn').addEventListener('click', doRefresh);
+
+    async function init() {
+      try {
+        initializeFirebaseServices();
+
+        // Usa o módulo de auth da aplicação (mesmo padrão do dashboard)
+        await initAuthAndListeners(
+          () => { /* onChange: pode acionar refresh se quiser */ },
+          null,
+          null
+        );
+
+        // Fallback: autentica anonimamente se ainda não estiver pronto
+        setTimeout(() => {
+          if (!isReady()) signInAnonUser().catch(e => console.error('[Status] signIn:', e));
+        }, 1200);
+
+        // Aguarda um tick para garantir que a autenticação foi processada
+        await new Promise(r => setTimeout(r, 800));
+
+        await doRefresh();
+
+        // Auto-refresh a cada 10 minutos
+        pollTimer = setInterval(doRefresh, POLL_MS);
+
+      } catch (err) {
+        console.error('[Status] init:', err);
+        showNotice('⚠️ Erro ao conectar. Tentando novamente…', true);
+        setTimeout(init, 10_000);
+      }
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+  </script>
+</body>
+</html>
