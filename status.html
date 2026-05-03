@@ -381,7 +381,7 @@
     import { signInAnonymously, onAuthStateChanged,
              setPersistence, indexedDBLocalPersistence, browserLocalPersistence
            } from 'firebase/auth';
-    import { getDocs, query, where } from 'firebase/firestore';
+    import { getDocs, query, where, orderBy, limit } from 'firebase/firestore';
 
     // ── CONFIG ────────────────────────────────────────────────────────
     const GAS_CUTOFF  = new Date('2026-04-13T00:00:00').getTime();
@@ -508,8 +508,9 @@
       const aguaEntradas = estAgua.filter(e => e.tipo==='entrada').reduce((s,e)=>s+(parseInt(e.quantidade,10)||0),0);
       const agua = Math.max(0, aguaInicial + aguaEntradas - aguaSaidas);
 
-      // ── GÁS: coleção pequena (~300 docs limit no listener), lê movimentos direto ──
-      const movGasSnap = await getDocs(query(C.gasMov, where('tipo', '==', 'entrega')));
+      // ── GÁS: limit(90) = últimos ~3 meses, alinhado com GAS_CUTOFF de 90 dias ──
+      // Evita ler histórico inteiro (~350 docs hoje, crescente) — sem necessidade de índice composto.
+      const movGasSnap = await getDocs(query(C.gasMov, orderBy('registradoEm', 'desc'), limit(90)));
       const movGas = movGasSnap.docs.map(d => d.data()).filter(m => !isHistoricoImportado(m));
       const tsOf    = it => it.data?.toMillis?.() ?? (it.data?.seconds ? it.data.seconds*1000 : 0);
       const estGasC = estGas.filter(e => tsOf(e) >= GAS_CUTOFF);
