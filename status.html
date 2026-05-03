@@ -426,15 +426,25 @@
       return false;
     }
 
-    // Classifica unidade pelo nome
-    function classifyUnit(nome) {
+    // Classifica unidade usando o campo `tipo` do Firestore (fonte de verdade).
+    // Fallback por nome apenas para unidades sem tipo definido (legado).
+    function classifyUnit(nome, tipo) {
+      // ── Mapeamento direto pelo campo tipo (Firestore) ──────────────────
+      const t = (tipo || '').toUpperCase().trim();
+      if (t === 'CRAS')                   return 'cras';
+      if (t === 'CREAS')                  return 'creas';
+      if (t === 'CT' || t === 'CONSELHO') return 'ct';   // CT = Cons. Tutelar; CONSELHO = Cmas/Cmdi
+      if (t === 'CENTRO POP')             return 'pop';
+      if (t === 'ABRIGO')                 return 'abrigo';
+      if (t === 'SEDE')                   return 'sede';
+      // ── Fallback por nome (unidades sem tipo ou tipo não mapeado) ──────
       const u = (nome || '').toUpperCase();
-      if (/\bCREAS\b/.test(u))                                           return 'creas';
-      if (/\bCRAS\b/.test(u))                                            return 'cras';
-      if (/CENTRO\s*POP|POP\s*RUA/.test(u))                             return 'pop';
-      if (/\bCT\b|CONSELHO|COHAB.COHATRAC|ITAQUI|CMDI\b/.test(u))       return 'ct';
-      if (/ABRIGO|ACOLH|RESID|REPUB|ILPI|CAT\b/.test(u))                return 'abrigo';
-      if (/SEMCAS|SEDE|PROCAD|ASTEC|CMDCA|ADMIN/.test(u))                return 'sede';
+      if (/\bCREAS\b/.test(u))            return 'creas';
+      if (/\bCRAS\b/.test(u))             return 'cras';
+      if (/CENTRO\s*POP/.test(u))         return 'pop';
+      if (/\bCT\b/.test(u))               return 'ct';
+      if (/\bILPI\b|CAT\b/.test(u))       return 'abrigo';
+      if (/SEMCAS|SEDE|PROCAD|ASTEC/.test(u)) return 'sede';
       return 'outros';
     }
 
@@ -516,18 +526,19 @@
     }
 
     // ── FETCH: LISTA DE UNIDADES ──────────────────────────────────────
+    // v3: inclui campo `tipo` para classificação correta sem regex por nome
     async function fetchUnits() {
-      const cached = cacheGet('semcas_units_v2', TTL_UNITS);
+      const cached = cacheGet('semcas_units_v3', TTL_UNITS);
       if (cached?.data) return cached.data;
 
       const C = await getCollections();
       const snap = await getDocs(C.unidades);
       const units = snap.docs
-        .map(d => ({ nome: d.data().nome || d.id, id: d.id }))
+        .map(d => ({ nome: d.data().nome || d.id, id: d.id, tipo: d.data().tipo || '' }))
         .filter(u => u.nome)
         .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
 
-      cacheSet('semcas_units_v2', units);
+      cacheSet('semcas_units_v3', units);
       return units;
     }
 
@@ -605,7 +616,7 @@
         return;
       }
 
-      const filtered = units.filter(u => classifyUnit(u.nome) === type);
+      const filtered = units.filter(u => classifyUnit(u.nome, u.tipo) === type);
 
       if (!filtered.length) {
         document.getElementById('unitList').innerHTML =
