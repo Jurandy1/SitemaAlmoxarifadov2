@@ -19,10 +19,10 @@ import { COLLECTIONS }               from "../services/firestore-service.js";
 import { executeFinalMovimentacao }  from "./movimentacao-modal-handler.js";
 import { generateGasReport }         from "./gas-report.js";
 
-// ─── CORTE DE DATA: apenas dados a partir de 13/04/2026 contam nos CÁLCULOS ──
+// ─── CORTE DE DATA: apenas dados a partir de 30/04/2026 contam nos CÁLCULOS ──
 // ATENÇÃO: Este filtro NÃO é aplicado ao Histórico Geral (exibição).
 //          Ele é aplicado somente em: estoque atual, status de saldo, dashboard.
-const GAS_CUTOFF_MS = new Date('2026-04-13T00:00:00.000').getTime();
+const GAS_CUTOFF_MS = new Date('2026-04-30T00:00:00.000').getTime();
 
 function _filterAfterCutoff(items) {
     return (items || []).filter(item => (item.data?.toMillis?.() ?? 0) >= GAS_CUTOFF_MS);
@@ -79,7 +79,7 @@ function _badge(cls, text) {
 
 // =========================================================================
 // ESTOQUE — PAINEL RESUMO
-// (usa corte: mostra o estoque real disponível a partir de 13/04/2026)
+// (usa corte: mostra o estoque real disponível a partir de 30/04/2026)
 // =========================================================================
 
 export function renderEstoqueGas() {
@@ -287,7 +287,7 @@ export async function handleGasSubmit(e) {
 
 // =========================================================================
 // STATUS — SALDO POR UNIDADE
-// (usa corte: saldo real a partir de 13/04/2026)
+// (usa corte: saldo real a partir de 30/04/2026)
 // =========================================================================
 
 export function renderGasStatus() {
@@ -321,7 +321,7 @@ export function renderGasStatus() {
         .sort((a, b) => b.totalSaidas - a.totalSaidas || a.nome.localeCompare(b.nome));
 
     if (lista.length === 0) {
-        table.innerHTML = _emptyRow(4, 'Nenhuma saída registrada após 13/04/2026.');
+        table.innerHTML = _emptyRow(4, 'Nenhuma saída registrada após 30/04/2026.');
         return;
     }
 
@@ -373,7 +373,7 @@ export function renderGasEstoqueHistory() {
         const isOld      = (m.data?.toMillis?.() ?? 0) < GAS_CUTOFF_MS;
         const details    = `${isInicial ? 'Estoque Inicial' : 'Entrada Manual'}: ${m.quantidade} botijão(ões).`;
         const oldTag     = isOld
-            ? `<span title="Anterior ao corte de 13/04/2026 — não contabilizado no estoque atual"
+            ? `<span title="Anterior ao corte de 30/04/2026 — não contabilizado no estoque atual"
                  style="font-size:9px;color:#94a3b8;margin-left:4px">⚠️ não contabilizado</span>`
             : '';
         return `<tr style="${isOld ? 'opacity:.65' : ''}">
@@ -396,7 +396,7 @@ export function renderGasEstoqueHistory() {
 // =========================================================================
 // FIX 2 — HISTÓRICO GERAL DE MOVIMENTAÇÕES
 // Exibe TODOS os registros, sem aplicar o corte de data.
-// Registros anteriores a 13/04/2026 aparecem com marcação visual.
+// Registros anteriores a 30/04/2026 aparecem com marcação visual.
 // =========================================================================
 
 export function renderGasMovimentacoesHistory() {
@@ -418,7 +418,7 @@ export function renderGasMovimentacoesHistory() {
         const isOld  = (m.data?.toMillis?.() ?? 0) < GAS_CUTOFF_MS;
         const details = `Saída — ${escapeHTML(m.unidadeNome || 'N/A')} (${m.quantidade} botijão(ões))`;
         const oldTag  = isOld
-            ? `<span title="Anterior ao corte de 13/04/2026 — não contabilizado no estoque atual"
+            ? `<span title="Anterior ao corte de 30/04/2026 — não contabilizado no estoque atual"
                  style="font-size:9px;color:#94a3b8;margin-left:4px">⚠️</span>`
             : '';
         return `<tr style="${isOld ? 'opacity:.65' : ''}">
@@ -460,7 +460,7 @@ function checkGasHistoryIntegrity() {
     const total = (getEstoqueGas() || []).length;
     if (document.getElementById('alert-historico-estoque-gas'))
         showAlert('alert-historico-estoque-gas',
-            `${total} registro(s) de estoque no total. Registros anteriores a 13/04/2026 aparecem esmaecidos e não contam no estoque atual.`, 'info');
+            `${total} registro(s) de estoque no total. Registros anteriores a 30/04/2026 aparecem esmaecidos e não contam no estoque atual.`, 'info');
 }
 
 // =========================================================================

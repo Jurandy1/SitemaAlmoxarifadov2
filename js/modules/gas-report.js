@@ -5,7 +5,7 @@ import { getEstoqueGas, getGasMovimentacoes, getUnidades } from "../utils/cache.
 import { formatTimestamp, formatTimestampComTempo, dateToTimestamp } from "../utils/formatters.js";
 
 // ─── Corte de data (igual ao gas-control.js) ──────────────────────────────────
-const GAS_CUTOFF_MS = new Date('2026-04-13T00:00:00.000').getTime();
+const GAS_CUTOFF_MS = new Date('2026-04-30T00:00:00.000').getTime();
 
 function _escHTML(s) {
     return String(s ?? '')
@@ -30,7 +30,7 @@ function _fmtTsDate(ts) {
 
 /**
  * Gera o relatório de Gás em uma nova aba.
- * Apenas dados a partir de 13/04/2026 são incluídos.
+ * Apenas dados a partir de 30/04/2026 são incluídos.
  */
 export function generateGasReport(startDateStr, endDateStr) {
     const estoqueRaw = getEstoqueGas();
@@ -43,7 +43,7 @@ export function generateGasReport(startDateStr, endDateStr) {
         return [u.id, { nome: u.nome, tipo }];
     }));
 
-    // Aplica corte mínimo (13/04/2026) + filtro do usuário
+    // Aplica corte mínimo (30/04/2026) + filtro do usuário
     const userStartMs  = startDateStr ? (dateToTimestamp(startDateStr)?.toMillis() ?? null) : null;
     const userEndMsRaw = endDateStr   ? (dateToTimestamp(endDateStr)?.toMillis()   ?? null) : null;
     const userEndMs    = userEndMsRaw ? userEndMsRaw + 86_399_999 : null;
@@ -67,8 +67,8 @@ export function generateGasReport(startDateStr, endDateStr) {
     const totalSaidas   = movs.reduce((s, m) => s + (parseInt(m.quantidade, 10) || 0), 0);
     const saldo         = totalEntradas - totalSaidas;
 
-    // Período exibido (sempre a partir de 13/04/2026 no mínimo)
-    const cutoffLabel = '13/04/2026';
+    // Período exibido (sempre a partir de 30/04/2026 no mínimo)
+    const cutoffLabel = '30/04/2026';
     let periodLabel = `A partir de ${cutoffLabel}`;
     if (startDateStr && endDateStr) periodLabel = `${_fmtDate(startDateStr) || cutoffLabel} a ${_fmtDate(endDateStr)}`;
     else if (startDateStr) periodLabel = `A partir de ${_fmtDate(startDateStr) || cutoffLabel}`;
@@ -178,7 +178,7 @@ export function generateGasReport(startDateStr, endDateStr) {
   </div>
 </header>
 
-<div class="cutoff-note">⚠️ Este relatório considera apenas dados a partir de <strong>13/04/2026</strong>. Lançamentos anteriores a essa data não são contabilizados.</div>
+<div class="cutoff-note">⚠️ Este relatório considera apenas dados a partir de <strong>30/04/2026</strong>. Lançamentos anteriores a essa data não são contabilizados.</div>
 
 <div class="summary-section">
   <div class="kpi"><div class="kpi-label">Estoque Inicial</div><div class="kpi-value blue">${totalInicial}</div><div class="kpi-sub">botijões</div></div>
@@ -210,7 +210,7 @@ export function generateGasReport(startDateStr, endDateStr) {
 
 <footer class="report-footer">
   <div><div class="sig">Prefeitura de São Luís — SEMCAS</div><div>Sistema de Almoxarifado v2</div></div>
-  <div style="text-align:center"><div>Período: <strong>${_escHTML(periodLabel)}</strong></div><div>Dados contados a partir de 13/04/2026</div></div>
+  <div style="text-align:center"><div>Período: <strong>${_escHTML(periodLabel)}</strong></div><div>Dados contados a partir de 30/04/2026</div></div>
   <div style="text-align:right"><div>Gerado: <strong>${_escHTML(generatedAt)}</strong></div><div>Documento gerado automaticamente.</div></div>
 </footer>
 </body>

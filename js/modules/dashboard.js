@@ -5,9 +5,9 @@ import { formatTimestamp } from "../utils/formatters.js";
 import Chart from 'chart.js/auto';
 
 // ── Corte de data para cálculo do estoque de gás ──────────────────────────
-// Apenas registros a partir de 13/04/2026 são contabilizados no estoque.
+// Apenas registros a partir de 30/04/2026 são contabilizados no estoque.
 // Isso garante que o número exibido no Modo TV bata com o painel de Gás.
-const GAS_CUTOFF_MS = new Date('2026-04-13T00:00:00.000').getTime();
+const GAS_CUTOFF_MS = new Date('2026-04-30T00:00:00.000').getTime();
 function filterGasAfterCutoff(items) {
     return (items || []).filter(item => (item.data?.toMillis?.() ?? 0) >= GAS_CUTOFF_MS);
 }
@@ -216,7 +216,7 @@ function renderDashboardAguaSummary() {
 
 function renderDashboardGasSummary() {
     try {
-        // ✅ FIX: aplica corte de 13/04/2026 — igual ao painel "Controle de Gás"
+        // ✅ FIX: aplica corte de 30/04/2026 — igual ao painel "Controle de Gás"
         const estoqueGas = filterGasAfterCutoff(getEstoqueGas() || []);
         const movs = filterGasAfterCutoff(
             (getGasMovimentacoes() || []).filter(m => !isHistoricoImportado(m))
