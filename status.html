@@ -461,6 +461,8 @@
     }
 
     // ── FETCH: ESTOQUE ÁGUA E GÁS ─────────────────────────────────────
+    // Otimização: se __resumo__ existir em estoqueAgua, não lemos controleAgua
+    // (economia de ~400-600 leituras em cada visita fria).
     async function fetchStock() {
       const cached = cacheGet('semcas_stock_v2', TTL_STOCK);
       if (cached?.data) { renderStock(cached.data); lastUpdated = new Date(cached.ts); startCountdown(); return; }
@@ -468,23 +470,36 @@
       await waitForAuth();
       const C = await getCollections();
 
-      const [estAguaSnap, estGasSnap, movAguaSnap, movGasSnap] = await Promise.all([
+      // Lê estoqueAgua e estoqueGas sempre (pequenos, ~20 docs cada)
+      const [estAguaSnap, estGasSnap] = await Promise.all([
         getDocs(C.estoqueAgua),
-        getDocs(C.estoqueGas),
-        getDocs(query(C.aguaMov, where('tipo', '==', 'entrega'))),
-        getDocs(query(C.gasMov,  where('tipo', '==', 'entrega')))
+        getDocs(C.estoqueGas)
       ]);
 
       const estAgua = estAguaSnap.docs.map(d => d.data());
       const estGas  = estGasSnap.docs.map(d => d.data());
-      const movAgua = movAguaSnap.docs.map(d => d.data()).filter(m => !isHistoricoImportado(m));
-      const movGas  = movGasSnap.docs.map(d => d.data()).filter(m => !isHistoricoImportado(m));
 
+      // ── ÁGUA: usa __resumo__ se disponível, senão fallback para leitura de movimentos ──
+      const resumoAgua = estAgua.find(e => e.tipo === '__resumo__');
+      let aguaSaidas;
+      if (resumoAgua) {
+        // __resumo__ existe → 0 leituras extras de controleAgua 🎉
+        aguaSaidas = resumoAgua.totalSaidas || 0;
+      } else {
+        // Fallback: __resumo__ ainda não foi criado (antes da migração rodar no app principal)
+        const movAguaSnap = await getDocs(query(C.aguaMov, where('tipo', '==', 'entrega')));
+        aguaSaidas = movAguaSnap.docs
+          .map(d => d.data())
+          .filter(m => !isHistoricoImportado(m))
+          .reduce((s, m) => s + (parseInt(m.quantidade, 10) || 0), 0);
+      }
       const aguaInicial  = estAgua.filter(e => e.tipo==='inicial').reduce((s,e)=>s+(parseInt(e.quantidade,10)||0),0);
       const aguaEntradas = estAgua.filter(e => e.tipo==='entrada').reduce((s,e)=>s+(parseInt(e.quantidade,10)||0),0);
-      const aguaSaidas   = movAgua.reduce((s,m)=>s+(parseInt(m.quantidade,10)||0),0);
       const agua = Math.max(0, aguaInicial + aguaEntradas - aguaSaidas);
 
+      // ── GÁS: coleção pequena (~300 docs limit no listener), lê movimentos direto ──
+      const movGasSnap = await getDocs(query(C.gasMov, where('tipo', '==', 'entrega')));
+      const movGas = movGasSnap.docs.map(d => d.data()).filter(m => !isHistoricoImportado(m));
       const tsOf    = it => it.data?.toMillis?.() ?? (it.data?.seconds ? it.data.seconds*1000 : 0);
       const estGasC = estGas.filter(e => tsOf(e) >= GAS_CUTOFF);
       const movGasC = movGas.filter(m => tsOf(m) >= GAS_CUTOFF);

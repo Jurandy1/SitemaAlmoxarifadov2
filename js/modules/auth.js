@@ -18,7 +18,10 @@ import {
     orderBy,
     limit,
     getDoc,
-    doc
+    getDocs,
+    doc,
+    setDoc,
+    serverTimestamp
 } from "firebase/firestore";
 
 import { initialAuthToken } from "../firebase-config.js";
@@ -211,6 +214,58 @@ async function signOutUser() {
 }
 
 // =======================================================================
+// MIGRAÇÃO: doc __resumo__ em estoqueAgua
+// ─────────────────────────────────────────────────────────────────────────
+// O listener de controleAgua passou a ter limit(90) para economizar leituras.
+// Para manter o saldo correto, mantemos um doc { tipo:'__resumo__',
+// totalSaidas, totalRetornos } dentro da coleção estoqueAgua.
+// Esse doc é atualizado via increment() a cada nova movimentação.
+// Na PRIMEIRA execução (sem o doc), calculamos o total histórico aqui.
+// =======================================================================
+let _migratingResumo = false;
+
+function _isHistImportado(m) {
+    if (!m) return false;
+    if (m.origem === 'importador_sql') return true;
+    if (String(m.observacao ?? '').toLowerCase().includes('importado de sql')) return true;
+    if (typeof m.referenciaAno === 'number' || typeof m.referenciaMes === 'number'
+        || typeof m.referenciaSemana === 'number') return true;
+    return false;
+}
+
+async function _migrateAguaResumo(collections) {
+    if (_migratingResumo) return;
+    const lsKey = 'semcas_resumo_agua_v1';
+    if (typeof localStorage !== 'undefined' && localStorage.getItem(lsKey)) return;
+
+    _migratingResumo = true;
+    console.log('[MIGRAÇÃO] Criando estoqueAgua/__resumo__ (uma vez só)…');
+    try {
+        const snap = await getDocs(collections.aguaMov); // Leitura completa única
+        let totalSaidas = 0, totalRetornos = 0;
+        snap.docs.forEach(d => {
+            const m = d.data();
+            if (_isHistImportado(m)) return;
+            const qty = parseInt(m.quantidade, 10) || 0;
+            if (m.tipo === 'entrega')                           totalSaidas   += qty;
+            if (m.tipo === 'retorno' || m.tipo === 'retirada') totalRetornos += qty;
+        });
+        await setDoc(doc(collections.estoqueAgua, '__resumo__'), {
+            tipo:          '__resumo__',
+            totalSaidas,
+            totalRetornos,
+            atualizadoEm:  serverTimestamp()
+        });
+        if (typeof localStorage !== 'undefined') localStorage.setItem(lsKey, '1');
+        console.log('[MIGRAÇÃO ✓] estoqueAgua/__resumo__ criado:', { totalSaidas, totalRetornos });
+    } catch (err) {
+        console.error('[MIGRAÇÃO] Erro ao criar __resumo__:', err);
+    } finally {
+        _migratingResumo = false;
+    }
+}
+
+// =======================================================================
 // FIRESTORE LISTENERS
 // =======================================================================
 function unsubscribeFirestoreListeners() {
@@ -280,23 +335,24 @@ async function initFirestoreListeners(renderDash, renderControls, renderModules)
         scheduleRenders({ controls: true, modules: true, permissions: true }, renderDash, renderControls, renderModules);
     });
 
-    // Água (sem limit — o cálculo de estoque precisa de TODAS as movimentações)
-    // Com persistência offline, apenas deltas são lidos após o 1º load.
-    addListener(query(COLLECTIONS.aguaMov, orderBy("registradoEm", "desc")), snap => {
+    // Água — limit(90) cobre ~3 meses de histórico para exibição.
+    // O saldo real é calculado via doc __resumo__ em estoqueAgua (totalSaidas acumulado).
+    addListener(query(COLLECTIONS.aguaMov, orderBy("registradoEm", "desc"), limit(90)), snap => {
         const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         setAguaMovimentacoes(data);
         scheduleRenders({ dash: true, modules: true }, renderDash, renderControls, renderModules);
     });
 
-    // Gás (sem limit — mesmo motivo que Água: cálculo de estoque precisa de tudo)
-    addListener(query(COLLECTIONS.gasMov, orderBy("registradoEm", "desc")), snap => {
+    // Gás — limit(300) cobre ~9 meses (1 doc/dia). Seguro por anos.
+    addListener(query(COLLECTIONS.gasMov, orderBy("registradoEm", "desc"), limit(300)), snap => {
         const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         setGasMovimentacoes(data);
         scheduleRenders({ dash: true, modules: true }, renderDash, renderControls, renderModules);
     });
 
-    // Materiais
-    addListener(query(COLLECTIONS.materiais, orderBy("registradoEm", "desc"), limit(500)), snap => {
+    // Materiais — limit(200). Cobre ~5 dias de histórico. A aba Histórico mostra os 200 mais recentes.
+    // NÃO filtrar por status aqui: a aba Histórico e contadores dependem de ver pedidos 'entregue'.
+    addListener(query(COLLECTIONS.materiais, orderBy("registradoEm", "desc"), limit(200)), snap => {
         const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         try { console.info("[FM] materiais listener:", data.length, "docs"); } catch (_) {}
         setMateriais(data);
@@ -310,6 +366,10 @@ async function initFirestoreListeners(renderDash, renderControls, renderModules)
         const inicial = data.some(e => e.tipo === 'inicial');
         setEstoqueInicialDefinido('agua', inicial);
         scheduleRenders({ dash: true, modules: true }, renderDash, renderControls, renderModules);
+        // Se __resumo__ ainda não existe, migrar (operação única por instância do app)
+        if (!data.some(e => e.tipo === '__resumo__')) {
+            _migrateAguaResumo(COLLECTIONS).catch(() => {});
+        }
     });
 
     addListener(query(COLLECTIONS.estoqueGas), snap => {

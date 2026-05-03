@@ -190,21 +190,26 @@ function renderDashboardAguaSummary() {
         const estoqueAgua = getEstoqueAgua() || [];
 
         const estoqueInicial = estoqueAgua.filter(e => e.tipo === 'inicial').reduce((sum, e) => sum + (e.quantidade || 0), 0);
-        const totalEntradas = estoqueAgua.filter(e => e.tipo === 'entrada').reduce((sum, e) => sum + (e.quantidade || 0), 0);
-        const totalSaidas = movs.filter(m => m.tipo === 'entrega').reduce((sum, m) => sum + (m.quantidade || 0), 0);
-        const estoqueAtual = Math.max(0, estoqueInicial + totalEntradas - totalSaidas);
+        const totalEntradas  = estoqueAgua.filter(e => e.tipo === 'entrada').reduce((sum, e) => sum + (e.quantidade || 0), 0);
 
-        const totalEntregueGeral = movs.filter(m => m.tipo === 'entrega').reduce((sum, m) => sum + (m.quantidade || 0), 0);
-        const totalRecebidoGeral = movs.filter(m => (m.tipo === 'retorno' || m.tipo === 'retirada')).reduce((sum, m) => sum + (m.quantidade || 0), 0);
-        
+        // Usa __resumo__ para totais históricos (saldo correto mesmo com limit(90) no listener)
+        const resumo = estoqueAgua.find(e => e.tipo === '__resumo__');
+        const totalSaidasHist   = resumo ? (resumo.totalSaidas   || 0)
+            : movs.filter(m => m.tipo === 'entrega').reduce((sum, m) => sum + (m.quantidade || 0), 0);
+        const totalRetornosHist = resumo ? (resumo.totalRetornos || 0)
+            : movs.filter(m => m.tipo === 'retorno' || m.tipo === 'retirada').reduce((sum, m) => sum + (m.quantidade || 0), 0);
+
+        const estoqueAtual = Math.max(0, estoqueInicial + totalEntradas - totalSaidasHist);
+
+        // Últimos 30 dias — o limit(90) cobre ~3 meses, então os 30d recentes estão sempre disponíveis
         const movs30Dias = filterLast30Days(movs);
         const totalEntregue30d = movs30Dias.filter(m => m.tipo === 'entrega').reduce((sum, m) => sum + (m.quantidade || 0), 0);
         const totalRecebido30d = movs30Dias.filter(m => (m.tipo === 'retorno' || m.tipo === 'retirada')).reduce((sum, m) => sum + (m.quantidade || 0), 0);
 
-        if (DOM_ELEMENTS.summaryAguaPendente) DOM_ELEMENTS.summaryAguaPendente.textContent = totalEntregueGeral - totalRecebidoGeral; 
+        if (DOM_ELEMENTS.summaryAguaPendente) DOM_ELEMENTS.summaryAguaPendente.textContent = totalSaidasHist - totalRetornosHist;
         if (DOM_ELEMENTS.summaryAguaEntregue) DOM_ELEMENTS.summaryAguaEntregue.textContent = totalEntregue30d;
         if (DOM_ELEMENTS.summaryAguaRecebido) DOM_ELEMENTS.summaryAguaRecebido.textContent = totalRecebido30d;
-        
+
         if (DOM_ELEMENTS.dashboardEstoqueAguaEl) DOM_ELEMENTS.dashboardEstoqueAguaEl.textContent = estoqueAtual;
     } catch (e) { console.error("Erro ao renderizar sumário Água:", e); }
 }

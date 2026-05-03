@@ -1,9 +1,31 @@
 // js/modules/movimentacao-modal-handler.js
-import { Timestamp, addDoc, serverTimestamp } from "firebase/firestore";
+import { Timestamp, addDoc, serverTimestamp, doc, setDoc, increment } from "firebase/firestore";
 import { DOM_ELEMENTS, showAlert } from "../utils/dom-helpers.js";
 import { capitalizeString, formatTimestamp } from "../utils/formatters.js";
 import { COLLECTIONS } from "../services/firestore-service.js";
 import { getUserRole } from "../utils/cache.js";
+
+/**
+ * Atualiza o doc __resumo__ em estoqueAgua (ou estoqueGas) com os totais
+ * acumulados de saídas e retornos. Usa increment() — atomicamente seguro.
+ * Não lança exceção (falha silenciosa para não bloquear o fluxo principal).
+ */
+async function _atualizarResumo(itemType, qtdEntregue, qtdRetorno) {
+    try {
+        const estoqueCol = itemType === 'agua' ? COLLECTIONS.estoqueAgua : null;
+        if (!estoqueCol) return; // Gas ainda usa abordagem legacy
+        const resumoRef = doc(estoqueCol, '__resumo__');
+        const update = { tipo: '__resumo__', atualizadoEm: serverTimestamp() };
+        if (qtdEntregue > 0) update.totalSaidas   = increment(qtdEntregue);
+        if (qtdRetorno  > 0) update.totalRetornos = increment(qtdRetorno);
+        if (qtdEntregue > 0 || qtdRetorno > 0) {
+            await setDoc(resumoRef, update, { merge: true });
+        }
+    } catch (err) {
+        // Falha no resumo não deve interromper o registro da movimentação
+        console.warn('[__resumo__] Falha ao atualizar (não crítico):', err);
+    }
+}
 
 // Variáveis temporárias para o fluxo (mantidas caso sejam usadas em outro lugar, mas a leitura agora é pelos inputs hidden)
 // let almoxTempFields = {}; // Pode remover se não for usado em outro lugar
@@ -217,6 +239,12 @@ export async function handleFinalMovimentacaoSubmit() {
         } else {
             // Sucesso completo
              showAlert(alertId, `Movimentação salva! ${msgSucesso.join('; ')}.`, 'success');
+        }
+
+        // Atualiza o doc __resumo__ com os totais acumulados (economia de leituras futuras)
+        // Apenas para água — não bloqueia mesmo se falhar
+        if (itemType === 'agua') {
+            _atualizarResumo('agua', qtdEntregue > 0 ? qtdEntregue : 0, qtdRetorno > 0 ? qtdRetorno : 0);
         }
 
         // Limpa o formulário apenas se tudo deu certo

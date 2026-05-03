@@ -56,8 +56,15 @@ export class BaseControl {
         const movs = (this.getMovimentacoes() || []).filter(m => !this.isHistoricoImportado(m));
 
         const estoqueInicial = estoqueData.filter(e => e.tipo === 'inicial').reduce((sum, e) => sum + (parseInt(e.quantidade, 10) || 0), 0);
-        const totalEntradas = estoqueData.filter(e => e.tipo === 'entrada').reduce((sum, e) => sum + (parseInt(e.quantidade, 10) || 0), 0);
-        const totalSaidas = movs.filter(m => m.tipo === 'entrega').reduce((sum, m) => sum + (parseInt(m.quantidade, 10) || 0), 0);
+        const totalEntradas  = estoqueData.filter(e => e.tipo === 'entrada').reduce((sum, e) => sum + (parseInt(e.quantidade, 10) || 0), 0);
+
+        // Usa __resumo__ se disponível (totalSaidas histórico acumulado, sem limit de leituras).
+        // Fallback: soma os movimentos em cache (válido enquanto __resumo__ ainda não existir).
+        const resumo = (this.type === 'agua') ? estoqueData.find(e => e.tipo === '__resumo__') : null;
+        const totalSaidas = resumo
+            ? (resumo.totalSaidas || 0)
+            : movs.filter(m => m.tipo === 'entrega').reduce((sum, m) => sum + (parseInt(m.quantidade, 10) || 0), 0);
+
         const estoqueAtual = Math.max(0, estoqueInicial + totalEntradas - totalSaidas);
 
         if (elements.estoqueInicial) elements.estoqueInicial.textContent = estoqueInicial;
