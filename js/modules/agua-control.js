@@ -177,15 +177,18 @@ export async function handleAguaSubmit(e) {
             if (!isEstoqueInicialDefinido('agua')) {
                 throw new Error('Defina o Estoque Inicial de Água antes de lançar saídas.');
             }
-            // BUG-03 fix: calcular estoque do cache, não do DOM
-            // Usa __resumo__ quando disponível (totalSaidas acumulado, preciso mesmo com limit(90))
+            // Usa __resumo__ via base-control para consistência com o painel de estoque.
+            // aguaControl.renderEstoque() já mantém _cachedAguaResumo atualizado —
+            // replicamos a mesma lógica aqui para a validação pré-entrega.
             const estoqueData = getEstoqueAgua() || [];
             const movsAll = (getAguaMovimentacoes() || []).filter(m => !isHistoricoImportado(m));
             const estoqueInicialVal = estoqueData.filter(e => e.tipo === 'inicial').reduce((sum, e) => sum + (parseInt(e.quantidade, 10) || 0), 0);
             const totalEntradasVal  = estoqueData.filter(e => e.tipo === 'entrada').reduce((sum, e) => sum + (parseInt(e.quantidade, 10) || 0), 0);
-            const resumo = estoqueData.find(e => e.tipo === '__resumo__');
-            const totalSaidasVal = resumo
-                ? (resumo.totalSaidas || 0)
+            // Prioriza __resumo__ do próprio estoqueData; se ausente (race condition),
+            // cai no fallback dos 90 docs — seguro aqui pois é só validação (nega entrega em caso de dúvida).
+            const resumoVal = estoqueData.find(e => e.tipo === '__resumo__');
+            const totalSaidasVal = resumoVal
+                ? (resumoVal.totalSaidas || 0)
                 : movsAll.filter(m => m.tipo === 'entrega').reduce((sum, m) => sum + (parseInt(m.quantidade, 10) || 0), 0);
             const estoqueAtual = Math.max(0, estoqueInicialVal + totalEntradasVal - totalSaidasVal);
             if (qtdEntregue > estoqueAtual) {

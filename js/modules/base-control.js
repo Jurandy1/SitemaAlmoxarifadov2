@@ -6,6 +6,14 @@ import { capitalizeString } from "../utils/formatters.js";
 import { isReady } from "./auth.js";
 
 /**
+ * Cache de módulo para o doc __resumo__ da água.
+ * Uma vez recebido pelo listener, é mantido aqui para evitar que re-renders
+ * acionados pelo listener aguaMov (limit 90) percam o valor e caiam no fallback.
+ * Isso elimina a oscilação entre o saldo correto e o valor calculado só pelos 90 docs.
+ */
+let _cachedAguaResumo = null;
+
+/**
  * Classe base para controle de estoque e movimentações (Água e Gás).
  * Centraliza a lógica repetida de renderização, cálculo de estoque e formulários.
  */
@@ -58,9 +66,16 @@ export class BaseControl {
         const estoqueInicial = estoqueData.filter(e => e.tipo === 'inicial').reduce((sum, e) => sum + (parseInt(e.quantidade, 10) || 0), 0);
         const totalEntradas  = estoqueData.filter(e => e.tipo === 'entrada').reduce((sum, e) => sum + (parseInt(e.quantidade, 10) || 0), 0);
 
-        // Usa __resumo__ se disponível (totalSaidas histórico acumulado, sem limit de leituras).
-        // Fallback: soma os movimentos em cache (válido enquanto __resumo__ ainda não existir).
-        const resumo = (this.type === 'agua') ? estoqueData.find(e => e.tipo === '__resumo__') : null;
+        // Para água: usa __resumo__ (totalSaidas acumulado historicamente) para evitar
+        // depender do limit(90) do listener. _cachedAguaResumo persiste entre re-renders,
+        // eliminando a oscilação causada pela corrida entre os listeners aguaMov e estoqueAgua.
+        let resumo = null;
+        if (this.type === 'agua') {
+            const fromData = estoqueData.find(e => e.tipo === '__resumo__');
+            if (fromData) _cachedAguaResumo = fromData;   // atualiza cache sempre que disponível
+            resumo = _cachedAguaResumo;                   // usa o valor mais recente conhecido
+        }
+
         const totalSaidas = resumo
             ? (resumo.totalSaidas || 0)
             : movs.filter(m => m.tipo === 'entrega').reduce((sum, m) => sum + (parseInt(m.quantidade, 10) || 0), 0);
