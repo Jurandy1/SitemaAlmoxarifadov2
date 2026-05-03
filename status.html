@@ -526,19 +526,38 @@
     }
 
     // ── FETCH: LISTA DE UNIDADES ──────────────────────────────────────
-    // v3: inclui campo `tipo` para classificação correta sem regex por nome
+    // v4: inclui tipo + flags de serviço; filtra não-materiais e duplicatas
     async function fetchUnits() {
-      const cached = cacheGet('semcas_units_v3', TTL_UNITS);
+      const cached = cacheGet('semcas_units_v4', TTL_UNITS);
       if (cached?.data) return cached.data;
 
       const C = await getCollections();
       const snap = await getDocs(C.unidades);
+
+      const seen = new Set();
       const units = snap.docs
-        .map(d => ({ nome: d.data().nome || d.id, id: d.id, tipo: d.data().tipo || '' }))
-        .filter(u => u.nome)
+        .map(d => {
+          const data = d.data();
+          return {
+            nome:             data.nome || d.id,
+            id:               d.id,
+            tipo:             data.tipo || '',
+            atendeMateriais:  data.atendeMateriais ?? true,
+          };
+        })
+        .filter(u => {
+          if (!u.nome) return false;
+          // Exclui unidades que não recebem materiais
+          if (!u.atendeMateriais) return false;
+          // Deduplica por nome (case-insensitive, sem espaços extras)
+          const key = u.nome.toLowerCase().trim();
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        })
         .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
 
-      cacheSet('semcas_units_v3', units);
+      cacheSet('semcas_units_v4', units);
       return units;
     }
 
