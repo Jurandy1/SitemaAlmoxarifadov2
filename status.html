@@ -433,7 +433,8 @@
       const t = (tipo || '').toUpperCase().trim();
       if (t === 'CRAS')                   return 'cras';
       if (t === 'CREAS')                  return 'creas';
-      if (t === 'CT' || t === 'CONSELHO') return 'ct';   // CT = Cons. Tutelar; CONSELHO = Cmas/Cmdi
+      if (t === 'CT')        return 'ct';
+      if (t === 'CONSELHO') return 'sede'; // Cmas, Cmdi → Sede
       if (t === 'CENTRO POP')             return 'pop';
       if (t === 'ABRIGO')                 return 'abrigo';
       if (t === 'SEDE')                   return 'sede';
