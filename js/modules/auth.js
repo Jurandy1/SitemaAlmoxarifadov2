@@ -161,7 +161,7 @@ async function signInEmailPassword(email, password) {
         console.error("Erro login:", err);
         let msg = "Não foi possível fazer login.";
         if (['auth/user-not-found', 'auth/wrong-password', 'auth/invalid-credential'].includes(err.code)) {
-            msg = "E-mail ou senha incorretos. Se for seu primeiro acesso ou não lembrar a senha, clique em “Esqueci minha senha”.";
+            msg = "E-mail ou senha incorretos. Se for seu primeiro acesso ou não lembrar a senha, clique em "Esqueci minha senha".";
         }
         if (err.code === 'auth/invalid-email') msg = "Formato de e-mail inválido.";
         if (err.code === 'auth/too-many-requests') msg = "Muitas tentativas. Aguarde alguns minutos e tente novamente.";
@@ -214,15 +214,23 @@ async function signOutUser() {
 }
 
 // =======================================================================
-// MIGRAÇÃO: doc __resumo__ em estoqueAgua
+// MIGRAÇÃO: resumo do estoque de água
 // ─────────────────────────────────────────────────────────────────────────
-// O listener de controleAgua passou a ter limit(90) para economizar leituras.
-// Para manter o saldo correto, mantemos um doc { tipo:'__resumo__',
-// totalSaidas, totalRetornos } dentro da coleção estoqueAgua.
-// Esse doc é atualizado via increment() a cada nova movimentação.
-// Na PRIMEIRA execução (sem o doc), calculamos o total histórico aqui.
+// PROBLEMA ORIGINAL: tentava criar doc com ID "__resumo__" que é reservado
+// pelo Firestore (IDs com __ duplo são proibidos).
+//
+// SOLUÇÃO: usa o ID "resumo-agua" para o documento no Firestore.
+// O campo interno tipo ainda é '__resumo__' (apenas o ID do doc muda).
+// O dashboard.js busca por e.tipo === '__resumo__' no array — continua igual.
+//
+// PROTEÇÃO ANTI-LOOP: usa localStorage como flag permanente + variável de
+// módulo para impedir chamadas simultâneas.
 // =======================================================================
 let _migratingResumo = false;
+
+// ID seguro para o Firestore (sem duplo __)
+const RESUMO_DOC_ID = 'resumo-agua';
+const RESUMO_LS_KEY = 'semcas_resumo_agua_v2'; // v2 para ignorar flag antiga com bug
 
 function _isHistImportado(m) {
     if (!m) return false;
@@ -234,14 +242,29 @@ function _isHistImportado(m) {
 }
 
 async function _migrateAguaResumo(collections) {
+    // Protege contra loops: flag de módulo + localStorage
     if (_migratingResumo) return;
-    const lsKey = 'semcas_resumo_agua_v1';
-    if (typeof localStorage !== 'undefined' && localStorage.getItem(lsKey)) return;
+
+    try {
+        if (typeof localStorage !== 'undefined' && localStorage.getItem(RESUMO_LS_KEY)) return;
+    } catch (_) {}
 
     _migratingResumo = true;
-    console.log('[MIGRAÇÃO] Criando estoqueAgua/__resumo__ (uma vez só)…');
+    console.log('[MIGRAÇÃO] Criando resumo do estoque de água (uma vez só)…');
+
     try {
-        const snap = await getDocs(collections.aguaMov); // Leitura completa única
+        // Verifica se o doc já existe antes de fazer getDocs de toda a coleção
+        const resumoRef = doc(collections.estoqueAgua, RESUMO_DOC_ID);
+        const resumoSnap = await getDoc(resumoRef);
+        if (resumoSnap.exists()) {
+            // Já existe — apenas marca o flag e sai
+            try { localStorage.setItem(RESUMO_LS_KEY, '1'); } catch (_) {}
+            console.log('[MIGRAÇÃO] Resumo já existe, nada a fazer.');
+            return;
+        }
+
+        // Leitura completa única de controleAgua para calcular totais históricos
+        const snap = await getDocs(collections.aguaMov);
         let totalSaidas = 0, totalRetornos = 0;
         snap.docs.forEach(d => {
             const m = d.data();
@@ -250,16 +273,21 @@ async function _migrateAguaResumo(collections) {
             if (m.tipo === 'entrega')                           totalSaidas   += qty;
             if (m.tipo === 'retorno' || m.tipo === 'retirada') totalRetornos += qty;
         });
-        await setDoc(doc(collections.estoqueAgua, '__resumo__'), {
-            tipo:          '__resumo__',
+
+        // Salva com ID válido (sem __ duplo)
+        await setDoc(resumoRef, {
+            tipo:          '__resumo__',   // campo tipo mantém o valor original
             totalSaidas,
             totalRetornos,
             atualizadoEm:  serverTimestamp()
         });
-        if (typeof localStorage !== 'undefined') localStorage.setItem(lsKey, '1');
-        console.log('[MIGRAÇÃO ✓] estoqueAgua/__resumo__ criado:', { totalSaidas, totalRetornos });
+
+        try { localStorage.setItem(RESUMO_LS_KEY, '1'); } catch (_) {}
+        console.log('[MIGRAÇÃO ✓] Resumo criado com ID "resumo-agua":', { totalSaidas, totalRetornos });
+
     } catch (err) {
-        console.error('[MIGRAÇÃO] Erro ao criar __resumo__:', err);
+        // Loga apenas 1x (não vai tentar de novo nesta sessão por causa de _migratingResumo)
+        console.error('[MIGRAÇÃO] Erro ao criar resumo:', err?.message || err);
     } finally {
         _migratingResumo = false;
     }
@@ -280,7 +308,6 @@ async function initFirestoreListeners(renderDash, renderControls, renderModules)
     unsubscribeFirestoreListeners();
     console.log("Iniciando listeners do Firestore...");
 
-    // Armazena referências globais para reconexão
     _globalRenderDash = renderDash;
     _globalRenderControls = renderControls;
     _globalRenderModules = renderModules;
@@ -309,17 +336,17 @@ async function initFirestoreListeners(renderDash, renderControls, renderModules)
                 }
 
                 if (code === 'permission-denied' || msg.includes('missing or insufficient permissions')) {
-                    try { showAlert('alert-login', 'Sem permissão para ler os dados (' + q.type + ').', 'error', 10000); } catch (_) {}
+                    try { showAlert('alert-login', 'Sem permissão para ler os dados.', 'error', 10000); } catch (_) {}
                     try {
                         if (DOM_ELEMENTS.appContentWrapper) DOM_ELEMENTS.appContentWrapper.classList.add('hidden');
                         if (DOM_ELEMENTS.authModal) DOM_ELEMENTS.authModal.style.display = 'flex';
                     } catch (_) {}
-                    console.error("Erro no listener Firestore (permission-denied):", err, "Query:", q);
+                    console.error("Erro no listener Firestore (permission-denied):", err);
                     return;
                 }
 
                 if (code === 'failed-precondition' && msg.includes('index')) {
-                    try { showAlert('connectionStatus', 'Consulta do Firestore precisa de índice. Verifique o console para o link de criação.', 'warning', 10000); } catch (_) {}
+                    try { showAlert('connectionStatus', 'Consulta do Firestore precisa de índice. Verifique o console.', 'warning', 10000); } catch (_) {}
                 }
 
                 console.error("Erro no listener Firestore:", err);
@@ -335,23 +362,21 @@ async function initFirestoreListeners(renderDash, renderControls, renderModules)
         scheduleRenders({ controls: true, modules: true, permissions: true }, renderDash, renderControls, renderModules);
     });
 
-    // Água — limit(90) cobre ~3 meses de histórico para exibição.
-    // O saldo real é calculado via doc __resumo__ em estoqueAgua (totalSaidas acumulado).
+    // Água — limit(90) cobre ~3 meses. Saldo real vem do doc resumo-agua em estoqueAgua.
     addListener(query(COLLECTIONS.aguaMov, orderBy("registradoEm", "desc"), limit(90)), snap => {
         const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         setAguaMovimentacoes(data);
         scheduleRenders({ dash: true, modules: true }, renderDash, renderControls, renderModules);
     });
 
-    // Gás — limit(300) cobre ~9 meses (1 doc/dia). Seguro por anos.
+    // Gás — limit(300) cobre ~9 meses.
     addListener(query(COLLECTIONS.gasMov, orderBy("registradoEm", "desc"), limit(300)), snap => {
         const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         setGasMovimentacoes(data);
         scheduleRenders({ dash: true, modules: true }, renderDash, renderControls, renderModules);
     });
 
-    // Materiais — limit(200). Cobre ~5 dias de histórico. A aba Histórico mostra os 200 mais recentes.
-    // NÃO filtrar por status aqui: a aba Histórico e contadores dependem de ver pedidos 'entregue'.
+    // Materiais — limit(200).
     addListener(query(COLLECTIONS.materiais, orderBy("registradoEm", "desc"), limit(200)), snap => {
         const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         try { console.info("[FM] materiais listener:", data.length, "docs"); } catch (_) {}
@@ -366,8 +391,11 @@ async function initFirestoreListeners(renderDash, renderControls, renderModules)
         const inicial = data.some(e => e.tipo === 'inicial');
         setEstoqueInicialDefinido('agua', inicial);
         scheduleRenders({ dash: true, modules: true }, renderDash, renderControls, renderModules);
-        // Se __resumo__ ainda não existe, migrar (operação única por instância do app)
-        if (!data.some(e => e.tipo === '__resumo__')) {
+
+        // Dispara migração APENAS se o doc resumo ainda não existe no Firestore.
+        // _migratingResumo e localStorage evitam loops infinitos.
+        const temResumo = data.some(e => e.tipo === '__resumo__');
+        if (!temResumo) {
             _migrateAguaResumo(COLLECTIONS).catch(() => {});
         }
     });
@@ -380,7 +408,7 @@ async function initFirestoreListeners(renderDash, renderControls, renderModules)
         scheduleRenders({ dash: true, modules: true }, renderDash, renderControls, renderModules);
     });
 
-    // Assistência Social (limits menores — módulos secundários)
+    // Assistência Social
     addListener(query(COLLECTIONS.cestaMov, orderBy("registradoEm", "desc"), limit(200)), snap => {
         const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         setCestaMovimentacoes(data);
@@ -427,7 +455,7 @@ async function initFirestoreListeners(renderDash, renderControls, renderModules)
         try {
             if (gotAnySnapshot) return;
             if (lastListenerError) {
-                showAlert('connectionStatus', 'Não foi possível carregar os dados do banco. Verifique sua conexão/permissões.', 'error', 10000);
+                showAlert('connectionStatus', 'Não foi possível carregar os dados. Verifique sua conexão/permissões.', 'error', 10000);
                 return;
             }
             showAlert('connectionStatus', 'Carregando dados do banco…', 'info', 8000);
@@ -435,9 +463,6 @@ async function initFirestoreListeners(renderDash, renderControls, renderModules)
     }, 4000);
 }
 
-// Reconexão: O Firebase com persistência offline (IndexedDB) já gerencia
-// a reconexão automaticamente. NÃO reiniciamos os listeners aqui para
-// evitar re-leitura completa de todas as coleções a cada oscilação de rede.
 window.addEventListener('online', () => {
     console.log("🔄 Conexão de rede restabelecida. O Firebase reconectará automaticamente.");
     if (auth.currentUser) {
@@ -461,8 +486,7 @@ async function initAuthAndListeners(renderDash, renderControls, renderModules) {
             transitioning = true;
             isAuthReady = true;
             userId = user.uid;
-            
-            // Tenta obter role, fallback para anon se der erro
+
             let role = 'anon';
             try {
                 role = await getUserRoleFromFirestore(user);
@@ -478,8 +502,6 @@ async function initAuthAndListeners(renderDash, renderControls, renderModules) {
             }
 
             unsubscribeFirestoreListeners();
-            
-            // Sempre tenta iniciar os listeners, mesmo se o navegador achar que está offline (pode ser falso positivo)
             await initFirestoreListeners(renderDash, renderControls, renderModules);
 
             renderPermissionsUI();
@@ -507,7 +529,7 @@ async function initAuthAndListeners(renderDash, renderControls, renderModules) {
                 __persistenceWarned = true;
                 const ok = await ensureBestAuthPersistence();
                 if (!ok) {
-                    showAlert('alert-login', 'Seu navegador está bloqueando o armazenamento do login no preview. Use uma aba normal (não incorporada) para manter logado após atualizar.', 'warning', 10000);
+                    showAlert('alert-login', 'Seu navegador está bloqueando o armazenamento do login. Use uma aba normal para manter logado após atualizar.', 'warning', 10000);
                 }
             }
         }
