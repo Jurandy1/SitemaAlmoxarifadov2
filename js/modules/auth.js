@@ -161,7 +161,7 @@ async function signInEmailPassword(email, password) {
         console.error("Erro login:", err);
         let msg = "Não foi possível fazer login.";
         if (['auth/user-not-found', 'auth/wrong-password', 'auth/invalid-credential'].includes(err.code)) {
-            msg = "E-mail ou senha incorretos. Se for seu primeiro acesso ou não lembrar a senha, clique em "Esqueci minha senha".";
+            msg = "E-mail ou senha incorretos. Se for seu primeiro acesso ou não lembrar a senha, clique em 'Esqueci minha senha'.";
         }
         if (err.code === 'auth/invalid-email') msg = "Formato de e-mail inválido.";
         if (err.code === 'auth/too-many-requests') msg = "Muitas tentativas. Aguarde alguns minutos e tente novamente.";
