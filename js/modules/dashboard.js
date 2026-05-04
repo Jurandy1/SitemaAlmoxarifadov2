@@ -1,12 +1,10 @@
-// js/modules/dashboard.js// js/modules/dashboard.js
+// js/modules/dashboard.js
 import { getAguaMovimentacoes, getGasMovimentacoes, getEstoqueAgua, getEstoqueGas, getMateriais, getEntregas, getCurrentDashboardMaterialFilter, setCurrentDashboardMaterialFilter } from "../utils/cache.js";
 import { DOM_ELEMENTS } from "../utils/dom-helpers.js";
 import { formatTimestamp } from "../utils/formatters.js";
 import Chart from 'chart.js/auto';
 
 // ── Corte de data para cálculo do estoque de gás ──────────────────────────
-// Apenas registros a partir de 30/04/2026 são contabilizados no estoque.
-// Isso garante que o número exibido no Modo TV bata com o painel de Gás.
 const GAS_CUTOFF_MS = new Date('2026-04-30T00:00:00.000').getTime();
 function filterGasAfterCutoff(items) {
     return (items || []).filter(item => (item.data?.toMillis?.() ?? 0) >= GAS_CUTOFF_MS);
@@ -14,6 +12,8 @@ function filterGasAfterCutoff(items) {
 
 let dashboardAguaChartInstance, dashboardGasChartInstance;
 let dashboardRefreshInterval = null;
+let _dashRenderTimeout = null;
+
 // Estado de paginação da lista de Materiais
 let materiaisPagerState = { page: 1, pageSize: 20, total: 0, pages: 1, data: [] };
 let materiaisAutoPagerInterval = null;
@@ -22,16 +22,17 @@ let geralPagerState = { page: 1, pageSize: 5, pages: 1, maxItems: 0 };
 let geralAutoPagerInterval = null;
 let geralAutoScrollTimers = [];
 // Filtros globais e busca da Visão Geral (agrupamento)
-let geralFilterStatus = 'todos'; // 'todos' | 'separacao' | 'pronto' | 'pendente'
+let geralFilterStatus = 'todos';
 let geralSearchQuery = '';
 let __tvFichaBound = false;
+
+// ── Último valor conhecido do estoque de água (evita flickering) ──────────
+let _lastKnownAguaEstoque = null;
 
 // =========================================================================
 // FUNÇÕES DE UTILIDADE DO DASHBOARD
 // =========================================================================
 
-// ── Filtro: apenas documentos do novo módulo de separação (v2) ──
-// Documentos antigos (v1, sem _version) ficam apenas no histórico.
 function getActiveV2Materiais() {
     return (getMateriais() || []).filter(m => {
         if (m?.deleted) return false;
@@ -51,75 +52,60 @@ function isHistoricoImportado(m) {
     return false;
 }
 
-/**
- * Filtra movimentações dos últimos 30 dias.
- */
 function filterLast30Days(movimentacoes) {
     if (!Array.isArray(movimentacoes)) return [];
-    
-    const today = new Date(); 
-    today.setHours(23, 59, 59, 999); 
-    const thirtyDaysAgo = new Date(today); 
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30); 
-    thirtyDaysAgo.setHours(0, 0, 0, 0); 
-    
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    const thirtyDaysAgo = new Date(today);
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    thirtyDaysAgo.setHours(0, 0, 0, 0);
     const thirtyDaysAgoTimestamp = thirtyDaysAgo.getTime();
     const todayTimestamp = today.getTime();
-    
     return movimentacoes.filter(m => {
-        if (isHistoricoImportado(m)) return false; // não contar histórico importado
-        if (!m.data || typeof m.data.toDate !== 'function') return false; 
+        if (isHistoricoImportado(m)) return false;
+        if (!m.data || typeof m.data.toDate !== 'function') return false;
         const mTimestamp = m.data.toMillis();
         return mTimestamp >= thirtyDaysAgoTimestamp && mTimestamp <= todayTimestamp;
     });
 }
 
-/**
- * Prepara dados para os gráficos de linha dos últimos 30 dias (Água/Gás).
- */
 function getChartDataLast30Days(movimentacoes) {
-    const labels = []; const entregasData = []; const retornosData = []; 
+    const labels = []; const entregasData = []; const retornosData = [];
     const dataMap = new Map();
-    
     const today = new Date(); today.setHours(0, 0, 0, 0);
-    for (let i = 29; i >= 0; i--) { 
-        const d = new Date(today); 
-        d.setDate(d.getDate() - i); 
-        const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; 
-        const dateLabel = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }); 
-        labels.push(dateLabel); 
-        dataMap.set(dateKey, { entregas: 0, retornos: 0 }); 
+    for (let i = 29; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const dateLabel = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+        labels.push(dateLabel);
+        dataMap.set(dateKey, { entregas: 0, retornos: 0 });
     }
-
     const movs30Dias = filterLast30Days(movimentacoes);
-    
-    movs30Dias.forEach(m => { 
+    movs30Dias.forEach(m => {
         try {
-            const mDate = m.data.toDate(); 
+            const mDate = m.data.toDate();
             mDate.setHours(0,0,0,0);
-            const dateKey = `${mDate.getFullYear()}-${String(mDate.getMonth() + 1).padStart(2, '0')}-${String(mDate.getDate()).padStart(2, '0')}`; 
-            if (dataMap.has(dateKey)) { 
-                const dayData = dataMap.get(dateKey); 
-                if (m.tipo === 'entrega') dayData.entregas += m.quantidade; 
-                else if (m.tipo === 'retorno') dayData.retornos += m.quantidade; 
-            } 
+            const dateKey = `${mDate.getFullYear()}-${String(mDate.getMonth() + 1).padStart(2, '0')}-${String(mDate.getDate()).padStart(2, '0')}`;
+            if (dataMap.has(dateKey)) {
+                const dayData = dataMap.get(dateKey);
+                if (m.tipo === 'entrega') dayData.entregas += m.quantidade;
+                else if (m.tipo === 'retorno') dayData.retornos += m.quantidade;
+            }
         } catch (e) { console.warn('Erro ao processar data para gráfico:', e); }
     });
-
-    dataMap.forEach(value => { 
-        entregasData.push(value.entregas); 
-        retornosData.push(value.retornos); 
+    dataMap.forEach(value => {
+        entregasData.push(value.entregas);
+        retornosData.push(value.retornos);
     });
-
-    return { 
-        labels, 
-        datasets: [ 
-            { label: 'Entregues (Cheios)', data: entregasData, backgroundColor: 'rgba(59, 130, 246, 0.7)', borderColor: 'rgba(59, 130, 246, 1)', borderWidth: 1, tension: 0.1 }, 
-            { label: 'Recebidos (Vazios)', data: retornosData, backgroundColor: 'rgba(16, 185, 129, 0.7)', borderColor: 'rgba(16, 185, 129, 1)', borderWidth: 1, tension: 0.1 } 
-        ] 
+    return {
+        labels,
+        datasets: [
+            { label: 'Entregues (Cheios)', data: entregasData, backgroundColor: 'rgba(59, 130, 246, 0.7)', borderColor: 'rgba(59, 130, 246, 1)', borderWidth: 1, tension: 0.1 },
+            { label: 'Recebidos (Vazios)', data: retornosData, backgroundColor: 'rgba(16, 185, 129, 0.7)', borderColor: 'rgba(16, 185, 129, 1)', borderWidth: 1, tension: 0.1 }
+        ]
     };
 }
-
 
 // =========================================================================
 // FUNÇÕES DE RENDERIZAÇÃO
@@ -130,13 +116,12 @@ function switchDashboardView(viewName) {
         btn.classList.toggle('active', btn.dataset.view === viewName);
     });
     document.querySelectorAll('.dashboard-tv-view > div[id^="dashboard-view-"]').forEach(pane => {
-         pane.classList.toggle('hidden', pane.id !== `dashboard-view-${viewName}`);
+        pane.classList.toggle('hidden', pane.id !== `dashboard-view-${viewName}`);
     });
-    
     if(viewName === 'agua') renderDashboardAguaChart();
     if(viewName === 'gas') renderDashboardGasChart();
     if(viewName === 'geral') {
-        if (DOM_ELEMENTS.dashboardMateriaisSeparacaoCountEl) renderDashboardMateriaisCounts(); 
+        if (DOM_ELEMENTS.dashboardMateriaisSeparacaoCountEl) renderDashboardMateriaisCounts();
         if (DOM_ELEMENTS.dashboardMateriaisProntosPager) DOM_ELEMENTS.dashboardMateriaisProntosPager.classList.remove('hidden');
         if (DOM_ELEMENTS.geralPagerInfo) {
             DOM_ELEMENTS.geralPagerInfo.textContent = `Página ${geralPagerState.page} de ${geralPagerState.pages} • até ${geralPagerState.pageSize} itens/coluna`;
@@ -149,7 +134,6 @@ function switchDashboardView(viewName) {
         if (DOM_ELEMENTS.dashboardMateriaisPagerContainer) DOM_ELEMENTS.dashboardMateriaisPagerContainer.classList.add('hidden');
         if (materiaisAutoPagerInterval) { clearInterval(materiaisAutoPagerInterval); materiaisAutoPagerInterval = null; }
     }
-
     if (viewName !== 'geral') {
         if (DOM_ELEMENTS.dashboardMateriaisProntosPager) DOM_ELEMENTS.dashboardMateriaisProntosPager.classList.add('hidden');
         if (geralAutoPagerInterval) { clearInterval(geralAutoPagerInterval); geralAutoPagerInterval = null; }
@@ -158,28 +142,28 @@ function switchDashboardView(viewName) {
 
 export function renderDashboardAguaChart() {
     try {
-        const ctx = document.getElementById('dashboardAguaChart')?.getContext('2d'); 
-        if (!ctx) return; 
-        const data = getChartDataLast30Days(getAguaMovimentacoes()); 
-        if (dashboardAguaChartInstance) { 
-            dashboardAguaChartInstance.data = data; 
-            dashboardAguaChartInstance.update(); 
-        } else if (typeof Chart !== 'undefined') { 
-            dashboardAguaChartInstance = new Chart(ctx, { type: 'line', data: data, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }, plugins: { legend: { position: 'top' } } } }); 
+        const ctx = document.getElementById('dashboardAguaChart')?.getContext('2d');
+        if (!ctx) return;
+        const data = getChartDataLast30Days(getAguaMovimentacoes());
+        if (dashboardAguaChartInstance) {
+            dashboardAguaChartInstance.data = data;
+            dashboardAguaChartInstance.update();
+        } else if (typeof Chart !== 'undefined') {
+            dashboardAguaChartInstance = new Chart(ctx, { type: 'line', data: data, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }, plugins: { legend: { position: 'top' } } } });
         }
     } catch (e) { console.error("Erro ao renderizar gráfico Água:", e); }
 }
 
 export function renderDashboardGasChart() {
     try {
-        const ctx = document.getElementById('dashboardGasChart')?.getContext('2d'); 
-        if (!ctx) return; 
-        const data = getChartDataLast30Days(getGasMovimentacoes()); 
-        if (dashboardGasChartInstance) { 
-            dashboardGasChartInstance.data = data; 
-            dashboardGasChartInstance.update(); 
-        } else if (typeof Chart !== 'undefined') { 
-            dashboardGasChartInstance = new Chart(ctx, { type: 'line', data: data, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }, plugins: { legend: { position: 'top' } } } }); 
+        const ctx = document.getElementById('dashboardGasChart')?.getContext('2d');
+        if (!ctx) return;
+        const data = getChartDataLast30Days(getGasMovimentacoes());
+        if (dashboardGasChartInstance) {
+            dashboardGasChartInstance.data = data;
+            dashboardGasChartInstance.update();
+        } else if (typeof Chart !== 'undefined') {
+            dashboardGasChartInstance = new Chart(ctx, { type: 'line', data: data, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }, plugins: { legend: { position: 'top' } } } });
         }
     } catch (e) { console.error("Erro ao renderizar gráfico Gás:", e); }
 }
@@ -189,19 +173,47 @@ function renderDashboardAguaSummary() {
         const movs = (getAguaMovimentacoes() || []).filter(m => !isHistoricoImportado(m));
         const estoqueAgua = getEstoqueAgua() || [];
 
-        const estoqueInicial = estoqueAgua.filter(e => e.tipo === 'inicial').reduce((sum, e) => sum + (e.quantidade || 0), 0);
-        const totalEntradas  = estoqueAgua.filter(e => e.tipo === 'entrada').reduce((sum, e) => sum + (e.quantidade || 0), 0);
+        const estoqueInicial = estoqueAgua
+            .filter(e => e.tipo === 'inicial')
+            .reduce((sum, e) => sum + (e.quantidade || 0), 0);
+        const totalEntradas = estoqueAgua
+            .filter(e => e.tipo === 'entrada')
+            .reduce((sum, e) => sum + (e.quantidade || 0), 0);
 
-        // Usa __resumo__ para totais históricos (saldo correto mesmo com limit(90) no listener)
+        // Prioridade absoluta: __resumo__ cobre todo histórico além do limit(90)
         const resumo = estoqueAgua.find(e => e.tipo === '__resumo__');
-        const totalSaidasHist   = resumo ? (resumo.totalSaidas   || 0)
-            : movs.filter(m => m.tipo === 'entrega').reduce((sum, m) => sum + (m.quantidade || 0), 0);
-        const totalRetornosHist = resumo ? (resumo.totalRetornos || 0)
-            : movs.filter(m => m.tipo === 'retorno' || m.tipo === 'retirada').reduce((sum, m) => sum + (m.quantidade || 0), 0);
+        let totalSaidasHist;
+
+        if (resumo && typeof resumo.totalSaidas === 'number') {
+            // __resumo__ disponível — fonte de verdade do histórico completo
+            totalSaidasHist = resumo.totalSaidas;
+        } else if (movs.length > 0) {
+            // Fallback: conta apenas os movimentos no cache
+            totalSaidasHist = movs
+                .filter(m => m.tipo === 'entrega')
+                .reduce((sum, m) => sum + (m.quantidade || 0), 0);
+        } else {
+            // Sem dados ainda — mantém o último valor conhecido para evitar flickering
+            if (_lastKnownAguaEstoque !== null && DOM_ELEMENTS.dashboardEstoqueAguaEl) {
+                DOM_ELEMENTS.dashboardEstoqueAguaEl.textContent = _lastKnownAguaEstoque;
+            }
+            return;
+        }
 
         const estoqueAtual = Math.max(0, estoqueInicial + totalEntradas - totalSaidasHist);
 
-        // Últimos 30 dias — o limit(90) cobre ~3 meses, então os 30d recentes estão sempre disponíveis
+        // Só atualiza o DOM se o valor realmente mudou (evita re-render desnecessário)
+        if (estoqueAtual === _lastKnownAguaEstoque &&
+            DOM_ELEMENTS.dashboardEstoqueAguaEl &&
+            DOM_ELEMENTS.dashboardEstoqueAguaEl.textContent === String(estoqueAtual)) {
+            return;
+        }
+        _lastKnownAguaEstoque = estoqueAtual;
+
+        const totalRetornosHist = resumo
+            ? (resumo.totalRetornos || 0)
+            : movs.filter(m => m.tipo === 'retorno' || m.tipo === 'retirada').reduce((sum, m) => sum + (m.quantidade || 0), 0);
+
         const movs30Dias = filterLast30Days(movs);
         const totalEntregue30d = movs30Dias.filter(m => m.tipo === 'entrega').reduce((sum, m) => sum + (m.quantidade || 0), 0);
         const totalRecebido30d = movs30Dias.filter(m => (m.tipo === 'retorno' || m.tipo === 'retirada')).reduce((sum, m) => sum + (m.quantidade || 0), 0);
@@ -209,14 +221,12 @@ function renderDashboardAguaSummary() {
         if (DOM_ELEMENTS.summaryAguaPendente) DOM_ELEMENTS.summaryAguaPendente.textContent = totalSaidasHist - totalRetornosHist;
         if (DOM_ELEMENTS.summaryAguaEntregue) DOM_ELEMENTS.summaryAguaEntregue.textContent = totalEntregue30d;
         if (DOM_ELEMENTS.summaryAguaRecebido) DOM_ELEMENTS.summaryAguaRecebido.textContent = totalRecebido30d;
-
         if (DOM_ELEMENTS.dashboardEstoqueAguaEl) DOM_ELEMENTS.dashboardEstoqueAguaEl.textContent = estoqueAtual;
     } catch (e) { console.error("Erro ao renderizar sumário Água:", e); }
 }
 
 function renderDashboardGasSummary() {
     try {
-        // ✅ FIX: aplica corte de 30/04/2026 — igual ao painel "Controle de Gás"
         const estoqueGas = filterGasAfterCutoff(getEstoqueGas() || []);
         const movs = filterGasAfterCutoff(
             (getGasMovimentacoes() || []).filter(m => !isHistoricoImportado(m))
@@ -226,33 +236,29 @@ function renderDashboardGasSummary() {
         const totalEntradas = estoqueGas.filter(e => e.tipo === 'entrada').reduce((sum, e) => sum + (parseInt(e.quantidade, 10) || 0), 0);
         const totalSaidas = movs.filter(m => m.tipo === 'entrega').reduce((sum, m) => sum + (parseInt(m.quantidade, 10) || 0), 0);
         const estoqueAtual = Math.max(0, estoqueInicial + totalEntradas - totalSaidas);
-        
+
         const totalEntregueGeral = movs.filter(m => m.tipo === 'entrega').reduce((sum, m) => sum + (parseInt(m.quantidade, 10) || 0), 0);
         const totalRecebidoGeral = movs.filter(m => (m.tipo === 'retorno' || m.tipo === 'retirada')).reduce((sum, m) => sum + (parseInt(m.quantidade, 10) || 0), 0);
-        
+
         const movs30Dias = filterLast30Days(movs);
         const totalEntregue30d = movs30Dias.filter(m => m.tipo === 'entrega').reduce((sum, m) => sum + (parseInt(m.quantidade, 10) || 0), 0);
         const totalRecebido30d = movs30Dias.filter(m => (m.tipo === 'retorno' || m.tipo === 'retirada')).reduce((sum, m) => sum + (parseInt(m.quantidade, 10) || 0), 0);
 
-        if (DOM_ELEMENTS.summaryGasPendente) DOM_ELEMENTS.summaryGasPendente.textContent = totalEntregueGeral - totalRecebidoGeral; 
+        if (DOM_ELEMENTS.summaryGasPendente) DOM_ELEMENTS.summaryGasPendente.textContent = totalEntregueGeral - totalRecebidoGeral;
         if (DOM_ELEMENTS.summaryGasEntregue) DOM_ELEMENTS.summaryGasEntregue.textContent = totalEntregue30d;
         if (DOM_ELEMENTS.summaryGasRecebido) DOM_ELEMENTS.summaryGasRecebido.textContent = totalRecebido30d;
-
-        // ✅ Este é o valor exibido no Modo TV (id="dashboard-estoque-gas")
         if (DOM_ELEMENTS.dashboardEstoqueGasEl) DOM_ELEMENTS.dashboardEstoqueGasEl.textContent = estoqueAtual;
     } catch (e) { console.error("Erro ao renderizar sumário Gás:", e); }
 }
 
 function renderDashboardMateriaisList() {
-    if (!DOM_ELEMENTS.dashboardMateriaisListContainer || !DOM_ELEMENTS.loadingMateriaisDashboard) return; 
-    
+    if (!DOM_ELEMENTS.dashboardMateriaisListContainer || !DOM_ELEMENTS.loadingMateriaisDashboard) return;
     try {
-        DOM_ELEMENTS.loadingMateriaisDashboard.style.display = 'none'; 
-        
+        DOM_ELEMENTS.loadingMateriaisDashboard.style.display = 'none';
         const pendentes = getActiveV2Materiais()
             .filter(m => m.status === 'requisitado' || m.status === 'separacao' || m.status === 'retirada')
-            .sort((a,b) => { 
-                const statusOrder = { 'requisitado': 1, 'separacao': 2, 'retirada': 3 }; 
+            .sort((a,b) => {
+                const statusOrder = { 'requisitado': 1, 'separacao': 2, 'retirada': 3 };
                 const statusCompare = (statusOrder[a.status] || 9) - (statusOrder[b.status] || 9);
                 if (statusCompare !== 0) return statusCompare;
                 const tsA = (a.status === 'requisitado')
@@ -265,32 +271,30 @@ function renderDashboardMateriaisList() {
                     : (b.status === 'separacao')
                         ? (b.dataSeparacao?.toMillis() || b.registradoEm?.toMillis() || 0)
                         : (b.dataRetirada?.toMillis() || b.dataSeparacao?.toMillis() || 0);
-                return tsA - tsB; 
-            }); 
+                return tsA - tsB;
+            });
 
         materiaisPagerState.total = pendentes.length;
         materiaisPagerState.pages = Math.max(1, Math.ceil(materiaisPagerState.total / materiaisPagerState.pageSize));
         if (materiaisPagerState.page > materiaisPagerState.pages) materiaisPagerState.page = materiaisPagerState.pages;
         materiaisPagerState.data = pendentes;
 
-        if (pendentes.length === 0) { 
-            DOM_ELEMENTS.dashboardMateriaisListContainer.innerHTML = '<p class="text-sm text-slate-500 text-center py-4">Nenhum material pendente.</p>'; 
+        if (pendentes.length === 0) {
+            DOM_ELEMENTS.dashboardMateriaisListContainer.innerHTML = '<p class="text-sm text-slate-500 text-center py-4">Nenhum material pendente.</p>';
             atualizarPagerUI();
-            return; 
+            return;
         }
         const inicio = (materiaisPagerState.page - 1) * materiaisPagerState.pageSize;
         const fim = inicio + materiaisPagerState.pageSize;
         const paginaItems = pendentes.slice(inicio, fim);
-        
+
         const html = paginaItems.map(m => {
             const isSeparacao = m.status === 'separacao';
             const isRetirada = m.status === 'retirada';
-            
             let badgeClass = 'badge-purple';
             let badgeText = 'Requisitado';
-            let bgColor = 'bg-purple-50'; 
+            let bgColor = 'bg-purple-50';
             let borderColor = 'border-purple-300';
-            
             if (isSeparacao) {
                 badgeClass = 'badge-yellow';
                 badgeText = 'Em Separação';
@@ -302,18 +306,17 @@ function renderDashboardMateriaisList() {
                 bgColor = 'bg-green-50';
                 borderColor = 'border-green-300';
             }
-
             const separador = m.responsavelSeparador ? `<p class=\"text-xs text-slate-700 mt-1\"><strong>Separador:</strong> ${m.responsavelSeparador}</p>` : '';
-            return ` 
-                <div class="dashboard-list-item p-3 ${bgColor} rounded-lg border ${borderColor}"> 
-                    <div class="flex justify-between items-center gap-2"> 
-                        <span class="font-medium text-slate-700 text-sm break-words" title="${m.unidadeNome || ''}">${m.unidadeNome || 'Unidade Desc.'}</span> 
-                        <span class="badge ${badgeClass} flex-shrink-0">${badgeText} (${formatTimestamp(m.dataSeparacao || m.registradoEm)})</span> 
-                    </div> 
-                    <p class="text-xs text-slate-600 capitalize mt-1">${m.tipoMaterial || 'N/D'}</p> 
+            return `
+                <div class="dashboard-list-item p-3 ${bgColor} rounded-lg border ${borderColor}">
+                    <div class="flex justify-between items-center gap-2">
+                        <span class="font-medium text-slate-700 text-sm break-words" title="${m.unidadeNome || ''}">${m.unidadeNome || 'Unidade Desc.'}</span>
+                        <span class="badge ${badgeClass} flex-shrink-0">${badgeText} (${formatTimestamp(m.dataSeparacao || m.registradoEm)})</span>
+                    </div>
+                    <p class="text-xs text-slate-600 capitalize mt-1">${m.tipoMaterial || 'N/D'}</p>
                     ${separador}
-                    ${m.itens ? `<p class="text-xs text-gray-500 mt-1 truncate" title="${m.itens}">Obs: ${m.itens}</p>` : ''} 
-                </div> `
+                    ${m.itens ? `<p class="text-xs text-gray-500 mt-1 truncate" title="${m.itens}">Obs: ${m.itens}</p>` : ''}
+                </div>`;
         }).join('');
 
         DOM_ELEMENTS.dashboardMateriaisListContainer.innerHTML = html;
@@ -330,8 +333,6 @@ function renderDashboardMateriaisList() {
 }
 
 function renderDashboardMateriaisCounts() {
-    // if (!DOM_ELEMENTS.summaryMateriaisRequisitado) return; // Removido para permitir atualização parcial (Modo TV)
-    
     try {
         const entregas = (getEntregas() || []).filter(m => !m.deleted && (m._version === 2 || m.origemFluxo === 'v2'));
         const materiais = entregas.length ? entregas : getActiveV2Materiais();
@@ -339,12 +340,11 @@ function renderDashboardMateriaisCounts() {
         const requisitadoCount = materiais.filter(m => m.status === 'requisitado').length;
         const separacaoCount = materiais.filter(m => m.status === 'separacao' || m.status === 'separando').length;
         const retiradaCount = materiais.filter(m => m.status === 'retirada' || m.status === 'pronto').length;
-        
+
         const emSeparacaoDashboard = requisitadoCount + separacaoCount;
 
         if (DOM_ELEMENTS.dashboardMateriaisSeparacaoCountEl) DOM_ELEMENTS.dashboardMateriaisSeparacaoCountEl.textContent = emSeparacaoDashboard;
         if (DOM_ELEMENTS.dashboardMateriaisRetiradaCountEl) DOM_ELEMENTS.dashboardMateriaisRetiradaCountEl.textContent = retiradaCount;
-        
         if (DOM_ELEMENTS.summaryMateriaisRequisitado) DOM_ELEMENTS.summaryMateriaisRequisitado.textContent = requisitadoCount;
         if (DOM_ELEMENTS.summaryMateriaisSeparacao) DOM_ELEMENTS.summaryMateriaisSeparacao.textContent = separacaoCount;
         if (DOM_ELEMENTS.summaryMateriaisRetirada) DOM_ELEMENTS.summaryMateriaisRetirada.textContent = retiradaCount;
@@ -355,36 +355,34 @@ function renderDashboardMateriaisCounts() {
 
 export function renderDashboardMateriaisProntos(filterStatus = null) {
     const container = DOM_ELEMENTS.dashboardMateriaisProntosContainer;
-    const titleEl = DOM_ELEMENTS.dashboardMateriaisTitle; 
-    const clearButton = DOM_ELEMENTS.btnClearDashboardFilter; 
-    
-    // VERIFICAÇÃO DO MODO TV (NOVO LAYOUT)
+    const titleEl = DOM_ELEMENTS.dashboardMateriaisTitle;
+    const clearButton = DOM_ELEMENTS.btnClearDashboardFilter;
+
     if (DOM_ELEMENTS.tvListSeparacao && DOM_ELEMENTS.tvListPronto) {
         renderTVDashboard(DOM_ELEMENTS.tvListSeparacao, DOM_ELEMENTS.tvListPronto);
         if (!container) return;
     }
 
-    if (!container) return; 
-    
+    if (!container) return;
+
     try {
         const materiais = getActiveV2Materiais();
-        
         let pendentes = materiais.filter(m => m.status === 'requisitado' || m.status === 'separacao' || m.status === 'retirada');
-        
+
         if (filterStatus === 'separacao') {
-             pendentes = pendentes.filter(m => m.status === 'separacao' || m.status === 'requisitado');
+            pendentes = pendentes.filter(m => m.status === 'separacao' || m.status === 'requisitado');
         } else if (filterStatus) {
-             pendentes = pendentes.filter(m => m.status === filterStatus);
+            pendentes = pendentes.filter(m => m.status === filterStatus);
         }
 
-        if (clearButton) clearButton.classList.toggle('hidden', !filterStatus); 
+        if (clearButton) clearButton.classList.toggle('hidden', !filterStatus);
         if (titleEl) {
             if (filterStatus === 'separacao') {
-                 titleEl.textContent = 'Materiais em Separação e Requisitados';
+                titleEl.textContent = 'Materiais em Separação e Requisitados';
             } else if (filterStatus === 'retirada') {
                 titleEl.textContent = 'Materiais Disponíveis p/ Retirada';
             } else {
-                 titleEl.textContent = 'Materiais do Almoxarifado';
+                titleEl.textContent = 'Materiais do Almoxarifado';
             }
         }
 
@@ -434,19 +432,19 @@ export function renderDashboardMateriaisProntos(filterStatus = null) {
             const pendente = lista.filter(m => m.status === 'requisitado').length;
             const total = lista.length;
 
-            const materiaisOrdenados = lista
-                .sort((a,b) => {
-                    const statusOrder = { 'requisitado': 1, 'separacao': 2, 'retirada': 3 };
-                    const statusCompare = (statusOrder[a.status] || 9) - (statusOrder[b.status] || 9);
-                    if (statusCompare !== 0) return statusCompare;
-                    const tsA = (a.status === 'requisitado') ? (a.registradoEm?.toMillis() || 0)
-                        : (a.status === 'separacao') ? (a.dataSeparacao?.toMillis() || a.registradoEm?.toMillis() || 0)
-                        : (a.dataRetirada?.toMillis() || a.dataSeparacao?.toMillis() || 0);
-                    const tsB = (b.status === 'requisitado') ? (b.registradoEm?.toMillis() || 0)
-                        : (b.status === 'separacao') ? (b.dataSeparacao?.toMillis() || b.registradoEm?.toMillis() || 0)
-                        : (b.dataRetirada?.toMillis() || b.dataSeparacao?.toMillis() || 0);
-                    return tsA - tsB;
-                });
+            const materiaisOrdenados = lista.sort((a,b) => {
+                const statusOrder = { 'requisitado': 1, 'separacao': 2, 'retirada': 3 };
+                const statusCompare = (statusOrder[a.status] || 9) - (statusOrder[b.status] || 9);
+                if (statusCompare !== 0) return statusCompare;
+                const tsA = (a.status === 'requisitado') ? (a.registradoEm?.toMillis() || 0)
+                    : (a.status === 'separacao') ? (a.dataSeparacao?.toMillis() || a.registradoEm?.toMillis() || 0)
+                    : (a.dataRetirada?.toMillis() || a.dataSeparacao?.toMillis() || 0);
+                const tsB = (b.status === 'requisitado') ? (b.registradoEm?.toMillis() || 0)
+                    : (b.status === 'separacao') ? (b.dataSeparacao?.toMillis() || b.registradoEm?.toMillis() || 0)
+                    : (b.dataRetirada?.toMillis() || b.dataSeparacao?.toMillis() || 0);
+                return tsA - tsB;
+            });
+
             const cardsHtml = materiaisOrdenados.map(m => {
                 const unidade = m.unidadeNome || 'Unidade';
                 const item = m.tipoMaterial || 'Item';
@@ -456,7 +454,7 @@ export function renderDashboardMateriaisProntos(filterStatus = null) {
                 const statusCls = status === 'retirada' ? 'status-green' : status === 'separacao' ? 'status-yellow' : 'status-purple';
                 const separadorInfo = m.responsavelSeparador ? `<p class=\"text-[11px] text-yellow-700 mt-1\">Separador: ${m.responsavelSeparador}</p>` : '';
                 return `
-                    <div class=\"compact-card ${borderCls}\">\n
+                    <div class=\"compact-card ${borderCls}\">
                         <h3 class=\"compact-title\">${unidade}</h3>
                         <p class=\"compact-sub\">${item}</p>
                         ${separadorInfo}
@@ -466,7 +464,7 @@ export function renderDashboardMateriaisProntos(filterStatus = null) {
 
             return `
             <section class=\"accordion-section\">
-              <button class=\"accordion-header\" data-grupo=\"${tipo}\"> 
+              <button class=\"accordion-header\" data-grupo=\"${tipo}\">
                 <span>${tipo} <span class=\"text-gray-500\">(${total})</span></span>
                 <span class=\"accordion-counts\"><span class=\"text-green-600 font-semibold\">${prontos} prontos</span> · <span class=\"text-yellow-700 font-semibold\">${separacao} separação</span> · <span class=\"text-purple-700 font-semibold\">${pendente} pendentes</span></span>
               </button>
@@ -478,7 +476,7 @@ export function renderDashboardMateriaisProntos(filterStatus = null) {
 
         container.innerHTML = sectionsHtml || '<p class=\"text-sm text-slate-500\">Nenhum material encontrado.</p>';
         if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
-        
+
         atualizarGeralPagerUI();
         const geralPane = document.getElementById('dashboard-view-geral');
         if (geralPane && geralPane.classList.contains('tv-mode')) {
@@ -495,31 +493,25 @@ export function renderDashboardMateriaisProntos(filterStatus = null) {
 function renderTVDashboard(containerSeparacao, containerPronto) {
     try {
         const materiais = getActiveV2Materiais();
-        
-        // Filtra e Ordena
-        // Em Preparação = Requisitado + Separação
+
         const emSeparacao = materiais
             .filter(m => m.status === 'requisitado' || m.status === 'separacao')
             .sort((a, b) => {
                 const tsA = (a.dataSeparacao?.toMillis() || a.registradoEm?.toMillis() || 0);
                 const tsB = (b.dataSeparacao?.toMillis() || b.registradoEm?.toMillis() || 0);
-                return tsA - tsB; // Mais antigos primeiro
+                return tsA - tsB;
             });
 
-        // Prontos = Retirada
         const prontos = materiais
             .filter(m => m.status === 'retirada')
             .sort((a, b) => {
                 const tsA = (a.dataRetirada?.toMillis() || a.registradoEm?.toMillis() || 0);
                 const tsB = (b.dataRetirada?.toMillis() || b.registradoEm?.toMillis() || 0);
-                return tsB - tsA; // Mais recentes primeiro
+                return tsB - tsA;
             });
 
-        // Atualiza contadores (Headers das Colunas)
         if (DOM_ELEMENTS.countSeparacaoHeader) DOM_ELEMENTS.countSeparacaoHeader.textContent = emSeparacao.length;
         if (DOM_ELEMENTS.countProntoHeader) DOM_ELEMENTS.countProntoHeader.textContent = prontos.length;
-
-        // Atualiza contadores (KPIs do Topo)
         if (DOM_ELEMENTS.dashboardMateriaisSeparacaoCountEl) DOM_ELEMENTS.dashboardMateriaisSeparacaoCountEl.textContent = emSeparacao.length;
         if (DOM_ELEMENTS.dashboardMateriaisRetiradaCountEl) DOM_ELEMENTS.dashboardMateriaisRetiradaCountEl.textContent = prontos.length;
 
@@ -550,7 +542,6 @@ function renderTVDashboard(containerSeparacao, containerPronto) {
         const groupByTipo = (arr) => {
             const map = new Map();
             arr.forEach((m) => {
-                // Fallback: se tipoUnidade está vazio (docs v2 antigos), detecta do nome
                 let rawTipo = m.tipoUnidade || '';
                 if (!rawTipo && m.unidadeNome) {
                     const nome = String(m.unidadeNome).toUpperCase();
@@ -621,7 +612,6 @@ function renderTVDashboard(containerSeparacao, containerPronto) {
             });
         });
 
-        // Inicia Auto-Scroll se necessário
         handleTVAutoScroll(containerSeparacao);
         handleTVAutoScroll(containerPronto);
 
@@ -641,8 +631,6 @@ function createTVCard(m, panelType, escapeHTML) {
             .replace(/'/g, '&#39;');
 
     const unidade = esc(m.unidadeNome || 'Unidade');
-
-    // v2: mostra tipos como pills; v1: mostra tipoMaterial simples
     const isV2 = m._version === 2 || m.itemsMap;
     let tipoHtml = '';
     if (isV2 && Array.isArray(m.tiposMaterial) && m.tiposMaterial.length) {
@@ -654,7 +642,6 @@ function createTVCard(m, panelType, escapeHTML) {
         tipoHtml = `<span class="tv-tipo-pill">${esc((m.tipoMaterial || 'material').toLowerCase())}</span>`;
     }
 
-    // v2: mostra resumo dos itens do itemsMap; v1: mostra m.itens (texto)
     let obsHtml = '';
     if (isV2 && m.itemsMap && typeof m.itemsMap === 'object') {
         const items = Object.values(m.itemsMap);
@@ -670,8 +657,8 @@ function createTVCard(m, panelType, escapeHTML) {
     const separador = m.responsavelSeparador ? `<div class="card-sep">👤 ${esc(m.responsavelSeparador)}</div>` : '<span></span>';
     const time = esc(formatTimestamp(m.dataSeparacao || m.dataRetirada || m.registradoEm));
     const icon = panelType === 'rdy' ? '✓' : '◎';
-
     const id = esc(m.id || '');
+
     return `
         <div class="card" data-mat-id="${id}">
             <div class="card-ic">${icon}</div>
@@ -691,20 +678,15 @@ function createTVCard(m, panelType, escapeHTML) {
 function ensureTVFichaBindings() {
     if (__tvFichaBound) return;
     __tvFichaBound = true;
-
     const modal = document.getElementById('tvFichaModal');
     const closeBtn = document.getElementById('tvFichaClose');
     if (!modal) return;
-
     const close = () => {
         modal.classList.remove('open');
         modal.setAttribute('aria-hidden', 'true');
     };
-
     if (closeBtn) closeBtn.addEventListener('click', close);
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) close();
-    });
+    modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && modal.classList.contains('open')) close();
     });
@@ -732,11 +714,8 @@ function openTVFichaById(id) {
     if (!m) return;
 
     const esc = (input) => String(input ?? '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/\"/g, '&quot;')
-        .replace(/'/g, '&#39;');
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/\"/g, '&quot;').replace(/'/g, '&#39;');
 
     const unidade = esc(m.unidadeNome || 'Unidade');
     const tipoUnidade = esc((m.tipoUnidade || 'OUTROS').toUpperCase());
@@ -795,14 +774,10 @@ function stopTVAutoScroll(element) {
 function handleTVAutoScroll(element) {
     if (!element) return;
     stopTVAutoScroll(element);
-
     if (!element.isConnected) return;
 
     const shouldScroll = () => element.isConnected && element.scrollHeight > (element.clientHeight + 2);
-    if (!shouldScroll()) {
-        element.scrollTop = 0;
-        return;
-    }
+    if (!shouldScroll()) { element.scrollTop = 0; return; }
 
     const state = { intervalId: null, startTimeoutId: null, resetTimeoutId: null };
     tvAutoScrollState.set(element, state);
@@ -819,26 +794,18 @@ function handleTVAutoScroll(element) {
     };
 
     const tick = () => {
-        if (!shouldScroll()) {
-            stopTVAutoScroll(element);
-            return;
-        }
+        if (!shouldScroll()) { stopTVAutoScroll(element); return; }
         if (document.hidden) return;
-
         const maxScroll = element.scrollHeight - element.clientHeight;
         if (element.scrollTop < (maxScroll - 1)) {
             element.scrollTop = Math.min(maxScroll, element.scrollTop + scrollSpeed);
             return;
         }
-
         if (state.intervalId) clearInterval(state.intervalId);
         state.intervalId = null;
         if (state.resetTimeoutId) clearTimeout(state.resetTimeoutId);
         state.resetTimeoutId = setTimeout(() => {
-            if (!shouldScroll()) {
-                stopTVAutoScroll(element);
-                return;
-            }
+            if (!shouldScroll()) { stopTVAutoScroll(element); return; }
             element.scrollTop = 0;
             start();
         }, endPauseMs);
@@ -852,8 +819,12 @@ export function filterDashboardMateriais(status) {
     renderDashboardMateriaisProntos(status);
 }
 
-export function renderDashboard() {
-    // Bloco try-catch individual para cada seção evitar que um erro pare tudo
+// =========================================================================
+// RENDER PRINCIPAL — com debounce para evitar flickering de onSnapshot
+// =========================================================================
+
+function _renderDashboardImpl() {
+    _dashRenderTimeout = null;
     try { renderDashboardAguaSummary(); } catch(e) { console.error("Dashboard Água:", e); }
     try { renderDashboardGasSummary(); } catch(e) { console.error("Dashboard Gás:", e); }
     try { renderDashboardMateriaisCounts(); } catch(e) { console.error("Dashboard Counts:", e); }
@@ -861,12 +832,17 @@ export function renderDashboard() {
     try { renderDashboardMateriaisList(); } catch(e) { console.error("Dashboard Lista:", e); }
 }
 
+export function renderDashboard() {
+    if (_dashRenderTimeout) clearTimeout(_dashRenderTimeout);
+    _dashRenderTimeout = setTimeout(_renderDashboardImpl, 300);
+}
+
 export function startDashboardRefresh() {
-    stopDashboardRefresh(); 
+    stopDashboardRefresh();
     console.log("Iniciando auto-refresh do Dashboard (2 min)");
     dashboardRefreshInterval = setInterval(() => {
         console.log("Atualizando dados do Dashboard (auto-refresh)...");
-        renderDashboard(); 
+        renderDashboard();
         if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
     }, 120000);
 }
@@ -879,28 +855,26 @@ export function stopDashboardRefresh() {
     }
 }
 
-
 // =========================================================================
 // INICIALIZAÇÃO DE LISTENERS DO DOM
 // =========================================================================
 
 export function initDashboardListeners() {
     if (DOM_ELEMENTS.dashboardNavControls) {
-        DOM_ELEMENTS.dashboardNavControls.addEventListener('click', (e) => { 
-            const btn = e.target.closest('button.dashboard-nav-btn[data-view]'); 
-            if (btn) switchDashboardView(btn.dataset.view); 
+        DOM_ELEMENTS.dashboardNavControls.addEventListener('click', (e) => {
+            const btn = e.target.closest('button.dashboard-nav-btn[data-view]');
+            if (btn) switchDashboardView(btn.dataset.view);
         });
     }
 
     if (DOM_ELEMENTS.btnClearDashboardFilter) {
         DOM_ELEMENTS.btnClearDashboardFilter.addEventListener('click', () => {
-             filterDashboardMateriais(null);
+            filterDashboardMateriais(null);
         });
     }
     const btnVerLista = document.getElementById('btn-dashboard-ver-lista');
-    if (btnVerLista) {
-        btnVerLista.addEventListener('click', () => switchDashboardView('materiais'));
-    }
+    if (btnVerLista) btnVerLista.addEventListener('click', () => switchDashboardView('materiais'));
+
     const btnTvMode = document.getElementById('btn-tv-mode');
     if (btnTvMode) {
         btnTvMode.addEventListener('click', () => {
@@ -916,9 +890,8 @@ export function initDashboardListeners() {
         });
     }
     const btnVerGrade = document.getElementById('btn-dashboard-ver-grade');
-    if (btnVerGrade) {
-        btnVerGrade.addEventListener('click', () => switchDashboardView('geral'));
-    }
+    if (btnVerGrade) btnVerGrade.addEventListener('click', () => switchDashboardView('geral'));
+
     const btnMateriaisTvMode = document.getElementById('btn-dashboard-materiais-tvmode');
     if (btnMateriaisTvMode) {
         btnMateriaisTvMode.addEventListener('click', () => {
@@ -932,20 +905,15 @@ export function initDashboardListeners() {
             }
         });
     }
+
     if (DOM_ELEMENTS.btnMateriaisPrevPage) {
         DOM_ELEMENTS.btnMateriaisPrevPage.addEventListener('click', () => {
-            if (materiaisPagerState.page > 1) {
-                materiaisPagerState.page -= 1;
-                renderDashboardMateriaisList();
-            }
+            if (materiaisPagerState.page > 1) { materiaisPagerState.page -= 1; renderDashboardMateriaisList(); }
         });
     }
     if (DOM_ELEMENTS.btnMateriaisNextPage) {
         DOM_ELEMENTS.btnMateriaisNextPage.addEventListener('click', () => {
-            if (materiaisPagerState.page < materiaisPagerState.pages) {
-                materiaisPagerState.page += 1;
-                renderDashboardMateriaisList();
-            }
+            if (materiaisPagerState.page < materiaisPagerState.pages) { materiaisPagerState.page += 1; renderDashboardMateriaisList(); }
         });
     }
     if (DOM_ELEMENTS.materiaisPageSizeSelect) {
@@ -958,31 +926,26 @@ export function initDashboardListeners() {
             }
         });
     }
-    
+
     const cardSeparacao = document.getElementById('dashboard-card-separacao');
     const cardRetirada = document.getElementById('dashboard-card-retirada');
-
-    if (cardSeparacao) cardSeparacao.addEventListener('click', () => filterDashboardMateriais('separacao')); 
+    if (cardSeparacao) cardSeparacao.addEventListener('click', () => filterDashboardMateriais('separacao'));
     if (cardRetirada) cardRetirada.addEventListener('click', () => filterDashboardMateriais('retirada'));
 
     if (DOM_ELEMENTS.btnFilterTodos) DOM_ELEMENTS.btnFilterTodos.addEventListener('click', () => {
-        geralFilterStatus = 'todos';
-        marcarFiltroAtivo('todos');
+        geralFilterStatus = 'todos'; marcarFiltroAtivo('todos');
         renderDashboardMateriaisProntos(getCurrentDashboardMaterialFilter());
     });
     if (DOM_ELEMENTS.btnFilterSeparacao) DOM_ELEMENTS.btnFilterSeparacao.addEventListener('click', () => {
-        geralFilterStatus = 'separacao';
-        marcarFiltroAtivo('separacao');
+        geralFilterStatus = 'separacao'; marcarFiltroAtivo('separacao');
         renderDashboardMateriaisProntos(getCurrentDashboardMaterialFilter());
     });
     if (DOM_ELEMENTS.btnFilterPronto) DOM_ELEMENTS.btnFilterPronto.addEventListener('click', () => {
-        geralFilterStatus = 'pronto';
-        marcarFiltroAtivo('pronto');
+        geralFilterStatus = 'pronto'; marcarFiltroAtivo('pronto');
         renderDashboardMateriaisProntos(getCurrentDashboardMaterialFilter());
     });
     if (DOM_ELEMENTS.btnFilterPendente) DOM_ELEMENTS.btnFilterPendente.addEventListener('click', () => {
-        geralFilterStatus = 'pendente';
-        marcarFiltroAtivo('pendente');
+        geralFilterStatus = 'pendente'; marcarFiltroAtivo('pendente');
         renderDashboardMateriaisProntos(getCurrentDashboardMaterialFilter());
     });
     if (DOM_ELEMENTS.inputBuscaMateriaisGeral) DOM_ELEMENTS.inputBuscaMateriaisGeral.addEventListener('input', (e) => {
@@ -1002,18 +965,12 @@ export function initDashboardListeners() {
 
     if (DOM_ELEMENTS.btnGeralPrevPage) {
         DOM_ELEMENTS.btnGeralPrevPage.addEventListener('click', () => {
-            if (geralPagerState.page > 1) {
-                geralPagerState.page -= 1;
-                renderDashboardMateriaisProntos(getCurrentDashboardMaterialFilter());
-            }
+            if (geralPagerState.page > 1) { geralPagerState.page -= 1; renderDashboardMateriaisProntos(getCurrentDashboardMaterialFilter()); }
         });
     }
     if (DOM_ELEMENTS.btnGeralNextPage) {
         DOM_ELEMENTS.btnGeralNextPage.addEventListener('click', () => {
-            if (geralPagerState.page < geralPagerState.pages) {
-                geralPagerState.page += 1;
-                renderDashboardMateriaisProntos(getCurrentDashboardMaterialFilter());
-            }
+            if (geralPagerState.page < geralPagerState.pages) { geralPagerState.page += 1; renderDashboardMateriaisProntos(getCurrentDashboardMaterialFilter()); }
         });
     }
     if (DOM_ELEMENTS.geralPageSizeSelect) {
@@ -1064,14 +1021,11 @@ function iniciarAutoPagerTV() {
         if (materiaisPagerState.pages <= 1) return;
         materiaisPagerState.page = materiaisPagerState.page >= materiaisPagerState.pages ? 1 : materiaisPagerState.page + 1;
         renderDashboardMateriaisList();
-    }, 10000); 
+    }, 10000);
 }
 
 function pararAutoPagerTV() {
-    if (materiaisAutoPagerInterval) {
-        clearInterval(materiaisAutoPagerInterval);
-        materiaisAutoPagerInterval = null;
-    }
+    if (materiaisAutoPagerInterval) { clearInterval(materiaisAutoPagerInterval); materiaisAutoPagerInterval = null; }
 }
 
 function atualizarGeralPagerUI() {
@@ -1094,10 +1048,7 @@ function iniciarAutoPagerGeralTV() {
 }
 
 function pararAutoPagerGeralTV() {
-    if (geralAutoPagerInterval) {
-        clearInterval(geralAutoPagerInterval);
-        geralAutoPagerInterval = null;
-    }
+    if (geralAutoPagerInterval) { clearInterval(geralAutoPagerInterval); geralAutoPagerInterval = null; }
 }
 
 function startAutoScrollGeralTV() {
@@ -1105,9 +1056,8 @@ function startAutoScrollGeralTV() {
     const sections = document.querySelectorAll('#dashboard-view-geral .accordion-content');
     sections.forEach((content) => {
         if (content.scrollHeight <= content.clientHeight + 2) return;
-        const stepPx = 1; 
-        const tickMs = 80; 
-
+        const stepPx = 1;
+        const tickMs = 80;
         let timer = null;
         const tick = () => {
             const pane = document.getElementById('dashboard-view-geral');
@@ -1115,26 +1065,17 @@ function startAutoScrollGeralTV() {
             const atBottom = (content.scrollTop + content.clientHeight) >= (content.scrollHeight - 2);
             content.scrollTop = atBottom ? 0 : (content.scrollTop + stepPx);
         };
-        const start = () => {
-            if (timer) clearInterval(timer);
-            timer = setInterval(tick, tickMs);
-        };
-        const stop = () => {
-            if (timer) clearInterval(timer);
-            timer = null;
-        };
-
+        const start = () => { if (timer) clearInterval(timer); timer = setInterval(tick, tickMs); };
+        const stop = () => { if (timer) clearInterval(timer); timer = null; };
         const onEnter = () => stop();
         const onLeave = () => {
             const pane = document.getElementById('dashboard-view-geral');
             if (!pane || !pane.classList.contains('tv-mode')) return;
             start();
         };
-
         start();
         content.addEventListener('mouseenter', onEnter);
         content.addEventListener('mouseleave', onLeave);
-
         geralAutoScrollTimers.push({ stop, content, onEnter, onLeave });
     });
 }
