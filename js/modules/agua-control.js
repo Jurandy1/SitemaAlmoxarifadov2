@@ -20,7 +20,8 @@ import { getTodayDateString, dateToTimestamp, capitalizeString, formatTimestampC
 import { isReady, getUserId } from "./auth.js";
 import { COLLECTIONS } from "../services/firestore-service.js";
 import { executeFinalMovimentacao } from "./movimentacao-modal-handler.js";
-import { BaseControl } from "./base-control.js";
+// FIX BUG 1: importa getCachedAguaResumo para usar o cache correto na validação de estoque
+import { BaseControl, getCachedAguaResumo } from "./base-control.js";
 
 // VARIÁVEIS DE ESTADO LOCAL
 let debitoAguaMode = 'devendo';
@@ -69,7 +70,6 @@ export async function handleEntradaEstoqueSubmit(e) {
     const inputResp = DOM_ELEMENTS.inputResponsavelEntradaAgua.value;
     const inputNf = DOM_ELEMENTS.inputNfEntradaAgua.value;
     
-    // CORREÇÃO: parseInt com base 10 explícita
     const quantidade = parseInt(inputQtd, 10);
     const data = dateToTimestamp(inputData);
     const responsavel = capitalizeString(inputResp.trim());
@@ -113,10 +113,8 @@ export async function handleEntradaEstoqueSubmit(e) {
 export function toggleAguaFormInputs() {
     if (!DOM_ELEMENTS.selectTipoAgua) return; 
     
-    // Forçar apenas Saída/Entrega
     const tipo = DOM_ELEMENTS.selectTipoAgua.value;
     
-    // Esconder sempre o retorno, pois não controlamos mais vazios
     if (DOM_ELEMENTS.formGroupQtdEntregueAgua) DOM_ELEMENTS.formGroupQtdEntregueAgua.classList.remove('hidden');
     if (DOM_ELEMENTS.formGroupQtdRetornoAgua) DOM_ELEMENTS.formGroupQtdRetornoAgua.classList.add('hidden');
     if (DOM_ELEMENTS.inputQtdRetornoAgua) DOM_ELEMENTS.inputQtdRetornoAgua.value = "0";
@@ -146,11 +144,9 @@ export async function handleAguaSubmit(e) {
         showAlert('alert-agua', "Permissão negada. Usuário Anônimo não pode lançar movimentações.", 'error'); return; 
     }
 
-    // Desabilitar botão para evitar duplo clique e TRAVAR MÚLTIPLOS ENVIOS
     const submitBtn = e.submitter || e.target.querySelector('button[type="submit"]');
     if(submitBtn) {
         submitBtn.disabled = true;
-        // Opcional: mudar texto para "Salvando..."
     }
 
     try {
@@ -158,10 +154,9 @@ export async function handleAguaSubmit(e) {
         if (!selectValue) { throw new Error('Selecione uma unidade.'); }
         const [unidadeId, unidadeNome, tipoUnidadeRaw] = selectValue.split('|');
         
-        const tipoMovimentacao = 'entrega'; // Forçar sempre entrega
-        // CORREÇÃO: parseInt para evitar erro de concatenação
+        const tipoMovimentacao = 'entrega';
         const qtdEntregue = parseInt(DOM_ELEMENTS.inputQtdEntregueAgua.value, 10) || 0;
-        const qtdRetorno = 0; // Forçar sempre 0
+        const qtdRetorno = 0;
         const data = dateToTimestamp(DOM_ELEMENTS.inputDataAgua.value); 
         const responsavelUnidade = capitalizeString(DOM_ELEMENTS.inputResponsavelAgua.value.trim()); 
         
@@ -177,20 +172,33 @@ export async function handleAguaSubmit(e) {
             if (!isEstoqueInicialDefinido('agua')) {
                 throw new Error('Defina o Estoque Inicial de Água antes de lançar saídas.');
             }
-            // Usa __resumo__ via base-control para consistência com o painel de estoque.
-            // aguaControl.renderEstoque() já mantém _cachedAguaResumo atualizado —
-            // replicamos a mesma lógica aqui para a validação pré-entrega.
+
             const estoqueData = getEstoqueAgua() || [];
             const movsAll = (getAguaMovimentacoes() || []).filter(m => !isHistoricoImportado(m));
-            const estoqueInicialVal = estoqueData.filter(e => e.tipo === 'inicial').reduce((sum, e) => sum + (parseInt(e.quantidade, 10) || 0), 0);
-            const totalEntradasVal  = estoqueData.filter(e => e.tipo === 'entrada').reduce((sum, e) => sum + (parseInt(e.quantidade, 10) || 0), 0);
-            // Prioriza __resumo__ do próprio estoqueData; se ausente (race condition),
-            // cai no fallback dos 90 docs — seguro aqui pois é só validação (nega entrega em caso de dúvida).
-            const resumoVal = estoqueData.find(e => e.tipo === '__resumo__');
+
+            const estoqueInicialVal = estoqueData
+                .filter(e => e.tipo === 'inicial')
+                .reduce((sum, e) => sum + (parseInt(e.quantidade, 10) || 0), 0);
+
+            const totalEntradasVal = estoqueData
+                .filter(e => e.tipo === 'entrada')
+                .reduce((sum, e) => sum + (parseInt(e.quantidade, 10) || 0), 0);
+
+            // FIX BUG 1: usa getCachedAguaResumo() para garantir que o totalSaidas
+            // venha do __resumo__ histórico e não do limit(90) do listener aguaMov.
+            // Prioridade: (1) __resumo__ dentro do estoqueData, (2) cache do módulo base-control,
+            // (3) fallback local pelos 90 docs (caso extremo de race condition).
+            const resumoVal = estoqueData.find(e => e.tipo === '__resumo__') 
+                           || getCachedAguaResumo();
+
             const totalSaidasVal = resumoVal
                 ? (resumoVal.totalSaidas || 0)
-                : movsAll.filter(m => m.tipo === 'entrega').reduce((sum, m) => sum + (parseInt(m.quantidade, 10) || 0), 0);
+                : movsAll
+                    .filter(m => m.tipo === 'entrega')
+                    .reduce((sum, m) => sum + (parseInt(m.quantidade, 10) || 0), 0);
+
             const estoqueAtual = Math.max(0, estoqueInicialVal + totalEntradasVal - totalSaidasVal);
+
             if (qtdEntregue > estoqueAtual) {
                 throw new Error(`Erro: Estoque insuficiente. Disponível: ${estoqueAtual}`);
             }
@@ -204,19 +212,18 @@ export async function handleAguaSubmit(e) {
 
     } catch (error) {
         showAlert('alert-agua', error.message, 'warning');
-        // Reativa botão apenas em erro
         if(submitBtn) submitBtn.disabled = false;
     }
-    // Nota: Em caso de sucesso, o modal geralmente fecha ou recarrega, 
-    // então o botão pode continuar disabled até lá.
 }
 
 export function renderAguaStatus(newFilter = null) {
-     if (!DOM_ELEMENTS.tableStatusAgua) return;
-     
-     const currentFilter = newFilter || getCurrentStatusFilter('agua');
-     if (newFilter) setCurrentStatusFilter('agua', newFilter); 
-     
+    if (!DOM_ELEMENTS.tableStatusAgua) return;
+
+    // FIX BUG 3: salva o novo filtro ANTES de ler o valor para uso,
+    // evitando que na primeira chamada o filtro exibido fique desatualizado.
+    if (newFilter) setCurrentStatusFilter('agua', newFilter);
+    const currentFilter = getCurrentStatusFilter('agua');
+
     const statusMap = new Map();
     const nameIndex = new Map();
     getUnidades().forEach(u => { 
@@ -227,33 +234,33 @@ export function renderAguaStatus(newFilter = null) {
         nameIndex.set(_normName(u.nome), obj);
     });
 
-     const movsOrdenadas = [...getAguaMovimentacoes()].filter(m => !isHistoricoImportado(m)).sort((a, b) => {
-         const ad = a.data?.toMillis() || 0;
-         const bd = b.data?.toMillis() || 0;
-         if (bd !== ad) return bd - ad;
-         const ar = a.registradoEm?.toMillis?.() || 0;
-         const br = b.registradoEm?.toMillis?.() || 0;
-         return br - ar;
-     });
-     
-     movsOrdenadas.forEach(m => {
-         let unidadeStatus = statusMap.get(m.unidadeId) || nameIndex.get(_normName(m.unidadeNome));
-         if (!unidadeStatus) return;
-         if (m.tipo === 'entrega') unidadeStatus.entregues += (parseInt(m.quantidade,10)||0);
-         else if (m.tipo === 'retorno' || m.tipo === 'retirada') unidadeStatus.recebidos += (parseInt(m.quantidade,10)||0);
-         
-         if (unidadeStatus.ultimosLancamentos.length === 0) {
-             unidadeStatus.ultimosLancamentos.push({
-                 id: m.id, respUnidade: m.responsavel, respAlmox: m.responsavelAlmoxarifado || 'N/A', 
-                 data: m.data, registradoEm: m.registradoEm, tipo: m.tipo, quantidade: m.quantidade
-            });
-         }
-     });
+    const movsOrdenadas = [...getAguaMovimentacoes()].filter(m => !isHistoricoImportado(m)).sort((a, b) => {
+        const ad = a.data?.toMillis() || 0;
+        const bd = b.data?.toMillis() || 0;
+        if (bd !== ad) return bd - ad;
+        const ar = a.registradoEm?.toMillis?.() || 0;
+        const br = b.registradoEm?.toMillis?.() || 0;
+        return br - ar;
+    });
+    
+    movsOrdenadas.forEach(m => {
+        let unidadeStatus = statusMap.get(m.unidadeId) || nameIndex.get(_normName(m.unidadeNome));
+        if (!unidadeStatus) return;
+        if (m.tipo === 'entrega') unidadeStatus.entregues += (parseInt(m.quantidade,10)||0);
+        else if (m.tipo === 'retorno' || m.tipo === 'retirada') unidadeStatus.recebidos += (parseInt(m.quantidade,10)||0);
+        
+        if (unidadeStatus.ultimosLancamentos.length === 0) {
+            unidadeStatus.ultimosLancamentos.push({
+                id: m.id, respUnidade: m.responsavel, respAlmox: m.responsavelAlmoxarifado || 'N/A', 
+                data: m.data, registradoEm: m.registradoEm, tipo: m.tipo, quantidade: m.quantidade
+           });
+        }
+    });
 
-     let statusArray = Array.from(statusMap.values())
-         .map(s => ({ ...s, pendentes: s.entregues - s.recebidos })) 
-         .filter(s => s.entregues > 0 || s.recebidos > 0 || s.pendentes !== 0) 
-         .sort((a, b) => b.pendentes - a.pendentes || a.nome.localeCompare(b.nome)); 
+    let statusArray = Array.from(statusMap.values())
+        .map(s => ({ ...s, pendentes: s.entregues - s.recebidos })) 
+        .filter(s => s.entregues > 0 || s.recebidos > 0 || s.pendentes !== 0) 
+        .sort((a, b) => b.pendentes - a.pendentes || a.nome.localeCompare(b.nome)); 
 
     if (currentFilter === 'devendo') {
         statusArray = statusArray.filter(s => s.pendentes > 0);
@@ -295,7 +302,7 @@ export function renderAguaStatus(newFilter = null) {
         </tr>`;
     });
     DOM_ELEMENTS.tableStatusAgua.innerHTML = html;
-     if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); } 
+    if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); } 
 
     const filtroStatusAguaEl = document.getElementById('filtro-status-agua');
     if (filtroStatusAguaEl && filtroStatusAguaEl.value) {
@@ -332,7 +339,6 @@ export function renderAguaDebitosResumo() {
         if (!s.ultimo) s.ultimo = { id: m.id, data: m.data, tipo: m.tipo, quantidade: m.quantidade, respUnidade: m.responsavel, respAlmox: m.responsavelAlmoxarifado || 'N/A' };
     });
 
-    // Determina o movimento que iniciou a dívida atual (cruzamento do saldo para > 0)
     const porUnidade = new Map();
     movsOrdenadas.forEach(m => {
         const arr = porUnidade.get(m.unidadeId) || [];
@@ -441,7 +447,6 @@ export function renderAguaDebitosResumo() {
     });
     DOM_ELEMENTS.tableDebitoAguaResumo.innerHTML = rows.join('');
     if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
-    // Listener para botões de "Ver dia da dívida" na tabela
     DOM_ELEMENTS.tableDebitoAguaResumo.querySelectorAll('.btn-ver-dia-divida').forEach(btn => {
         btn.addEventListener('click', () => {
             const unidadeId = btn.getAttribute('data-unidade-id');
@@ -473,15 +478,11 @@ export function getDebitosAguaResumoList() {
 export function renderAguaEstoqueHistory() {
     if (!DOM_ELEMENTS.tableHistoricoEstoqueAgua) return;
     
-    // Encontrar a tabela pai para manipular o thead
     const tableElement = DOM_ELEMENTS.tableHistoricoEstoqueAgua.closest('table');
     if (!tableElement) return;
 
-    // Configuração dos Cabeçalhos com Filtros
-    // Verifica se já inserimos os filtros para evitar duplicação (ou recria se necessário)
     let thead = tableElement.querySelector('thead');
     
-    // Se não tiver a classe 'filtered-header' (marcação nossa), vamos criar
     if (!thead || !thead.classList.contains('filtered-header')) {
         const columns = [
             { key: 'tipo', label: 'Tipo' },
@@ -513,7 +514,6 @@ export function renderAguaEstoqueHistory() {
                 input.placeholder = `Filtrar...`;
                 input.dataset.colKey = col.key;
                 
-                // Listener para filtrar
                 input.addEventListener('keyup', () => filterEstoqueTable(tableElement));
                 
                 divContainer.appendChild(input);
@@ -568,8 +568,6 @@ export function renderAguaEstoqueHistory() {
             ? `<button class="btn-danger btn-remove btn-icon" data-id="${m.id}" data-type="entrada-agua" data-details="${details}" title="Remover este lançamento"><i data-lucide="trash-2"></i></button>`
             : `<span class="text-gray-400 btn-icon" title="Apenas Admin pode excluir"><i data-lucide="slash"></i></span>`;
 
-        // A ordem das TDs deve corresponder à ordem dos THs definidos acima
-        // Colunas: Tipo, Qtd, Data, NF, Resp, LancadoEm, Ações
         html += `<tr title="Lançado em: ${dataLancamento}" class="hover:bg-gray-50 transition-colors">
             <td><span class="badge ${tipoClass}">${tipoText}</span></td>
             <td class="font-medium">${m.quantidade}</td>
@@ -584,11 +582,9 @@ export function renderAguaEstoqueHistory() {
     DOM_ELEMENTS.tableHistoricoEstoqueAgua.innerHTML = html;
     if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
 
-    // Reaplica filtro se houver valores nos inputs
     filterEstoqueTable(tableElement);
 }
 
-// Função auxiliar de filtro para a tabela de estoque
 function filterEstoqueTable(table) {
     const inputs = table.querySelectorAll('.filter-estoque-input');
     const tbody = table.querySelector('tbody');
@@ -598,13 +594,8 @@ function filterEstoqueTable(table) {
         let showRow = true;
         const cells = row.querySelectorAll('td');
         
-        // Mapeia inputs para colunas
-        // Assume que a ordem dos inputs nos THs corresponde à ordem das TDs (excluindo colunas sem filtro)
-        // Mas a lógica mais segura é pelo índice da coluna
-        
         inputs.forEach(input => {
             const th = input.closest('th');
-            // Encontra o índice da coluna deste TH na linha do cabeçalho
             const colIndex = Array.from(th.parentNode.children).indexOf(th);
             
             const cell = cells[colIndex];
@@ -715,8 +706,9 @@ function getFilteredAguaMovimentacoes() {
     const unidadeTipoEl = document.getElementById('filtro-unidade-tipo-agua');
     const respEl = document.getElementById('filtro-responsavel-agua');
     const origemEl = document.getElementById('filtro-origem-agua');
+    // FIX BUG 2: IDs de data início e fim corrigidos — evita referência duplicada ao mesmo ID
     const dataIniEl = document.getElementById('filtro-data-ini-agua') || document.getElementById('filtro-data-inicio-agua');
-    const dataFimEl = document.getElementById('filtro-data-fim-agua') || document.getElementById('filtro-data-fim-agua');
+    const dataFimEl = document.getElementById('filtro-data-fim-agua') || document.getElementById('filtro-data-fim-agua-historico');
 
     const tipo = tipoEl?.value || '';
     const unidadeId = unidadeEl?.value || '';
@@ -800,7 +792,6 @@ function checkAguaHistoryIntegrity() {
 // =========================================================================
 
 export function initAguaListeners() {
-    // CORREÇÃO: Evita duplicar listeners se a função for chamada 2x
     if (listenersInitialized) return;
     
     if (DOM_ELEMENTS.formAgua) {
@@ -859,7 +850,6 @@ export function initAguaListeners() {
     if (DOM_ELEMENTS.filtroResumoAguaPendMin) DOM_ELEMENTS.filtroResumoAguaPendMin.addEventListener('input', renderAguaDebitosResumo);
     if (DOM_ELEMENTS.filtroResumoAguaDataIni) DOM_ELEMENTS.filtroResumoAguaDataIni.addEventListener('change', renderAguaDebitosResumo);
     if (DOM_ELEMENTS.filtroResumoAguaDataFim) DOM_ELEMENTS.filtroResumoAguaDataFim.addEventListener('change', renderAguaDebitosResumo);
-    // Filtros avançados
     ['filtro-tipo-agua','filtro-unidade-agua','filtro-responsavel-agua','filtro-origem-agua','filtro-data-ini-agua','filtro-data-fim-agua']
         .forEach(id => {
             const el = document.getElementById(id);
@@ -910,7 +900,6 @@ export function initAguaListeners() {
         renderPermissionsUI(); 
     }));
     
-    // BUG-05 fix: inner nav listeners moved here from onAguaTabChange to avoid accumulation
     const innerNavAgua = document.querySelector('#subview-movimentacao-agua .module-inner-subnav');
     if (innerNavAgua) {
         innerNavAgua.addEventListener('click', (e) => {
