@@ -1,4 +1,3 @@
-
 import { addDoc, serverTimestamp } from "firebase/firestore";
 import { getUnidades, getUserRole, isEstoqueInicialDefinido } from "../utils/cache.js";
 import { DOM_ELEMENTS, showAlert, renderPermissionsUI } from "../utils/dom-helpers.js";
@@ -12,6 +11,15 @@ import { isReady } from "./auth.js";
  * Isso elimina a oscilação entre o saldo correto e o valor calculado só pelos 90 docs.
  */
 let _cachedAguaResumo = null;
+
+/**
+ * FIX BUG 1: Exporta acesso ao cache do __resumo__ da água para outros módulos.
+ * Usado em agua-control.js (handleAguaSubmit) para validar estoque disponível
+ * sem depender do limit(90) do listener aguaMov.
+ */
+export function getCachedAguaResumo() {
+    return _cachedAguaResumo;
+}
 
 /**
  * Classe base para controle de estoque e movimentações (Água e Gás).
