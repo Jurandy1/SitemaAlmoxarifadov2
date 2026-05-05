@@ -253,6 +253,9 @@
   </style>
 </head>
 <body class="tv-mode">
+  <script>
+    window.__FIRESTORE_FORCE_LONG_POLLING = true;
+  </script>
   <div class="tv-root">
     <header class="tv-hdr">
       <div class="hbrand">
@@ -391,12 +394,23 @@
 
       await initAuthAndListeners(safeRender, null, null);
 
-      setTimeout(() => {
-        if (!isReady()) signInAnonUser().catch(err => console.error(err));
-      }, 1200);
+      if (!isReady()) {
+        signInAnonUser().catch(err => console.error(err));
+      }
 
       startDashboardRefresh();
       setTimeout(safeRender, 2000);
+
+      setInterval(() => {
+        try {
+          const had = window.__hadFirestoreSnapshot === true;
+          const last = window.__lastFirestoreSnapshotAt || 0;
+          if (!had || !last) return;
+          if (navigator.onLine !== true) return;
+          if (Date.now() - last < 300000) return;
+          location.reload();
+        } catch (_) {}
+      }, 60000);
     }
 
     if (document.readyState === 'loading') {

@@ -334,6 +334,11 @@ async function initFirestoreListeners(renderDash, renderControls, renderModules)
             q,
             snap => {
                 gotAnySnapshot = true;
+                try {
+                    window.__lastFirestoreSnapshotAt = Date.now();
+                    window.__hadFirestoreSnapshot = true;
+                } catch (_) {}
+                try { updateLastUpdateTime(); } catch (_) {}
                 cb(snap);
             },
             err => {
@@ -366,6 +371,10 @@ async function initFirestoreListeners(renderDash, renderControls, renderModules)
         );
         unsubscribeListeners.push(unsub);
     };
+
+    const isTvMode = (() => {
+        try { return document.body?.classList?.contains('tv-mode') === true; } catch (_) { return false; }
+    })();
 
     // ── Unidades ──────────────────────────────────────────────────────
     addListener(query(COLLECTIONS.unidades), snap => {
@@ -420,6 +429,17 @@ async function initFirestoreListeners(renderDash, renderControls, renderModules)
         setEstoqueInicialDefinido('gas', inicial);
         scheduleRenders({ dash: true, modules: true }, renderDash, renderControls, renderModules);
     });
+
+    if (isTvMode) {
+        setTimeout(() => {
+            try {
+                if (gotAnySnapshot) return;
+                if (lastListenerError) return;
+                showAlert('connectionStatus', 'Carregando dados do banco...', 'info', 8000);
+            } catch (_) {}
+        }, 4000);
+        return;
+    }
 
     // ── Assistencia Social ────────────────────────────────────────────
     addListener(query(COLLECTIONS.cestaMov, orderBy("registradoEm", "desc"), limit(200)), snap => {

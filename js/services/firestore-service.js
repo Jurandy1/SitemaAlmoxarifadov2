@@ -95,6 +95,16 @@ function initializeFirebaseServices() {
 
   app = initializeApp(firebaseConfig);
 
+  const forceLongPolling = (() => {
+    try {
+      if (typeof window !== 'undefined' && window.__FIRESTORE_FORCE_LONG_POLLING === true) return true;
+    } catch (_) {}
+    try {
+      if (typeof document !== 'undefined' && document.body?.classList?.contains('tv-mode')) return true;
+    } catch (_) {}
+    return false;
+  })();
+
   // Tenta com cache persistente (IndexedDB) — reduz drasticamente leituras
   // após o primeiro carregamento. Cada aba nova ainda gasta leituras iniciais,
   // mas todos os onSnapshot subsequentes servem do cache.
@@ -103,8 +113,8 @@ function initializeFirebaseServices() {
     db = initializeFirestore(app, {
       // WebSocket (padrão) é MAIS eficiente que long-polling.
       // Se o ambiente bloquear WebSocket, remova as duas linhas abaixo:
-      experimentalForceLongPolling: false,
-      useFetchStreams: true,
+      experimentalForceLongPolling: forceLongPolling,
+      useFetchStreams: !forceLongPolling,
       localCache: persistentLocalCache({
         tabManager: persistentMultipleTabManager()
       })
