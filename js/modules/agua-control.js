@@ -278,7 +278,7 @@ export function renderAguaStatus(newFilter = null) {
         let lancamentoDetalhes = 'N/A';
         
         if(ultimoLancamento) {
-            const dataMovimentacao = formatTimestampComTempo(ultimoLancamento.data);
+            const dataMovimentacao = formatTimestampComTempo(ultimoLancamento.registradoEm || ultimoLancamento.data);
             const respAlmox = ultimoLancamento.respAlmox;
             const respUnidade = ultimoLancamento.respUnidade;
             
@@ -417,7 +417,7 @@ export function renderAguaDebitosResumo() {
         rows.push(`<tr class="table-group-header"><td colspan="4">${tipo}</td></tr>`);
         grupos[tipo].forEach(s => {
             const origemMov = s.origemDivida;
-            const origemData = origemMov ? formatTimestampComTempo(origemMov.data) : 'N/A';
+            const origemData = origemMov ? formatTimestampComTempo(origemMov.registradoEm || origemMov.data) : 'N/A';
             const origemTipo = origemMov?.tipo || '';
             const origemQtd = origemMov?.quantidade || '';
             const origemResp = origemMov ? `Almox: ${origemMov.respAlmox} • Unid: ${origemMov.respUnidade}` : '';
@@ -555,8 +555,8 @@ export function renderAguaEstoqueHistory() {
         const tipoClass = isInicial ? 'badge-blue' : 'badge-green';
         const tipoText = isInicial ? 'Inicial' : 'Entrada';
         
-        const dataMov = formatTimestampComTempo(m.data);
-        const dataLancamento = formatTimestampComTempo(m.registradoEm);
+        const dataMov = formatTimestampComTempo(m.registradoEm || m.data);
+        const dataLancamento = formatTimestampComTempo(m.registradoEm || m.data);
         const notaFiscal = m.notaFiscal || 'N/A';
         const responsavel = m.responsavel || 'N/A';
 
@@ -643,8 +643,8 @@ export function renderAguaMovimentacoesHistory() {
         const tipoClass = isEntrega ? 'badge-red' : 'badge-green';
         const tipoText = isEntrega ? 'Entrega' : 'Retirada';
         
-        const dataMov = formatTimestampComTempo(m.data);
-        const dataLancamento = formatTimestampComTempo(m.registradoEm);
+        const dataMov = formatTimestampComTempo(m.registradoEm || m.data);
+        const dataLancamento = formatTimestampComTempo(m.registradoEm || m.data);
         const respAlmox = m.responsavelAlmoxarifado || 'N/A';
         const respUnidade = m.responsavel || 'N/A';
 

@@ -238,8 +238,8 @@ const DataStore = {
           formato: m.formato || "padrao",
           resp: m.resp || m.lancadoPor || m.responsavelLancamento || "",
           obs: m.obs || m.itens || "",
-          dt: (m.dataRequisicao || m.registradoEm || null)?.toDate
-            ? (m.dataRequisicao || m.registradoEm).toDate().toISOString()
+          dt: (m.registradoEm || m.dataRequisicao || null)?.toDate
+            ? (m.registradoEm || m.dataRequisicao).toDate().toISOString()
             : null,
           fileName: m.fileName || "",
           periodLabel: m.periodLabel || m.periodoLabel || "",
@@ -2595,7 +2595,7 @@ function syncReqsFromCache() {
   const mapped = mats.map((m) => {
     const st = String(m.status || "").toLowerCase();
     const status = st === "separacao" ? "separando" : st === "retirada" ? "pronto" : st;
-    const dt = (m.dataRequisicao || m.registradoEm || null)?.toDate ? (m.dataRequisicao || m.registradoEm).toDate() : new Date();
+    const dt = (m.registradoEm || m.dataRequisicao || null)?.toDate ? (m.registradoEm || m.dataRequisicao).toDate() : new Date();
     const dtEntrega = (m.dataEntrega || null)?.toDate ? m.dataEntrega.toDate() : null;
     return {
       id: m.id,

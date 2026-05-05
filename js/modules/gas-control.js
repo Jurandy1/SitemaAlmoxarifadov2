@@ -328,7 +328,7 @@ export function renderGasStatus() {
     table.innerHTML = lista.map(s => {
         const ult    = s.ultimoLancamento;
         const ultDet = ult
-            ? `${formatTimestampComTempo(ult.data)} — Almox: ${escapeHTML(ult.respAlmox)} / Unid: ${escapeHTML(ult.respUnidade)}`
+            ? `${formatTimestampComTempo(ult.registradoEm || ult.data)} — Almox: ${escapeHTML(ult.respAlmox)} / Unid: ${escapeHTML(ult.respUnidade)}`
             : 'N/A';
         return `<tr>
             <td class="font-medium">${escapeHTML(s.nome)}</td>
@@ -379,7 +379,7 @@ export function renderGasEstoqueHistory() {
         return `<tr style="${isOld ? 'opacity:.65' : ''}">
             <td>${_badge(isInicial ? 'badge-blue' : 'badge-green', isInicial ? 'Inicial (Sistema)' : 'Entrada Manual')}${oldTag}</td>
             <td class="text-center font-medium">${m.quantidade ?? '—'}</td>
-            <td>${formatTimestampComTempo(m.data)}</td>
+            <td>${formatTimestampComTempo(m.registradoEm || m.data)}</td>
             <td>${escapeHTML(m.notaFiscal || '—')}</td>
             <td>${escapeHTML(m.responsavel || '—')}</td>
             <td class="text-center text-xs text-gray-500">${formatTimestampComTempo(m.registradoEm)}</td>
@@ -426,7 +426,7 @@ export function renderGasMovimentacoesHistory() {
             <td>${escapeHTML(m.unidadeNome || 'N/A')}</td>
             <td>${_badge('badge-red', 'Saída')}${oldTag}</td>
             <td class="text-center font-medium">${m.quantidade ?? '—'}</td>
-            <td>${formatTimestampComTempo(m.data)}</td>
+            <td>${formatTimestampComTempo(m.registradoEm || m.data)}</td>
             <td>${escapeHTML(m.responsavelAlmoxarifado || 'N/A')}</td>
             <td>${escapeHTML(m.responsavel || 'N/A')}</td>
             <td class="text-center text-xs text-gray-500">${formatTimestampComTempo(m.registradoEm)}</td>
