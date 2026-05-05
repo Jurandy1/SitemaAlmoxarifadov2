@@ -4,9 +4,7 @@ import { DOM_ELEMENTS, showAlert, renderPermissionsUI } from "../utils/dom-helpe
 import { capitalizeString } from "../utils/formatters.js";
 import { isReady } from "./auth.js";
 
-// FIX: ID do doc de resumo renomeado de '__resumo__' (reservado pelo Firestore)
-// para 'resumo-acumulado' (válido). Deve ser idêntico ao RESUMO_DOC_TIPO em movimentacao-modal-handler.js.
-const RESUMO_DOC_TIPO = 'resumo-acumulado';
+const RESUMO_DOC_TIPOS = ['__resumo__', 'resumo-acumulado'];
 
 /**
  * Cache de módulo para o doc resumo-acumulado da água.
@@ -78,10 +76,12 @@ export class BaseControl {
             .filter(e => e.tipo === 'entrada')
             .reduce((sum, e) => sum + (parseInt(e.quantidade, 10) || 0), 0);
 
-        // FIX: busca pelo novo tipo 'resumo-acumulado' (era '__resumo__', que é ID reservado pelo Firestore)
         let resumo = null;
         if (this.type === 'agua') {
-            const fromData = estoqueData.find(e => e.tipo === RESUMO_DOC_TIPO);
+            const fromData =
+                estoqueData.find(e => RESUMO_DOC_TIPOS.includes(e.tipo)) ||
+                estoqueData.find(e => e.id === 'resumo-agua') ||
+                estoqueData.find(e => e.id === 'resumo-acumulado');
             if (fromData) _cachedAguaResumo = fromData;
             resumo = _cachedAguaResumo;
         }

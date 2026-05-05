@@ -3,6 +3,7 @@ import {
   deleteDoc,
   doc,
   getDoc,
+  setDoc,
   query,
   where,
   getDocs,
@@ -10,6 +11,7 @@ import {
   writeBatch,
   updateDoc,
   serverTimestamp,
+  increment,
 } from "firebase/firestore";
 import { deleteFile } from "../services/storage-service.js";
 import { db, COLLECTIONS, auth } from "../services/firestore-service.js";
@@ -78,8 +80,27 @@ async function executeDelete() {
         deletedBy: auth?.currentUser?.email || "system",
       });
     } else {
+      const movSnap = info.type === "agua" ? await getDoc(doc(ref, info.id)) : null;
+      const movData = movSnap?.exists?.() ? movSnap.data() : null;
+
       // Demais coleções continuam com exclusão real
       await deleteDoc(doc(ref, info.id));
+
+      if (info.type === "agua" && movData) {
+        try {
+          const qty = parseInt(movData.quantidade, 10) || 0;
+          const tipo = String(movData.tipo || "").toLowerCase();
+          if (qty > 0 && (tipo === "entrega" || tipo === "retorno" || tipo === "retirada")) {
+            const resumoRef = doc(COLLECTIONS.estoqueAgua, "resumo-agua");
+            const update = { tipo: "__resumo__", atualizadoEm: serverTimestamp() };
+            if (tipo === "entrega") update.totalSaidas = increment(-qty);
+            if (tipo === "retorno" || tipo === "retirada") update.totalRetornos = increment(-qty);
+            await setDoc(resumoRef, update, { merge: true });
+          }
+        } catch (e) {
+          console.warn("Falha ao ajustar resumo de água após exclusão:", e?.message || e);
+        }
+      }
     }
 
     if (info.type === "unidade") {

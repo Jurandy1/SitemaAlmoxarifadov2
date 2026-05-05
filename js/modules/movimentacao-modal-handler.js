@@ -5,13 +5,11 @@ import { capitalizeString, formatTimestamp } from "../utils/formatters.js";
 import { COLLECTIONS } from "../services/firestore-service.js";
 import { getUserRole } from "../utils/cache.js";
 
-// FIX: '__resumo__' é um ID reservado pelo Firestore (IDs com __ são proibidos).
-// Renomeado para 'resumo-acumulado' — compatível com as regras do Firestore.
-const RESUMO_DOC_ID   = 'resumo-acumulado';
-const RESUMO_DOC_TIPO = 'resumo-acumulado';
+const RESUMO_DOC_ID   = 'resumo-agua';
+const RESUMO_DOC_TIPO = '__resumo__';
 
 /**
- * Atualiza o doc resumo-acumulado em estoqueAgua com os totais
+ * Atualiza o doc resumo-agua em estoqueAgua com os totais
  * acumulados de saídas e retornos. Usa increment() — atomicamente seguro.
  * Não lança exceção (falha silenciosa para não bloquear o fluxo principal).
  */
@@ -27,7 +25,7 @@ async function _atualizarResumo(itemType, qtdEntregue, qtdRetorno) {
             await setDoc(resumoRef, update, { merge: true });
         }
     } catch (err) {
-        console.warn('[resumo-acumulado] Falha ao atualizar (não crítico):', err);
+        console.warn('[resumo-agua] Falha ao atualizar (não crítico):', err);
     }
 }
 
@@ -222,8 +220,6 @@ export async function handleFinalMovimentacaoSubmit() {
 
         showAlert(alertId, `Movimentação salva! ${msgSucesso.join('; ')}.`, 'success');
 
-        // FIX: agora usa RESUMO_DOC_ID = 'resumo-acumulado' (ID válido no Firestore)
-        // O increment() acumula corretamente o totalSaidas sem depender do limit(90)
         if (itemType === 'agua') {
             _atualizarResumo('agua', qtdEntregue > 0 ? qtdEntregue : 0, qtdRetorno > 0 ? qtdRetorno : 0);
         }
