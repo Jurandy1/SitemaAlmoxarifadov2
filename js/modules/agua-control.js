@@ -40,16 +40,83 @@ function _normName(x) { return (x || '').toLowerCase().replace(/\s+/g, ' ').trim
 
 // Verificação de histórico importado (legado)
 function isHistoricoImportado(m) {
-    return aguaControl.isHistoricoImportado(m);
+    if (!m) return false;
+
+    // Apenas históricos antigos/importados reais
+    const origem = String(m.origem || '').toLowerCase();
+    const id = String(m.id || '').toLowerCase();
+
+    return (
+        origem === 'importador_sql' ||
+        origem === 'importacao' ||
+        origem === 'importacao_automatica' ||
+        id.endsWith('_sql')
+    );
 }
+
+
+// =========================================================================
+// FUNÇÃO UTILITÁRIA: Calcula estoque atual direto do cache (NÃO usa DOM)
+// =========================================================================
+export function calcularEstoqueAguaAtual() {
+    const estoqueAgua = getEstoqueAgua();
+
+    // IMPORTANTE:
+    // Só ignorar históricos realmente importados.
+    // O problema anterior estava filtrando movimentações válidas.
+    const movs = (getAguaMovimentacoes() || []).filter(m => !isHistoricoImportado(m));
+
+    const estoqueInicial = estoqueAgua
+        .filter(e => e.tipo === 'inicial')
+        .reduce((sum, e) => sum + (parseInt(e.quantidade, 10) || 0), 0);
+
+    const totalEntradas = estoqueAgua
+        .filter(e => e.tipo === 'entrada')
+        .reduce((sum, e) => sum + (parseInt(e.quantidade, 10) || 0), 0);
+
+    // CORREÇÃO:
+    // contabiliza TODAS as entregas reais
+    const totalSaidas = movs
+        .filter(m => m.tipo === 'entrega')
+        .reduce((sum, m) => sum + (parseInt(m.quantidade, 10) || 0), 0);
+
+    return {
+        estoqueInicial,
+        totalEntradas,
+        totalSaidas,
+        estoqueAtual: estoqueInicial + totalEntradas - totalSaidas
+    };
+}
+
 
 // =========================================================================
 // LÓGICA DE ESTOQUE (Delegada para BaseControl)
 // =========================================================================
 
+
 export function renderEstoqueAgua() {
+    // Usa cálculo direto do cache
+    const { estoqueInicial, totalEntradas, totalSaidas, estoqueAtual } = calcularEstoqueAguaAtual();
+
+    if (DOM_ELEMENTS.estoqueAguaInicialEl) {
+        DOM_ELEMENTS.estoqueAguaInicialEl.textContent = estoqueInicial;
+    }
+
+    if (DOM_ELEMENTS.estoqueAguaEntradasEl) {
+        DOM_ELEMENTS.estoqueAguaEntradasEl.textContent = `+${totalEntradas}`;
+    }
+
+    if (DOM_ELEMENTS.estoqueAguaSaidasEl) {
+        DOM_ELEMENTS.estoqueAguaSaidasEl.textContent = `-${totalSaidas}`;
+    }
+
+    if (DOM_ELEMENTS.estoqueAguaAtualEl) {
+        DOM_ELEMENTS.estoqueAguaAtualEl.textContent = estoqueAtual;
+    }
+
     aguaControl.renderEstoque();
 }
+
 
 export async function handleInicialEstoqueSubmit(e) {
     await aguaControl.handleInicialEstoqueSubmit(e);
@@ -177,19 +244,7 @@ export async function handleAguaSubmit(e) {
             if (!isEstoqueInicialDefinido('agua')) {
                 throw new Error('Defina o Estoque Inicial de Água antes de lançar saídas.');
             }
-            const estoqueData = getEstoqueAgua() || [];
-            const movsAll = (getAguaMovimentacoes() || []).filter(m => !isHistoricoImportado(m));
-            const estoqueInicialVal = estoqueData.filter(e => e.tipo === 'inicial').reduce((sum, e) => sum + (parseInt(e.quantidade, 10) || 0), 0);
-            const totalEntradasVal = estoqueData.filter(e => e.tipo === 'entrada').reduce((sum, e) => sum + (parseInt(e.quantidade, 10) || 0), 0);
-            const resumo =
-                estoqueData.find(e => e.tipo === '__resumo__') ||
-                estoqueData.find(e => e.tipo === 'resumo-acumulado') ||
-                estoqueData.find(e => e.id === 'resumo-agua') ||
-                estoqueData.find(e => e.id === 'resumo-acumulado');
-            const totalSaidasVal = resumo
-                ? (parseInt(resumo.totalSaidas, 10) || 0)
-                : movsAll.filter(m => m.tipo === 'entrega').reduce((sum, m) => sum + (parseInt(m.quantidade, 10) || 0), 0);
-            const estoqueAtual = Math.max(0, estoqueInicialVal + totalEntradasVal - totalSaidasVal);
+            const { estoqueAtual } = calcularEstoqueAguaAtual();
             if (qtdEntregue > estoqueAtual) {
                 throw new Error(`Erro: Estoque insuficiente. Disponível: ${estoqueAtual}`);
             }
