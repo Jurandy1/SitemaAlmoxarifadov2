@@ -12,169 +12,47 @@ import {
     orderBy,
     limit,
     Timestamp 
-} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+} from "firebase/firestore";
 
 import { getUnidades, getAguaMovimentacoes, isEstoqueInicialDefinido, getCurrentStatusFilter, setCurrentStatusFilter, getEstoqueAgua, getUserRole } from "../utils/cache.js";
-import { DOM_ELEMENTS, showAlert, switchSubTabView, switchTab, openConfirmDeleteModal, filterTable, renderPermissionsUI } from "../utils/dom-helpers.js";
+import { DOM_ELEMENTS, showAlert, switchSubTabView, switchTab, openConfirmDeleteModal, filterTable, renderPermissionsUI, escapeHTML } from "../utils/dom-helpers.js";
 import { getTodayDateString, dateToTimestamp, capitalizeString, formatTimestampComTempo, formatTimestamp } from "../utils/formatters.js";
 import { isReady, getUserId } from "./auth.js";
 import { COLLECTIONS } from "../services/firestore-service.js";
 import { executeFinalMovimentacao } from "./movimentacao-modal-handler.js";
+import { BaseControl } from "./base-control.js";
 
 // VARIÁVEIS DE ESTADO LOCAL
 let debitoAguaMode = 'devendo';
-let listenersInitialized = false;
+let listenersInitialized = false; // Proteção contra duplicação de eventos
+
+// Instância do BaseControl para Água
+const aguaControl = new BaseControl({
+    type: 'agua',
+    collectionMov: COLLECTIONS.aguaMov,
+    collectionEstoque: COLLECTIONS.estoqueAgua,
+    getMovimentacoes: getAguaMovimentacoes,
+    getEstoque: getEstoqueAgua
+});
 
 // Normalização de nomes
 function _normName(x) { return (x || '').toLowerCase().replace(/\s+/g, ' ').trim(); }
 
 // Verificação de histórico importado (legado)
 function isHistoricoImportado(m) {
-    if (!m) return false;
-    const idStr = String(m.id || '').toLowerCase();
-    const origemStr = String(m.origem || '').toLowerCase();
-    const obs = String(m.observacao || m.obs || '').toLowerCase();
-    
-    if (origemStr === 'importador_sql') return true;
-    if (origemStr === 'importacao' || origemStr === 'importacao_automatica' || origemStr === 'automatic_import') return true;
-    if (origemStr.includes('importa') || origemStr.includes('automatica')) return true;
-    if (idStr.includes('__sql') || idStr.endsWith('_sql')) return true;
-    
-    if (obs.includes('importado de sql') || 
-        obs.includes('importação automática') || 
-        obs.includes('importacao automatica') || 
-        obs.includes('migração') || 
-        obs.includes('migracao') || 
-        obs.includes('importado')) return true;
-        
-    if (typeof m.referenciaAno === 'number' || typeof m.referenciaMes === 'number' || typeof m.referenciaSemana === 'number') return true;
-    
-    const d = m.data?.toDate?.();
-    const ra = (m.responsavelAlmoxarifado || '').toLowerCase();
-    if (d && d.getHours() === 0 && d.getMinutes() === 0 && (!m.responsavelAlmoxarifado || ra.includes('import'))) return true;
-    
-    return false;
+    return aguaControl.isHistoricoImportado(m);
 }
 
 // =========================================================================
-// FUNÇÃO UTILITÁRIA: Calcula estoque atual direto do cache (NÃO usa DOM)
-// =========================================================================
-export function calcularEstoqueAguaAtual() {
-    const estoqueAgua = getEstoqueAgua();
-    const movs = (getAguaMovimentacoes() || []).filter(m => !isHistoricoImportado(m));
-
-    const estoqueInicial = estoqueAgua
-        .filter(e => e.tipo === 'inicial')
-        .reduce((sum, e) => sum + (parseInt(e.quantidade, 10) || 0), 0);
-
-    const totalEntradas = estoqueAgua
-        .filter(e => e.tipo === 'entrada')
-        .reduce((sum, e) => sum + (parseInt(e.quantidade, 10) || 0), 0);
-
-    const totalSaidas = movs
-        .filter(m => m.tipo === 'entrega')
-        .reduce((sum, m) => sum + (parseInt(m.quantidade, 10) || 0), 0);
-
-    return { estoqueInicial, totalEntradas, totalSaidas, estoqueAtual: estoqueInicial + totalEntradas - totalSaidas };
-}
-
-// =========================================================================
-// LÓGICA DE ESTOQUE
+// LÓGICA DE ESTOQUE (Delegada para BaseControl)
 // =========================================================================
 
 export function renderEstoqueAgua() {
-    // Oculta loading se ainda visível
-    if (DOM_ELEMENTS.loadingEstoqueAguaEl) DOM_ELEMENTS.loadingEstoqueAguaEl.style.display = 'none';
-
-    if (!DOM_ELEMENTS.estoqueAguaAtualEl && !document.getElementById('estoque-agua-atual-el')) return;
-    
-    if (isEstoqueInicialDefinido('agua')) {
-        if(DOM_ELEMENTS.btnAbrirInicialAgua) DOM_ELEMENTS.btnAbrirInicialAgua.classList.add('hidden'); 
-        if(DOM_ELEMENTS.formInicialAguaContainer) DOM_ELEMENTS.formInicialAguaContainer.classList.add('hidden'); 
-        if(DOM_ELEMENTS.resumoEstoqueAguaEl) DOM_ELEMENTS.resumoEstoqueAguaEl.classList.remove('hidden'); 
-    } else { 
-        if(DOM_ELEMENTS.btnAbrirInicialAgua) DOM_ELEMENTS.btnAbrirInicialAgua.classList.remove('hidden'); 
-        if(DOM_ELEMENTS.formInicialAguaContainer) DOM_ELEMENTS.formInicialAguaContainer.classList.add('hidden'); 
-        if(DOM_ELEMENTS.resumoEstoqueAguaEl) DOM_ELEMENTS.resumoEstoqueAguaEl.classList.add('hidden'); 
-    }
-
-    // Calcula sempre do cache, nunca do DOM
-    const { estoqueInicial, totalEntradas, totalSaidas, estoqueAtual } = calcularEstoqueAguaAtual();
-
-    // Atualiza TODOS os elementos que exibem o estoque (pode haver múltiplos no HTML)
-    const setAll = (selector, value) => {
-        document.querySelectorAll(selector).forEach(el => { el.textContent = value; });
-    };
-
-    // Seletores por ID direto (do DOM_ELEMENTS) e também variantes usadas no HTML novo
-    if (DOM_ELEMENTS.estoqueAguaInicialEl) DOM_ELEMENTS.estoqueAguaInicialEl.textContent = estoqueInicial;
-    if (DOM_ELEMENTS.estoqueAguaEntradasEl) DOM_ELEMENTS.estoqueAguaEntradasEl.textContent = `+${totalEntradas}`;
-    if (DOM_ELEMENTS.estoqueAguaSaidasEl) DOM_ELEMENTS.estoqueAguaSaidasEl.textContent = `-${totalSaidas}`;
-    if (DOM_ELEMENTS.estoqueAguaAtualEl) DOM_ELEMENTS.estoqueAguaAtualEl.textContent = estoqueAtual;
-
-    // Suporte a variantes de ID usadas no HTML redesenhado
-    setAll('#estoque-agua-inicial-el, #estoque-agua-inicial-el-2, #estoque-agua-inicial-el-mini', estoqueInicial);
-    setAll('#estoque-agua-entradas-el, #estoque-agua-entradas-el-2, #estoque-agua-entradas-el-mini', `+${totalEntradas}`);
-    setAll('#estoque-agua-saidas-el, #estoque-agua-saidas-el-2, #estoque-agua-saidas-el-mini', `-${totalSaidas}`);
-    setAll('#estoque-agua-atual-el, #estoque-agua-atual-el-2', estoqueAtual);
-
-    // Barra de consumo (se existir)
-    const totalGeral = estoqueInicial + totalEntradas;
-    if (totalGeral > 0) {
-        const pct = Math.min(100, Math.round((totalSaidas / totalGeral) * 100));
-        const barFill = document.getElementById('bar-agua-fill');
-        const barPct  = document.getElementById('bar-agua-pct');
-        if (barFill) barFill.style.width = `${pct}%`;
-        if (barPct)  barPct.textContent  = `${pct}% consumido`;
-    }
-
-    renderPermissionsUI(); 
+    aguaControl.renderEstoque();
 }
 
 export async function handleInicialEstoqueSubmit(e) {
-    e.preventDefault();
-    
-    const role = getUserRole(); 
-    if (role !== 'admin') { 
-        showAlert('alert-inicial-agua', "Permissão negada. Apenas Administradores podem definir o estoque inicial.", 'error'); return; 
-    }
-    
-    const inputQtd = DOM_ELEMENTS.inputInicialQtdAgua.value;
-    const inputResp = DOM_ELEMENTS.inputInicialResponsavelAgua.value;
-    
-    const quantidade = parseInt(inputQtd, 10);
-    const responsavel = capitalizeString(inputResp.trim());
-
-    if (isNaN(quantidade) || quantidade < 0 || !responsavel) { 
-        showAlert('alert-inicial-agua', "Preencha a quantidade e o responsável.", 'warning'); return; 
-    }
-    
-    if (isEstoqueInicialDefinido('agua')) {
-         showAlert('alert-inicial-agua', "O estoque inicial já foi definido.", 'info'); return;
-    }
-    
-    DOM_ELEMENTS.btnSubmitInicialAgua.disabled = true; 
-    DOM_ELEMENTS.btnSubmitInicialAgua.innerHTML = '<div class="loading-spinner-small mx-auto"></div>';
-    
-    try {
-        await addDoc(COLLECTIONS.estoqueAgua, { 
-            tipo: 'inicial', 
-            quantidade: quantidade, 
-            data: serverTimestamp(), 
-            responsavel: responsavel, 
-            notaFiscal: 'INICIAL', 
-            registradoEm: serverTimestamp() 
-        });
-        showAlert('alert-inicial-agua', "Estoque inicial salvo!", 'success', 2000);
-        DOM_ELEMENTS.formInicialAguaContainer.classList.add('hidden');
-        DOM_ELEMENTS.btnAbrirInicialAgua.classList.add('hidden');
-    } catch (error) {
-        console.error("Erro ao salvar estoque inicial:", error);
-        showAlert('alert-inicial-agua', `Erro ao salvar: ${error.message}`, 'error');
-        DOM_ELEMENTS.btnSubmitInicialAgua.disabled = false;
-        DOM_ELEMENTS.btnSubmitInicialAgua.innerHTML = '<i data-lucide="save"></i><span>Salvar Inicial</span>';
-        if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
-    }
+    await aguaControl.handleInicialEstoqueSubmit(e);
 }
 
 export async function handleEntradaEstoqueSubmit(e) {
@@ -191,6 +69,7 @@ export async function handleEntradaEstoqueSubmit(e) {
     const inputResp = DOM_ELEMENTS.inputResponsavelEntradaAgua.value;
     const inputNf = DOM_ELEMENTS.inputNfEntradaAgua.value;
     
+    // CORREÇÃO: parseInt com base 10 explícita
     const quantidade = parseInt(inputQtd, 10);
     const data = dateToTimestamp(inputData);
     const responsavel = capitalizeString(inputResp.trim());
@@ -234,6 +113,10 @@ export async function handleEntradaEstoqueSubmit(e) {
 export function toggleAguaFormInputs() {
     if (!DOM_ELEMENTS.selectTipoAgua) return; 
     
+    // Forçar apenas Saída/Entrega
+    const tipo = DOM_ELEMENTS.selectTipoAgua.value;
+    
+    // Esconder sempre o retorno, pois não controlamos mais vazios
     if (DOM_ELEMENTS.formGroupQtdEntregueAgua) DOM_ELEMENTS.formGroupQtdEntregueAgua.classList.remove('hidden');
     if (DOM_ELEMENTS.formGroupQtdRetornoAgua) DOM_ELEMENTS.formGroupQtdRetornoAgua.classList.add('hidden');
     if (DOM_ELEMENTS.inputQtdRetornoAgua) DOM_ELEMENTS.inputQtdRetornoAgua.value = "0";
@@ -248,6 +131,7 @@ export function getUnidadeSaldoAgua(unidadeId) {
 }
 
 export function checkUnidadeSaldoAlertAgua() {
+    // DESATIVADO: Controle de galão vazio foi removido.
     if (DOM_ELEMENTS.unidadeSaldoAlertaAgua) {
         DOM_ELEMENTS.unidadeSaldoAlertaAgua.style.display = 'none';
     }
@@ -262,9 +146,11 @@ export async function handleAguaSubmit(e) {
         showAlert('alert-agua', "Permissão negada. Usuário Anônimo não pode lançar movimentações.", 'error'); return; 
     }
 
+    // Desabilitar botão para evitar duplo clique e TRAVAR MÚLTIPLOS ENVIOS
     const submitBtn = e.submitter || e.target.querySelector('button[type="submit"]');
     if(submitBtn) {
         submitBtn.disabled = true;
+        // Opcional: mudar texto para "Salvando..."
     }
 
     try {
@@ -272,30 +158,41 @@ export async function handleAguaSubmit(e) {
         if (!selectValue) { throw new Error('Selecione uma unidade.'); }
         const [unidadeId, unidadeNome, tipoUnidadeRaw] = selectValue.split('|');
         
-        const tipoMovimentacao = 'entrega';
+        const tipoMovimentacao = 'entrega'; // Forçar sempre entrega
+        // CORREÇÃO: parseInt para evitar erro de concatenação
         const qtdEntregue = parseInt(DOM_ELEMENTS.inputQtdEntregueAgua.value, 10) || 0;
-        const qtdRetorno = 0;
+        const qtdRetorno = 0; // Forçar sempre 0
         const data = dateToTimestamp(DOM_ELEMENTS.inputDataAgua.value); 
         const responsavelUnidade = capitalizeString(DOM_ELEMENTS.inputResponsavelAgua.value.trim()); 
         
         if (!unidadeId || !data || !responsavelUnidade) {
-            throw new Error('Dados inválidos. Verifique Unidade, Data e Nome de quem Recebeu.');
+            throw new Error('Dados inválidos. Verifique Unidade, Data e Nome de quem Recebeu/Devolveu.');
         }
         
         if (qtdEntregue <= 0) {
              throw new Error('A quantidade deve ser maior que zero.');
         }
         
-        if (!isEstoqueInicialDefinido('agua')) {
-            throw new Error('Defina o Estoque Inicial de Água antes de lançar saídas.');
-        }
-
-        // ✅ CORREÇÃO CRÍTICA: calcula estoque do CACHE, nunca do DOM
-        // Ler do DOM pode retornar '—' ou valor desatualizado, causando parseInt NaN → 0
-        const { estoqueAtual } = calcularEstoqueAguaAtual();
-        
-        if (qtdEntregue > estoqueAtual) {
-            throw new Error(`Estoque insuficiente. Disponível: ${estoqueAtual} galão(ões).`);
+        if (qtdEntregue > 0) {
+            if (!isEstoqueInicialDefinido('agua')) {
+                throw new Error('Defina o Estoque Inicial de Água antes de lançar saídas.');
+            }
+            const estoqueData = getEstoqueAgua() || [];
+            const movsAll = (getAguaMovimentacoes() || []).filter(m => !isHistoricoImportado(m));
+            const estoqueInicialVal = estoqueData.filter(e => e.tipo === 'inicial').reduce((sum, e) => sum + (parseInt(e.quantidade, 10) || 0), 0);
+            const totalEntradasVal = estoqueData.filter(e => e.tipo === 'entrada').reduce((sum, e) => sum + (parseInt(e.quantidade, 10) || 0), 0);
+            const resumo =
+                estoqueData.find(e => e.tipo === '__resumo__') ||
+                estoqueData.find(e => e.tipo === 'resumo-acumulado') ||
+                estoqueData.find(e => e.id === 'resumo-agua') ||
+                estoqueData.find(e => e.id === 'resumo-acumulado');
+            const totalSaidasVal = resumo
+                ? (parseInt(resumo.totalSaidas, 10) || 0)
+                : movsAll.filter(m => m.tipo === 'entrega').reduce((sum, m) => sum + (parseInt(m.quantidade, 10) || 0), 0);
+            const estoqueAtual = Math.max(0, estoqueInicialVal + totalEntradasVal - totalSaidasVal);
+            if (qtdEntregue > estoqueAtual) {
+                throw new Error(`Erro: Estoque insuficiente. Disponível: ${estoqueAtual}`);
+            }
         }
         
         await executeFinalMovimentacao({
@@ -306,15 +203,19 @@ export async function handleAguaSubmit(e) {
 
     } catch (error) {
         showAlert('alert-agua', error.message, 'warning');
+        // Reativa botão apenas em erro
         if(submitBtn) submitBtn.disabled = false;
     }
+    // Nota: Em caso de sucesso, o modal geralmente fecha ou recarrega, 
+    // então o botão pode continuar disabled até lá.
 }
 
 export function renderAguaStatus(newFilter = null) {
      if (!DOM_ELEMENTS.tableStatusAgua) return;
      
-     const currentFilter = newFilter || getCurrentStatusFilter('agua');
-     if (newFilter) setCurrentStatusFilter('agua', newFilter); 
+     // FIX: salva o novo filtro ANTES de ler, evitando filtro defasado na primeira chamada
+     if (newFilter) setCurrentStatusFilter('agua', newFilter);
+     const currentFilter = getCurrentStatusFilter('agua');
      
     const statusMap = new Map();
     const nameIndex = new Map();
@@ -377,14 +278,15 @@ export function renderAguaStatus(newFilter = null) {
         let lancamentoDetalhes = 'N/A';
         
         if(ultimoLancamento) {
-            const dataMovimentacao = formatTimestampComTempo(ultimoLancamento.data);
+            const dataMovimentacao = formatTimestampComTempo(ultimoLancamento.registradoEm || ultimoLancamento.data);
             const respAlmox = ultimoLancamento.respAlmox;
             const respUnidade = ultimoLancamento.respUnidade;
+            
             lancamentoDetalhes = `<span>${dataMovimentacao}</span> (Almox: ${respAlmox} / Unid: ${respUnidade})`;
         }
         
-        html += `<tr title="${s.nome} - Saldo: ${saldoText.replace(/<[^>]*>?/gm, '')}">
-            <td class="font-medium">${s.nome}</td><td>${s.tipo || 'N/A'}</td>
+        html += `<tr title="${escapeHTML(s.nome)} - Saldo: ${saldoText.replace(/<[^>]*>?/gm, '')}">
+            <td class="font-medium">${escapeHTML(s.nome)}</td><td>${escapeHTML(s.tipo || 'N/A')}</td>
             <td class="text-center">${s.entregues}</td><td class="text-center">${s.recebidos}</td>
             <td class="text-center font-bold ${saldoClass}">${saldoText}</td>
             <td class="space-x-1 whitespace-nowrap text-xs text-gray-600">
@@ -430,6 +332,7 @@ export function renderAguaDebitosResumo() {
         if (!s.ultimo) s.ultimo = { id: m.id, data: m.data, tipo: m.tipo, quantidade: m.quantidade, respUnidade: m.responsavel, respAlmox: m.responsavelAlmoxarifado || 'N/A' };
     });
 
+    // Determina o movimento que iniciou a dívida atual (cruzamento do saldo para > 0)
     const porUnidade = new Map();
     movsOrdenadas.forEach(m => {
         const arr = porUnidade.get(m.unidadeId) || [];
@@ -496,7 +399,7 @@ export function renderAguaDebitosResumo() {
     });
 
     if (lista.length === 0) {
-        const vazioMsg = debitoAguaMode === 'credito' ? 'Nenhuma unidade com crédito no momento.' : 'Nenhuma unidade devendo no momento.';
+        const vazioMsg = debitoAguaMode === 'credito' ? 'Nenhuma unidade com crédito no momento.' : 'Nenhuma unidade devendo vazios no momento.';
         DOM_ELEMENTS.tableDebitoAguaResumo.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-slate-500">${vazioMsg}</td></tr>`;
         return;
     }
@@ -514,21 +417,21 @@ export function renderAguaDebitosResumo() {
         rows.push(`<tr class="table-group-header"><td colspan="4">${tipo}</td></tr>`);
         grupos[tipo].forEach(s => {
             const origemMov = s.origemDivida;
-            const origemData = origemMov ? formatTimestampComTempo(origemMov.data) : 'N/A';
+            const origemData = origemMov ? formatTimestampComTempo(origemMov.registradoEm || origemMov.data) : 'N/A';
             const origemTipo = origemMov?.tipo || '';
             const origemQtd = origemMov?.quantidade || '';
             const origemResp = origemMov ? `Almox: ${origemMov.respAlmox} • Unid: ${origemMov.respUnidade}` : '';
             const pendText = debitoAguaMode === 'credito' ? Math.abs(s.pendentes) : s.pendentes;
             const pendClass = debitoAguaMode === 'credito' ? 'text-blue-600' : 'text-red-600';
             rows.push(`<tr>
-                <td class="font-medium">${s.nome}</td>
-                <td><span class="badge badge-gray">${s.tipo}</span></td>
+                <td class="font-medium">${escapeHTML(s.nome)}</td>
+                <td><span class="badge badge-gray">${escapeHTML(s.tipo)}</span></td>
                 <td class="text-center ${pendClass} font-extrabold">${pendText}</td>
                 <td class="text-xs text-gray-700">
                     <div class="flex flex-col">
                         <span class="font-medium">${origemData}</span>
                         <span class="mt-1 flex items-center gap-2"><span class="badge ${(origemTipo==='retorno' || origemTipo==='retirada') ? 'badge-green' : 'badge-blue'}">${(origemTipo==='retorno' || origemTipo==='retirada') ? 'vazio' : 'cheio'}</span><span>${origemQtd}</span></span>
-                        <span class="text-gray-500">${origemResp}</span>
+                        <span class="text-gray-500">${escapeHTML(origemResp)}</span>
                         <span class="text-gray-400 text-xs">ID: ${origemMov?.id || 'N/A'}</span>
                         ${origemMov ? `<button class="btn-primary btn-sm mt-2 rounded-full px-3 py-1 btn-ver-dia-divida" title="Abrir histórico do dia da origem" data-item="agua" data-unidade-id="${s.id}" data-date="${(new Date(origemMov.data.toDate())).toISOString().slice(0,10)}"><i data-lucide="calendar"></i> Ver histórico do dia</button>` : ''}
                     </div>
@@ -538,6 +441,7 @@ export function renderAguaDebitosResumo() {
     });
     DOM_ELEMENTS.tableDebitoAguaResumo.innerHTML = rows.join('');
     if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
+    // Listener para botões de "Ver dia da dívida" na tabela
     DOM_ELEMENTS.tableDebitoAguaResumo.querySelectorAll('.btn-ver-dia-divida').forEach(btn => {
         btn.addEventListener('click', () => {
             const unidadeId = btn.getAttribute('data-unidade-id');
@@ -559,20 +463,25 @@ export function renderAguaDebitosResumo() {
 }
 
 export function getDebitosAguaResumoList() {
+    // DESATIVADO: Controle de galão vazio foi removido.
     return [];
 }
 
 // -------------------------------------------------------------------------
-// Renderização do Histórico de Estoque COM FILTROS NO HEADER
+// NOVA FUNÇÃO: Renderização do Histórico de Estoque COM FILTROS NO HEADER
 // -------------------------------------------------------------------------
 export function renderAguaEstoqueHistory() {
     if (!DOM_ELEMENTS.tableHistoricoEstoqueAgua) return;
     
+    // Encontrar a tabela pai para manipular o thead
     const tableElement = DOM_ELEMENTS.tableHistoricoEstoqueAgua.closest('table');
     if (!tableElement) return;
 
+    // Configuração dos Cabeçalhos com Filtros
+    // Verifica se já inserimos os filtros para evitar duplicação (ou recria se necessário)
     let thead = tableElement.querySelector('thead');
     
+    // Se não tiver a classe 'filtered-header' (marcação nossa), vamos criar
     if (!thead || !thead.classList.contains('filtered-header')) {
         const columns = [
             { key: 'tipo', label: 'Tipo' },
@@ -603,7 +512,10 @@ export function renderAguaEstoqueHistory() {
                 input.className = "filter-estoque-input w-full p-1.5 text-xs border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500 font-normal normal-case text-gray-700";
                 input.placeholder = `Filtrar...`;
                 input.dataset.colKey = col.key;
+                
+                // Listener para filtrar
                 input.addEventListener('keyup', () => filterEstoqueTable(tableElement));
+                
                 divContainer.appendChild(input);
             }
             
@@ -643,8 +555,8 @@ export function renderAguaEstoqueHistory() {
         const tipoClass = isInicial ? 'badge-blue' : 'badge-green';
         const tipoText = isInicial ? 'Inicial' : 'Entrada';
         
-        const dataMov = formatTimestampComTempo(m.data);
-        const dataLancamento = formatTimestampComTempo(m.registradoEm);
+        const dataMov = formatTimestampComTempo(m.registradoEm || m.data);
+        const dataLancamento = formatTimestampComTempo(m.registradoEm || m.data);
         const notaFiscal = m.notaFiscal || 'N/A';
         const responsavel = m.responsavel || 'N/A';
 
@@ -656,6 +568,8 @@ export function renderAguaEstoqueHistory() {
             ? `<button class="btn-danger btn-remove btn-icon" data-id="${m.id}" data-type="entrada-agua" data-details="${details}" title="Remover este lançamento"><i data-lucide="trash-2"></i></button>`
             : `<span class="text-gray-400 btn-icon" title="Apenas Admin pode excluir"><i data-lucide="slash"></i></span>`;
 
+        // A ordem das TDs deve corresponder à ordem dos THs definidos acima
+        // Colunas: Tipo, Qtd, Data, NF, Resp, LancadoEm, Ações
         html += `<tr title="Lançado em: ${dataLancamento}" class="hover:bg-gray-50 transition-colors">
             <td><span class="badge ${tipoClass}">${tipoText}</span></td>
             <td class="font-medium">${m.quantidade}</td>
@@ -670,9 +584,11 @@ export function renderAguaEstoqueHistory() {
     DOM_ELEMENTS.tableHistoricoEstoqueAgua.innerHTML = html;
     if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
 
+    // Reaplica filtro se houver valores nos inputs
     filterEstoqueTable(tableElement);
 }
 
+// Função auxiliar de filtro para a tabela de estoque
 function filterEstoqueTable(table) {
     const inputs = table.querySelectorAll('.filter-estoque-input');
     const tbody = table.querySelector('tbody');
@@ -682,13 +598,20 @@ function filterEstoqueTable(table) {
         let showRow = true;
         const cells = row.querySelectorAll('td');
         
+        // Mapeia inputs para colunas
+        // Assume que a ordem dos inputs nos THs corresponde à ordem das TDs (excluindo colunas sem filtro)
+        // Mas a lógica mais segura é pelo índice da coluna
+        
         inputs.forEach(input => {
             const th = input.closest('th');
+            // Encontra o índice da coluna deste TH na linha do cabeçalho
             const colIndex = Array.from(th.parentNode.children).indexOf(th);
+            
             const cell = cells[colIndex];
             if (cell) {
                 const filterVal = input.value.toLowerCase().trim();
                 const cellVal = cell.textContent.toLowerCase();
+                
                 if (filterVal && !cellVal.includes(filterVal)) {
                     showRow = false;
                 }
@@ -720,8 +643,8 @@ export function renderAguaMovimentacoesHistory() {
         const tipoClass = isEntrega ? 'badge-red' : 'badge-green';
         const tipoText = isEntrega ? 'Entrega' : 'Retirada';
         
-        const dataMov = formatTimestampComTempo(m.data);
-        const dataLancamento = formatTimestampComTempo(m.registradoEm);
+        const dataMov = formatTimestampComTempo(m.registradoEm || m.data);
+        const dataLancamento = formatTimestampComTempo(m.registradoEm || m.data);
         const respAlmox = m.responsavelAlmoxarifado || 'N/A';
         const respUnidade = m.responsavel || 'N/A';
 
@@ -793,7 +716,8 @@ function getFilteredAguaMovimentacoes() {
     const respEl = document.getElementById('filtro-responsavel-agua');
     const origemEl = document.getElementById('filtro-origem-agua');
     const dataIniEl = document.getElementById('filtro-data-ini-agua') || document.getElementById('filtro-data-inicio-agua');
-    const dataFimEl = document.getElementById('filtro-data-fim-agua');
+    // FIX: ID alternativo correto para data fim (era duplicado, causando filtro inoperante)
+    const dataFimEl = document.getElementById('filtro-data-fim-agua') || document.getElementById('filtro-data-fim-agua-historico');
 
     const tipo = tipoEl?.value || '';
     const unidadeId = unidadeEl?.value || '';
@@ -859,10 +783,10 @@ function checkAguaHistoryIntegrity() {
 
     const movMsg = inconsistenciasMov === 0
         ? 'Nenhuma inconsistência detectada nas movimentações de Água.'
-        : `Foram encontradas ${inconsistenciasMov} possíveis inconsistências nas movimentações de Água.`;
+        : `Foram encontradas ${inconsistenciasMov} possíveis inconsistências nas movimentações de Água. Revise os lançamentos mais antigos.`;
     const estoqueMsg = inconsistenciasEstoque === 0
         ? 'Nenhuma inconsistência detectada nas entradas de estoque de Água.'
-        : `Foram encontradas ${inconsistenciasEstoque} possíveis inconsistências nas entradas de estoque de Água.`;
+        : `Foram encontradas ${inconsistenciasEstoque} possíveis inconsistências nas entradas de estoque de Água. Verifique registros de NF e datas.`;
 
     if (document.getElementById('alert-historico-agua')) {
         showAlert('alert-historico-agua', movMsg, inconsistenciasMov === 0 ? 'info' : 'warning');
@@ -877,6 +801,7 @@ function checkAguaHistoryIntegrity() {
 // =========================================================================
 
 export function initAguaListeners() {
+    // CORREÇÃO: Evita duplicar listeners se a função for chamada 2x
     if (listenersInitialized) return;
     
     if (DOM_ELEMENTS.formAgua) {
@@ -935,7 +860,7 @@ export function initAguaListeners() {
     if (DOM_ELEMENTS.filtroResumoAguaPendMin) DOM_ELEMENTS.filtroResumoAguaPendMin.addEventListener('input', renderAguaDebitosResumo);
     if (DOM_ELEMENTS.filtroResumoAguaDataIni) DOM_ELEMENTS.filtroResumoAguaDataIni.addEventListener('change', renderAguaDebitosResumo);
     if (DOM_ELEMENTS.filtroResumoAguaDataFim) DOM_ELEMENTS.filtroResumoAguaDataFim.addEventListener('change', renderAguaDebitosResumo);
-
+    // Filtros avançados
     ['filtro-tipo-agua','filtro-unidade-agua','filtro-responsavel-agua','filtro-origem-agua','filtro-data-ini-agua','filtro-data-fim-agua']
         .forEach(id => {
             const el = document.getElementById(id);
@@ -986,34 +911,7 @@ export function initAguaListeners() {
         renderPermissionsUI(); 
     }));
     
-    listenersInitialized = true;
-    console.log('Módulo Água: Listeners inicializados (blindado contra duplicação).');
-}
-
-export function onAguaTabChange() {
-    const currentSubView = document.querySelector('#sub-nav-agua .sub-nav-btn.active')?.dataset.subview || 'movimentacao-agua';
-    
-    switchSubTabView('agua', currentSubView);
-    
-    toggleAguaFormInputs(); 
-    checkUnidadeSaldoAlertAgua();
-    renderEstoqueAgua();
-    renderAguaDebitosResumo();
-    renderAguaEstoqueHistory(); 
-    renderAguaStatus();
-    renderAguaMovimentacoesHistory();
-    if (DOM_ELEMENTS.inputDataAgua) DOM_ELEMENTS.inputDataAgua.value = getTodayDateString();
-    if (DOM_ELEMENTS.inputDataEntradaAgua) DOM_ELEMENTS.inputDataEntradaAgua.value = getTodayDateString();
-    
-    const filtroStatus = document.getElementById('filtro-status-agua');
-    if (filtroStatus) filtroStatus.value = '';
-    const filtroHistorico = document.getElementById('filtro-historico-agua');
-    if (filtroHistorico) filtroHistorico.value = '';
-
-    populateAguaFilterUnidades();
-    checkAguaHistoryIntegrity();
-    renderPermissionsUI();
-
+    // BUG-05 fix: inner nav listeners moved here from onAguaTabChange to avoid accumulation
     const innerNavAgua = document.querySelector('#subview-movimentacao-agua .module-inner-subnav');
     if (innerNavAgua) {
         innerNavAgua.addEventListener('click', (e) => {
@@ -1043,55 +941,32 @@ export function onAguaTabChange() {
             if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { setTimeout(() => lucide.createIcons(), 50); }
         });
     }
-    if (DOM_ELEMENTS.btnInnerAguaLancamento) {
-        DOM_ELEMENTS.btnInnerAguaLancamento.addEventListener('click', () => {
-            DOM_ELEMENTS.btnInnerAguaLancamento.classList.add('active');
-            DOM_ELEMENTS.btnInnerAguaResumo?.classList.remove('active');
-            DOM_ELEMENTS.innerAguaLancamento?.classList.remove('hidden');
-            DOM_ELEMENTS.innerAguaResumo?.classList.add('hidden');
-            if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') { setTimeout(() => lucide.createIcons(), 50); }
-        });
-    }
+
+    listenersInitialized = true;
+    console.log('Módulo Água: Listeners inicializados (blindado contra duplicação).');
 }
 
-// =========================================================================
-// FERRAMENTA DE DIAGNÓSTICO
-// =========================================================================
-window.diagnosticarErrosAgua = async function() {
-    console.log("=== INICIANDO DIAGNÓSTICO DE ÁGUA ===");
+export function onAguaTabChange() {
+    const currentSubView = document.querySelector('#sub-nav-agua .sub-nav-btn.active')?.dataset.subview || 'movimentacao-agua';
+    
+    switchSubTabView('agua', currentSubView);
+    
+    toggleAguaFormInputs(); 
+    checkUnidadeSaldoAlertAgua();
+    renderEstoqueAgua();
+    renderAguaDebitosResumo();
+    renderAguaEstoqueHistory(); 
+    renderAguaStatus();
+    renderAguaMovimentacoesHistory();
+    if (DOM_ELEMENTS.inputDataAgua) DOM_ELEMENTS.inputDataAgua.value = getTodayDateString();
+    if (DOM_ELEMENTS.inputDataEntradaAgua) DOM_ELEMENTS.inputDataEntradaAgua.value = getTodayDateString();
+    
+    const filtroStatus = document.getElementById('filtro-status-agua');
+    if (filtroStatus) filtroStatus.value = '';
+    const filtroHistorico = document.getElementById('filtro-historico-agua');
+    if (filtroHistorico) filtroHistorico.value = '';
 
-    // Mostra o estoque calculado do cache
-    const { estoqueInicial, totalEntradas, totalSaidas, estoqueAtual } = calcularEstoqueAguaAtual();
-    console.log(`[CACHE] Inicial: ${estoqueInicial} | Entradas: ${totalEntradas} | Saídas: ${totalSaidas} | Disponível: ${estoqueAtual}`);
-
-    console.log("Procurando por lançamentos suspeitos (quantidade > 50)...");
-
-    try {
-        const historicoRef = COLLECTIONS.historicoAgua; 
-        
-        if (!historicoRef) {
-            throw new Error("Referência da coleção 'historicoAgua' não encontrada em COLLECTIONS.");
-        }
-        
-        const q = query(historicoRef, orderBy('quantidade', 'desc'), limit(50));
-        const snapshot = await getDocs(q);
-        
-        let suspeitos = 0;
-        snapshot.forEach(doc => {
-            const data = doc.data();
-            const qtd = parseInt(data.quantidade, 10);
-            if (qtd > 50) {
-                console.warn(`[SUSPEITO] ID: ${doc.id} | Qtd: ${qtd} | Data: ${data.data?.toDate()?.toLocaleString()} | Tipo: ${data.tipo}`);
-                suspeitos++;
-            }
-        });
-
-        if (suspeitos === 0) {
-            console.log("Nenhum lançamento acima de 50 unidades encontrado nos maiores registros.");
-        } else {
-            console.log(`Encontrados ${suspeitos} registros suspeitos. Verifique se algum corresponde ao erro.`);
-        }
-    } catch (e) {
-        console.error("Erro ao rodar diagnóstico:", e);
-    }
-};
+    populateAguaFilterUnidades();
+    checkAguaHistoryIntegrity();
+    renderPermissionsUI();
+}
