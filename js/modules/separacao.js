@@ -1529,7 +1529,31 @@ function detectItemHints(item) {
     obs
   };
 }
-
+// ═══════════════════════════════════════════════════════════════════
+// AUTO-PADRONIZAÇÃO SILENCIOSA — Aplica diferenças que são APENAS
+// de caso (maiúsculo/minúsculo) ou acento, sem mostrar na revisão.
+// ═══════════════════════════════════════════════════════════════════
+function autoStandardizeCaseAccent(parsed) {
+  if (!parsed || !parsed.categories) return;
+  parsed.categories.forEach(cat => {
+    (cat.items || []).forEach(item => {
+      const mat = String(item.material || '').trim();
+      if (mat.length < 2) return;
+      const nk = normMat(mat);
+      // Tenta o catálogo primeiro, depois aliases salvos
+      const target = MATERIAL_CATALOG[nk]
+        || (typeof MAT_ALIASES !== 'undefined' && MAT_ALIASES && MAT_ALIASES[nk])
+        || null;
+      if (!target || target === mat) return;
+      // Aplica silenciosamente SE a única diferença for caso/acento/espaços
+      const matCmp = rmAcc(mat).toUpperCase().trim().replace(/\s+/g, ' ');
+      const targetCmp = rmAcc(target).toUpperCase().trim().replace(/\s+/g, ' ');
+      if (matCmp === targetCmp) {
+        item.material = target;
+      }
+    });
+  });
+}
 function detectItemIssues(parsed) {
   if (!parsed || !parsed.categories) return [];
   const issues = [];
@@ -2044,12 +2068,12 @@ function applyItemFixes(parsed, fixes) {
     if (!item) return;
     
     if (fix.type === 'split') {
-      // Remove o item original e insere os splits
-      // IMPORTANTE: Não copiamos qtdSolicitada/qtdAtendida para os itens gerados.
-      // A quantidade original pertence a UM item; ao dividir, o separador deve
-      // preencher cada sub-item manualmente. Copiar triplicaria (ou mais) os valores.
+      // Cada item dividido HERDA a quantidade do original.
+      // Ex.: "Caneta azul e preta" com qtd atendida 5 → "Caneta azul" 5 + "Caneta preta" 5
       const baseUnid = item.unidade || '';
       const baseStatus = item.status || 'nao_atendido';
+      const baseQs = item.qtdSolicitada || '';
+      const baseQa = item.qtdAtendida || '';
       
       cat.items.splice(fix.itemIdx, 1);
       fix.splits.forEach((sp, si) => {
@@ -2057,9 +2081,9 @@ function applyItemFixes(parsed, fixes) {
           id: nextSplitId++,
           material: sp.material,
           unidade: sp.unidade || baseUnid,
-          qtdSolicitada: '',  // vazio: separador preenche cada sub-item
-          qtdAtendida: '',
-          status: 'nao_atendido',
+          qtdSolicitada: baseQs,
+          qtdAtendida: baseQa,
+          status: baseStatus,
           tipo: item.tipo,
           obs: si === 0 ? (item.obs || '') : ''
         });
@@ -2147,8 +2171,8 @@ function showPreRegDialog(issues, onConfirm) {
         + '<div style="font-size:11px;color:#64748b;margin-bottom:6px">' + esc(fix.reason) + '</div>'
 
         // Aviso de quantidade
-        + '<div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:6px;padding:5px 10px;margin-bottom:6px;font-size:11px;color:#92400e">'
-        + '⚠️ <b>Atenção:</b> ao separar, as quantidades do item original <b>não são copiadas</b>. O separador deverá preencher cada sub-item manualmente.'
+        + '<div style="background:#dcfce7;border:1px solid #86efac;border-radius:6px;padding:5px 10px;margin-bottom:6px;font-size:11px;color:#166534">'
+        + '✅ <b>Quantidades copiadas:</b> cada item dividido receberá a mesma quantidade do original (ex.: qtd 5 → 5 em cada).'
         + '</div>'
 
         // Antes
@@ -2368,6 +2392,9 @@ async function registrar(){
   // ─── POPUP DE CONFIRMAÇÃO DE UNIDADE ───
   const continueWithUnit = await showUnitConfirmDialog(finalUnit);
   if (!continueWithUnit) return; // usuário clicou "Não / Corrigir"
+
+  // ─── AUTO-PADRONIZAÇÃO SILENCIOSA (caso/acento) ───
+  autoStandardizeCaseAccent(tmpParsed);
 
   // ─── VALIDAÇÃO PRÉ-REGISTRO (itens) ───
   const issues = detectItemIssues(tmpParsed);
