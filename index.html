@@ -702,7 +702,7 @@
                         </div>
 
                         <!-- Filtros avançados (Água) -->
-                        <div class="grid grid-cols-1 md:grid-cols-6 gap-3 mb-4">
+                        <div class="grid grid-cols-1 md:grid-cols-8 gap-3 mb-4">
                             <div>
                                 <label for="filtro-tipo-agua" class="form-label text-xs">Tipo</label>
                                 <select id="filtro-tipo-agua" class="form-select">
@@ -731,8 +731,14 @@
                                 </select>
                             </div>
                             <div>
-                                <label for="filtro-responsavel-agua" class="form-label text-xs">Responsável</label>
-                                <input type="text" id="filtro-responsavel-agua" class="form-input" placeholder="Nome do responsável">
+                                <label for="filtro-responsavel-almox-agua" class="form-label text-xs">Resp. Almox.</label>
+                                <select id="filtro-responsavel-almox-agua" class="form-select">
+                                    <option value="">Todos</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="filtro-responsavel-unidade-agua" class="form-label text-xs">Resp. Unidade</label>
+                                <input type="text" id="filtro-responsavel-unidade-agua" class="form-input" placeholder="Nome do responsável">
                             </div>
                             <div>
                                 <label for="filtro-origem-agua" class="form-label text-xs">Origem</label>
@@ -754,6 +760,8 @@
                         <div class="flex justify-end mb-4">
                             <button id="btn-limpar-filtros-agua" class="btn-secondary"><i data-lucide="x"></i><span>Limpar filtros</span></button>
                         </div>
+
+                        <div id="agua-history-pagination" class="flex flex-wrap items-center justify-between gap-2 mb-3"></div>
 
                         <div class="overflow-x-auto border border-gray-200 rounded-lg">
                             <table class="table w-full text-sm">
@@ -1794,10 +1802,10 @@
                     <div style="max-width:1200px;margin:0 auto">
                         <!-- Sub-abas do Painel -->
                         <div style="display:flex;gap:0;background:#fff;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,.04)">
-                            <button class="pan-sub-tab active" data-pansub="visao" onclick="switchPanSub('visao')" style="flex:1;padding:11px 14px;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;background:#2563eb;color:#fff;transition:.2s;display:flex;align-items:center;justify-content:center;gap:6px">📈 Visão Geral</button>
-                            <button class="pan-sub-tab" data-pansub="entregas" onclick="switchPanSub('entregas')" style="flex:1;padding:11px 14px;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;background:transparent;color:#64748b;transition:.2s;display:flex;align-items:center;justify-content:center;gap:6px">📦 Entregas</button>
-                            <button class="pan-sub-tab" data-pansub="medias" onclick="switchPanSub('medias')" style="flex:1;padding:11px 14px;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;background:transparent;color:#64748b;transition:.2s;display:flex;align-items:center;justify-content:center;gap:6px">📊 Médias</button>
-                            <button class="pan-sub-tab" data-pansub="rankings" onclick="switchPanSub('rankings')" style="flex:1;padding:11px 14px;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;background:transparent;color:#64748b;transition:.2s;display:flex;align-items:center;justify-content:center;gap:6px">🏆 Rankings</button>
+                            <button class="pan-sub-tab active" data-pansub="geral" onclick="switchPanSub('geral')" style="flex:1;padding:11px 14px;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;background:#2563eb;color:#fff;transition:.2s;display:flex;align-items:center;justify-content:center;gap:6px">📌 Geral</button>
+                            <button class="pan-sub-tab" data-pansub="itens" onclick="switchPanSub('itens')" style="flex:1;padding:11px 14px;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;background:transparent;color:#64748b;transition:.2s;display:flex;align-items:center;justify-content:center;gap:6px">🥫 Itens</button>
+                            <button class="pan-sub-tab" data-pansub="tipos" onclick="switchPanSub('tipos')" style="flex:1;padding:11px 14px;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;background:transparent;color:#64748b;transition:.2s;display:flex;align-items:center;justify-content:center;gap:6px">🏷️ Tipos</button>
+                            <button class="pan-sub-tab" data-pansub="alertas" onclick="switchPanSub('alertas')" style="flex:1;padding:11px 14px;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;background:transparent;color:#64748b;transition:.2s;display:flex;align-items:center;justify-content:center;gap:6px">🚨 Alertas</button>
                         </div>
                         <!-- Filtros do Painel -->
                         <div id="panFilters" style="display:none;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,.04)">

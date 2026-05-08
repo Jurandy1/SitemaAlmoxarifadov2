@@ -36,6 +36,7 @@ import {
 import {
     setUnidades,
     setAguaMovimentacoes,
+    setAguaMovCursor,
     setGasMovimentacoes,
     setMateriais,
     setEstoqueAgua,
@@ -387,6 +388,7 @@ async function initFirestoreListeners(renderDash, renderControls, renderModules)
     addListener(query(COLLECTIONS.aguaMov, orderBy("registradoEm", "desc"), limit(90)), snap => {
         const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         setAguaMovimentacoes(data);
+        setAguaMovCursor(snap.docs[snap.docs.length - 1] || null);
         scheduleRenders({ dash: true, modules: true }, renderDash, renderControls, renderModules);
     });
 

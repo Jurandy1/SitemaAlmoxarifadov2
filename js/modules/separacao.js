@@ -4,6 +4,9 @@ import { getMateriais, getUnidades, getUserRole, getSemcasHistDB, getSemcasAlias
 import { showAlert } from "../utils/dom-helpers.js";
 import { isReady } from "./auth.js";
 import { getFeriadosISOSetCached } from "./feriados.js";
+import { getSafeRows, isDocxFile, isOdtFile, odtToRows, docxToRows } from "./materiais/leitores-arquivos.js";
+import { applyItemFixes, showPreRegDialog, closePreRegDialog, skipPreRegDialog, confirmPreRegDialog } from "./materiais/modal-revisao-itens.js";
+import { showUnitConfirmDialog } from "./materiais/modal-confirmar-unidade.js";
 
 let __stylesInjected = false;
 
@@ -926,156 +929,6 @@ function parseSheet(rows){
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// FUNÇÕES DE EXTRAÇÃO SEGURA (Evita transformar datas em números de série)
-// ═══════════════════════════════════════════════════════════════════
-function getSafeRows(ws) {
-  const rawRows = XLSX.utils.sheet_to_json(ws, {header: 1, defval: ''});
-  return rawRows.map(r => r.map(c => {
-    if (c instanceof Date) {
-      // Usa UTC para consistência, mas valida contra timezone local
-      const ud = c.getUTCDate(), um = c.getUTCMonth()+1, uy = c.getUTCFullYear();
-      const ld = c.getDate(), lm = c.getMonth()+1, ly = c.getFullYear();
-      // Se o dia UTC e local diferem, prefere local (timezone offset issue)
-      const d = (ud !== ld && ly >= 2000) ? ld : ud;
-      const mo = (ud !== ld && ly >= 2000) ? lm : um;
-      const y = (ud !== ld && ly >= 2000) ? ly : uy;
-      return pad2(d) + '/' + pad2(mo) + '/' + y;
-    }
-    // Números que parecem datas seriais do Excel (30000-60000 range)
-    if (typeof c === 'number' && c > 30000 && c < 60000) {
-      try {
-        const dt = new Date((c - 25569) * 86400000);
-        if (!isNaN(dt.getTime()) && dt.getFullYear() >= 2000)
-          return pad2(dt.getUTCDate()) + '/' + pad2(dt.getUTCMonth()+1) + '/' + dt.getUTCFullYear();
-      } catch(e){}
-    }
-    return c;
-  }));
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// DOCX SUPPORT — Converte tabelas de .docx para rows[][] via mammoth.js
-// ═══════════════════════════════════════════════════════════════════
-function isDocxFile(name) {
-  return /\.docx?$/i.test(name || '');
-}
-
-function isOdtFile(name) {
-  return /\.odt$/i.test(name || '');
-}
-
-async function odtToRows(arrayBuffer) {
-  let xmlText = '';
-  if (typeof JSZip !== 'undefined') {
-    const zip = await JSZip.loadAsync(arrayBuffer);
-    const contentFile = zip.file('content.xml');
-    if (!contentFile) throw new Error('ODT sem content.xml');
-    xmlText = await contentFile.async('string');
-  } else {
-    throw new Error('JSZip não carregado.');
-  }
-  
-  const doc = new DOMParser().parseFromString(xmlText, 'text/xml');
-  const NS_TEXT = 'urn:oasis:names:tc:opendocument:xmlns:text:1.0';
-  const NS_TABLE = 'urn:oasis:names:tc:opendocument:xmlns:table:1.0';
-  const NS_OFFICE = 'urn:oasis:names:tc:opendocument:xmlns:office:1.0';
-  
-  // ── Extrai texto de um elemento com espaços entre sub-elementos ──
-  function extractCellText(cell) {
-    const parts = [];
-    const paras = cell.getElementsByTagNameNS(NS_TEXT, 'p');
-    if (paras.length > 0) {
-      for (let pi = 0; pi < paras.length; pi++) {
-        const spans = paras[pi].getElementsByTagNameNS(NS_TEXT, 'span');
-        if (spans.length > 0) {
-          const spanTexts = [];
-          for (let si = 0; si < spans.length; si++) {
-            const t = (spans[si].textContent || '').trim();
-            if (t) spanTexts.push(t);
-          }
-          if (spanTexts.length) parts.push(spanTexts.join(' '));
-          else {
-            const t = (paras[pi].textContent || '').trim();
-            if (t) parts.push(t);
-          }
-        } else {
-          const t = (paras[pi].textContent || '').trim();
-          if (t) parts.push(t);
-        }
-      }
-    } else {
-      const t = (cell.textContent || '').trim();
-      if (t) parts.push(t);
-    }
-    return parts.join(' ').replace(/\s+/g, ' ').trim();
-  }
-  
-  const rows = [];
-  const body = doc.getElementsByTagNameNS(NS_OFFICE, 'text')[0] || doc.getElementsByTagNameNS(NS_OFFICE, 'body')[0];
-  if (!body) return rows;
-  
-  const children = body.children || body.childNodes;
-  for (let ci = 0; ci < children.length; ci++) {
-    const el = children[ci];
-    
-    // Parágrafo de texto → pode ser nome de categoria
-    if (el.localName === 'p') {
-      const txt = extractCellText(el);
-      if (txt && txt.length > 2) {
-        rows.push([txt]);
-      }
-    }
-    
-    // Tabela → extrai linhas
-    if (el.localName === 'table') {
-      const trs = el.getElementsByTagNameNS(NS_TABLE, 'table-row');
-      for (let ri = 0; ri < trs.length; ri++) {
-        const tr = trs[ri];
-        const cells = tr.getElementsByTagNameNS(NS_TABLE, 'table-cell');
-        const rowData = [];
-        for (let xi = 0; xi < cells.length; xi++) {
-          const cell = cells[xi];
-          const repeat = parseInt(cell.getAttribute('table:number-columns-repeated') || '1');
-          const text = extractCellText(cell);
-          if (repeat > 10 && !text) continue;
-          for (let rp = 0; rp < Math.min(repeat, 6); rp++) {
-            rowData.push(text);
-          }
-        }
-        while (rowData.length > 0 && !rowData[rowData.length - 1]) rowData.pop();
-        if (rowData.length > 0 && rowData.some(c => c)) rows.push(rowData);
-      }
-    }
-  }
-  
-  return rows;
-}
-
-async function docxToRows(arrayBuffer) {
-  if (typeof mammoth === 'undefined') throw new Error('mammoth.js não carregado');
-  const result = await mammoth.convertToHtml({ arrayBuffer });
-  const doc = new DOMParser().parseFromString(result.value, 'text/html');
-  const rows = [];
-  // Itera todas as tabelas (pode haver mais de uma no mesmo DOCX)
-  doc.querySelectorAll('table tr').forEach(tr => {
-    const cells = [];
-    tr.querySelectorAll('td, th').forEach(td => {
-      // Limpa espaços extras e bold markers do mammoth
-      cells.push(td.textContent.replace(/\s+/g, ' ').trim());
-    });
-    // Ignora linhas completamente vazias
-    if (cells.some(c => c)) rows.push(cells);
-  });
-  // Se não encontrou tabelas, tenta extrair do texto puro (fallback)
-  if (!rows.length) {
-    const textResult = await mammoth.extractRawText({ arrayBuffer });
-    const lines = textResult.value.split('\n').filter(l => l.trim());
-    lines.forEach(l => rows.push([l.trim()]));
-  }
-  return rows;
-}
-
-// ═══════════════════════════════════════════════════════════════════
 // FILE UPLOAD
 // ═══════════════════════════════════════════════════════════════════
 const dz=document.getElementById('fdrop');
@@ -1370,7 +1223,7 @@ function singularizePT(word) {
   if (/[ÉE][Ii][Ss]$/i.test(word)) return word.replace(/[ÉE][Ii][Ss]$/i, rep('EL'));
   if (/[Uu][Ii][Ss]$/i.test(word)) return word.replace(/[Uu][Ii][Ss]$/i, rep('UL'));
   if (/[ÓO][Ii][Ss]$/i.test(word)) return word.replace(/[ÓO][Ii][Ss]$/i, rep('OL'));
-  if (/[RSZ][Ee][Ss]$/i.test(word) && word.length > 5) return word.replace(/[Ee][Ss]$/i, '');
+  if (/[RSZ][Ee][Ss]$/i.test(word) && word.length > 4) return word.replace(/[Ee][Ss]$/i, '');
   if (/[AEIOUÃÕaeiouãõ][Ss]$/i.test(word)) return word.replace(/[Ss]$/, '');
   return word;
 }
@@ -1530,8 +1383,7 @@ function detectItemHints(item) {
   };
 }
 // ═══════════════════════════════════════════════════════════════════
-// AUTO-PADRONIZAÇÃO SILENCIOSA — Aplica diferenças que são APENAS
-// de caso (maiúsculo/minúsculo) ou acento, sem mostrar na revisão.
+// AUTO-PADRONIZAÇÃO SILENCIOSA
 // ═══════════════════════════════════════════════════════════════════
 function autoStandardizeCaseAccent(parsed) {
   if (!parsed || !parsed.categories) return;
@@ -1545,12 +1397,7 @@ function autoStandardizeCaseAccent(parsed) {
         || (typeof MAT_ALIASES !== 'undefined' && MAT_ALIASES && MAT_ALIASES[nk])
         || null;
       if (!target || target === mat) return;
-      // Aplica silenciosamente SE a única diferença for caso/acento/espaços
-      const matCmp = rmAcc(mat).toUpperCase().trim().replace(/\s+/g, ' ');
-      const targetCmp = rmAcc(target).toUpperCase().trim().replace(/\s+/g, ' ');
-      if (matCmp === targetCmp) {
-        item.material = target;
-      }
+      item.material = target;
     });
   });
 }
@@ -1753,6 +1600,27 @@ function detectItemIssues(parsed) {
         return;
       }
       
+      const clipsMultiMatch = rawMat.match(/^\s*CLIPE?S?\s+(?:N[°º.]?\s*)?(\d+(?:\s*[,;]\s*\d+)+)\s*$/i);
+      if (clipsMultiMatch) {
+        const nums = clipsMultiMatch[1]
+          .split(/[,;]/)
+          .map(s => s.trim())
+          .map(s => s.replace(/[^\d]/g, ''))
+          .filter(Boolean)
+          .map(s => String(parseInt(s, 10)));
+        if (nums.length >= 2) {
+          issues.push({
+            type: 'split', catIdx, itemIdx, original: rawMat, item,
+            splits: nums.map(nm => {
+              const name = 'CLIPS Nº ' + nm;
+              return { material: autoDisplayName(normMat(name), name), unidade: item.unidade };
+            }),
+            reason: 'Várias numerações no mesmo item'
+          });
+          return;
+        }
+      }
+
       // ── CLIPS já com número mas formato diferente (CLIPS 04, CLIPS 4) → CLIPS Nº 4/0 ──
       const clipsNumMatch = matNorm.match(/^\s*CLIPE?S?\s+(?:N[°º.]?\s*)?(\d+)(?:\/(\d+))?\s*$/i);
       if (clipsNumMatch) {
@@ -2049,330 +1917,6 @@ function detectItemIssues(parsed) {
   return issues;
 }
 
-function applyItemFixes(parsed, fixes) {
-  if (!fixes || !fixes.length) return parsed;
-  
-  // Aplica de trás para frente para não invalidar índices
-  const sortedFixes = [...fixes].sort((a, b) => {
-    if (a.catIdx !== b.catIdx) return b.catIdx - a.catIdx;
-    return b.itemIdx - a.itemIdx;
-  });
-  
-  let nextSplitId = Math.max(...parsed.categories.flatMap(c => c.items.map(i => i.id || 0))) + 100;
-  
-  sortedFixes.forEach(fix => {
-    if (!fix.accepted) return;
-    const cat = parsed.categories[fix.catIdx];
-    if (!cat) return;
-    const item = cat.items[fix.itemIdx];
-    if (!item) return;
-    
-    if (fix.type === 'split') {
-      // Cada item dividido HERDA a quantidade do original.
-      // Ex.: "Caneta azul e preta" com qtd atendida 5 → "Caneta azul" 5 + "Caneta preta" 5
-      const baseUnid = item.unidade || '';
-      const baseStatus = item.status || 'nao_atendido';
-      const baseQs = item.qtdSolicitada || '';
-      const baseQa = item.qtdAtendida || '';
-      
-      cat.items.splice(fix.itemIdx, 1);
-      fix.splits.forEach((sp, si) => {
-        cat.items.splice(fix.itemIdx + si, 0, {
-          id: nextSplitId++,
-          material: sp.material,
-          unidade: sp.unidade || baseUnid,
-          qtdSolicitada: baseQs,
-          qtdAtendida: baseQa,
-          status: baseStatus,
-          tipo: item.tipo,
-          obs: si === 0 ? (item.obs || '') : ''
-        });
-      });
-    } else if (fix.type === 'rename') {
-      item.material = fix.suggested;
-    } else if (fix.type === 'choose') {
-      // Mantém a linha, quantidades e unidade; apenas troca o nome para a opção escolhida
-      if (fix.chosen && fix.chosen !== '__skip__') {
-        item.material = fix.chosen;
-      }
-    }
-  });
-  
-  return parsed;
-}
-
-function showPreRegDialog(issues, onConfirm) {
-  // Renomeações: aceitas por padrão (seguras). Splits: desmarcados. Choose: precisa escolher.
-  issues.forEach(f => {
-    if (f.type === 'rename') f.accepted = true;
-    else if (f.type === 'split') f.accepted = false;
-    else if (f.type === 'choose') {
-      f.accepted = !!f.suggested; // se tem sugestão, já vem aceito com ela
-      f.chosen = f.suggested || null;
-    }
-  });
-
-  const nChoose = issues.filter(f => f.type === 'choose').length;
-
-  let h = '<div style="max-width:650px;margin:0 auto">';
-  h += '<div style="text-align:center;margin-bottom:16px">'
-    + '<div style="font-size:32px;margin-bottom:6px">🔍</div>'
-    + '<h2 style="font-size:16px;font-weight:800;margin:0">Revisão antes de Registrar</h2>'
-    + '<p style="font-size:12px;color:#64748b;margin-top:4px">O sistema detectou ' + issues.length + ' item(ns) que precisam da sua atenção</p>'
-    + (nChoose > 0 ? '<p style="font-size:11px;color:#b91c1c;margin-top:6px;font-weight:700">⚠️ ' + nChoose + ' item(ns) exigem ESCOLHA obrigatória antes de registrar</p>' : '')
-    + '</div>';
-
-  issues.forEach((fix, idx) => {
-    const checkId = 'preRegFix_' + idx;
-
-    if (fix.type === 'choose') {
-      // ─── NOVO TIPO: escolha obrigatória (radio buttons) ───
-      const qtdTxt = (fix.item.qtdSolicitada || '?') + ' ' + (fix.item.unidade || '');
-      h += '<div class="pre-reg-choose" data-choose-idx="' + idx + '" style="background:#fff7ed;border:2px solid #fb923c;border-radius:10px;padding:14px;margin-bottom:10px">'
-        + '<div style="font-size:10px;color:#9a3412;font-weight:800;margin-bottom:6px">🎯 ESCOLHA OBRIGATÓRIA</div>'
-        + '<div style="font-size:11px;color:#64748b;margin-bottom:6px">' + esc(fix.reason) + '</div>'
-        + '<div style="background:#fff;border:1px solid #fed7aa;border-radius:6px;padding:6px 10px;margin-bottom:10px">'
-        + '<span style="font-size:10px;color:#9a3412;font-weight:700">ITEM NA REQUISIÇÃO:</span> '
-        + '<span style="font-size:13px;font-weight:800;color:#0f172a">' + esc(fix.original) + '</span>'
-        + ' <span style="font-size:11px;color:#64748b">(qtd: ' + esc(qtdTxt) + ')</span>'
-        + '</div>';
-
-      if (fix.hint) {
-        h += '<div style="font-size:11px;color:#0369a1;background:#f0f9ff;border:1px solid #bae6fd;border-radius:6px;padding:5px 10px;margin-bottom:8px">'
-          + '💡 ' + esc(fix.hint)
-          + (fix.suggested ? ' → sugestão: <b>' + esc(fix.suggested) + '</b>' : '')
-          + '</div>';
-      }
-
-      h += '<div style="font-size:11px;font-weight:700;color:#9a3412;margin-bottom:6px">Selecione UMA opção:</div>';
-      h += '<div style="display:flex;flex-direction:column;gap:4px">';
-      fix.options.forEach((opt, oi) => {
-        const isSug = fix.suggested === opt;
-        const checked = isSug ? 'checked' : '';
-        h += '<label style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:#fff;border:1.5px solid ' + (isSug ? '#10b981' : '#e2e8f0') + ';border-radius:6px;cursor:pointer;font-size:12px;font-weight:' + (isSug ? '700' : '500') + '">'
-          + '<input type="radio" name="choose_' + idx + '" value="' + esc(opt) + '" ' + checked + ' onchange="window.__preRegOnChoose(' + idx + ', this.value)" style="margin:0">'
-          + '<span>' + esc(opt) + '</span>'
-          + (isSug ? '<span style="margin-left:auto;font-size:9px;background:#d1fae5;color:#065f46;padding:2px 6px;border-radius:4px;font-weight:700">SUGERIDO</span>' : '')
-          + '</label>';
-      });
-      // Opção para pular esta correção (mantém item como está)
-      h += '<label style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:#f1f5f9;border:1.5px dashed #cbd5e1;border-radius:6px;cursor:pointer;font-size:11px;color:#64748b;margin-top:2px">'
-        + '<input type="radio" name="choose_' + idx + '" value="__skip__" onchange="window.__preRegOnChoose(' + idx + ', this.value)" style="margin:0">'
-        + '<span>↪️ Manter como está (não corrigir agora)</span>'
-        + '</label>';
-      h += '</div></div>';
-
-    } else if (fix.type === 'split') {
-      h += '<div style="background:#f8fafc;border:1.5px solid #94a3b8;border-radius:10px;padding:12px;margin-bottom:10px">'
-        + '<div style="display:flex;align-items:flex-start;gap:8px">'
-        + '<input type="checkbox" id="' + checkId + '" onchange="this.closest(\'[data-fix]\').dataset.accepted=this.checked" style="margin-top:3px;flex-shrink:0">'
-        + '<div style="flex:1" data-fix data-accepted="false">'
-        + '<div style="font-size:10px;color:#475569;font-weight:700;margin-bottom:4px">✂️ SEPARAR ITEM <span style="font-weight:400;color:#94a3b8">(desmarcado por padrão — marque somente se necessário)</span></div>'
-        + '<div style="font-size:11px;color:#64748b;margin-bottom:6px">' + esc(fix.reason) + '</div>'
-
-        // Aviso de quantidade
-        + '<div style="background:#dcfce7;border:1px solid #86efac;border-radius:6px;padding:5px 10px;margin-bottom:6px;font-size:11px;color:#166534">'
-        + '✅ <b>Quantidades copiadas:</b> cada item dividido receberá a mesma quantidade do original (ex.: qtd 5 → 5 em cada).'
-        + '</div>'
-
-        // Antes
-        + '<div style="background:#fee2e2;border:1px solid #fecaca;border-radius:6px;padding:6px 10px;margin-bottom:6px">'
-        + '<span style="font-size:9px;color:#991b1b;font-weight:700">ANTES:</span> '
-        + '<span style="font-size:12px;font-weight:700;color:#991b1b;text-decoration:line-through">' + esc(fix.original) + '</span>'
-        + ' <span style="font-size:10px;color:#991b1b">(' + esc(fix.item.qtdSolicitada || '?') + ' ' + esc(fix.item.unidade || '') + ')</span>'
-        + '</div>'
-
-        + '<div style="background:#d1fae5;border:1px solid #a7f3d0;border-radius:6px;padding:6px 10px">'
-        + '<span style="font-size:9px;color:#065f46;font-weight:700">DEPOIS:</span>';
-
-      fix.splits.forEach((sp, si) => {
-        h += '<div style="font-size:12px;font-weight:700;color:#065f46;margin-top:' + (si ? '3' : '2') + 'px">→ ' + esc(sp.material) + '</div>';
-      });
-
-      h += '</div></div></div></div>';
-
-    } else if (fix.type === 'rename') {
-      h += '<div style="background:#fefce8;border:1px solid #fde047;border-radius:10px;padding:12px;margin-bottom:10px">'
-        + '<div style="display:flex;align-items:flex-start;gap:8px">'
-        + '<input type="checkbox" id="' + checkId + '" checked onchange="this.closest(\'[data-fix]\').dataset.accepted=this.checked" style="margin-top:3px;flex-shrink:0">'
-        + '<div style="flex:1" data-fix data-accepted="true">'
-        + '<div style="font-size:10px;color:#92400e;font-weight:700;margin-bottom:4px">📝 PADRONIZAR NOME</div>'
-        + '<div style="font-size:11px;color:#64748b;margin-bottom:4px">' + esc(fix.reason) + '</div>'
-        + '<span style="font-size:12px;color:#991b1b;text-decoration:line-through">' + esc(fix.original) + '</span>'
-        + ' → <span style="font-size:12px;font-weight:700;color:#065f46">' + esc(fix.suggested) + '</span>'
-        + '</div></div></div>';
-    }
-  });
-
-  h += '<div style="display:flex;gap:8px;justify-content:center;margin-top:16px">'
-    + '<button class="btn btn-s" onclick="closePreRegDialog()">Cancelar</button>'
-    + '<button class="btn btn-s" onclick="skipPreRegDialog()">Ignorar e Registrar</button>'
-    + '<button class="btn btn-p" id="btnConfirmPreReg" onclick="confirmPreRegDialog()">✅ Aplicar e Registrar</button>'
-    + '</div></div>';
-
-  // Usa o modal existente
-  const modal = document.getElementById('fichaModal');
-  const toolbar = modal.querySelector('.modal-toolbar');
-  const legend = document.getElementById('fichaModalLegend');
-  const actions = document.getElementById('fichaModalActions');
-  const body = document.getElementById('fichaBody');
-  const stats = document.getElementById('fichaStats');
-
-  if (toolbar) toolbar.querySelector('.title').textContent = '🔍 Revisão de Itens';
-  if (stats) stats.innerHTML = '';
-  if (actions) actions.style.display = 'none';
-  if (legend) legend.style.display = 'none';
-  body.innerHTML = '<div style="padding:20px">' + h + '</div>';
-  modal.classList.add('open');
-
-  // Handler global para radios choose
-  window.__preRegOnChoose = function(idx, value) {
-    const is = window._preRegIssues && window._preRegIssues[idx];
-    if (!is) return;
-    is.chosen = value;
-    is.accepted = (value !== '__skip__');
-    // Atualiza visual dos labels no card
-    const container = document.querySelector('[data-choose-idx="' + idx + '"]');
-    if (container) {
-      container.querySelectorAll('label').forEach(lb => {
-        const input = lb.querySelector('input[type="radio"]');
-        const isChecked = input && input.checked;
-        lb.style.borderColor = isChecked ? (input.value === '__skip__' ? '#64748b' : '#10b981') : '#e2e8f0';
-        lb.style.fontWeight = isChecked ? '700' : '500';
-      });
-    }
-    // Re-valida o botão de confirmar
-    window.__validatePreReg && window.__validatePreReg();
-  };
-
-  // Valida se todos os choose foram respondidos
-  window.__validatePreReg = function() {
-    const btn = document.getElementById('btnConfirmPreReg');
-    if (!btn) return;
-    const pending = (window._preRegIssues || []).filter(f =>
-      f.type === 'choose' && (!f.chosen || f.chosen === null)
-    );
-    if (pending.length > 0) {
-      btn.disabled = true;
-      btn.style.opacity = '0.5';
-      btn.style.cursor = 'not-allowed';
-      btn.innerHTML = '⚠️ Escolha ' + pending.length + ' item(ns) para continuar';
-    } else {
-      btn.disabled = false;
-      btn.style.opacity = '';
-      btn.style.cursor = '';
-      btn.innerHTML = '✅ Aplicar e Registrar';
-    }
-  };
-
-  // Store callback
-  window._preRegIssues = issues;
-  window._preRegCallback = onConfirm;
-
-  // Validação inicial
-  setTimeout(() => window.__validatePreReg && window.__validatePreReg(), 50);
-}
-
-function closePreRegDialog() {
-  document.getElementById('fichaModal').classList.remove('open');
-  window._preRegIssues = null;
-  window._preRegCallback = null;
-}
-
-function skipPreRegDialog() {
-  document.getElementById('fichaModal').classList.remove('open');
-  const cb = window._preRegCallback;
-  window._preRegIssues = null;
-  window._preRegCallback = null;
-  if (cb) cb(false); // false = don't apply fixes
-}
-
-function confirmPreRegDialog() {
-  const issues = window._preRegIssues || [];
-
-  // Valida: todos os 'choose' precisam ter escolha feita
-  const unchosen = issues.filter(f => f.type === 'choose' && (!f.chosen || f.chosen === null));
-  if (unchosen.length > 0) {
-    toast('⚠️ Escolha uma opção para ' + unchosen.length + ' item(ns) destacado(s) em laranja.', 'red');
-    // Destaca os pendentes
-    unchosen.forEach(u => {
-      const el = document.querySelector('[data-choose-idx="' + issues.indexOf(u) + '"]');
-      if (el) {
-        el.style.animation = 'none';
-        void el.offsetHeight;
-        el.style.animation = 'shakeOnce .4s ease';
-        el.style.boxShadow = '0 0 0 3px rgba(249, 115, 22, .3)';
-      }
-    });
-    return;
-  }
-
-  // Read checkbox states (para split/rename)
-  issues.forEach((fix, idx) => {
-    if (fix.type === 'split' || fix.type === 'rename') {
-      const cb = document.getElementById('preRegFix_' + idx);
-      fix.accepted = cb ? cb.checked : false;
-    }
-    // Para 'choose', fix.accepted/fix.chosen já foram definidos em __preRegOnChoose
-  });
-
-  document.getElementById('fichaModal').classList.remove('open');
-  const cb = window._preRegCallback;
-  window._preRegIssues = null;
-  window._preRegCallback = null;
-  if (cb) cb(true, issues); // true = apply fixes
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// CONFIRMAÇÃO DE UNIDADE — popup antes de registrar
-// ═══════════════════════════════════════════════════════════════════
-function showUnitConfirmDialog(unitName) {
-  return new Promise((resolve) => {
-    // Monta HTML do popup no modal existente
-    const modal = document.getElementById('fichaModal');
-    const toolbar = modal.querySelector('.modal-toolbar');
-    const legend = document.getElementById('fichaModalLegend');
-    const actions = document.getElementById('fichaModalActions');
-    const body = document.getElementById('fichaBody');
-    const stats = document.getElementById('fichaStats');
-    if (!modal || !body) { resolve(true); return; }
-
-    if (toolbar) toolbar.querySelector('.title').textContent = '✅ Confirmar Unidade';
-    if (stats) stats.innerHTML = '';
-    if (actions) actions.style.display = 'none';
-    if (legend) legend.style.display = 'none';
-
-    body.innerHTML = `
-      <div style="padding:28px 20px;text-align:center;max-width:480px;margin:0 auto">
-        <div style="font-size:44px;margin-bottom:12px">🏢</div>
-        <h2 style="font-size:17px;font-weight:800;margin:0 0 8px">Confirmar Unidade</h2>
-        <p style="font-size:13px;color:#64748b;margin:0 0 18px">A requisição será registrada para a seguinte unidade:</p>
-        <div style="background:#eff6ff;border:2px solid #2563eb;border-radius:12px;padding:14px 18px;margin-bottom:24px">
-          <div style="font-size:18px;font-weight:800;color:#1e40af">${esc(unitName)}</div>
-        </div>
-        <p style="font-size:13px;color:#64748b;margin:0 0 22px">Esta unidade está <b>correta</b>?</p>
-        <div style="display:flex;gap:10px;justify-content:center">
-          <button class="btn btn-s" style="min-width:120px;border-color:#ef4444;color:#ef4444"
-            onclick="window.__unitConfirmResolve(false)">
-            ✗ Não / Corrigir
-          </button>
-          <button class="btn btn-p" style="min-width:140px"
-            onclick="window.__unitConfirmResolve(true)">
-            ✓ Sim, registrar
-          </button>
-        </div>
-      </div>`;
-
-    window.__unitConfirmResolve = (result) => {
-      modal.classList.remove('open');
-      window.__unitConfirmResolve = null;
-      resolve(result);
-    };
-
-    modal.classList.add('open');
-  });
-}
-
 async function registrar(){
   if (!tmpParsed) { toast('Anexe uma planilha primeiro.', 'red'); return; }
 
@@ -2390,7 +1934,7 @@ async function registrar(){
   }
 
   // ─── POPUP DE CONFIRMAÇÃO DE UNIDADE ───
-  const continueWithUnit = await showUnitConfirmDialog(finalUnit);
+  const continueWithUnit = await showUnitConfirmDialog(finalUnit, { esc });
   if (!continueWithUnit) return; // usuário clicou "Não / Corrigir"
 
   // ─── AUTO-PADRONIZAÇÃO SILENCIOSA (caso/acento) ───
@@ -2405,7 +1949,7 @@ async function registrar(){
         toast(fixes.filter(f => f.accepted).length + ' correção(ões) aplicada(s).', 'green');
       }
       doRegistrar(finalUnit);
-    });
+    }, { esc, toast });
     return;
   }
 
@@ -2722,7 +2266,7 @@ function goTab(t){
   else if(t==='unif') renderUnificar();
 }
 
-let _panSub = 'visao';
+let _panSub = 'geral';
 
 function switchMatView(view) {
   const vEntrega = document.getElementById('matViewEntrega');
@@ -2745,9 +2289,10 @@ function switchMatView(view) {
 }
 
 function switchPanSub(sub) {
-  _panSub = sub;
+  const allowed = new Set(['geral','itens','tipos','alertas']);
+  _panSub = allowed.has(sub) ? sub : 'geral';
   document.querySelectorAll('.pan-sub-tab').forEach(btn => {
-    const active = btn.getAttribute('data-pansub') === sub;
+    const active = btn.getAttribute('data-pansub') === _panSub;
     btn.style.background = active ? '#2563eb' : 'transparent';
     btn.style.color = active ? '#fff' : '#64748b';
   });
@@ -7882,28 +7427,61 @@ function _buildPainelImpl(){
   }
 
   // ═══════════════════════════════════════════════════
-  // SUB-ABA: VISÃO GERAL
+  // SUB-ABA: GERAL
   // ═══════════════════════════════════════════════════
-  if (_panSub === 'visao') {
+  if (_panSub === 'geral') {
     const reqStatsHtml = buildReqStats();
     if(reqStatsHtml) h += reqStatsHtml;
 
-    h+='<div class="pan-grid">'
-      +kpi(allYears.length,'Anos','de dados',allYears.join(', '),'#6d28d9')
-      +kpi(HIST_DB.length,'Arquivos',totalWeeks+' envios','','#0284c7')
-      +kpi(totalMonths,'Meses','de histórico','','#0891b2')
-      +kpi(allUnits.length,'Unidades','ativas','','#059669')
-      +kpi(allAgg.length,'Combinações','item × unidade','','#d97706')
-      +kpi(totalDeliveries.toLocaleString('pt-BR'),'Total Itens','entregues (acumulado)','','#dc2626')
-      +'</div>';
+    const weeksSorted = [...new Set(HIST_DB.map(e => e.weekStart).filter(Boolean))].sort();
+    const firstWeek = weeksSorted[0] || '';
+    const lastWeek = weeksSorted[weeksSorted.length - 1] || '';
+    const headerTip = (firstWeek && lastWeek) ? ('Período do banco: ' + firstWeek + ' → ' + lastWeek) : '';
 
-    h+=panSection('🚨 Alertas e Atenção','Situações que exigem atenção',buildAlertas(allAgg,totalWeeks,totalMonths));
-    h+=panSection('🗂️ Distribuição por Categoria','Quanto cada categoria representa',buildCatDistrib(allAgg,totalDeliveries));
-    h+=panSection('📅 Sazonalidade Mensal','Meses com maior e menor demanda',buildSazonalidade());
-    
-    if(allYears.length>=2){
-      h+=panSection('📈 Evolução Anual','Comparação do total por unidade entre anos',buildEvolucaoAnual(allAgg,allYears,allUnits));
+    h += '<div class="pan-grid">'
+      + kpi(allUnits.length, 'Unidades ativas', 'com registro', '', '#059669')
+      + kpi(totalDeliveries.toLocaleString('pt-BR'), 'Itens entregues', 'total acumulado', headerTip, '#dc2626')
+      + kpi(totalMonths, 'Meses', 'com histórico', '', '#0891b2')
+      + kpi(totalWeeks, 'Semanas', 'com envio', '', '#0284c7')
+      + kpi(Math.round(totalDeliveries / Math.max(totalMonths, 1)).toLocaleString('pt-BR'), 'Média/mês', 'itens (geral)', '', '#2563eb')
+      + kpi(allYears.length, 'Anos', 'no banco', allYears.join(', '), '#6d28d9')
+      + '</div>';
+
+    h += panSection('📌 Destaques', 'O que mais consome e quem mais consome', buildDestaquesPainel(allAgg, allUnits));
+    h += panSection('🏷️ Consumo por tipo de unidade', 'Top item e unidade de maior consumo por tipo', buildResumoPorTipoDeUnidade(allAgg, allUnitsRaw));
+    h += panSection('🚨 Pontos de atenção', 'Alertas úteis e objetivos (sem poluir a tela)', buildAlertas(allAgg, totalWeeks, totalMonths));
+  }
+  // ═══════════════════════════════════════════════════
+  // SUB-ABA: ITENS
+  // ═══════════════════════════════════════════════════
+  else if (_panSub === 'itens') {
+    h += '<h2 style="font-size:16px;font-weight:800;margin-bottom:4px">🥫 Itens</h2>'
+      + '<p style="font-size:12px;color:var(--muted);margin-bottom:14px">Itens mais consumidos e quem mais consome cada item.</p>';
+    h += panSection('🥫 Itens mais consumidos', 'Top itens do período selecionado', buildTopItems(allAgg));
+    h += panSection('🏢 Maiores consumidores por item', 'Para os itens mais consumidos, quem puxa o consumo', buildMaioresConsumidoresPorItem(allAgg));
+  }
+  // ═══════════════════════════════════════════════════
+  // SUB-ABA: TIPOS
+  // ═══════════════════════════════════════════════════
+  else if (_panSub === 'tipos') {
+    h += '<h2 style="font-size:16px;font-weight:800;margin-bottom:4px">🏷️ Tipos de Unidade</h2>'
+      + '<p style="font-size:12px;color:var(--muted);margin-bottom:14px">Resumo de consumo por tipo e comparativos.</p>';
+    h += panSection('🏷️ Consumo por tipo de unidade', 'Top item e unidade de maior consumo por tipo', buildResumoPorTipoDeUnidade(allAgg, allUnitsRaw));
+    if (filteredTipo && !_panUnit && allUnits.length >= 2) {
+      h += panSection(filteredTipo.icon + ' Comparativo — ' + filteredTipo.label,
+        'Ranking entre as ' + allUnits.length + ' unidades do tipo',
+        buildComparativo(allAgg, allUnits, filteredTipo.label, filteredTipo.color));
     }
+  }
+  // ═══════════════════════════════════════════════════
+  // SUB-ABA: ALERTAS
+  // ═══════════════════════════════════════════════════
+  else if (_panSub === 'alertas') {
+    h += '<h2 style="font-size:16px;font-weight:800;margin-bottom:4px">🚨 Alertas e Distribuição</h2>'
+      + '<p style="font-size:12px;color:var(--muted);margin-bottom:14px">Pontos de atenção, categorias e sazonalidade.</p>';
+    h += panSection('🚨 Pontos de atenção', 'Alertas úteis e objetivos (sem poluir a tela)', buildAlertas(allAgg, totalWeeks, totalMonths));
+    h += panSection('🗂️ Distribuição por categoria', 'Quanto cada categoria representa', buildCatDistrib(allAgg, totalDeliveries));
+    h += panSection('📅 Sazonalidade mensal', 'Meses com maior e menor demanda', buildSazonalidade());
   }
 
   // ═══════════════════════════════════════════════════
@@ -8091,6 +7669,128 @@ function panSection(title,sub,body){
   return'<div class="pan-section"><h2>'+title+'</h2><p class="sub">'+sub+'</p>'+body+'</div>';
 }
 
+function buildDestaquesPainel(allAgg, allUnits) {
+  const unitTot = {};
+  const itemTot = {};
+  const itemUnitTot = {};
+  allAgg.forEach(r => {
+    unitTot[r.unit] = (unitTot[r.unit] || 0) + r.total;
+    const k = normMat(r.material);
+    if (!itemTot[k]) itemTot[k] = { mat: r.material, cat: r.cat, total: 0 };
+    itemTot[k].total += r.total;
+    if (!itemUnitTot[k]) itemUnitTot[k] = {};
+    itemUnitTot[k][r.unit] = (itemUnitTot[k][r.unit] || 0) + r.total;
+  });
+
+  const topUnit = Object.entries(unitTot).sort((a, b) => b[1] - a[1])[0] || ['', 0];
+  const topItem = Object.values(itemTot).sort((a, b) => b.total - a.total)[0] || { mat: '—', cat: '', total: 0 };
+  const topItemUnit = topItem?.mat ? (Object.entries(itemUnitTot[normMat(topItem.mat)] || {}).sort((a, b) => b[1] - a[1])[0] || ['', 0]) : ['', 0];
+
+  const sortedUnits = Object.entries(unitTot).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const totalAll = Object.values(unitTot).reduce((s, v) => s + v, 0) || 1;
+
+  let h = '<div class="pan-grid">'
+    + kpi((topUnit[1] || 0).toLocaleString('pt-BR'), 'Maior consumo', topUnit[0] ? esc(topUnit[0]) : '—', 'Unidade que mais recebeu no período', '#dc2626')
+    + kpi((topItem.total || 0).toLocaleString('pt-BR'), 'Item mais consumido', esc(topItem.mat || '—'), topItemUnit[0] ? ('Maior consumidor: ' + topItemUnit[0] + ' (' + topItemUnit[1] + ')') : '', '#059669')
+    + kpi(Math.round((topItemUnit[1] || 0) / Math.max(topItem.total || 1, 1) * 100) + '%', 'Concentração', 'do item líder', 'Quanto do item mais consumido fica na unidade líder', '#2563eb')
+    + '</div>';
+
+  h += '<table class="eff-table"><thead><tr><th>#</th><th>Unidade</th><th class="rn">Total</th><th class="rn">%</th><th>Participação</th></tr></thead><tbody>';
+  const maxT = sortedUnits[0]?.[1] || 1;
+  sortedUnits.forEach(([u, t], i) => {
+    const pct = Math.round((t / totalAll) * 100);
+    const barW = Math.round((t / maxT) * 100);
+    h += '<tr style="cursor:pointer" onclick="document.getElementById(\'panUnitSel\').value=' + jsArg(u) + ';buildPainel()">'
+      + '<td style="font-weight:800;color:var(--muted)">' + (i + 1) + '</td>'
+      + '<td><span class="rel-badge rel-badge-unit">' + esc(u) + '</span></td>'
+      + '<td class="rn" style="font-weight:800">' + t.toLocaleString('pt-BR') + '</td>'
+      + '<td class="rn" style="color:var(--muted)">' + pct + '%</td>'
+      + '<td><span class="rank-bar" style="width:' + Math.max(barW, 2) + 'px;max-width:100px"></span></td>'
+      + '</tr>';
+  });
+  if (allUnits.length > sortedUnits.length) {
+    h += '<tr><td colspan="5" style="font-size:11px;color:var(--muted);text-align:center">Clique em uma unidade para filtrar e ver detalhes.</td></tr>';
+  }
+  h += '</tbody></table>';
+
+  return h;
+}
+
+function buildResumoPorTipoDeUnidade(allAgg, allUnitsRaw) {
+  const typeMap = {};
+  allUnitsRaw.forEach(u => {
+    const t = classifyUnit(u);
+    if (!typeMap[t.id]) typeMap[t.id] = { ...t, units: new Set(), total: 0, itemTot: {}, unitTot: {} };
+    typeMap[t.id].units.add(u);
+  });
+
+  allAgg.forEach(r => {
+    const t = classifyUnit(r.unit);
+    if (!typeMap[t.id]) typeMap[t.id] = { ...t, units: new Set(), total: 0, itemTot: {}, unitTot: {} };
+    typeMap[t.id].units.add(r.unit);
+    typeMap[t.id].total += r.total;
+    const k = normMat(r.material);
+    typeMap[t.id].itemTot[k] = (typeMap[t.id].itemTot[k] || 0) + r.total;
+    typeMap[t.id].unitTot[r.unit] = (typeMap[t.id].unitTot[r.unit] || 0) + r.total;
+  });
+
+  const rows = Object.values(typeMap).filter(t => t.units.size > 0).sort((a, b) => b.total - a.total);
+  if (!rows.length) return '<p style="color:var(--muted);font-size:12px">Sem dados.</p>';
+
+  let h = '<table class="eff-table"><thead><tr><th>Tipo</th><th class="rn">Unid.</th><th class="rn">Total</th><th>Item líder</th><th>Unidade líder</th></tr></thead><tbody>';
+  rows.forEach(t => {
+    const topItem = Object.entries(t.itemTot).sort((a, b) => b[1] - a[1])[0] || ['', 0];
+    const topUnit = Object.entries(t.unitTot).sort((a, b) => b[1] - a[1])[0] || ['', 0];
+    h += '<tr style="cursor:pointer" onclick="setPanTipo(' + jsArg(t.id) + ')">'
+      + '<td style="font-weight:800;color:' + t.color + '">' + t.icon + ' ' + esc(t.label) + '</td>'
+      + '<td class="rn">' + t.units.size + '</td>'
+      + '<td class="rn" style="font-weight:800">' + (t.total || 0).toLocaleString('pt-BR') + '</td>'
+      + '<td style="font-weight:700">' + (topItem[0] ? esc(topItem[0]) : '—') + (topItem[1] ? ' <span style="color:var(--muted);font-weight:600;font-size:11px">(' + topItem[1].toLocaleString('pt-BR') + ')</span>' : '') + '</td>'
+      + '<td>' + (topUnit[0] ? ('<span class="rel-badge rel-badge-unit">' + esc(topUnit[0]) + '</span> <span style="color:var(--muted);font-weight:600;font-size:11px">(' + topUnit[1].toLocaleString('pt-BR') + ')</span>') : '—') + '</td>'
+      + '</tr>';
+  });
+  h += '</tbody></table>';
+  h += '<div style="font-size:11px;color:var(--muted);margin-top:8px">Clique em um tipo para filtrar o painel.</div>';
+  return h;
+}
+
+function buildMaioresConsumidoresPorItem(allAgg) {
+  const itemMap = {};
+  allAgg.forEach(r => {
+    const mat = normMat(r.material);
+    if (!itemMap[mat]) itemMap[mat] = { mat: r.material, total: 0, units: {} };
+    itemMap[mat].total += r.total;
+    itemMap[mat].units[r.unit] = (itemMap[mat].units[r.unit] || 0) + r.total;
+  });
+
+  const topItems = Object.values(itemMap).sort((a, b) => b.total - a.total).slice(0, 10);
+  if (!topItems.length) return '<p style="color:var(--muted);font-size:12px">Sem dados.</p>';
+
+  let h = '<div class="two-col">';
+  topItems.forEach(it => {
+    const unitsSorted = Object.entries(it.units).sort((a, b) => b[1] - a[1]).slice(0, 4);
+    const maxV = unitsSorted[0]?.[1] || 1;
+    h += '<div class="pan-section" style="margin:0">'
+      + '<h3 style="font-size:13px;font-weight:800;margin:0 0 8px">' + esc(it.mat) + ' <span style="color:var(--muted);font-weight:600;font-size:11px">(' + it.total.toLocaleString('pt-BR') + ')</span></h3>';
+    unitsSorted.forEach(([u, v], idx) => {
+      const pct = Math.round((v / maxV) * 100);
+      const share = Math.round((v / Math.max(it.total, 1)) * 100);
+      const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : ' ';
+      h += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:11px;cursor:pointer" onclick="document.getElementById(\'panUnitSel\').value=' + jsArg(u) + ';buildPainel()">'
+        + '<span style="width:18px;text-align:center">' + medal + '</span>'
+        + '<span style="width:170px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="' + esc(u) + '">' + esc(u) + '</span>'
+        + '<div style="flex:1;background:#e2e8f0;border-radius:4px;height:12px;overflow:hidden">'
+        + '<div style="width:' + pct + '%;background:#2563eb;height:100%"></div></div>'
+        + '<span style="width:60px;text-align:right;font-weight:800">' + v.toLocaleString('pt-BR') + '</span>'
+        + '<span style="width:46px;text-align:right;color:var(--muted);font-weight:700">' + share + '%</span>'
+        + '</div>';
+    });
+    h += '</div>';
+  });
+  h += '</div>';
+  return h;
+}
+
 function buildAlertas(allAgg,totalWeeks,totalMonths){
   const alerts=[];
 
@@ -8098,10 +7798,12 @@ function buildAlertas(allAgg,totalWeeks,totalMonths){
   HIST_DB.forEach(e=>(e.units||[]).forEach(u=>{ if(!unitWeeks[u.unitName])unitWeeks[u.unitName]=new Set(); unitWeeks[u.unitName].add(e.weekStart); }));
   const lowCoverage=Object.entries(unitWeeks).filter(([u,ws])=>ws.size<totalWeeks*0.5&&ws.size<totalWeeks-1);
   if(lowCoverage.length){
+    const preview = lowCoverage.sort((a,b)=>a[1].size-b[1].size).slice(0,6);
     alerts.push({type:'yellow',icon:'📁',
-      title:'Cobertura de dados incompleta em '+lowCoverage.length+' unidade(s)',
-      body:'Unidades com menos de 50% dos envios totais: '
-        +lowCoverage.map(([u,ws])=>'<b>'+esc(u)+'</b> ('+ws.size+' envios)').join(', ')
+      title:'Cobertura de dados: '+lowCoverage.length+' unidade(s) com histórico incompleto',
+      body:'Unidades com menos de 50% dos envios. Principais: '
+        +preview.map(([u,ws])=>'<b>'+esc(u)+'</b> ('+ws.size+' envios)').join(', ')
+        +(lowCoverage.length>preview.length?(' <span style="color:var(--muted)">+ '+(lowCoverage.length-preview.length)+' outras</span>'):'')
         +'.'});
   }
 

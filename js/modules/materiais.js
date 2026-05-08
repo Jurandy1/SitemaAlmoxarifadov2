@@ -2,4 +2,4 @@ export {
     initSeparacao as initMateriaisListeners,
     onSeparacaoTabChange as onMateriaisTabChange,
     renderSeparacao as renderMateriaisStatus
-} from "./separacao.js";
+} from "./materiais/entrega-materiais.js";

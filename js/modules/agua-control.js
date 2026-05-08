@@ -11,10 +11,11 @@ import {
     getDocs,
     orderBy,
     limit,
+    startAfter,
     Timestamp 
 } from "firebase/firestore";
 
-import { getUnidades, getAguaMovimentacoes, isEstoqueInicialDefinido, getCurrentStatusFilter, setCurrentStatusFilter, getEstoqueAgua, getUserRole } from "../utils/cache.js";
+import { getUnidades, getAguaMovimentacoes, getAguaMovCursor, isEstoqueInicialDefinido, getCurrentStatusFilter, setCurrentStatusFilter, getEstoqueAgua, getUserRole } from "../utils/cache.js";
 import { DOM_ELEMENTS, showAlert, switchSubTabView, switchTab, openConfirmDeleteModal, filterTable, renderPermissionsUI, escapeHTML } from "../utils/dom-helpers.js";
 import { getTodayDateString, dateToTimestamp, capitalizeString, formatTimestampComTempo, formatTimestamp } from "../utils/formatters.js";
 import { isReady, getUserId } from "./auth.js";
@@ -25,6 +26,134 @@ import { BaseControl } from "./base-control.js";
 // VARIÁVEIS DE ESTADO LOCAL
 let debitoAguaMode = 'devendo';
 let listenersInitialized = false; // Proteção contra duplicação de eventos
+
+const AGUA_HIST_PAGE_SIZE = 90;
+let aguaHistPage = 1;
+let aguaHistCursor = null;
+let aguaHistEnd = false;
+let aguaHistLoading = false;
+let aguaHistLoadedById = new Map();
+let aguaHistLoaded = [];
+
+function mergeAguaHist(movs) {
+    (movs || []).forEach(m => {
+        if (m && m.id) aguaHistLoadedById.set(m.id, m);
+    });
+    aguaHistLoaded = [...aguaHistLoadedById.values()].sort((a, b) => (b.registradoEm?.toMillis?.() || 0) - (a.registradoEm?.toMillis?.() || 0));
+}
+
+async function loadMoreAguaHistorico() {
+    if (aguaHistLoading || aguaHistEnd) return;
+    if (!aguaHistCursor) {
+        aguaHistEnd = true;
+        return;
+    }
+    aguaHistLoading = true;
+    try {
+        const snap = await getDocs(query(COLLECTIONS.aguaMov, orderBy("registradoEm", "desc"), startAfter(aguaHistCursor), limit(AGUA_HIST_PAGE_SIZE)));
+        const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        if (snap.docs.length < AGUA_HIST_PAGE_SIZE) aguaHistEnd = true;
+        aguaHistCursor = snap.docs[snap.docs.length - 1] || null;
+        mergeAguaHist(data);
+    } catch (e) {
+        console.error(e);
+        showAlert('alert-historico-agua', 'Erro ao carregar mais histórico. Verifique sua conexão.', 'error', 5000);
+    } finally {
+        aguaHistLoading = false;
+    }
+}
+
+function getAguaHistoricoFiltrado() {
+    const tipoEl = document.getElementById('filtro-tipo-agua');
+    const unidadeEl = document.getElementById('filtro-unidade-agua');
+    const unidadeTipoEl = document.getElementById('filtro-unidade-tipo-agua');
+    const respAlmoxEl = document.getElementById('filtro-responsavel-almox-agua');
+    const respUnidadeEl = document.getElementById('filtro-responsavel-unidade-agua');
+    const origemEl = document.getElementById('filtro-origem-agua');
+    const dataIniEl = document.getElementById('filtro-data-inicio-agua');
+    const dataFimEl = document.getElementById('filtro-data-fim-agua');
+
+    const tipo = tipoEl?.value || '';
+    const unidadeId = unidadeEl?.value || '';
+    const unidadeTipoSelecionado = (unidadeTipoEl?.value || '').toUpperCase();
+    const respAlmox = (respAlmoxEl?.value || '').trim().toLowerCase();
+    const respUnidade = (respUnidadeEl?.value || '').trim().toLowerCase();
+    const origem = origemEl?.value || '';
+    const dataIniStr = dataIniEl?.value || '';
+    const dataFimStr = dataFimEl?.value || '';
+
+    const dataIniMs = dataIniStr ? dateToTimestamp(dataIniStr)?.toMillis() : null;
+    const dataFimMs = dataFimStr ? dateToTimestamp(dataFimStr)?.toMillis() : null;
+
+    const unidadesMap = new Map((getUnidades() || []).map(u => {
+        let uTipo = (u.tipo || 'N/A').toUpperCase();
+        if (uTipo === 'SEMCAS') uTipo = 'SEDE';
+        return [u.id, { tipo: uTipo }];
+    }));
+
+    return (aguaHistLoaded || []).filter(m => {
+        if (!m || !['entrega', 'retorno', 'retirada'].includes(m.tipo)) return false;
+        if (tipo && m.tipo !== tipo) return false;
+        if (unidadeId && m.unidadeId !== unidadeId) return false;
+        if (unidadeTipoSelecionado) {
+            const info = unidadesMap.get(m.unidadeId);
+            if (!info || info.tipo !== unidadeTipoSelecionado) return false;
+        }
+        if (origem === 'importacao' && !isHistoricoImportado(m)) return false;
+        if (origem === 'manual' && isHistoricoImportado(m)) return false;
+        if (respAlmox) {
+            const ra = (m.responsavelAlmoxarifado || '').toLowerCase();
+            if (!ra.includes(respAlmox)) return false;
+        }
+        if (respUnidade) {
+            const ru = (m.responsavel || '').toLowerCase();
+            if (!ru.includes(respUnidade)) return false;
+        }
+        const movMs = m.data?.toMillis?.() || null;
+        if (dataIniMs && movMs && movMs < dataIniMs) return false;
+        if (dataFimMs && movMs && movMs > dataFimMs) return false;
+        return true;
+    });
+}
+
+function renderAguaHistoryPager(totalPages, currentPage) {
+    const el = document.getElementById('agua-history-pagination');
+    if (!el) return;
+
+    const canPrev = currentPage > 1;
+    const canNext = currentPage < totalPages || !aguaHistEnd;
+
+    const pages = [];
+    if (totalPages <= 7) {
+        for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+        pages.push(1);
+        const start = Math.max(2, currentPage - 1);
+        const end = Math.min(totalPages - 1, currentPage + 1);
+        if (start > 2) pages.push('…');
+        for (let i = start; i <= end; i++) pages.push(i);
+        if (end < totalPages - 1) pages.push('…');
+        pages.push(totalPages);
+    }
+
+    const left = '<div style="font-size:12px;color:#64748b;font-weight:700">Página ' + currentPage + (aguaHistEnd ? (' de ' + totalPages) : '') + '</div>';
+
+    let right = '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;justify-content:flex-end">';
+    right += '<button class="btn btn-s btn-sm" data-agua-pg="prev" ' + (!canPrev ? 'disabled' : '') + '>‹</button>';
+    pages.forEach(p => {
+        if (p === '…') {
+            right += '<span style="padding:0 6px;color:#94a3b8">…</span>';
+            return;
+        }
+        const active = p === currentPage;
+        right += '<button class="btn btn-s btn-sm" data-agua-pg="' + p + '" style="' + (active ? 'background:#2563eb;color:#fff;border-color:#2563eb' : '') + '">' + p + '</button>';
+    });
+    right += '<button class="btn btn-s btn-sm" data-agua-pg="next" ' + (!canNext ? 'disabled' : '') + '>›</button>';
+    right += '<button class="btn btn-p btn-sm" data-agua-pg="more" ' + (aguaHistEnd ? 'disabled' : '') + '>' + (aguaHistEnd ? 'Fim' : (aguaHistLoading ? 'Carregando...' : 'Carregar mais')) + '</button>';
+    right += '</div>';
+
+    el.innerHTML = left + right;
+}
 
 // Instância do BaseControl para Água
 const aguaControl = new BaseControl({
@@ -683,17 +812,24 @@ export function renderAguaMovimentacoesHistory() {
     const role = getUserRole();
     const isAdmin = role === 'admin';
 
-    const historicoOrdenado = getFilteredAguaMovimentacoes()
-        .sort((a, b) => (b.registradoEm?.toMillis() || 0) - (a.registradoEm?.toMillis() || 0));
+    const recent = (getAguaMovimentacoes() || []).slice(0, AGUA_HIST_PAGE_SIZE);
+    mergeAguaHist(recent);
+    if (!aguaHistCursor) aguaHistCursor = getAguaMovCursor() || null;
 
-    if (historicoOrdenado.length === 0) {
-        DOM_ELEMENTS.tableHistoricoAguaAll.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-slate-500">Nenhuma movimentação de unidade registrada.</td></tr>`;
+    const historicoOrdenado = getAguaHistoricoFiltrado();
+    const totalPages = Math.max(1, Math.ceil(historicoOrdenado.length / AGUA_HIST_PAGE_SIZE));
+    if (aguaHistPage > totalPages) aguaHistPage = totalPages;
+    renderAguaHistoryPager(totalPages, aguaHistPage);
+    const pageRows = historicoOrdenado.slice((aguaHistPage - 1) * AGUA_HIST_PAGE_SIZE, aguaHistPage * AGUA_HIST_PAGE_SIZE);
+
+    if (pageRows.length === 0) {
+        DOM_ELEMENTS.tableHistoricoAguaAll.innerHTML = `<tr><td colspan="9" class="text-center py-4 text-slate-500">Nenhuma movimentação de unidade registrada.</td></tr>`;
         return;
     }
     
     let html = '';
     
-    historicoOrdenado.forEach(m => {
+    pageRows.forEach(m => {
         const isEntrega = m.tipo === 'entrega';
         const tipoClass = isEntrega ? 'badge-red' : 'badge-green';
         const tipoText = isEntrega ? 'Entrega' : 'Retirada';
@@ -703,21 +839,29 @@ export function renderAguaMovimentacoesHistory() {
         const respAlmox = m.responsavelAlmoxarifado || 'N/A';
         const respUnidade = m.responsavel || 'N/A';
 
-        const details = `Movimentação ${m.unidadeNome} - ${tipoText} (${m.quantidade})`;
+        const idEsc = escapeHTML(m.id || '');
+        const unidadeNomeEsc = escapeHTML(m.unidadeNome || 'N/A');
+        const tipoTextEsc = escapeHTML(tipoText);
+        const qtdEsc = escapeHTML(m.quantidade);
+        const respAlmoxEsc = escapeHTML(respAlmox);
+        const respUnidadeEsc = escapeHTML(respUnidade);
+        const dataMovEsc = escapeHTML(dataMov);
+        const dataLancamentoEsc = escapeHTML(dataLancamento);
+        const detailsEsc = escapeHTML(`Movimentação ${m.unidadeNome} - ${tipoText} (${m.quantidade})`);
         
         const actionHtml = isAdmin 
-            ? `<button class="btn-danger btn-remove btn-icon" data-id="${m.id}" data-type="agua" data-details="${details}" title="Remover este lançamento"><i data-lucide="trash-2"></i></button>`
+            ? `<button class="btn-danger btn-remove btn-icon" data-id="${idEsc}" data-type="agua" data-details="${detailsEsc}" title="Remover este lançamento"><i data-lucide="trash-2"></i></button>`
             : `<span class="text-gray-400 btn-icon" title="Apenas Admin pode excluir"><i data-lucide="slash"></i></span>`;
 
-        html += `<tr title="ID: ${m.id} • Lançado por: ${respAlmox}">
-            <td class="text-xs text-gray-500">${m.id}</td>
-            <td>${m.unidadeNome || 'N/A'}</td>
-            <td><span class="badge ${tipoClass}">${tipoText}</span></td>
-            <td class="text-center font-medium">${m.quantidade}</td>
-            <td class="whitespace-nowrap">${dataMov}</td>
-            <td>${respAlmox}</td>
-            <td>${respUnidade}</td>
-            <td class="text-center whitespace-nowrap text-xs">${dataLancamento}</td>
+        html += `<tr title="ID: ${idEsc} • Lançado por: ${respAlmoxEsc}">
+            <td class="text-xs text-gray-500">${idEsc}</td>
+            <td>${unidadeNomeEsc}</td>
+            <td><span class="badge ${tipoClass}">${tipoTextEsc}</span></td>
+            <td class="text-center font-medium">${qtdEsc}</td>
+            <td class="whitespace-nowrap">${dataMovEsc}</td>
+            <td>${respAlmoxEsc}</td>
+            <td>${respUnidadeEsc}</td>
+            <td class="text-center whitespace-nowrap text-xs">${dataLancamentoEsc}</td>
             <td class="text-center">${actionHtml}</td>
         </tr>`;
     });
@@ -764,53 +908,13 @@ function populateAguaFilterUnidades() {
     }
 }
 
-function getFilteredAguaMovimentacoes() {
-    const tipoEl = document.getElementById('filtro-tipo-agua');
-    const unidadeEl = document.getElementById('filtro-unidade-agua');
-    const unidadeTipoEl = document.getElementById('filtro-unidade-tipo-agua');
-    const respEl = document.getElementById('filtro-responsavel-agua');
-    const origemEl = document.getElementById('filtro-origem-agua');
-    const dataIniEl = document.getElementById('filtro-data-ini-agua') || document.getElementById('filtro-data-inicio-agua');
-    // FIX: ID alternativo correto para data fim (era duplicado, causando filtro inoperante)
-    const dataFimEl = document.getElementById('filtro-data-fim-agua') || document.getElementById('filtro-data-fim-agua-historico');
-
-    const tipo = tipoEl?.value || '';
-    const unidadeId = unidadeEl?.value || '';
-    const unidadeTipoSelecionado = (unidadeTipoEl?.value || '').toUpperCase();
-    const respQuery = (respEl?.value || '').trim().toLowerCase();
-    const origem = origemEl?.value || '';
-    const dataIniStr = dataIniEl?.value || '';
-    const dataFimStr = dataFimEl?.value || '';
-
-    const base = getAguaMovimentacoes().filter(m => (m.tipo === 'entrega' || m.tipo === 'retorno' || m.tipo === 'retirada'));
-    const dataIniMs = dataIniStr ? dateToTimestamp(dataIniStr)?.toMillis() : null;
-    const dataFimMs = dataFimStr ? dateToTimestamp(dataFimStr)?.toMillis() : null;
-
-    const unidadesMap = new Map(getUnidades().map(u => {
-        let uTipo = (u.tipo || 'N/A').toUpperCase();
-        if (uTipo === 'SEMCAS') uTipo = 'SEDE';
-        return [u.id, { tipo: uTipo }];
-    }));
-
-    return base.filter(m => {
-        if (tipo && m.tipo !== tipo) return false;
-        if (unidadeId && m.unidadeId !== unidadeId) return false;
-        if (unidadeTipoSelecionado) {
-            const info = unidadesMap.get(m.unidadeId);
-            if (!info || info.tipo !== unidadeTipoSelecionado) return false;
-        }
-        if (origem === 'importacao' && !isHistoricoImportado(m)) return false;
-        if (origem === 'manual' && isHistoricoImportado(m)) return false;
-        if (respQuery) {
-            const ru = (m.responsavel || '').toLowerCase();
-            const ra = (m.responsavelAlmoxarifado || '').toLowerCase();
-            if (!ru.includes(respQuery) && !ra.includes(respQuery)) return false;
-        }
-        const movMs = m.data?.toMillis?.() || null;
-        if (dataIniMs && movMs && movMs < dataIniMs) return false;
-        if (dataFimMs && movMs && movMs > dataFimMs) return false;
-        return true;
-    });
+function populateAguaFilterResponsavelAlmox() {
+    const sel = document.getElementById('filtro-responsavel-almox-agua');
+    if (!sel) return;
+    const prev = sel.value;
+    const names = [...new Set((aguaHistLoaded || []).map(m => (m.responsavelAlmoxarifado || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    sel.innerHTML = '<option value="">Todos</option>' + names.map(n => '<option value="' + escapeHTML(n) + '">' + escapeHTML(n) + '</option>').join('');
+    if (prev && names.includes(prev)) sel.value = prev;
 }
 
 function checkAguaHistoryIntegrity() {
@@ -916,10 +1020,11 @@ export function initAguaListeners() {
     if (DOM_ELEMENTS.filtroResumoAguaDataIni) DOM_ELEMENTS.filtroResumoAguaDataIni.addEventListener('change', renderAguaDebitosResumo);
     if (DOM_ELEMENTS.filtroResumoAguaDataFim) DOM_ELEMENTS.filtroResumoAguaDataFim.addEventListener('change', renderAguaDebitosResumo);
     // Filtros avançados
-    ['filtro-tipo-agua','filtro-unidade-agua','filtro-responsavel-agua','filtro-origem-agua','filtro-data-ini-agua','filtro-data-fim-agua']
+    ['filtro-tipo-agua','filtro-unidade-tipo-agua','filtro-unidade-agua','filtro-responsavel-almox-agua','filtro-responsavel-unidade-agua','filtro-origem-agua','filtro-data-inicio-agua','filtro-data-fim-agua']
         .forEach(id => {
             const el = document.getElementById(id);
             if (el) el.addEventListener('input', () => {
+                aguaHistPage = 1;
                 renderAguaMovimentacoesHistory();
                 const free = document.getElementById('filtro-historico-agua');
                 if (free && free.value) filterTable(free, 'table-historico-agua-all');
@@ -934,14 +1039,65 @@ export function initAguaListeners() {
     });
     const btnClear = document.getElementById('btn-limpar-filtros-agua');
     if (btnClear) btnClear.addEventListener('click', () => {
-        ['filtro-tipo-agua','filtro-unidade-tipo-agua','filtro-unidade-agua','filtro-responsavel-agua','filtro-origem-agua','filtro-data-ini-agua','filtro-data-fim-agua']
+        ['filtro-tipo-agua','filtro-unidade-tipo-agua','filtro-unidade-agua','filtro-responsavel-almox-agua','filtro-responsavel-unidade-agua','filtro-origem-agua','filtro-data-inicio-agua','filtro-data-fim-agua']
             .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
         populateAguaFilterUnidades();
+        aguaHistPage = 1;
         renderAguaMovimentacoesHistory();
         const free = document.getElementById('filtro-historico-agua');
         if (free && free.value) filterTable(free, 'table-historico-agua-all');
     });
     populateAguaFilterUnidades();
+    renderAguaMovimentacoesHistory();
+    populateAguaFilterResponsavelAlmox();
+    const pager = document.getElementById('agua-history-pagination');
+    if (pager) {
+        pager.addEventListener('click', async (e) => {
+            const btn = e.target.closest('button[data-agua-pg]');
+            if (!btn) return;
+            const v = btn.getAttribute('data-agua-pg');
+            const filtered = getAguaHistoricoFiltrado();
+            let totalPages = Math.max(1, Math.ceil(filtered.length / AGUA_HIST_PAGE_SIZE));
+            if (v === 'prev') {
+                aguaHistPage = Math.max(1, aguaHistPage - 1);
+                renderAguaMovimentacoesHistory();
+                return;
+            }
+            if (v === 'next') {
+                if (aguaHistPage < totalPages) {
+                    aguaHistPage += 1;
+                    renderAguaMovimentacoesHistory();
+                    return;
+                }
+                if (!aguaHistEnd) {
+                    await loadMoreAguaHistorico();
+                    populateAguaFilterResponsavelAlmox();
+                    const after = getAguaHistoricoFiltrado();
+                    totalPages = Math.max(1, Math.ceil(after.length / AGUA_HIST_PAGE_SIZE));
+                    aguaHistPage = Math.min(totalPages, aguaHistPage + 1);
+                    renderAguaMovimentacoesHistory();
+                }
+                return;
+            }
+            if (v === 'more') {
+                await loadMoreAguaHistorico();
+                populateAguaFilterResponsavelAlmox();
+                renderAguaMovimentacoesHistory();
+                return;
+            }
+            const p = parseInt(v, 10);
+            if (!isNaN(p)) {
+                if (p <= totalPages) {
+                    aguaHistPage = p;
+                    renderAguaMovimentacoesHistory();
+                } else if (!aguaHistEnd) {
+                    await loadMoreAguaHistorico();
+                    populateAguaFilterResponsavelAlmox();
+                    renderAguaMovimentacoesHistory();
+                }
+            }
+        });
+    }
     if (DOM_ELEMENTS.filtroHistoricoEstoqueAgua) {
         DOM_ELEMENTS.filtroHistoricoEstoqueAgua.addEventListener('input', () => filterTable(DOM_ELEMENTS.filtroHistoricoEstoqueAgua, DOM_ELEMENTS.tableHistoricoEstoqueAgua.id));
     }

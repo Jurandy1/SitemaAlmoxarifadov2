@@ -7,6 +7,7 @@
 // Dados e cache principais
 let __unidades = [];
 let __aguaMovimentacoes = [];
+let __aguaMovCursor = null;
 let __gasMovimentacoes = [];
 let __materiais = [];
 let __entregas = [];
@@ -50,6 +51,7 @@ let graficoPrevisao = { agua: null, gas: null };
 function getUnidades() { return __unidades; }
 function getUnidadesVersion() { return __unidadesVersion; }
 function getAguaMovimentacoes() { return __aguaMovimentacoes; }
+function getAguaMovCursor() { return __aguaMovCursor; }
 function getGasMovimentacoes() { return __gasMovimentacoes; }
 function getMateriais() { return __materiais; }
 function getEntregas() { return __entregas; }
@@ -80,6 +82,7 @@ function getGraficoPrevisao(tipo) { return graficoPrevisao[tipo]; }
 
 function setUnidades(data) { __unidades = data; __unidadesVersion += 1; }
 function setAguaMovimentacoes(data) { __aguaMovimentacoes = data; }
+function setAguaMovCursor(docSnap) { __aguaMovCursor = docSnap || null; }
 function setGasMovimentacoes(data) { __gasMovimentacoes = data; }
 function setMateriais(data) { __materiais = data; }
 function setEntregas(data) { __entregas = data; }
@@ -120,6 +123,7 @@ export {
     // Getters e Setters principais
     getUnidades, getUnidadesVersion, setUnidades,
     getAguaMovimentacoes, setAguaMovimentacoes,
+    getAguaMovCursor, setAguaMovCursor,
     getGasMovimentacoes, setGasMovimentacoes,
     getMateriais, setMateriais,
     getEntregas, setEntregas,
