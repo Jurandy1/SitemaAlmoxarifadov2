@@ -401,10 +401,6 @@
                         <i data-lucide="package-open"></i>
                         <span>Entradas (Estoque)</span>
                     </button>
-                    <button class="sub-nav-btn" data-subview="status-agua">
-                        <i data-lucide="droplets"></i>
-                        <span>Saldo nas Unidades</span>
-                    </button>
                     <button class="sub-nav-btn" data-subview="historico-agua">
                         <i data-lucide="archive"></i>
                         <span>Histórico Geral</span>
@@ -434,7 +430,6 @@
                             <div class="header-actions">
                                 <button id="btn-debito-agua" class="badge-filter active">Devendo</button>
                                 <button id="btn-credito-agua" class="badge-filter">Crédito</button>
-                                <button id="btn-ver-status-agua" class="btn-secondary btn-sm"><i data-lucide="list"></i> Ver status completo</button>
                             </div>
                         </div>
                         <div class="p-6">
@@ -647,46 +642,6 @@
                             </table>
                         </div>
                     </div>
-                </div>
-
-                <!-- Sub-view: Status de Galões (Saldo nas Unidades) -->
-                <div id="subview-status-agua" class="hidden">
-                     <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-                         <h2 class="text-xl font-bold text-gray-800 mb-4"><i data-lucide="droplets" class="inline-block -mt-1 mr-2"></i> Status de Galões (Saldo nas Unidades)</h2>
-                         <p class="text-sm text-gray-600 mb-4">Veja o saldo atual de galões cheios pendentes de devolução ou crédito nas unidades.</p>
-                         <div id="alert-agua-lista" class="alert mb-4"></div>
-
-                         <div class="mb-4 flex flex-wrap gap-3 items-end">
-                             <div>
-                                 <label for="filtro-status-agua" class="form-label text-xs">Buscar Unidade:</label>
-                                 <input type="text" id="filtro-status-agua" data-table="table-status-agua" class="form-input" placeholder="Digite o nome da unidade...">
-                             </div>
-                             <div id="filtro-saldo-agua-controls" class="flex flex-wrap gap-2">
-                                <button class="btn-secondary btn-saldo-filter" data-filter="all">Todos</button>
-                                <button class="btn-warning btn-saldo-filter border border-red-400 bg-red-50 text-red-700 hover:bg-red-100" data-filter="devendo" title="Unidades com saldo > 0">Devendo</button>
-                                <button class="btn-info btn-saldo-filter border border-blue-400 bg-blue-50 text-blue-700 hover:bg-blue-100" data-filter="credito" title="Unidades com saldo < 0">Crédito</button>
-                                <button class="btn-secondary btn-saldo-filter" data-filter="zero" title="Unidades com saldo = 0">Zero</button>
-                             </div>
-                         </div>
-
-                         <div class="overflow-x-auto border border-gray-200 rounded-lg">
-                             <table class="table w-full text-sm">
-                                 <thead class="bg-gray-50">
-                                     <tr>
-                                         <th>Unidade</th>
-                                         <th>Tipo</th>
-                                         <th class="text-center">Entregue vazio</th>
-                                         <th class="text-center">Recebido cheio</th>
-                                         <th class="text-center">Saldo</th>
-                                         <th>Último Lançamento (Cheio/Vazio)</th>
-                                     </tr>
-                                 </thead>
-                                 <tbody id="table-status-agua" class="divide-y divide-gray-100">
-                                     <tr><td colspan="6" class="text-center py-10"><div class="loading-spinner-small mx-auto"></div></td></tr>
-                                 </tbody>
-                             </table>
-                         </div>
-                     </div>
                 </div>
 
                 <!-- Sub-view: Histórico Geral de Movimentações (Água) -->

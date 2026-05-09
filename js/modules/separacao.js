@@ -519,6 +519,21 @@ function bc2(s){return'badge-status badge-'+(s||'nao_atendido')}
 function rc2(s){return'row-'+(s||'nao_atendido')}
 function fdt(d){return d.toLocaleDateString('pt-BR')+' '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}
 function today(){return new Date().toLocaleDateString('pt-BR')}
+function setupDataPedidoAuto() {
+  const input = document.getElementById('rDate');
+  if (!input) return;
+  const hoje = new Date();
+  const ano = hoje.getFullYear();
+  const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+  const dia = String(hoje.getDate()).padStart(2, '0');
+  input.value = `${ano}-${mes}-${dia}`;
+  input.readOnly = true;
+  input.style.background = '#f1f5f9';
+  input.style.cursor = 'not-allowed';
+  input.title = 'Data automática (dia atual)';
+  const w = document.getElementById('rDateWarn');
+  if (w) w.style.display = 'none';
+}
 function tipoPill(t){return`<span class="tipo-pill ${TIPO_CLS[t]||'tipo-outros'}">${t}</span>`}
 function tiposPills(a){return(a||[]).map(tipoPill).join(' ')}
 function displayUnit(unidade){
@@ -1803,6 +1818,66 @@ function detectItemIssues(parsed) {
         }
       }
 
+      // ═══ FASE 1.7: DETECTAR " OU " — ESCOLHA OBRIGATÓRIA ═══
+      // Ex: "CANETA AZUL OU PRETA" → escolher cor
+      //     "LEITE EM PÓ OU LIQUIDO" → escolher tipo
+      //     "ARROZ 1KG OU 5KG" → escolher tamanho
+      if (/\s+OU\s+/i.test(mat)) {
+        const ouParts = mat.split(/\s+OU\s+/i).map(p => p.trim()).filter(p => p.length >= 1);
+        if (ouParts.length >= 2) {
+          let options;
+
+          // Caso A: cada parte é item completo (≥2 palavras OU já está no catálogo)
+          // Ex: "LEITE EM PÓ OU LEITE LIQUIDO"
+          const allFull = ouParts.every(p => {
+            const words = p.split(/\s+/).filter(w => w.length > 1);
+            return words.length >= 2 || MATERIAL_CATALOG[normMat(p)];
+          });
+
+          if (allFull) {
+            options = ouParts.map(p => autoDisplayName(normMat(p), p));
+          } else {
+            // Caso B: base comum + variantes curtas
+            // Ex: "CANETA AZUL OU PRETA" → base="CANETA", variantes=[AZUL, PRETA]
+            const p1 = ouParts[0];
+            const p1Words = p1.split(/\s+/);
+            if (p1Words.length >= 2) {
+              const base = p1Words.slice(0, -1).join(' ');
+              const v1 = p1Words[p1Words.length - 1];
+              const variants = [v1, ...ouParts.slice(1)];
+              options = variants.map(v => {
+                const name = base + ' ' + v.toUpperCase();
+                return autoDisplayName(normMat(name), name);
+              });
+            } else {
+              // Caso C: sem base óbvia — usa as partes como estão
+              options = ouParts.map(p => autoDisplayName(normMat(p), p));
+            }
+          }
+
+          // Sugestão automática se a obs/unidade indicar uma das opções
+          const hh = detectItemHints(item);
+          let suggested = null;
+          if (hh.obs) {
+            const obsU = rmAcc(hh.obs).toUpperCase();
+            for (const opt of options) {
+              const optU = rmAcc(opt).toUpperCase();
+              const optWords = optU.split(/\s+/).filter(w => w.length >= 3);
+              if (optWords.some(w => obsU.includes(w))) { suggested = opt; break; }
+            }
+          }
+
+          issues.push({
+            type: 'choose', catIdx, itemIdx, original: rawMat, item,
+            options,
+            suggested,
+            hint: item.unidade ? `Unidade na planilha: "${item.unidade}"` : '',
+            reason: '⚠️ Item com "OU" — escolha qual variante registrar'
+          });
+          return;
+        }
+      }
+
       // ═══ FASE 2: DETECTAR " E " — itens ou variantes separados por "E" ═══
       if (/\sE\s/i.test(mat)) {
         const eParts = mat.split(/\s+E\s+/i).map(p => p.trim()).filter(p => p.length >= 1);
@@ -1890,28 +1965,28 @@ function detectItemIssues(parsed) {
       const nk = normMat(step3);                    // Normaliza para chave
       const catalogName = MATERIAL_CATALOG[nk];     // Busca no catálogo
       const finalName = catalogName || step3;       // Catálogo ou nome corrigido
-      
-      // Se houve QUALQUER mudança, sugere correção
-      if (finalName !== mat && rmAcc(finalName).toUpperCase() !== rmAcc(mat).toUpperCase().trim()) {
-        const reasons = [];
-        if (step1 !== mat) reasons.push('limpeza');
-        if (step2 !== step1) reasons.push('ortografia');
-        if (step3 !== step2) reasons.push('singular');
-        if (catalogName) reasons.push('catálogo');
-        
-        issues.push({
-          type: 'rename', catIdx, itemIdx, original: rawMat, item,
-          suggested: finalName,
-          reason: reasons.length ? '📝 ' + reasons.join(' + ') : 'Padronização do nome'
-        });
-      } else if (step1 !== mat) {
-        // Apenas junk removal (caso acento/case seja igual mas tinha lixo)
-        issues.push({
-          type: 'rename', catIdx, itemIdx, original: rawMat, item,
-          suggested: autoDisplayName(nk, step1),
-          reason: 'Anotação desnecessária removida'
-        });
+
+      if (finalName === mat) return; // nada mudou
+
+      // ── DIFERENÇA TRIVIAL → aplicar SILENCIOSAMENTE no item, sem modal ──
+      if (_diferencaTrivial(finalName, mat)) {
+        item.material = finalName;
+        issues._silentlyFixed = (issues._silentlyFixed || 0) + 1;
+        return;
       }
+
+      // ── Mudança SUBSTANTIVA → vai pro modal ─────────────────────────
+      const reasons = [];
+      if (step1 !== mat)   reasons.push('limpeza');
+      if (step2 !== step1) reasons.push('ortografia');
+      if (step3 !== step2) reasons.push('singular');
+      if (catalogName)     reasons.push('catálogo');
+
+      issues.push({
+        type: 'rename', catIdx, itemIdx, original: rawMat, item,
+        suggested: finalName,
+        reason: reasons.length ? '📝 ' + reasons.join(' + ') : 'Padronização do nome'
+      });
     });
   });
   return issues;
@@ -1942,11 +2017,12 @@ async function registrar(){
 
   // ─── VALIDAÇÃO PRÉ-REGISTRO (itens) ───
   const issues = detectItemIssues(tmpParsed);
-  if (issues.length > 0) {
+  if (issues.length > 0 || (issues._silentlyFixed || 0) > 0) {
     showPreRegDialog(issues, (apply, fixes) => {
       if (apply && fixes) {
         applyItemFixes(tmpParsed, fixes);
-        toast(fixes.filter(f => f.accepted).length + ' correção(ões) aplicada(s).', 'green');
+        const applied = fixes.filter(f => f.accepted).length;
+        if (applied > 0) toast(applied + ' correção(ões) aplicada(s).', 'green');
       }
       doRegistrar(finalUnit);
     }, { esc, toast });
@@ -1964,7 +2040,10 @@ async function doRegistrar(finalUnit){
   const fy = new Date().getFullYear();
   const per = (tmpParsed && tmpParsed._rows) ? bestPeriod(tmpParsed._rows, tmpParsed.fileName) : parsePeriodFromFileName(tmpParsed.fileName);
   const fin = finalizePeriod(per, fy);
-  const dtReq = fin?.ws ? new Date(fin.ws + 'T12:00:00') : new Date();
+  const rDateVal = document.getElementById('rDate')?.value;
+  const dtReq = rDateVal
+    ? new Date(rDateVal + 'T12:00:00')
+    : (fin?.ws ? new Date(fin.ws + 'T12:00:00') : new Date());
   const req={id:nextId++,unidade,tipos:tmpParsed.tipos,formato:tmpParsed.formato,
     resp:document.getElementById('rR').value||'Admin',
     obs:document.getElementById('rO').value,dt:dtReq,
@@ -2004,6 +2083,7 @@ async function doRegistrar(finalUnit){
   document.getElementById('rU').selectedIndex=0;document.getElementById('rO').value='';
   document.getElementById('detectInfo').innerHTML='<span style="color:var(--muted);font-size:12px">Anexe a planilha...</span>';
   document.getElementById('bR').disabled=true;
+  setupDataPedidoAuto();
   toast('Requisição registrada! Os dados irão para o Relatório após a Entrega.', 'green');
   goTab('ps');
 }
@@ -2256,7 +2336,8 @@ function goTab(t){
   if (!targetTab) { console.warn('goTab: tab-'+t+' não encontrado'); return; }
   targetTab.classList.add('active');
   updateCounts();
-  if(t==='ps') renderPS();
+  if(t==='req') setupDataPedidoAuto();
+  else if(t==='ps') renderPS();
   else if(t==='es') renderES();
   else if(t==='pe') renderPE();
   else if(t==='hi') renderHI();
@@ -3319,6 +3400,38 @@ async function clearMateriaisDB(){
 
 function rmAcc(s){return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'');}
 function normMat(s){return rmAcc(s).trim().replace(/\s+/g,' ').toUpperCase().replace(/[^A-Z0-9\s\/().-]/g,'');}
+
+// ═══════════════════════════════════════════════════════════════════
+// HELPERS — Detecção de diferenças triviais (acento/case/plural/conectivos)
+// Usado para aplicar correções silenciosas sem incomodar o usuário no modal.
+// ═══════════════════════════════════════════════════════════════════
+const _CONECTIVOS = new Set(['DE','DA','DO','DAS','DOS','EM','PARA','POR','COM','E','OU','NO','NA']);
+const _PLURAL_INVAR = new Set([
+  'CLIPS','LAPIS','ATLAS','PIRES','ONIBUS','VIRUS','MAIS','MENOS','TRES','GRATIS',
+  'GAS','LATEX','TAPIOCA','MUCILON','GUARDANAPOS','MULTIUSO'
+]);
+
+function _normalizarAgressivo(s) {
+  let r = rmAcc(String(s||'')).toUpperCase();
+  r = r.replace(/[^A-Z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+  r = r.split(/\s+/)
+    .filter(w => w && !_CONECTIVOS.has(w))
+    .map(w => {
+      if (w.length >= 4 && w.endsWith('S') && !_PLURAL_INVAR.has(w)) return w.slice(0, -1);
+      return w;
+    })
+    .join(' ');
+  return r;
+}
+
+function _diferencaTrivial(a, b) {
+  if (a === b) return true;
+  const ra = rmAcc(String(a||'')).toUpperCase().replace(/\s+/g,' ').trim();
+  const rb = rmAcc(String(b||'')).toUpperCase().replace(/\s+/g,' ').trim();
+  if (ra === rb) return true;
+  if (_normalizarAgressivo(a) === _normalizarAgressivo(b)) return true;
+  return false;
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // CATÁLOGO DE MATERIAIS PADRÃO DO ALMOXARIFADO
@@ -8177,6 +8290,7 @@ export function initSeparacao() {
   __separacaoBooted = true;
   try { populateUnidadesSelect(); } catch (e) { console.error(e); }
   try { applySeparacaoRoleUI(); } catch (e) { console.error(e); }
+  try { setupDataPedidoAuto(); } catch (e) { console.error(e); }
   try {
     const EXPORTS = { goTab, registrar, previewReq, showUnitConfirmDialog, pegarParaSeparar, entregarReq, abrirFicha, fecharFicha, marcarPronto, marcarProntoLista, voltarSeparacao, printReq, printFicha, cancelarReq, excluirHistoricoReq, renderBuracos, renderUnificar, buildPainel, gerarRelatorio, exportarCSV, handleFile, handleHistFiles, ck, okModal, closeModal, showModal, editEntryYear, editEntryPeriod, toggleDetail, removeHistEntry, openEditor, closeEditor, saveEditor, edRemoveItem, edAddItem, edAddCat, clearHistDB, clearMateriaisDB, removeDuplicatesAuto, recalcAllDates, exportBackup, importBackup, goToFile, goPage, onModeChange, clearFilters, clearPanFilters, clearYears, selAllYears, clearAllAliases, doUnifMerge, toggleUnifSel, unifRemoveSel, clearUnifSel, removeAlias, openPrintBuracos, doPrintBuracos, showOrigemUnidade, showOrigemCategoria, renderRelatorio, renderCorrecaoItens, setFixView, fixGoPage, applyMatFix, applyMatFixBulk, removeMatFix, clearAllMatFixes, applyCatFix, removeCatFix, clearAllCatFixes, closePreRegDialog, skipPreRegDialog, confirmPreRegDialog, copyItemsList, diagnoseAliases, setPanTipo, loadAllHistDBAndRefresh, addFichaItem, removeFichaItem, editMaterial, switchMatView, switchPanSub, PAGE_STATE, debouncedRenderPS, debouncedRenderES, debouncedRenderPE, debouncedRenderHI };
     Object.entries(EXPORTS).forEach(([k, v]) => { window[k] = v; });

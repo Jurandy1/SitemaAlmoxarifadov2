@@ -220,6 +220,19 @@ function showPreRegDialog(issues, onConfirm, deps) {
 
   const nChoose = visibleIssues.filter((f) => f.type === "choose").length;
 
+  // Banner de "auto-corrigidos" — preenchido por detectItemIssues
+  const silentlyFixed = issues?._silentlyFixed || 0;
+
+  // Se nada visível e nada bloqueado, finaliza direto sem abrir modal
+  const visibleCount = (visibleIssues || []).length;
+  if (visibleCount === 0 && blockedIssues.length === 0) {
+    if (silentlyFixed > 0) {
+      _toast?.(`✨ ${silentlyFixed} correção(ões) automática(s) aplicada(s).`, 'green');
+    }
+    onConfirm?.(true, []);
+    return;
+  }
+
   // ── HTML do modal ─────────────────────────────────────────────
   let h = '<div style="max-width:650px;margin:0 auto">';
 
@@ -228,6 +241,15 @@ function showPreRegDialog(issues, onConfirm, deps) {
     <div style="text-align:center;margin-bottom:16px">
       <div style="font-size:32px;margin-bottom:6px">🔍</div>
       <h2 style="font-size:16px;font-weight:800;margin:0">Revisão antes de Registrar</h2>
+      ${silentlyFixed > 0 ? `
+      <div style="display:inline-flex;align-items:center;gap:6px;background:#ecfdf5;
+                  border:1px solid #a7f3d0;color:#065f46;border-radius:999px;
+                  padding:4px 12px;margin-top:8px;font-size:11px;font-weight:700">
+        ✨ ${silentlyFixed} correção(ões) automática(s) aplicada(s)
+        <span style="font-weight:400;color:#047857">
+          (acentos, maiúsc/minúsc, plural)
+        </span>
+      </div>` : ''}
       <p style="font-size:12px;color:#64748b;margin-top:4px">
         O sistema detectou ${visibleIssues.length} item(ns) que precisam da sua atenção
       </p>
