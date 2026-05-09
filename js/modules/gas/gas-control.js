@@ -5,18 +5,18 @@ import { Timestamp, addDoc, serverTimestamp } from "firebase/firestore";
 import {
     getUnidades, getGasMovimentacoes,
     isEstoqueInicialDefinido, getEstoqueGas, getUserRole
-} from "../utils/cache.js";
+} from "../../utils/cache.js";
 import {
     DOM_ELEMENTS, showAlert, switchSubTabView,
     filterTable, renderPermissionsUI, escapeHTML
-} from "../utils/dom-helpers.js";
+} from "../../utils/dom-helpers.js";
 import {
     getTodayDateString, dateToTimestamp,
     capitalizeString, formatTimestampComTempo
-} from "../utils/formatters.js";
-import { isReady }                   from "./auth.js";
-import { COLLECTIONS }               from "../services/firestore-service.js";
-import { executeFinalMovimentacao }  from "./movimentacao-modal-handler.js";
+} from "../../utils/formatters.js";
+import { isReady }                   from "../auth.js";
+import { COLLECTIONS }               from "../../services/firestore-service.js";
+import { executeFinalMovimentacao }  from "../movimentacao-modal-handler.js";
 import { generateGasReport }         from "./gas-report.js";
 
 // ─── CORTE DE DATA: apenas dados a partir de 30/04/2026 contam nos CÁLCULOS ──

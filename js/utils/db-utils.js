@@ -18,8 +18,8 @@ import { db, COLLECTIONS, auth } from "../services/firestore-service.js";
 import { getDeleteInfo, setDeleteInfo } from "../utils/cache.js";
 import { showAlert, DOM_ELEMENTS } from "../utils/dom-helpers.js";
 // Importa as funções de re-renderização dos módulos
-import { onAguaTabChange } from "../modules/agua-control.js";
-import { onGasTabChange } from "../modules/gas-control.js";
+import { onAguaTabChange } from "../modules/agua/agua-control.js";
+import { onGasTabChange } from "../modules/gas/gas-control.js";
 
 /**
  * Retorna a referência de coleção com base no tipo.

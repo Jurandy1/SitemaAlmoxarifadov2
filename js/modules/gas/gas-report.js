@@ -1,8 +1,8 @@
 // js/modules/gas-report.js
 // Módulo responsável por gerar e imprimir o relatório completo de Controle de Gás.
 
-import { getEstoqueGas, getGasMovimentacoes, getUnidades } from "../utils/cache.js";
-import { formatTimestamp, formatTimestampComTempo, dateToTimestamp } from "../utils/formatters.js";
+import { getEstoqueGas, getGasMovimentacoes, getUnidades } from "../../utils/cache.js";
+import { formatTimestamp, formatTimestampComTempo, dateToTimestamp } from "../../utils/formatters.js";
 
 // ─── Corte de data (igual ao gas-control.js) ──────────────────────────────────
 const GAS_CUTOFF_MS = new Date('2026-04-30T00:00:00.000').getTime();

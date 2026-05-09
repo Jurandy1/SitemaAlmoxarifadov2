@@ -13,8 +13,8 @@ import {
     showAlert 
 } from "../utils/dom-helpers.js";
 
-import { onAguaTabChange, initAguaListeners } from "./agua-control.js";
-import { onGasTabChange, initGasListeners } from "./gas-control.js";
+import { onAguaTabChange, initAguaListeners } from "./agua/agua-control.js";
+import { onGasTabChange, initGasListeners } from "./gas/gas-control.js";
 import { onMateriaisTabChange, initMateriaisListeners } from "./materiais.js";
 import { onGestaoTabChange, initGestaoListeners } from "./gestao.js";
 import { onRelatorioTabChange, initRelatoriosListeners } from "./relatorios.js";

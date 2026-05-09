@@ -19,8 +19,8 @@ import { executeDelete } from "./utils/db-utils.js";
 import { handleFinalMovimentacaoSubmit } from "./modules/movimentacao-modal-handler.js";
 import { getTodayDateString } from "./utils/formatters.js";
 import { initPrevisaoListeners } from "./modules/previsao.js"; 
-import { getDebitosAguaResumoList, renderAguaMovimentacoesHistory } from "./modules/agua-control.js";
-import { getDebitosGasResumoList } from "./modules/gas-control.js";
+import { getDebitosAguaResumoList, renderAguaMovimentacoesHistory } from "./modules/agua/agua-control.js";
+import { getDebitosGasResumoList } from "./modules/gas/gas-control.js";
 import { isReady } from "./modules/auth.js";
 import { initSocialListeners } from "./modules/social-control.js"; // NOVO
 import { initFeriadosListeners } from "./modules/feriados.js";
