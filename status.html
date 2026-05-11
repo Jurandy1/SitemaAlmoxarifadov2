@@ -137,16 +137,84 @@
     .stock-mini-chip.low  { background: var(--yellow-bg); color: var(--yellow); }
     .stock-mini-chip.zero { background: var(--red-bg);    color: var(--red); }
 
+    /* ── MINHA UNIDADE SALVA ── */
+    .saved-unit-card {
+      background: linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%);
+      border: 2px solid #93c5fd;
+      border-radius: 16px;
+      padding: 14px 16px;
+      margin-bottom: 12px;
+      display: none;
+    }
+    .saved-unit-card.show { display: block; }
+    .saved-unit-label {
+      font-size: 10px; font-weight: 800; color: var(--sky);
+      text-transform: uppercase; letter-spacing: .08em;
+      margin-bottom: 6px; display: flex; align-items: center; gap: 5px;
+    }
+    .saved-unit-name {
+      font-size: 16px; font-weight: 800; color: var(--gray-900);
+      margin-bottom: 10px; letter-spacing: -.2px;
+    }
+    .saved-unit-actions { display: flex; gap: 8px; }
+    .btn-check {
+      flex: 1; padding: 10px; border-radius: 10px;
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      color: #fff; font-size: 13px; font-weight: 800;
+      border: none; cursor: pointer; font-family: 'Outfit', sans-serif;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      box-shadow: 0 4px 12px rgba(37,99,235,.3);
+      -webkit-tap-highlight-color: transparent; transition: transform .12s;
+    }
+    .btn-check:active { transform: scale(.97); }
+    .btn-clear {
+      padding: 10px 14px; border-radius: 10px;
+      background: #fff; color: var(--gray-500);
+      font-size: 12px; font-weight: 700;
+      border: 1.5px solid var(--gray-200); cursor: pointer;
+      font-family: 'Outfit', sans-serif;
+      -webkit-tap-highlight-color: transparent; transition: background .12s;
+    }
+    .btn-clear:active { background: var(--gray-100); }
+
+    /* ── SEARCH BOX ── */
+    .search-wrap { position: relative; margin-bottom: 10px; }
+    .search-icon {
+      position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+      font-size: 16px; pointer-events: none;
+    }
+    .search-input {
+      width: 100%; padding: 11px 36px 11px 38px;
+      border: 1.5px solid var(--gray-200); border-radius: 12px;
+      font-size: 14px; font-family: 'Outfit', sans-serif;
+      font-weight: 500; color: var(--gray-900);
+      background: #fff; outline: none;
+      transition: border-color .15s, box-shadow .15s;
+      -webkit-appearance: none;
+    }
+    .search-input:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37,99,235,.12);
+    }
+    .search-input::placeholder { color: var(--gray-400); }
+    .search-clear {
+      position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+      background: var(--gray-200); border: none; border-radius: 50%;
+      width: 22px; height: 22px; font-size: 11px; cursor: pointer;
+      display: none; align-items: center; justify-content: center;
+      color: var(--gray-500); font-weight: 700;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .search-clear.show { display: flex; }
+
     /* ── STEP HINT ── */
     .step-hint {
-      font-size: 14px; font-weight: 600; color: var(--gray-500);
-      margin-bottom: 14px; text-align: center;
+      font-size: 13px; font-weight: 600; color: var(--gray-500);
+      margin-bottom: 10px; text-align: center;
     }
 
-    /* ── TYPE GRID (passo 1) ── */
-    .type-grid {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
-    }
+    /* ── TYPE GRID ── */
+    .type-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .type-btn {
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       gap: 8px; padding: 18px 10px; border-radius: 14px;
@@ -158,31 +226,34 @@
     .type-btn:hover  { border-color: var(--navy); background: #fff; }
     .type-btn-ic  { font-size: 28px; line-height: 1; }
     .type-btn-lbl { font-size: 13px; font-weight: 800; color: var(--gray-900); text-align: center; }
-    .type-btn-sub { font-size: 10px; font-weight: 500; color: var(--gray-400); margin-top: -4px; }
 
     /* ── BACK BUTTON ── */
     .back-btn {
       display: inline-flex; align-items: center; gap: 5px;
       font-family: 'Outfit', sans-serif; font-size: 13px; font-weight: 700;
       color: var(--gray-500); background: none; border: none;
-      cursor: pointer; padding: 0 0 14px 0; -webkit-tap-highlight-color: transparent;
+      cursor: pointer; padding: 0 0 12px 0; -webkit-tap-highlight-color: transparent;
     }
     .back-btn:active { opacity: .6; }
 
-    /* ── UNIT LIST (passo 2) ── */
-    .unit-list { display: flex; flex-direction: column; gap: 6px; }
+    /* ── UNIT LIST ── */
+    .unit-list { display: flex; flex-direction: column; gap: 6px; max-height: 340px; overflow-y: auto; }
     .unit-item {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 13px 14px; border-radius: 12px;
+      padding: 12px 14px; border-radius: 12px;
       border: 1.5px solid var(--gray-200); background: #fff;
       cursor: pointer; -webkit-tap-highlight-color: transparent;
       font-size: 14px; font-weight: 600; color: var(--gray-900);
-      transition: all .12s;
+      transition: all .12s; flex-shrink: 0;
     }
     .unit-item:active { transform: scale(.98); background: var(--gray-100); }
-    .unit-item-arrow { color: var(--gray-400); font-size: 16px; }
+    .unit-item-arrow { color: var(--gray-400); font-size: 16px; flex-shrink: 0; }
+    .no-results {
+      text-align: center; padding: 20px 0;
+      font-size: 13px; font-weight: 600; color: var(--gray-400);
+    }
 
-    /* ── RESULT BANNER (passo 3) ── */
+    /* ── RESULT BANNER ── */
     .result-banner {
       display: flex; flex-direction: column; align-items: center;
       padding: 24px 16px; border-radius: 16px; border: 2px solid;
@@ -197,12 +268,30 @@
     .result-banner.sep    .result-banner-title { color: #92400e; }
     .result-banner.nenhum .result-banner-title { color: var(--gray-500); }
     .result-banner-sub   { font-size: 14px; font-weight: 600; opacity: .85; }
-    .result-banner-unit  { font-size: 12px; font-weight: 700; opacity: .6; margin-top: 4px; }
+    .result-banner-unit  { font-size: 12px; font-weight: 700; opacity: .6; margin-top: 2px; }
     .result-banner-detail {
       font-size: 12px; font-weight: 600; opacity: .85;
       background: rgba(0,0,0,.06); border-radius: 8px;
-      padding: 6px 12px; margin-top: 4px; width: 100%;
+      padding: 6px 12px; margin-top: 2px; width: 100%;
     }
+    .btn-save-unit {
+      margin-top: 8px; padding: 8px 18px; border-radius: 10px;
+      background: #fff; border: 1.5px solid #93c5fd;
+      color: #1d4ed8; font-size: 12px; font-weight: 700;
+      cursor: pointer; font-family: 'Outfit', sans-serif;
+      display: flex; align-items: center; gap: 5px;
+      -webkit-tap-highlight-color: transparent; transition: background .12s;
+    }
+    .btn-save-unit:active { background: #eff6ff; }
+    .btn-refresh {
+      margin-top: 4px; padding: 7px 16px; border-radius: 10px;
+      background: transparent; border: 1.5px solid var(--gray-200);
+      color: var(--gray-500); font-size: 11px; font-weight: 700;
+      cursor: pointer; font-family: 'Outfit', sans-serif;
+      display: flex; align-items: center; gap: 5px;
+      -webkit-tap-highlight-color: transparent; transition: background .12s;
+    }
+    .btn-refresh:active { background: var(--gray-100); }
 
     /* ── LOADING ── */
     .skeleton {
@@ -232,8 +321,8 @@
       .type-btn     { padding: 14px 8px; }
     }
     @media (min-width:600px) {
-      .main         { padding:20px 20px 28px; }
-      .type-grid    { grid-template-columns: repeat(3, 1fr); }
+      .main      { padding:20px 20px 28px; }
+      .type-grid { grid-template-columns: repeat(3, 1fr); }
     }
 
     @media (prefers-color-scheme:dark) {
@@ -241,6 +330,13 @@
       .card          { background:#1e293b; border-color:#334155; }
       .card-head     { border-bottom-color:#334155; }
       .stock-mini    { background:#1e293b; border-color:#334155; }
+      .saved-unit-card { background: linear-gradient(135deg,#1e3a5f 0%,#052e16 100%); border-color:#1d4ed8; }
+      .saved-unit-name { color:#e2e8f0; }
+      .btn-clear     { background:#1e293b; border-color:#334155; color:#94a3b8; }
+      .btn-clear:active { background:#273549; }
+      .search-input  { background:#1e293b; border-color:#334155; color:#e2e8f0; }
+      .search-input:focus { border-color:#2563eb; }
+      .search-clear  { background:#334155; color:#94a3b8; }
       .type-btn      { background:#1e293b; border-color:#334155; }
       .type-btn:hover{ background:#273549; border-color:#60a5fa; }
       .type-btn-lbl  { color:#e2e8f0; }
@@ -253,6 +349,8 @@
       .result-banner.sep    .result-banner-title { color:#fcd34d; }
       .result-banner.nenhum .result-banner-title { color:#94a3b8; }
       .result-banner-detail { background: rgba(255,255,255,.08); }
+      .btn-save-unit { background:#1e293b; border-color:#1d4ed8; color:#60a5fa; }
+      .btn-refresh   { border-color:#334155; color:#64748b; }
       .skeleton      { background:linear-gradient(90deg,#1e293b 25%,#334155 50%,#1e293b 75%); background-size:200% 100%; }
       .footer-bar    { color:#475569; }
     }
@@ -295,46 +393,80 @@
       </div>
     </div>
 
-    <!-- PEDIDOS — seleção por tipo → unidade → resultado -->
-    <div class="card">
+    <!-- MINHA UNIDADE SALVA — aparece automaticamente se o usuário já salvou -->
+    <div class="saved-unit-card" id="savedCard">
+      <div class="saved-unit-label">⭐ Minha unidade</div>
+      <div class="saved-unit-name" id="savedUnitName">—</div>
+      <div class="saved-unit-actions">
+        <button class="btn-check" id="btnCheckSaved">
+          📦 Ver meu pedido
+        </button>
+        <button class="btn-clear" id="btnClearSaved">Trocar</button>
+      </div>
+    </div>
+
+    <!-- CARD DE BUSCA/SELEÇÃO -->
+    <div class="card" id="searchCard">
       <div class="card-head">
         <div class="card-ic" style="background:#eff6ff">📦</div>
         <span class="card-label">Verificar pedido da minha unidade</span>
       </div>
       <div class="card-body">
 
-        <!-- Passo 1: Tipo de unidade -->
+        <!-- Passo 1: Busca + grade de tipos -->
         <div id="step1">
-          <p class="step-hint">Qual o tipo da sua unidade?</p>
-          <div class="type-grid">
-            <button class="type-btn" data-type="cras">
-              <span class="type-btn-ic">🏘️</span>
-              <span class="type-btn-lbl">CRAS</span>
-            </button>
-            <button class="type-btn" data-type="creas">
-              <span class="type-btn-ic">👥</span>
-              <span class="type-btn-lbl">CREAS</span>
-            </button>
-            <button class="type-btn" data-type="pop">
-              <span class="type-btn-ic">🏠</span>
-              <span class="type-btn-lbl">Centro Pop</span>
-            </button>
-            <button class="type-btn" data-type="ct">
-              <span class="type-btn-ic">⚖️</span>
-              <span class="type-btn-lbl">Cons. Tutelar</span>
-            </button>
-            <button class="type-btn" data-type="abrigo">
-              <span class="type-btn-ic">🏡</span>
-              <span class="type-btn-lbl">Abrigos</span>
-            </button>
-            <button class="type-btn" data-type="sede">
-              <span class="type-btn-ic">🏛️</span>
-              <span class="type-btn-lbl">Sede / SEMCAS</span>
-            </button>
+          <div class="search-wrap">
+            <span class="search-icon">🔍</span>
+            <input
+              class="search-input"
+              id="searchInput"
+              type="search"
+              placeholder="Buscar minha unidade…"
+              autocomplete="off"
+              autocorrect="off"
+              spellcheck="false"
+            >
+            <button class="search-clear" id="searchClear" aria-label="Limpar busca">✕</button>
+          </div>
+
+          <!-- Resultados da busca (visível ao digitar) -->
+          <div id="searchResults" style="display:none">
+            <div class="unit-list" id="searchList"></div>
+          </div>
+
+          <!-- Grade de tipos (visível quando não está digitando) -->
+          <div id="typeSection">
+            <p class="step-hint" style="margin-top:4px">Ou escolha pelo tipo:</p>
+            <div class="type-grid">
+              <button class="type-btn" data-type="cras">
+                <span class="type-btn-ic">🏘️</span>
+                <span class="type-btn-lbl">CRAS</span>
+              </button>
+              <button class="type-btn" data-type="creas">
+                <span class="type-btn-ic">👥</span>
+                <span class="type-btn-lbl">CREAS</span>
+              </button>
+              <button class="type-btn" data-type="pop">
+                <span class="type-btn-ic">🏠</span>
+                <span class="type-btn-lbl">Centro Pop</span>
+              </button>
+              <button class="type-btn" data-type="ct">
+                <span class="type-btn-ic">⚖️</span>
+                <span class="type-btn-lbl">Cons. Tutelar</span>
+              </button>
+              <button class="type-btn" data-type="abrigo">
+                <span class="type-btn-ic">🏡</span>
+                <span class="type-btn-lbl">Abrigos</span>
+              </button>
+              <button class="type-btn" data-type="sede">
+                <span class="type-btn-ic">🏛️</span>
+                <span class="type-btn-lbl">Sede / SEMCAS</span>
+              </button>
+            </div>
           </div>
         </div>
 
-        <!-- Passo 2: Unidade específica -->
+        <!-- Passo 2: Lista filtrada por tipo -->
         <div id="step2" style="display:none">
           <button class="back-btn" id="backStep2">← Voltar</button>
           <p class="step-hint" id="step2Hint">Selecione sua unidade:</p>
@@ -352,7 +484,6 @@
             <div class="result-banner-ic">⏳</div>
             <div class="result-banner-title">Verificando…</div>
             <div class="result-banner-sub"></div>
-            <div class="result-banner-unit"></div>
           </div>
         </div>
 
@@ -368,18 +499,6 @@
   <script type="module" src="./runtime-config.js"></script>
 
   <script type="module">
-    /*
-     * STATUS PAGE — SEMCAS ALMOXARIFADO
-     * ─────────────────────────────────────────────────────────────────
-     * ECONOMIA MÁXIMA DE LEITURAS FIREBASE:
-     *
-     *  • Água/Gás: ~15 docs, cache 1h  → maioria das visitas = 0 leituras
-     *  • Unidades: ~50 docs, cache 24h → 1x por dia por dispositivo
-     *  • Materiais por unidade: ~3 docs → só ao selecionar uma unidade
-     *  • Sem auto-refresh, sem botão de forçar — só lê quando necessário
-     * ─────────────────────────────────────────────────────────────────
-     */
-
     import {
       initializeFirebaseServices, ensureCollectionsWithData,
       getPrimaryCollections, getLegacyCollections, auth
@@ -390,17 +509,19 @@
     import { getDocs, query, where, orderBy, limit } from 'firebase/firestore';
 
     // ── CONFIG ────────────────────────────────────────────────────────
-    const GAS_CUTOFF  = new Date('2026-04-30T00:00:00').getTime();
-    const TTL_STOCK   = 60 * 60 * 1000;       // estoque água/gás: 1 hora
-    const TTL_UNITS   = 24 * 60 * 60 * 1000;  // lista de unidades: 24 horas
-    const TTL_MAT     = 30 * 60 * 1000;       // materiais por unidade: 30 min
+    const GAS_CUTOFF = new Date('2026-04-30T00:00:00').getTime();
+    const TTL_STOCK  = 60 * 60 * 1000;
+    const TTL_UNITS  = 6  * 60 * 60 * 1000;   // reduzido de 24h → 6h
+    const TTL_MAT    = 30 * 60 * 1000;
+    const LS_SAVED   = 'semcas_saved_unit_v1'; // chave localStorage
 
     // ── STATE ─────────────────────────────────────────────────────────
-    let _collections  = null;
-    let _authReady    = false;
-    let _authPromise  = null;
+    let _collections   = null;
+    let _authReady     = false;
+    let _authPromise   = null;
     let countdownTimer = null;
-    let lastUpdated   = null;
+    let lastUpdated    = null;
+    let _allUnits      = [];   // cache em memória para busca instantânea
 
     // ── CACHE HELPERS ─────────────────────────────────────────────────
     function cacheGet(key, ttl) {
@@ -415,6 +536,29 @@
     function cacheSet(key, data) {
       try { localStorage.setItem(key, JSON.stringify({ ts: Date.now(), data })); } catch (_) {}
     }
+    function cacheDel(key) {
+      try { localStorage.removeItem(key); } catch (_) {}
+    }
+
+    // ── "MINHA UNIDADE" SALVA ─────────────────────────────────────────
+    function getSaved()       { try { return localStorage.getItem(LS_SAVED) || null; } catch(_){ return null; } }
+    function setSaved(nome)   { try { localStorage.setItem(LS_SAVED, nome); } catch(_){} }
+    function clearSaved()     { try { localStorage.removeItem(LS_SAVED); } catch(_){} }
+
+    function renderSavedCard() {
+      const nome       = getSaved();
+      const card       = document.getElementById('savedCard');
+      const nameEl     = document.getElementById('savedUnitName');
+      const searchCard = document.getElementById('searchCard');
+      if (nome) {
+        nameEl.textContent = nome;
+        card.classList.add('show');
+        searchCard.style.display = 'none'; // esconde busca quando há unidade salva
+      } else {
+        card.classList.remove('show');
+        searchCard.style.display = '';
+      }
+    }
 
     // ── HELPERS ───────────────────────────────────────────────────────
     function esc(s) {
@@ -422,30 +566,33 @@
       d.textContent = String(s ?? '');
       return d.innerHTML;
     }
-
-    // Converte um Timestamp do Firestore (ou string/número) para Date.
-    // Retorna null se não conseguir converter.
+    function rmAcc(s) {
+      return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    }
     function tsToDate(ts) {
       if (!ts) return null;
       if (typeof ts.toDate === 'function') return ts.toDate();
       if (ts.seconds) return new Date(ts.seconds * 1000);
-      if (typeof ts === 'string' || typeof ts === 'number') {
-        const d = new Date(ts);
-        return isNaN(d) ? null : d;
-      }
-      return null;
+      const d = new Date(ts);
+      return isNaN(d) ? null : d;
     }
-
-    // Formata um Date como "dd/mm/aaaa às hh:mm"
     function fmtDateTime(dt) {
       if (!dt) return null;
-      const dia  = String(dt.getDate()).padStart(2, '0');
-      const mes  = String(dt.getMonth() + 1).padStart(2, '0');
-      const ano  = dt.getFullYear();
-      const hora = dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-      return `${dia}/${mes}/${ano} às ${hora}`;
+      const pad = n => String(n).padStart(2, '0');
+      return `${pad(dt.getDate())}/${pad(dt.getMonth()+1)}/${dt.getFullYear()} às ${dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}`;
     }
-
+    // "há X min / horas / dias"
+    function timeAgo(dt) {
+      if (!dt) return null;
+      const s = Math.floor((Date.now() - dt.getTime()) / 1000);
+      if (s < 60)    return 'há menos de 1 min';
+      if (s < 3600)  return `há ${Math.floor(s/60)} min`;
+      if (s < 86400) {
+        const h = Math.floor(s/3600), m = Math.floor((s%3600)/60);
+        return m > 0 ? `há ${h}h${m}min` : `há ${h}h`;
+      }
+      return `há ${Math.floor(s/86400)} dia(s)`;
+    }
     function isHistoricoImportado(d) {
       if (!d) return false;
       if (d.origem === 'importador_sql') return true;
@@ -454,9 +601,6 @@
           || typeof d.referenciaSemana === 'number') return true;
       return false;
     }
-
-    // Classifica unidade usando o campo `tipo` do Firestore (fonte de verdade).
-    // Fallback por nome apenas para unidades sem tipo definido (legado).
     function classifyUnit(nome, tipo) {
       const t = (tipo || '').toUpperCase().trim();
       if (t === 'CRAS')        return 'cras';
@@ -467,16 +611,16 @@
       if (t === 'ABRIGO')      return 'abrigo';
       if (t === 'SEDE')        return 'sede';
       const u = (nome || '').toUpperCase();
-      if (/\bCREAS\b/.test(u))             return 'creas';
-      if (/\bCRAS\b/.test(u))              return 'cras';
-      if (/CENTRO\s*POP/.test(u))          return 'pop';
-      if (/\bCT\b/.test(u))               return 'ct';
-      if (/\bILPI\b|CAT\b/.test(u))        return 'abrigo';
+      if (/\bCREAS\b/.test(u))              return 'creas';
+      if (/\bCRAS\b/.test(u))               return 'cras';
+      if (/CENTRO\s*POP/.test(u))           return 'pop';
+      if (/\bCT\b/.test(u))                 return 'ct';
+      if (/\bILPI\b|CAT\b/.test(u))         return 'abrigo';
       if (/SEMCAS|SEDE|PROCAD|ASTEC/.test(u)) return 'sede';
       return 'outros';
     }
 
-    // ── AGUARDA AUTH ──────────────────────────────────────────────────
+    // ── AUTH ──────────────────────────────────────────────────────────
     function waitForAuth() {
       if (_authPromise) return _authPromise;
       _authPromise = new Promise(resolve => {
@@ -488,8 +632,6 @@
       });
       return _authPromise;
     }
-
-    // ── COLEÇÕES ──────────────────────────────────────────────────────
     async function getCollections() {
       if (_collections) return _collections;
       await waitForAuth();
@@ -498,47 +640,36 @@
       return _collections;
     }
 
-    // ── FETCH: ESTOQUE ÁGUA E GÁS ─────────────────────────────────────
+    // ── FETCH: ESTOQUE ────────────────────────────────────────────────
     async function fetchStock() {
       const cached = cacheGet('semcas_stock_v2', TTL_STOCK);
       if (cached?.data) { renderStock(cached.data); lastUpdated = new Date(cached.ts); startCountdown(); return; }
-
       await waitForAuth();
       const C = await getCollections();
-
-      const [estAguaSnap, estGasSnap] = await Promise.all([
-        getDocs(C.estoqueAgua),
-        getDocs(C.estoqueGas)
-      ]);
-
+      const [estAguaSnap, estGasSnap] = await Promise.all([getDocs(C.estoqueAgua), getDocs(C.estoqueGas)]);
       const estAgua = estAguaSnap.docs.map(d => d.data());
       const estGas  = estGasSnap.docs.map(d => d.data());
-
       const resumoAgua = estAgua.find(e => e.tipo === '__resumo__');
       let aguaSaidas;
       if (resumoAgua) {
         aguaSaidas = resumoAgua.totalSaidas || 0;
       } else {
         const movAguaSnap = await getDocs(query(C.aguaMov, where('tipo', '==', 'entrega')));
-        aguaSaidas = movAguaSnap.docs
-          .map(d => d.data())
-          .filter(m => !isHistoricoImportado(m))
+        aguaSaidas = movAguaSnap.docs.map(d => d.data()).filter(m => !isHistoricoImportado(m))
           .reduce((s, m) => s + (parseInt(m.quantidade, 10) || 0), 0);
       }
-      const aguaInicial  = estAgua.filter(e => e.tipo==='inicial').reduce((s,e)=>s+(parseInt(e.quantidade,10)||0),0);
-      const aguaEntradas = estAgua.filter(e => e.tipo==='entrada').reduce((s,e)=>s+(parseInt(e.quantidade,10)||0),0);
+      const aguaInicial  = estAgua.filter(e=>e.tipo==='inicial').reduce((s,e)=>s+(parseInt(e.quantidade,10)||0),0);
+      const aguaEntradas = estAgua.filter(e=>e.tipo==='entrada').reduce((s,e)=>s+(parseInt(e.quantidade,10)||0),0);
       const agua = Math.max(0, aguaInicial + aguaEntradas - aguaSaidas);
-
-      const movGasSnap = await getDocs(query(C.gasMov, orderBy('registradoEm', 'desc'), limit(90)));
-      const movGas = movGasSnap.docs.map(d => d.data()).filter(m => !isHistoricoImportado(m));
-      const tsOf    = it => it.data?.toMillis?.() ?? (it.data?.seconds ? it.data.seconds*1000 : 0);
-      const estGasC = estGas.filter(e => tsOf(e) >= GAS_CUTOFF);
-      const movGasC = movGas.filter(m => tsOf(m) >= GAS_CUTOFF);
-      const gasInicial  = estGasC.filter(e => e.tipo==='inicial').reduce((s,e)=>s+(parseInt(e.quantidade,10)||0),0);
-      const gasEntradas = estGasC.filter(e => e.tipo==='entrada').reduce((s,e)=>s+(parseInt(e.quantidade,10)||0),0);
+      const movGasSnap = await getDocs(query(C.gasMov, orderBy('registradoEm','desc'), limit(90)));
+      const movGas = movGasSnap.docs.map(d=>d.data()).filter(m=>!isHistoricoImportado(m));
+      const tsOf = it => it.data?.toMillis?.() ?? (it.data?.seconds ? it.data.seconds*1000 : 0);
+      const estGasC = estGas.filter(e=>tsOf(e)>=GAS_CUTOFF);
+      const movGasC = movGas.filter(m=>tsOf(m)>=GAS_CUTOFF);
+      const gasInicial  = estGasC.filter(e=>e.tipo==='inicial').reduce((s,e)=>s+(parseInt(e.quantidade,10)||0),0);
+      const gasEntradas = estGasC.filter(e=>e.tipo==='entrada').reduce((s,e)=>s+(parseInt(e.quantidade,10)||0),0);
       const gasSaidas   = movGasC.reduce((s,m)=>s+(parseInt(m.quantidade,10)||0),0);
       const gas = Math.max(0, gasInicial + gasEntradas - gasSaidas);
-
       const data = { agua, gas };
       cacheSet('semcas_stock_v2', data);
       renderStock(data);
@@ -546,57 +677,41 @@
       startCountdown();
     }
 
-    // ── FETCH: LISTA DE UNIDADES ──────────────────────────────────────
+    // ── FETCH: UNIDADES ───────────────────────────────────────────────
     async function fetchUnits() {
       const cached = cacheGet('semcas_units_v4', TTL_UNITS);
-      if (cached?.data) return cached.data;
-
+      if (cached?.data) { _allUnits = cached.data; return cached.data; }
       const C = await getCollections();
       const snap = await getDocs(C.unidades);
-
       const seen = new Set();
       const units = snap.docs
-        .map(d => {
-          const data = d.data();
-          return {
-            nome:            data.nome || d.id,
-            id:              d.id,
-            tipo:            data.tipo || '',
-            atendeMateriais: data.atendeMateriais ?? true,
-          };
-        })
+        .map(d => { const dt = d.data(); return { nome: dt.nome||d.id, id: d.id, tipo: dt.tipo||'', atendeMateriais: dt.atendeMateriais??true }; })
         .filter(u => {
-          if (!u.nome) return false;
-          if (!u.atendeMateriais) return false;
+          if (!u.nome || !u.atendeMateriais) return false;
           const key = u.nome.toLowerCase().trim();
           if (seen.has(key)) return false;
-          seen.add(key);
-          return true;
+          seen.add(key); return true;
         })
         .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
-
       cacheSet('semcas_units_v4', units);
+      _allUnits = units;
       return units;
     }
 
-    // ── FETCH: MATERIAIS DE UMA UNIDADE ───────────────────────────────
-    async function fetchMaterialsForUnit(unitNome) {
+    // ── FETCH: MATERIAIS ──────────────────────────────────────────────
+    async function fetchMaterialsForUnit(unitNome, forceRefresh = false) {
       const key = 'semcas_mat_v2_' + unitNome;
+      if (forceRefresh) cacheDel(key);
       const cached = cacheGet(key, TTL_MAT);
       if (cached) return cached.data;
-
       const C = await getCollections();
-      const snap = await getDocs(
-        query(C.materiais, where('unidadeNome', '==', unitNome))
-      );
-
+      const snap = await getDocs(query(C.materiais, where('unidadeNome', '==', unitNome)));
       const materiais = snap.docs
         .map(d => ({ id: d.id, ...d.data() }))
         .filter(m => !m.deleted
-          && (m._version === 2 || m.origemFluxo === 'v2' || (m.itemsMap && typeof m.itemsMap === 'object'))
+          && (m._version===2 || m.origemFluxo==='v2' || (m.itemsMap && typeof m.itemsMap==='object'))
           && ['separacao','retirada','separando','pronto'].includes(String(m.status||'').toLowerCase())
         );
-
       cacheSet(key, materiais);
       return materiais;
     }
@@ -606,172 +721,169 @@
       renderMiniStock('waterNum', 'waterChip', agua, 10);
       renderMiniStock('gasNum',   'gasChip',   gas,  3);
     }
-
     function renderMiniStock(numId, chipId, count, low) {
-      const num  = document.getElementById(numId);
-      const chip = document.getElementById(chipId);
+      const num = document.getElementById(numId), chip = document.getElementById(chipId);
       if (!num || !chip) return;
       num.textContent = count;
-      num.classList.remove('low', 'zero');
-      chip.classList.remove('ok', 'low', 'zero');
+      num.classList.remove('low','zero'); chip.classList.remove('ok','low','zero');
       if (count <= 0) {
-        num.classList.add('zero'); chip.className = 'stock-mini-chip zero';
-        chip.textContent = 'Sem estoque'; chip.style.display = 'inline-block';
+        num.classList.add('zero'); chip.className='stock-mini-chip zero';
+        chip.textContent='Sem estoque'; chip.style.display='inline-block';
       } else if (count <= low) {
-        num.classList.add('low'); chip.className = 'stock-mini-chip low';
-        chip.textContent = 'Estoque baixo'; chip.style.display = 'inline-block';
+        num.classList.add('low'); chip.className='stock-mini-chip low';
+        chip.textContent='Estoque baixo'; chip.style.display='inline-block';
       } else {
-        chip.className = 'stock-mini-chip ok';
-        chip.textContent = 'Disponível'; chip.style.display = 'inline-block';
+        chip.className='stock-mini-chip ok';
+        chip.textContent='Disponível'; chip.style.display='inline-block';
       }
     }
 
-    // ── NAVEGAÇÃO ENTRE PASSOS ────────────────────────────────────────
+    // ── NAVEGAÇÃO ─────────────────────────────────────────────────────
     function showStep(n) {
       [1,2,3].forEach(i => {
-        document.getElementById('step'+i).style.display = (i===n) ? '' : 'none';
+        document.getElementById('step'+i).style.display = (i===n)?'':'none';
       });
     }
 
-    // ── PASSO 1 → 2: Selecionou tipo ─────────────────────────────────
-    async function onTypeSelected(type) {
-      const labels = {
-        cras: 'CRAS', creas: 'CREAS', pop: 'Centro Pop',
-        ct: 'Conselho Tutelar', abrigo: 'Abrigos', sede: 'Sede / SEMCAS'
-      };
-      document.getElementById('step2Hint').textContent = `Selecione sua unidade — ${labels[type] || type}:`;
-      document.getElementById('unitList').innerHTML =
-        '<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>';
-      showStep(2);
-
-      let units;
-      try {
-        units = await fetchUnits();
-      } catch (e) {
-        document.getElementById('unitList').innerHTML =
-          '<p style="color:var(--red);font-size:13px;font-weight:600;text-align:center">Não foi possível carregar as unidades. Tente novamente.</p>';
+    // ── BUSCA DIRETA ──────────────────────────────────────────────────
+    function renderSearchResults(term) {
+      const results     = document.getElementById('searchResults');
+      const list        = document.getElementById('searchList');
+      const typeSection = document.getElementById('typeSection');
+      const clearBtn    = document.getElementById('searchClear');
+      if (!term) {
+        results.style.display = 'none';
+        typeSection.style.display = '';
+        clearBtn.classList.remove('show');
         return;
       }
-
-      const filtered = units.filter(u => classifyUnit(u.nome, u.tipo) === type);
-
+      clearBtn.classList.add('show');
+      typeSection.style.display = 'none';
+      results.style.display = '';
+      const q = rmAcc(term);
+      const filtered = _allUnits.filter(u => rmAcc(u.nome).includes(q));
       if (!filtered.length) {
-        document.getElementById('unitList').innerHTML =
-          '<p style="color:var(--gray-400);font-size:13px;font-weight:600;text-align:center;padding:12px 0">Nenhuma unidade encontrada para este tipo.</p>';
+        list.innerHTML = `<div class="no-results">Nenhuma unidade encontrada para "<strong>${esc(term)}</strong>"</div>`;
         return;
       }
-
-      document.getElementById('unitList').innerHTML = filtered.map(u => `
+      list.innerHTML = filtered.slice(0, 12).map(u => `
         <button class="unit-item" data-nome="${esc(u.nome)}">
           <span>${esc(u.nome)}</span>
           <span class="unit-item-arrow">›</span>
         </button>
       `).join('');
+      list.querySelectorAll('.unit-item').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.getElementById('searchInput').value = '';
+          renderSearchResults('');
+          onUnitSelected(btn.dataset.nome);
+        });
+      });
+    }
 
+    // ── PASSO 1 → 2: por tipo ─────────────────────────────────────────
+    async function onTypeSelected(type) {
+      const labels = { cras:'CRAS', creas:'CREAS', pop:'Centro Pop', ct:'Conselho Tutelar', abrigo:'Abrigos', sede:'Sede / SEMCAS' };
+      document.getElementById('step2Hint').textContent = `Selecione sua unidade — ${labels[type]||type}:`;
+      document.getElementById('unitList').innerHTML = '<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>';
+      showStep(2);
+      let units;
+      try { units = await fetchUnits(); }
+      catch (e) {
+        document.getElementById('unitList').innerHTML = '<p style="color:var(--red);font-size:13px;font-weight:600;text-align:center">Não foi possível carregar as unidades. Tente novamente.</p>';
+        return;
+      }
+      const filtered = units.filter(u => classifyUnit(u.nome, u.tipo) === type);
+      if (!filtered.length) {
+        document.getElementById('unitList').innerHTML = '<p style="color:var(--gray-400);font-size:13px;font-weight:600;text-align:center;padding:12px 0">Nenhuma unidade encontrada para este tipo.</p>';
+        return;
+      }
+      document.getElementById('unitList').innerHTML = filtered.map(u => `
+        <button class="unit-item" data-nome="${esc(u.nome)}">
+          <span>${esc(u.nome)}</span><span class="unit-item-arrow">›</span>
+        </button>
+      `).join('');
       document.getElementById('unitList').querySelectorAll('.unit-item').forEach(btn => {
         btn.addEventListener('click', () => onUnitSelected(btn.dataset.nome));
       });
     }
 
-    // ── PASSO 2 → 3: Selecionou unidade ──────────────────────────────
-    async function onUnitSelected(unitNome) {
+    // ── PASSO → 3: RESULTADO ──────────────────────────────────────────
+    async function onUnitSelected(unitNome, forceRefresh = false) {
       showStep(3);
       const banner = document.getElementById('resultBanner');
       banner.className = 'result-banner nenhum';
-      banner.innerHTML = `
-        <div class="result-banner-ic">⏳</div>
-        <div class="result-banner-title">Verificando…</div>
-        <div class="result-banner-sub"></div>
-        <div class="result-banner-unit"></div>
-      `;
+      banner.innerHTML = `<div class="result-banner-ic">⏳</div><div class="result-banner-title">Verificando…</div><div class="result-banner-sub"></div>`;
 
       let materiais;
-      try {
-        materiais = await fetchMaterialsForUnit(unitNome);
-      } catch (e) {
-        banner.innerHTML = `
-          <div class="result-banner-ic">⚠️</div>
-          <div class="result-banner-title">Erro ao verificar</div>
-          <div class="result-banner-sub">Tente novamente em instantes.</div>
-          <div class="result-banner-unit"></div>
-        `;
+      try { materiais = await fetchMaterialsForUnit(unitNome, forceRefresh); }
+      catch (e) {
+        banner.innerHTML = `<div class="result-banner-ic">⚠️</div><div class="result-banner-title">Erro ao verificar</div><div class="result-banner-sub">Tente novamente em instantes.</div>`;
         return;
       }
 
       const normalize = s => {
-        const st = String(s ?? '').toLowerCase();
-        if (st === 'retirada' || st === 'pronto')      return 'pronto';
-        if (st === 'separacao' || st === 'separando')  return 'separando';
+        const st = String(s??'').toLowerCase();
+        if (st==='retirada'||st==='pronto')    return 'pronto';
+        if (st==='separacao'||st==='separando') return 'separando';
         return st;
       };
+      const prontos   = materiais.filter(m => normalize(m.status)==='pronto');
+      const separando = materiais.filter(m => normalize(m.status)==='separando');
 
-      const prontos   = materiais.filter(m => normalize(m.status) === 'pronto');
-      const separando = materiais.filter(m => normalize(m.status) === 'separando');
+      const jaSalva = getSaved() === unitNome;
+      const saveBtnHtml = jaSalva ? '' : `<button class="btn-save-unit" id="btnSaveUnit">⭐ Salvar como minha unidade</button>`;
+      const refreshHtml = `<button class="btn-refresh" id="btnRefresh">🔄 Atualizar resultado</button>`;
 
       if (prontos.length > 0) {
-        // ── PRONTO PARA RETIRADA ──────────────────────────────────────
         const item = prontos[0];
         const sep  = item.responsavelSeparador || item.separador || null;
-
-        // Tenta mostrar data/hora em que ficou pronto
-        const dtProntoRaw = item.dtPronto || item.dataEntrega || item.registradoEm || null;
-        const dtPronto    = fmtDateTime(tsToDate(dtProntoRaw));
-
+        const dtPronto = tsToDate(item.dtPronto || item.dataEntrega || item.registradoEm || null);
         banner.className = 'result-banner pronto';
         banner.innerHTML = `
           <div class="result-banner-ic">✅</div>
           <div class="result-banner-title">PRONTO PARA RETIRADA</div>
-          <div class="result-banner-sub">
-            ${prontos.length === 1
-              ? 'Seu pedido está pronto — pode retirar no almoxarifado.'
-              : prontos.length + ' pedidos prontos para retirada.'}
-          </div>
-          ${sep
-            ? `<div class="result-banner-detail">✂️ Separado por <strong>${esc(sep)}</strong></div>`
-            : ''}
-          ${dtPronto
-            ? `<div class="result-banner-detail">🕐 Pronto desde: ${esc(dtPronto)}</div>`
-            : ''}
-          <div class="result-banner-unit" style="margin-top:8px">📍 ${esc(unitNome)}</div>
+          <div class="result-banner-sub">${prontos.length===1 ? 'Seu pedido está pronto — pode retirar no almoxarifado.' : prontos.length+' pedidos prontos para retirada.'}</div>
+          ${sep       ? `<div class="result-banner-detail">✂️ Separado por <strong>${esc(sep)}</strong></div>` : ''}
+          ${dtPronto  ? `<div class="result-banner-detail">🕐 Pronto ${esc(timeAgo(dtPronto))} · ${esc(fmtDateTime(dtPronto))}</div>` : ''}
+          <div class="result-banner-unit" style="margin-top:6px">📍 ${esc(unitNome)}</div>
+          ${saveBtnHtml}${refreshHtml}
         `;
-
       } else if (separando.length > 0) {
-        // ── EM SEPARAÇÃO ──────────────────────────────────────────────
         const item      = separando[0];
         const separador = item.responsavelSeparador || item.separador || null;
-
-        // Data/hora em que a separação foi iniciada
-        const dtInicioRaw = item.registradoEm || item.dataRequisicao || null;
-        const dtInicio    = fmtDateTime(tsToDate(dtInicioRaw));
-
+        const dtInicio  = tsToDate(item.registradoEm || item.dataRequisicao || null);
         banner.className = 'result-banner sep';
         banner.innerHTML = `
           <div class="result-banner-ic">⏳</div>
           <div class="result-banner-title">EM PREPARAÇÃO</div>
-          <div class="result-banner-sub">
-            ${separando.length === 1
-              ? 'Seu pedido está sendo separado agora.'
-              : separando.length + ' pedido(s) em separação.'}
-          </div>
-          ${separador
-            ? `<div class="result-banner-detail">✂️ Separando: <strong>${esc(separador)}</strong></div>`
-            : ''}
-          ${dtInicio
-            ? `<div class="result-banner-detail">🕐 Início: ${esc(dtInicio)}</div>`
-            : ''}
-          <div class="result-banner-unit" style="margin-top:8px">📍 ${esc(unitNome)}</div>
+          <div class="result-banner-sub">${separando.length===1 ? 'Seu pedido está sendo separado agora.' : separando.length+' pedido(s) em separação.'}</div>
+          ${separador ? `<div class="result-banner-detail">✂️ Separando: <strong>${esc(separador)}</strong></div>` : ''}
+          ${dtInicio  ? `<div class="result-banner-detail">🕐 Início ${esc(timeAgo(dtInicio))} · ${esc(fmtDateTime(dtInicio))}</div>` : ''}
+          <div class="result-banner-unit" style="margin-top:6px">📍 ${esc(unitNome)}</div>
+          ${saveBtnHtml}${refreshHtml}
         `;
-
       } else {
-        // ── SEM PEDIDO ATIVO ──────────────────────────────────────────
         banner.className = 'result-banner nenhum';
         banner.innerHTML = `
           <div class="result-banner-ic">📭</div>
           <div class="result-banner-title">Nenhum pedido ativo</div>
           <div class="result-banner-sub">Não há pedidos em separação ou aguardando retirada para esta unidade no momento.</div>
           <div class="result-banner-unit">📍 ${esc(unitNome)}</div>
+          ${saveBtnHtml}${refreshHtml}
         `;
       }
+
+      // Eventos dos botões do banner
+      document.getElementById('btnSaveUnit')?.addEventListener('click', () => {
+        setSaved(unitNome);
+        renderSavedCard();
+        const btn = document.getElementById('btnSaveUnit');
+        if (btn) { btn.innerHTML = '✅ Unidade salva!'; btn.disabled = true; btn.style.opacity = '.7'; }
+      });
+      document.getElementById('btnRefresh')?.addEventListener('click', () => {
+        onUnitSelected(unitNome, true);
+      });
     }
 
     // ── COUNTDOWN ─────────────────────────────────────────────────────
@@ -780,8 +892,8 @@
       const el = document.getElementById('countdownEl');
       const tick = () => {
         if (!lastUpdated) { el.textContent = 'Carregando…'; return; }
-        const hhmm    = lastUpdated.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-        const diffMin = Math.floor((Date.now() - lastUpdated.getTime()) / 60000);
+        const hhmm    = lastUpdated.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+        const diffMin = Math.floor((Date.now()-lastUpdated.getTime())/60000);
         if (diffMin < 1)       el.textContent = `Estoque atualizado agora · ${hhmm}`;
         else if (diffMin < 60) el.textContent = `Estoque atualizado há ${diffMin} min · ${hhmm}`;
         else                   el.textContent = `Estoque de ${hhmm} — reabra para atualizar`;
@@ -806,25 +918,63 @@
         catch (_) { try { await setPersistence(auth, browserLocalPersistence); } catch (_) {} }
 
         onAuthStateChanged(auth, async user => {
-          if (user) {
-            _authReady = true;
-          } else {
-            try { await signInAnonymously(auth); }
-            catch (e) { console.error('[Status] signIn:', e); }
-          }
+          if (user) { _authReady = true; }
+          else { try { await signInAnonymously(auth); } catch (e) { console.error('[Status] signIn:', e); } }
         });
 
+        // Pré-carrega unidades em background (busca instantânea)
+        fetchUnits().catch(() => {});
+
+        // Estoque
         fetchStock().catch(err => {
           console.error('[Status] fetchStock:', err);
           showNotice('Não foi possível carregar o estoque. Verifique sua internet.', true);
         });
 
+        // ── Unidade salva ─────────────────────────────────────────────
+        renderSavedCard();
+
+        document.getElementById('btnCheckSaved').addEventListener('click', () => {
+          const nome = getSaved();
+          if (nome) {
+            document.getElementById('searchCard').style.display = '';
+            onUnitSelected(nome);
+          }
+        });
+
+        document.getElementById('btnClearSaved').addEventListener('click', () => {
+          clearSaved();
+          renderSavedCard();
+          showStep(1);
+        });
+
+        // ── Busca direta ──────────────────────────────────────────────
+        const searchInput = document.getElementById('searchInput');
+        let searchTimer;
+        searchInput.addEventListener('input', () => {
+          clearTimeout(searchTimer);
+          searchTimer = setTimeout(() => renderSearchResults(searchInput.value.trim()), 160);
+        });
+        document.getElementById('searchClear').addEventListener('click', () => {
+          searchInput.value = '';
+          renderSearchResults('');
+          searchInput.focus();
+        });
+
+        // ── Grade de tipos ────────────────────────────────────────────
         document.querySelectorAll('.type-btn').forEach(btn => {
           btn.addEventListener('click', () => onTypeSelected(btn.dataset.type));
         });
 
+        // ── Voltar ────────────────────────────────────────────────────
         document.getElementById('backStep2').addEventListener('click', () => showStep(1));
-        document.getElementById('backStep3').addEventListener('click', () => showStep(2));
+        document.getElementById('backStep3').addEventListener('click', () => {
+          if (getSaved()) {
+            document.getElementById('searchCard').style.display = 'none';
+            renderSavedCard();
+          }
+          showStep(1);
+        });
 
       } catch (err) {
         console.error('[Status] init:', err);
