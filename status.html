@@ -198,6 +198,11 @@
     .result-banner.nenhum .result-banner-title { color: var(--gray-500); }
     .result-banner-sub   { font-size: 14px; font-weight: 600; opacity: .85; }
     .result-banner-unit  { font-size: 12px; font-weight: 700; opacity: .6; margin-top: 4px; }
+    .result-banner-detail {
+      font-size: 12px; font-weight: 600; opacity: .85;
+      background: rgba(0,0,0,.06); border-radius: 8px;
+      padding: 6px 12px; margin-top: 4px; width: 100%;
+    }
 
     /* ── LOADING ── */
     .skeleton {
@@ -247,6 +252,7 @@
       .result-banner.pronto .result-banner-title { color:#86efac; }
       .result-banner.sep    .result-banner-title { color:#fcd34d; }
       .result-banner.nenhum .result-banner-title { color:#94a3b8; }
+      .result-banner-detail { background: rgba(255,255,255,.08); }
       .skeleton      { background:linear-gradient(90deg,#1e293b 25%,#334155 50%,#1e293b 75%); background-size:200% 100%; }
       .footer-bar    { color:#475569; }
     }
@@ -417,6 +423,29 @@
       return d.innerHTML;
     }
 
+    // Converte um Timestamp do Firestore (ou string/número) para Date.
+    // Retorna null se não conseguir converter.
+    function tsToDate(ts) {
+      if (!ts) return null;
+      if (typeof ts.toDate === 'function') return ts.toDate();
+      if (ts.seconds) return new Date(ts.seconds * 1000);
+      if (typeof ts === 'string' || typeof ts === 'number') {
+        const d = new Date(ts);
+        return isNaN(d) ? null : d;
+      }
+      return null;
+    }
+
+    // Formata um Date como "dd/mm/aaaa às hh:mm"
+    function fmtDateTime(dt) {
+      if (!dt) return null;
+      const dia  = String(dt.getDate()).padStart(2, '0');
+      const mes  = String(dt.getMonth() + 1).padStart(2, '0');
+      const ano  = dt.getFullYear();
+      const hora = dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      return `${dia}/${mes}/${ano} às ${hora}`;
+    }
+
     function isHistoricoImportado(d) {
       if (!d) return false;
       if (d.origem === 'importador_sql') return true;
@@ -429,22 +458,20 @@
     // Classifica unidade usando o campo `tipo` do Firestore (fonte de verdade).
     // Fallback por nome apenas para unidades sem tipo definido (legado).
     function classifyUnit(nome, tipo) {
-      // ── Mapeamento direto pelo campo tipo (Firestore) ──────────────────
       const t = (tipo || '').toUpperCase().trim();
-      if (t === 'CRAS')                   return 'cras';
-      if (t === 'CREAS')                  return 'creas';
-      if (t === 'CT')        return 'ct';
-      if (t === 'CONSELHO') return 'sede'; // Cmas, Cmdi → Sede
-      if (t === 'CENTRO POP')             return 'pop';
-      if (t === 'ABRIGO')                 return 'abrigo';
-      if (t === 'SEDE')                   return 'sede';
-      // ── Fallback por nome (unidades sem tipo ou tipo não mapeado) ──────
+      if (t === 'CRAS')        return 'cras';
+      if (t === 'CREAS')       return 'creas';
+      if (t === 'CT')          return 'ct';
+      if (t === 'CONSELHO')    return 'sede';
+      if (t === 'CENTRO POP')  return 'pop';
+      if (t === 'ABRIGO')      return 'abrigo';
+      if (t === 'SEDE')        return 'sede';
       const u = (nome || '').toUpperCase();
-      if (/\bCREAS\b/.test(u))            return 'creas';
-      if (/\bCRAS\b/.test(u))             return 'cras';
-      if (/CENTRO\s*POP/.test(u))         return 'pop';
+      if (/\bCREAS\b/.test(u))             return 'creas';
+      if (/\bCRAS\b/.test(u))              return 'cras';
+      if (/CENTRO\s*POP/.test(u))          return 'pop';
       if (/\bCT\b/.test(u))               return 'ct';
-      if (/\bILPI\b|CAT\b/.test(u))       return 'abrigo';
+      if (/\bILPI\b|CAT\b/.test(u))        return 'abrigo';
       if (/SEMCAS|SEDE|PROCAD|ASTEC/.test(u)) return 'sede';
       return 'outros';
     }
@@ -457,7 +484,7 @@
         const unsub = onAuthStateChanged(auth, user => {
           if (user) { _authReady = true; unsub(); resolve(); }
         });
-        setTimeout(resolve, 8000); // fallback
+        setTimeout(resolve, 8000);
       });
       return _authPromise;
     }
@@ -472,8 +499,6 @@
     }
 
     // ── FETCH: ESTOQUE ÁGUA E GÁS ─────────────────────────────────────
-    // Otimização: se __resumo__ existir em estoqueAgua, não lemos controleAgua
-    // (economia de ~400-600 leituras em cada visita fria).
     async function fetchStock() {
       const cached = cacheGet('semcas_stock_v2', TTL_STOCK);
       if (cached?.data) { renderStock(cached.data); lastUpdated = new Date(cached.ts); startCountdown(); return; }
@@ -481,7 +506,6 @@
       await waitForAuth();
       const C = await getCollections();
 
-      // Lê estoqueAgua e estoqueGas sempre (pequenos, ~20 docs cada)
       const [estAguaSnap, estGasSnap] = await Promise.all([
         getDocs(C.estoqueAgua),
         getDocs(C.estoqueGas)
@@ -490,14 +514,11 @@
       const estAgua = estAguaSnap.docs.map(d => d.data());
       const estGas  = estGasSnap.docs.map(d => d.data());
 
-      // ── ÁGUA: usa __resumo__ se disponível, senão fallback para leitura de movimentos ──
       const resumoAgua = estAgua.find(e => e.tipo === '__resumo__');
       let aguaSaidas;
       if (resumoAgua) {
-        // __resumo__ existe → 0 leituras extras de controleAgua 🎉
         aguaSaidas = resumoAgua.totalSaidas || 0;
       } else {
-        // Fallback: __resumo__ ainda não foi criado (antes da migração rodar no app principal)
         const movAguaSnap = await getDocs(query(C.aguaMov, where('tipo', '==', 'entrega')));
         aguaSaidas = movAguaSnap.docs
           .map(d => d.data())
@@ -508,8 +529,6 @@
       const aguaEntradas = estAgua.filter(e => e.tipo==='entrada').reduce((s,e)=>s+(parseInt(e.quantidade,10)||0),0);
       const agua = Math.max(0, aguaInicial + aguaEntradas - aguaSaidas);
 
-      // ── GÁS: limit(90) = últimos ~3 meses, alinhado com GAS_CUTOFF de 90 dias ──
-      // Evita ler histórico inteiro (~350 docs hoje, crescente) — sem necessidade de índice composto.
       const movGasSnap = await getDocs(query(C.gasMov, orderBy('registradoEm', 'desc'), limit(90)));
       const movGas = movGasSnap.docs.map(d => d.data()).filter(m => !isHistoricoImportado(m));
       const tsOf    = it => it.data?.toMillis?.() ?? (it.data?.seconds ? it.data.seconds*1000 : 0);
@@ -528,7 +547,6 @@
     }
 
     // ── FETCH: LISTA DE UNIDADES ──────────────────────────────────────
-    // v4: inclui tipo + flags de serviço; filtra não-materiais e duplicatas
     async function fetchUnits() {
       const cached = cacheGet('semcas_units_v4', TTL_UNITS);
       if (cached?.data) return cached.data;
@@ -541,17 +559,15 @@
         .map(d => {
           const data = d.data();
           return {
-            nome:             data.nome || d.id,
-            id:               d.id,
-            tipo:             data.tipo || '',
-            atendeMateriais:  data.atendeMateriais ?? true,
+            nome:            data.nome || d.id,
+            id:              d.id,
+            tipo:            data.tipo || '',
+            atendeMateriais: data.atendeMateriais ?? true,
           };
         })
         .filter(u => {
           if (!u.nome) return false;
-          // Exclui unidades que não recebem materiais
           if (!u.atendeMateriais) return false;
-          // Deduplica por nome (case-insensitive, sem espaços extras)
           const key = u.nome.toLowerCase().trim();
           if (seen.has(key)) return false;
           seen.add(key);
@@ -693,24 +709,61 @@
       const separando = materiais.filter(m => normalize(m.status) === 'separando');
 
       if (prontos.length > 0) {
-        const sep = prontos[0].responsavelSeparador || prontos[0].separador;
+        // ── PRONTO PARA RETIRADA ──────────────────────────────────────
+        const item = prontos[0];
+        const sep  = item.responsavelSeparador || item.separador || null;
+
+        // Tenta mostrar data/hora em que ficou pronto
+        const dtProntoRaw = item.dtPronto || item.dataEntrega || item.registradoEm || null;
+        const dtPronto    = fmtDateTime(tsToDate(dtProntoRaw));
+
         banner.className = 'result-banner pronto';
         banner.innerHTML = `
           <div class="result-banner-ic">✅</div>
           <div class="result-banner-title">PRONTO PARA RETIRADA</div>
-          <div class="result-banner-sub">${prontos.length === 1 ? 'Seu pedido está pronto — pode retirar no almoxarifado.' : prontos.length + ' pedidos prontos para retirada.'}</div>
-          ${sep ? `<div class="result-banner-unit">✔ Separado por ${esc(sep)}</div>` : ''}
+          <div class="result-banner-sub">
+            ${prontos.length === 1
+              ? 'Seu pedido está pronto — pode retirar no almoxarifado.'
+              : prontos.length + ' pedidos prontos para retirada.'}
+          </div>
+          ${sep
+            ? `<div class="result-banner-detail">✂️ Separado por <strong>${esc(sep)}</strong></div>`
+            : ''}
+          ${dtPronto
+            ? `<div class="result-banner-detail">🕐 Pronto desde: ${esc(dtPronto)}</div>`
+            : ''}
           <div class="result-banner-unit" style="margin-top:8px">📍 ${esc(unitNome)}</div>
         `;
+
       } else if (separando.length > 0) {
+        // ── EM SEPARAÇÃO ──────────────────────────────────────────────
+        const item      = separando[0];
+        const separador = item.responsavelSeparador || item.separador || null;
+
+        // Data/hora em que a separação foi iniciada
+        const dtInicioRaw = item.registradoEm || item.dataRequisicao || null;
+        const dtInicio    = fmtDateTime(tsToDate(dtInicioRaw));
+
         banner.className = 'result-banner sep';
         banner.innerHTML = `
           <div class="result-banner-ic">⏳</div>
           <div class="result-banner-title">EM PREPARAÇÃO</div>
-          <div class="result-banner-sub">${separando.length === 1 ? 'Seu pedido está sendo separado agora.' : separando.length + ' pedidos em separação.'}</div>
-          <div class="result-banner-unit">📍 ${esc(unitNome)}</div>
+          <div class="result-banner-sub">
+            ${separando.length === 1
+              ? 'Seu pedido está sendo separado agora.'
+              : separando.length + ' pedido(s) em separação.'}
+          </div>
+          ${separador
+            ? `<div class="result-banner-detail">✂️ Separando: <strong>${esc(separador)}</strong></div>`
+            : ''}
+          ${dtInicio
+            ? `<div class="result-banner-detail">🕐 Início: ${esc(dtInicio)}</div>`
+            : ''}
+          <div class="result-banner-unit" style="margin-top:8px">📍 ${esc(unitNome)}</div>
         `;
+
       } else {
+        // ── SEM PEDIDO ATIVO ──────────────────────────────────────────
         banner.className = 'result-banner nenhum';
         banner.innerHTML = `
           <div class="result-banner-ic">📭</div>
@@ -729,7 +782,6 @@
         if (!lastUpdated) { el.textContent = 'Carregando…'; return; }
         const hhmm    = lastUpdated.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
         const diffMin = Math.floor((Date.now() - lastUpdated.getTime()) / 60000);
-        const diffH   = Math.floor(diffMin / 60);
         if (diffMin < 1)       el.textContent = `Estoque atualizado agora · ${hhmm}`;
         else if (diffMin < 60) el.textContent = `Estoque atualizado há ${diffMin} min · ${hhmm}`;
         else                   el.textContent = `Estoque de ${hhmm} — reabra para atualizar`;
@@ -744,16 +796,12 @@
       el.textContent = msg;
       el.className = 'notice show' + (isErr ? ' err' : '');
     }
-    function clearNotice() {
-      document.getElementById('noticeEl').className = 'notice';
-    }
 
     // ── INIT ──────────────────────────────────────────────────────────
     async function init() {
       try {
         initializeFirebaseServices();
 
-        // Auth anônimo persistente (invisível para o usuário)
         try { await setPersistence(auth, indexedDBLocalPersistence); }
         catch (_) { try { await setPersistence(auth, browserLocalPersistence); } catch (_) {} }
 
@@ -766,21 +814,16 @@
           }
         });
 
-        // Carrega estoque (usa cache imediatamente se disponível)
         fetchStock().catch(err => {
           console.error('[Status] fetchStock:', err);
           showNotice('Não foi possível carregar o estoque. Verifique sua internet.', true);
         });
 
-        // Navegação — tipo selecionado
         document.querySelectorAll('.type-btn').forEach(btn => {
           btn.addEventListener('click', () => onTypeSelected(btn.dataset.type));
         });
 
-        // Voltar passo 2 → 1
         document.getElementById('backStep2').addEventListener('click', () => showStep(1));
-
-        // Voltar passo 3 → 2
         document.getElementById('backStep3').addEventListener('click', () => showStep(2));
 
       } catch (err) {
