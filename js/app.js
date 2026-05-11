@@ -6,7 +6,9 @@ window.lucide = {
     createIcons: (options) => createIcons({ icons, ...(options || {}) })
 };
 
+import { onAuthStateChanged } from "firebase/auth";
 import { initializeFirebaseServices } from "./services/firestore-service.js";
+import { auth, db } from "./services/firestore-service.js";
 // Adicionado signInAnonUser e signInEmailPassword para o formulário de login no DOM
 import { initAuthAndListeners, signOutUser, signInAnonUser, signInEmailPassword, sendResetPassword } from "./modules/auth.js"; 
 import { renderDashboard, startDashboardRefresh, stopDashboardRefresh, renderDashboardAguaChart, renderDashboardGasChart } from "./modules/dashboard.js";
@@ -26,6 +28,7 @@ import { initSocialListeners } from "./modules/social-control.js"; // NOVO
 import { initFeriadosListeners } from "./modules/feriados.js";
 import { getUserRole } from "./utils/cache.js";
 import { initTooltips } from "./utils/tooltip-manager.js";
+import { mountChatWidget } from "./chat-widget.js";
 
 function ensureDebugOverlay() {
     try {
@@ -59,6 +62,21 @@ window.addEventListener('unhandledrejection', (e) => {
 
 // Variável de estado da UI local (para manter o dashboard na tela)
 let visaoAtiva = 'inicio'; 
+
+let __chatWidgetMounted = false;
+let __chatWidgetCtrl = null;
+function setupChatWidget() {
+    if (__chatWidgetMounted) return;
+    __chatWidgetMounted = true;
+    onAuthStateChanged(auth, async (user) => {
+        if (user && !user.isAnonymous) {
+            if (!__chatWidgetCtrl) __chatWidgetCtrl = mountChatWidget({ modo: "almox", db });
+        } else {
+            try { __chatWidgetCtrl?.unmount?.(); } catch (_) {}
+            __chatWidgetCtrl = null;
+        }
+    });
+}
 
 function initHeaderDate() {
     const dateEl = document.getElementById('header-date');
@@ -266,6 +284,7 @@ function main() {
     // 3. Inicia a Autenticação e os Listeners do Firestore (usa callbacks para garantir a ordem)
     __dbgSet('main(): auth… (se ficar preso aqui, veja erros/permiteções)');
     initAuthAndListeners(renderDashboard, renderUnidadeControls, renderUIModules);
+    setupChatWidget();
 
 }
 

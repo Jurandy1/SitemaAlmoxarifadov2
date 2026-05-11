@@ -48,7 +48,12 @@ import {
     setEstoqueInicialDefinido,
     setSemcasHistDB,
     setSemcasAliases,
-    setUserRole
+    setUserRole,
+    getEstoqueAgua,
+    getEstoqueGas,
+    getAguaMovimentacoes,
+    getGasMovimentacoes,
+    getUserRole
 } from "../utils/cache.js";
 import { onUserLogout } from "./usuarios.js";
 
@@ -66,6 +71,11 @@ let __renderFlags = { dash: false, controls: false, modules: false, permissions:
 let _globalRenderDash = null;
 let _globalRenderControls = null;
 let _globalRenderModules = null;
+
+const __STATUS_DOC_ID = 'status_public';
+const __GAS_CUTOFF_TS = new Date('2026-04-30T00:00:00').getTime();
+let __statusPublishTimer = null;
+let __lastStatusKey = null;
 
 // =======================================================================
 // UTILITÁRIOS
@@ -241,6 +251,67 @@ function _isHistImportado(m) {
     return false;
 }
 
+function __tsToMs(v) {
+    if (!v) return 0;
+    if (typeof v === 'number') return v;
+    if (typeof v.toMillis === 'function') return v.toMillis();
+    if (typeof v.toDate === 'function') return v.toDate().getTime();
+    if (typeof v.seconds === 'number') return v.seconds * 1000;
+    return 0;
+}
+
+function __computeStockSummary() {
+    const estAgua = getEstoqueAgua?.() || [];
+    const estGas  = getEstoqueGas?.() || [];
+    const gasMov  = getGasMovimentacoes?.() || [];
+
+    const resumoAgua = estAgua.find(e => e?.tipo === '__resumo__');
+    const aguaSaidas = resumoAgua?.totalSaidas || 0;
+    const aguaInicial  = estAgua.filter(e => e?.tipo === 'inicial')
+        .reduce((s, e) => s + (parseInt(e?.quantidade, 10) || 0), 0);
+    const aguaEntradas = estAgua.filter(e => e?.tipo === 'entrada')
+        .reduce((s, e) => s + (parseInt(e?.quantidade, 10) || 0), 0);
+    const agua = Math.max(0, aguaInicial + aguaEntradas - aguaSaidas);
+
+    const tsOf = (it) => __tsToMs(it?.data) || __tsToMs(it?.registradoEm) || __tsToMs(it?.criadoEm);
+    const estGasC = estGas.filter(e => tsOf(e) >= __GAS_CUTOFF_TS);
+    const movGasC = gasMov
+        .filter(m => tsOf(m) >= __GAS_CUTOFF_TS)
+        .filter(m => !_isHistImportado(m));
+    const gasInicial  = estGasC.filter(e => e?.tipo === 'inicial')
+        .reduce((s, e) => s + (parseInt(e?.quantidade, 10) || 0), 0);
+    const gasEntradas = estGasC.filter(e => e?.tipo === 'entrada')
+        .reduce((s, e) => s + (parseInt(e?.quantidade, 10) || 0), 0);
+    const gasSaidas   = movGasC.reduce((s, m) => s + (parseInt(m?.quantidade, 10) || 0), 0);
+    const gas = Math.max(0, gasInicial + gasEntradas - gasSaidas);
+
+    return { agua, gas };
+}
+
+async function __publishStatusSummaryNow() {
+    try {
+        const role = getUserRole?.();
+        if (role !== 'admin' && role !== 'editor') return;
+        if (!COLLECTIONS?.stats) return;
+
+        const { agua, gas } = __computeStockSummary();
+        const key = `${agua}|${gas}`;
+        if (__lastStatusKey === key) return;
+        __lastStatusKey = key;
+
+        await setDoc(
+            doc(COLLECTIONS.stats, __STATUS_DOC_ID),
+            { agua, gas, updatedAt: serverTimestamp() },
+            { merge: true }
+        );
+    } catch (_) {}
+}
+
+function __scheduleStatusSummaryPublish() {
+    if (__statusPublishTimer) clearTimeout(__statusPublishTimer);
+    __statusPublishTimer = setTimeout(__publishStatusSummaryNow, 700);
+}
+
 async function _migrateAguaResumo(collections) {
     // Guarda 1: chamada simultanea na mesma sessao
     if (_migratingResumo) return;
@@ -390,6 +461,7 @@ async function initFirestoreListeners(renderDash, renderControls, renderModules)
         setAguaMovimentacoes(data);
         setAguaMovCursor(snap.docs[snap.docs.length - 1] || null);
         scheduleRenders({ dash: true, modules: true }, renderDash, renderControls, renderModules);
+        __scheduleStatusSummaryPublish();
     });
 
     // ── Gas: limit(300) cobre ~9 meses ───────────────────────────────
@@ -397,6 +469,7 @@ async function initFirestoreListeners(renderDash, renderControls, renderModules)
         const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         setGasMovimentacoes(data);
         scheduleRenders({ dash: true, modules: true }, renderDash, renderControls, renderModules);
+        __scheduleStatusSummaryPublish();
     });
 
     // ── Materiais: limit(200) ─────────────────────────────────────────
@@ -414,6 +487,7 @@ async function initFirestoreListeners(renderDash, renderControls, renderModules)
         const inicial = data.some(e => e.tipo === 'inicial');
         setEstoqueInicialDefinido('agua', inicial);
         scheduleRenders({ dash: true, modules: true }, renderDash, renderControls, renderModules);
+        __scheduleStatusSummaryPublish();
 
         // Dispara migracao APENAS se o doc resumo ainda nao existe.
         // As guardas internas (_migratingResumo + localStorage) evitam loops.
@@ -430,6 +504,7 @@ async function initFirestoreListeners(renderDash, renderControls, renderModules)
         const inicial = data.some(e => e.tipo === 'inicial');
         setEstoqueInicialDefinido('gas', inicial);
         scheduleRenders({ dash: true, modules: true }, renderDash, renderControls, renderModules);
+        __scheduleStatusSummaryPublish();
     });
 
     if (isTvMode) {

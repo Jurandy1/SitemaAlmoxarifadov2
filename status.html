@@ -501,12 +501,13 @@
   <script type="module">
     import {
       initializeFirebaseServices, ensureCollectionsWithData,
-      getPrimaryCollections, getLegacyCollections, auth
+      getPrimaryCollections, getLegacyCollections, auth, db
     } from './js/services/firestore-service.js';
+    import { mountChatWidget } from './js/chat-widget.js';
     import { signInAnonymously, onAuthStateChanged,
              setPersistence, indexedDBLocalPersistence, browserLocalPersistence
            } from 'firebase/auth';
-    import { getDocs, query, where, orderBy, limit } from 'firebase/firestore';
+    import { getDocs, query, where, orderBy, limit, doc, onSnapshot } from 'firebase/firestore';
 
     // ── CONFIG ────────────────────────────────────────────────────────
     const GAS_CUTOFF = new Date('2026-04-30T00:00:00').getTime();
@@ -522,6 +523,9 @@
     let countdownTimer = null;
     let lastUpdated    = null;
     let _allUnits      = [];   // cache em memória para busca instantânea
+    let _chatMounted   = false;
+    let _unsubStock    = null;
+    let _gotLiveStock  = false;
 
     // ── CACHE HELPERS ─────────────────────────────────────────────────
     function cacheGet(key, ttl) {
@@ -641,6 +645,50 @@
     }
 
     // ── FETCH: ESTOQUE ────────────────────────────────────────────────
+    async function startLiveStock() {
+      const cached = cacheGet('semcas_stock_v2', TTL_STOCK);
+      if (cached?.data) { renderStock(cached.data); lastUpdated = new Date(cached.ts); startCountdown(); }
+
+      let didFallback = false;
+      _gotLiveStock = false;
+
+      try { if (_unsubStock) _unsubStock(); } catch (_) {}
+      _unsubStock = null;
+
+      await waitForAuth();
+      const C = await getCollections();
+      if (!C?.stats) {
+        fetchStock().catch(() => {});
+        return;
+      }
+
+      const ref = doc(C.stats, 'status_public');
+      _unsubStock = onSnapshot(ref, snap => {
+        if (!snap.exists()) return;
+        const d = snap.data() || {};
+        const agua = parseInt(d.agua, 10) || 0;
+        const gas  = parseInt(d.gas, 10)  || 0;
+        const data = { agua, gas };
+        _gotLiveStock = true;
+        cacheSet('semcas_stock_v2', data);
+        renderStock(data);
+        lastUpdated = tsToDate(d.updatedAt) || new Date();
+        startCountdown();
+      }, err => {
+        if (didFallback) return;
+        didFallback = true;
+        console.error('[Status] liveStock:', err);
+        fetchStock().catch(() => {});
+      });
+
+      setTimeout(() => {
+        if (_gotLiveStock) return;
+        if (didFallback) return;
+        didFallback = true;
+        fetchStock().catch(() => {});
+      }, 2500);
+    }
+
     async function fetchStock() {
       const cached = cacheGet('semcas_stock_v2', TTL_STOCK);
       if (cached?.data) { renderStock(cached.data); lastUpdated = new Date(cached.ts); startCountdown(); return; }
@@ -918,7 +966,13 @@
         catch (_) { try { await setPersistence(auth, browserLocalPersistence); } catch (_) {} }
 
         onAuthStateChanged(auth, async user => {
-          if (user) { _authReady = true; }
+          if (user) {
+            _authReady = true;
+            if (!_chatMounted) {
+              _chatMounted = true;
+              mountChatWidget({ modo: 'unidade', db });
+            }
+          }
           else { try { await signInAnonymously(auth); } catch (e) { console.error('[Status] signIn:', e); } }
         });
 
@@ -926,9 +980,12 @@
         fetchUnits().catch(() => {});
 
         // Estoque
-        fetchStock().catch(err => {
-          console.error('[Status] fetchStock:', err);
-          showNotice('Não foi possível carregar o estoque. Verifique sua internet.', true);
+        startLiveStock().catch(err => {
+          console.error('[Status] startLiveStock:', err);
+          fetchStock().catch(err2 => {
+            console.error('[Status] fetchStock:', err2);
+            showNotice('Não foi possível carregar o estoque. Verifique sua internet.', true);
+          });
         });
 
         // ── Unidade salva ─────────────────────────────────────────────

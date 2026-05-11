@@ -78,6 +78,7 @@ function buildCollections(basePath) {
     materiais:      collection(db, `${basePath}/controleMateriais`),
     estoqueAgua:    collection(db, `${basePath}/estoqueAgua`),
     estoqueGas:     collection(db, `${basePath}/estoqueGas`),
+    stats:          collection(db, `${basePath}/stats`),
     userRoles:      collection(db, `${basePath}/userRoles`),
     feriados:       collection(db, `${basePath}/feriados`),
     cestaMov:       collection(db, `${basePath}/socialCestaMov`),
