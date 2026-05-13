@@ -327,6 +327,8 @@
       text-align:left;
     }
     .now-item:active { transform: scale(.995); }
+    .now-item-left { display:flex; flex-direction:column; min-width:0; }
+    .now-item-type { font-weight:900; font-size:10px; letter-spacing:.3px; color:var(--gray-500); text-transform:uppercase; }
     .now-item-name { font-weight:800; font-size:13px; color:var(--gray-900); }
     .now-item-badges { display:flex; gap:6px; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
     .now-badge {
@@ -393,6 +395,7 @@
       .skeleton      { background:linear-gradient(90deg,#1e293b 25%,#334155 50%,#1e293b 75%); background-size:200% 100%; }
       .footer-bar    { color:#475569; }
       .now-item      { background:#1e293b; border-color:#334155; }
+      .now-item-type { color:#94a3b8; }
       .now-item-name { color:#e2e8f0; }
       .now-badge     { background:#0f172a; border-color:#334155; color:#e2e8f0; }
       .now-empty     { background:#1e293b; border-color:#334155; color:#94a3b8; }
@@ -860,6 +863,16 @@
         return st;
       };
       const getUnit = m => String(m?.unidadeNome || m?.unidade || '').trim();
+      const tipoLabelFrom = (nome) => {
+        const key = String(nome || '').toLowerCase().trim();
+        const u = (_allUnits || []).find(x => String(x?.nome || '').toLowerCase().trim() === key);
+        let t = String(u?.tipo || '').toUpperCase().trim();
+        if (t === 'SEMCAS') t = 'SEDE';
+        if (t) return t;
+        const cl = classifyUnit(nome, u?.tipo || '');
+        const map = { cras:'CRAS', creas:'CREAS', pop:'CENTRO POP', ct:'CT', abrigo:'ABRIGO', sede:'SEDE', outros:'OUTROS' };
+        return map[cl] || 'OUTROS';
+      };
 
       const byUnit = new Map();
       (items || []).forEach(m => {
@@ -884,7 +897,10 @@
 
       list.innerHTML = rows.slice(0, 60).map(r => `
         <button class="now-item" type="button" data-unit="${esc(r.unidade)}">
-          <div class="now-item-name">${esc(r.unidade)}</div>
+          <div class="now-item-left">
+            <div class="now-item-type">${esc(tipoLabelFrom(r.unidade))}</div>
+            <div class="now-item-name">${esc(r.unidade)}</div>
+          </div>
           <div class="now-item-badges">
             ${r.pronto > 0 ? `<span class="now-badge ok">✅ ${r.pronto}</span>` : ''}
             ${r.separando > 0 ? `<span class="now-badge sep">⏳ ${r.separando}</span>` : ''}
@@ -906,6 +922,7 @@
       const list = document.getElementById('nowList');
       if (list) list.innerHTML = `<div class="now-empty">Carregando…</div>`;
       try {
+        try { await fetchUnits(); } catch (_) {}
         const docs = await fetchNowMaterials(force);
         renderNowPanel(docs);
       } catch (e) {
