@@ -313,6 +313,45 @@
     }
     #countdownEl { font-family:var(--font-num); font-size: 10px; }
 
+    /* ── PAINEL "PEDIDOS AGORA" ── */
+    .now-head-actions { display:flex; gap:8px; margin-left:auto; }
+    .now-list { display:flex; flex-direction:column; gap:8px; margin-top:10px; }
+    .now-item {
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      width:100%;
+      padding:10px 12px;
+      border:1px solid var(--gray-200);
+      border-radius:12px;
+      background:#fff;
+      cursor:pointer;
+      text-align:left;
+    }
+    .now-item:active { transform: scale(.995); }
+    .now-item-name { font-weight:800; font-size:13px; color:var(--gray-900); }
+    .now-item-badges { display:flex; gap:6px; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
+    .now-badge {
+      font-size:11px;
+      font-weight:800;
+      padding:3px 8px;
+      border-radius:999px;
+      border:1px solid var(--gray-200);
+      background:var(--gray-100);
+      color:var(--gray-900);
+      white-space:nowrap;
+    }
+    .now-badge.ok { background: var(--green-bg); border-color: var(--green-bd); color: #065f46; }
+    .now-badge.sep { background: var(--yellow-bg); border-color: var(--yellow-bd); color: #92400e; }
+    .now-empty {
+      padding:12px 12px;
+      border:1px dashed var(--gray-200);
+      border-radius:12px;
+      color:var(--gray-500);
+      font-size:12px;
+      font-weight:600;
+      text-align:center;
+      background:#fff;
+    }
+
     @media (max-width:380px) {
       .topbar-inner { padding:12px 14px; }
       .brand-title  { font-size:15px; }
@@ -353,6 +392,10 @@
       .btn-refresh   { border-color:#334155; color:#64748b; }
       .skeleton      { background:linear-gradient(90deg,#1e293b 25%,#334155 50%,#1e293b 75%); background-size:200% 100%; }
       .footer-bar    { color:#475569; }
+      .now-item      { background:#1e293b; border-color:#334155; }
+      .now-item-name { color:#e2e8f0; }
+      .now-badge     { background:#0f172a; border-color:#334155; color:#e2e8f0; }
+      .now-empty     { background:#1e293b; border-color:#334155; color:#94a3b8; }
     }
   </style>
 
@@ -405,6 +448,23 @@
           📦 Ver meu pedido
         </button>
         <button class="btn-clear" id="btnClearSaved">Trocar</button>
+      </div>
+    </div>
+
+    <!-- PAINEL GERAL (OPCIONAL): somente unidades com pedido "agora" -->
+    <div class="card" id="nowCard">
+      <div class="card-head">
+        <div class="card-ic" style="background:#ecfdf5">🟢</div>
+        <span class="card-label">Pedidos agora (Pronto / Em preparação)</span>
+        <div class="now-head-actions">
+          <button class="btn-refresh" id="btnToggleNow" type="button">Mostrar</button>
+        </div>
+      </div>
+      <div class="card-body" id="nowBody" style="display:none">
+        <p class="step-hint" style="margin:0">Aparecem somente unidades com pedido pronto ou em preparação.</p>
+        <div class="now-list" id="nowList">
+          <div class="now-empty">Carregando…</div>
+        </div>
       </div>
     </div>
 
@@ -517,6 +577,7 @@
     const TTL_STOCK  = 60 * 60 * 1000;
     const TTL_UNITS  = 6  * 60 * 60 * 1000;   // reduzido de 24h → 6h
     const TTL_MAT    = 30 * 60 * 1000;
+    const TTL_NOW    = 10 * 60 * 1000;
     const LS_SAVED   = 'semcas_saved_unit_v1'; // chave localStorage
 
     // ── STATE ─────────────────────────────────────────────────────────
@@ -767,6 +828,92 @@
       return materiais;
     }
 
+    async function fetchNowMaterials(forceRefresh = false) {
+      const key = 'semcas_now_mat_v1';
+      if (forceRefresh) cacheDel(key);
+      const cached = cacheGet(key, TTL_NOW);
+      if (cached) return cached.data || [];
+      const C = await getCollections();
+      const snap = await getDocs(query(
+        C.materiais,
+        where('status', 'in', ['separacao','separando','retirada','pronto']),
+        limit(250)
+      ));
+      const docs = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(m => !m.deleted
+          && (m._version===2 || m.origemFluxo==='v2' || (m.itemsMap && typeof m.itemsMap==='object'))
+          && ['separacao','retirada','separando','pronto'].includes(String(m.status||'').toLowerCase())
+        );
+      cacheSet(key, docs);
+      return docs;
+    }
+
+    function renderNowPanel(items) {
+      const list = document.getElementById('nowList');
+      if (!list) return;
+
+      const normalize = s => {
+        const st = String(s??'').toLowerCase();
+        if (st==='retirada'||st==='pronto')     return 'pronto';
+        if (st==='separacao'||st==='separando') return 'separando';
+        return st;
+      };
+      const getUnit = m => String(m?.unidadeNome || m?.unidade || '').trim();
+
+      const byUnit = new Map();
+      (items || []).forEach(m => {
+        const u = getUnit(m);
+        if (!u) return;
+        const st = normalize(m.status);
+        if (st !== 'pronto' && st !== 'separando') return;
+        if (!byUnit.has(u)) byUnit.set(u, { unidade: u, pronto: 0, separando: 0 });
+        const o = byUnit.get(u);
+        if (st === 'pronto') o.pronto += 1;
+        if (st === 'separando') o.separando += 1;
+      });
+
+      const rows = [...byUnit.values()]
+        .filter(x => x.pronto > 0 || x.separando > 0)
+        .sort((a, b) => (b.pronto - a.pronto) || (b.separando - a.separando) || a.unidade.localeCompare(b.unidade, 'pt-BR'));
+
+      if (!rows.length) {
+        list.innerHTML = `<div class="now-empty">Nenhuma unidade com pedido pronto ou em preparação no momento.</div>`;
+        return;
+      }
+
+      list.innerHTML = rows.slice(0, 60).map(r => `
+        <button class="now-item" type="button" data-unit="${esc(r.unidade)}">
+          <div class="now-item-name">${esc(r.unidade)}</div>
+          <div class="now-item-badges">
+            ${r.pronto > 0 ? `<span class="now-badge ok">✅ ${r.pronto}</span>` : ''}
+            ${r.separando > 0 ? `<span class="now-badge sep">⏳ ${r.separando}</span>` : ''}
+          </div>
+        </button>
+      `).join('');
+
+      list.querySelectorAll('.now-item').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const unit = btn.getAttribute('data-unit');
+          if (!unit) return;
+          document.getElementById('searchCard').style.display = '';
+          onUnitSelected(unit);
+        });
+      });
+    }
+
+    async function refreshNowPanel(force = false) {
+      const list = document.getElementById('nowList');
+      if (list) list.innerHTML = `<div class="now-empty">Carregando…</div>`;
+      try {
+        const docs = await fetchNowMaterials(force);
+        renderNowPanel(docs);
+      } catch (e) {
+        console.error('[Status] nowPanel:', e);
+        if (list) list.innerHTML = `<div class="now-empty">Não foi possível carregar a lista agora.</div>`;
+      }
+    }
+
     // ── RENDER: ESTOQUE ───────────────────────────────────────────────
     function renderStock({ agua, gas }) {
       renderMiniStock('waterNum', 'waterChip', agua, 10);
@@ -981,6 +1128,20 @@
 
         // Pré-carrega unidades em background (busca instantânea)
         fetchUnits().catch(() => {});
+
+        // Painel geral (opcional)
+        try {
+          const btnToggle = document.getElementById('btnToggleNow');
+          const body = document.getElementById('nowBody');
+          if (btnToggle && body) {
+            btnToggle.addEventListener('click', () => {
+              const open = body.style.display !== 'none';
+              body.style.display = open ? 'none' : '';
+              btnToggle.textContent = open ? 'Mostrar' : 'Ocultar';
+              if (!open) refreshNowPanel(false);
+            });
+          }
+        } catch (_) {}
 
         // Estoque
         startLiveStock().catch(err => {
