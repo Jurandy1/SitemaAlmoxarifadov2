@@ -19,6 +19,51 @@ function _norm(v = "") {
 
 let _gestaoSubview = 'unidades';
 let _aliasesOverride = null;
+let _gestaoVincCreateKey = null;
+let _gestaoVincMode = 'lista'; // 'lista' | 'massa'
+let _gestaoVincSelected = new Set(); // keys selecionadas (modo massa)
+
+function _guessTipoFromRaw(raw = '') {
+    const s = _norm(raw);
+    if (/\bCRAS\b/.test(s)) return 'CRAS';
+    if (/\bCREAS\b/.test(s)) return 'CREAS';
+    if (/\bCT\b/.test(s) || /CONSELHO\s+TUTELAR/.test(s)) return 'CT';
+    if (/\bPOP\b/.test(s) || /CENTRO\s+POP/.test(s)) return 'POP';
+    if (/\bABRIGO\b/.test(s) || /\bACOLH/.test(s)) return 'ABRIGO';
+    if (/\bSEMCAS\b/.test(s) || /\bSEDE\b/.test(s)) return 'SEDE';
+    return 'OUTROS';
+}
+
+function _suggestUnitsForRaw(raw, unidades, limit = 3) {
+    const rawNorm = _norm(raw).replace(/[^A-Z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!rawNorm) return [];
+    const stop = new Set(['DE','DA','DO','DAS','DOS','E','EM','NA','NO','NAS','NOS','A','O']);
+    const rawTokens = rawNorm.split(' ').filter(t => t.length >= 2 && !stop.has(t));
+    const rawSet = new Set(rawTokens);
+
+    const score = (u) => {
+        const nome = String(u?.nome || '').trim();
+        const sigla = String(u?.sigla || '').trim();
+        const hay0 = _norm(`${nome} ${sigla}`).replace(/[^A-Z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+        if (!hay0) return { nome, score: 0 };
+        if (hay0 === rawNorm) return { nome, score: 100 };
+        let s = 0;
+        if (hay0.includes(rawNorm) || rawNorm.includes(hay0)) s += 60;
+        const tokens = hay0.split(' ').filter(t => t.length >= 2 && !stop.has(t));
+        let hit = 0;
+        tokens.forEach(t => { if (rawSet.has(t)) hit++; });
+        if (rawSet.size) s += Math.round((hit / Math.max(rawSet.size, 1)) * 35);
+        if (rawTokens.length && tokens.length && rawTokens[0] === tokens[0]) s += 10;
+        return { nome, score: s };
+    };
+
+    return (unidades || [])
+        .map(score)
+        .filter(x => x.score > 0 && x.nome)
+        .sort((a,b) => b.score - a.score || a.nome.localeCompare(b.nome, 'pt-BR'))
+        .slice(0, limit)
+        .map(x => x.nome);
+}
 
 // =========================================================================
 // LÓGICA DE RENDERIZAÇÃO E FILTRO
@@ -361,6 +406,32 @@ async function saveGestaoAlias(rawKey, canonicalName) {
     }
 }
 
+async function saveGestaoAliasesBulk(pairs) {
+    const role = getUserRole();
+    if (role !== 'admin') {
+        showAlert('alert-gestao', 'Permissão negada. Apenas Administradores podem criar vínculos.', 'error');
+        return false;
+    }
+    const entries = Array.isArray(pairs) ? pairs : [];
+    if (!entries.length) return true;
+    const aliases = { ...(getSemcasAliases() || {}), ...(_aliasesOverride || {}) };
+    entries.forEach(({ rawKey, canonicalName }) => {
+        const k = _norm(rawKey);
+        const v = String(canonicalName || '').trim();
+        if (!k || !v) return;
+        aliases[k] = v;
+    });
+    try {
+        await setDoc(doc(COLLECTIONS.semcasAliases, 'config'), { aliases }, { merge: true });
+        _aliasesOverride = aliases;
+        showAlert('alert-gestao', `${entries.length} vínculo(s) salvo(s) com sucesso.`, 'success', 2500);
+        return true;
+    } catch (error) {
+        showAlert('alert-gestao', `Erro ao salvar vínculos: ${error.message}`, 'error');
+        return false;
+    }
+}
+
 async function removeGestaoAlias(rawKey) {
     const role = getUserRole();
     if (role !== 'admin') {
@@ -388,6 +459,14 @@ function renderGestaoVinculos() {
     const modo = document.getElementById('gestao-vinc-filtro')?.value || 'pendentes';
     const unidades = (getUnidades() || []).filter(u => (u?.atendeMateriais ?? true) === true);
     const aliases = { ...(getSemcasAliases() || {}), ...(_aliasesOverride || {}) };
+    const role = getUserRole();
+    const isAdmin = role === 'admin';
+    const escHtml = (s) => String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 
     const rawCandidates = new Map();
     (getSemcasHistDB() || []).forEach(entry => {
@@ -395,14 +474,15 @@ function renderGestaoVinculos() {
             const raw = String(u?.rawUnit || u?.unitName || '').trim();
             if (!raw) return;
             const k = _norm(raw);
-            if (!rawCandidates.has(k)) rawCandidates.set(k, raw);
+            if (!rawCandidates.has(k)) rawCandidates.set(k, { raw, count: 1 });
+            else rawCandidates.get(k).count += 1;
         });
     });
 
-    let rows = [...rawCandidates.entries()].map(([k, raw]) => ({ key: k, raw, mapped: aliases[k] || '' }));
+    let rows = [...rawCandidates.entries()].map(([k, v]) => ({ key: k, raw: v.raw, count: v.count, mapped: aliases[k] || '' }));
     if (busca) rows = rows.filter(r => _norm(r.raw).toLowerCase().includes(busca) || _norm(r.mapped).toLowerCase().includes(busca));
     if (modo === 'pendentes') rows = rows.filter(r => !r.mapped);
-    rows.sort((a,b) => a.raw.localeCompare(b.raw, 'pt-BR'));
+    rows.sort((a,b) => (b.count - a.count) || a.raw.localeCompare(b.raw, 'pt-BR'));
 
     if (!rows.length) {
         container.innerHTML = `<div class="text-sm text-slate-500 p-4 border border-dashed rounded-lg">Nenhum vínculo pendente encontrado.</div>`;
@@ -416,22 +496,112 @@ function renderGestaoVinculos() {
             let t = String(u?.tipo || '').toUpperCase();
             if (t === 'SEMCAS') t = 'SEDE';
             const label = (t ? t + ': ' : '') + String(u.nome || '');
-            return `<option value="${u.nome}">${label}</option>`;
+            return `<option value="${escHtml(u.nome)}">${escHtml(label)}</option>`;
         }).join('');
 
-    let html = `<div class="overflow-x-auto border border-gray-200 rounded-lg"><table class="table w-full text-sm"><thead class="bg-gray-50"><tr><th>Nome na planilha</th><th>Unidade vinculada</th><th>Tipo</th><th class="text-right">Ação</th></tr></thead><tbody>`;
+    const tipoOpts = ['SEDE','CT','CRAS','CREAS','POP','ABRIGO','OUTROS']
+        .map(t => `<option value="${t}">${t}</option>`).join('');
+
+    const datalist = unidades
+        .slice()
+        .sort((a,b) => String(a.nome||'').localeCompare(String(b.nome||''), 'pt-BR'))
+        .map((u) => {
+            let t = String(u?.tipo || '').toUpperCase();
+            if (t === 'SEMCAS') t = 'SEDE';
+            const nome = String(u?.nome || '').trim();
+            const sigla = String(u?.sigla || '').trim().toUpperCase();
+            const label = (t ? t + ': ' : '') + nome + (sigla ? ` [${sigla}]` : '');
+            return `<option value="${escHtml(nome)}" label="${escHtml(label)}"></option>`;
+        }).join('');
+
+    const modeBtns = `
+        <div class="flex flex-wrap items-center gap-2 mb-4">
+            <button type="button" class="btn-secondary ${_gestaoVincMode === 'lista' ? 'bg-slate-900 text-white border-slate-900 hover:bg-slate-800' : ''} !py-1.5 !px-3 text-xs" data-gestao-vinc-mode="lista">Lista</button>
+            <button type="button" class="btn-secondary ${_gestaoVincMode === 'massa' ? 'bg-slate-900 text-white border-slate-900 hover:bg-slate-800' : ''} !py-1.5 !px-3 text-xs" data-gestao-vinc-mode="massa">Seleção múltipla</button>
+            <span class="text-xs text-slate-500 ml-2">Manual: use o campo “Digite para achar a unidade…” ou o select.</span>
+        </div>
+    `;
+
+    const bulkPanel = (() => {
+        if (_gestaoVincMode !== 'massa') return '';
+        const selectedCount = _gestaoVincSelected?.size || 0;
+        return `
+            <div class="p-3 border border-gray-200 rounded-lg bg-slate-50 mb-4">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+                    <div class="md:col-span-2">
+                        <label class="form-label text-xs">Unidade destino (para aplicar nos selecionados)</label>
+                        <input type="search" class="form-input" id="gestao-vinc-bulk-pick" list="gestao-unidades-datalist" placeholder="Digite para achar a unidade..." ${isAdmin ? '' : 'disabled'}>
+                    </div>
+                    <div>
+                        <label class="form-label text-xs">Ou selecione</label>
+                        <select class="form-select" id="gestao-vinc-bulk-select" ${isAdmin ? '' : 'disabled'}>
+                            <option value="">-- Selecione --</option>
+                            ${opts}
+                        </select>
+                    </div>
+                </div>
+                <div class="flex flex-wrap gap-2 mt-3">
+                    <button type="button" class="btn-secondary !py-1 !px-3 text-xs" id="gestao-vinc-select-all">Selecionar todos (filtrados)</button>
+                    <button type="button" class="btn-secondary !py-1 !px-3 text-xs" id="gestao-vinc-clear-sel">Limpar seleção</button>
+                    <div class="flex-1"></div>
+                    <span class="text-xs text-slate-600 self-center">Selecionados: <b id="gestao-vinc-selected-count">${selectedCount}</b></span>
+                    <button type="button" class="btn-primary !py-1 !px-3 text-xs" id="gestao-vinc-apply-bulk" ${isAdmin ? '' : 'disabled'}>Aplicar vínculo</button>
+                </div>
+                <div class="text-xs text-slate-500 mt-2">Dica: marque vários “Nomes na planilha” e aponte todos para uma unidade cadastrada.</div>
+            </div>
+        `;
+    })();
+
+    let html = `${modeBtns}${bulkPanel}<div class="overflow-x-auto border border-gray-200 rounded-lg"><table class="table w-full text-sm"><thead class="bg-gray-50"><tr>${_gestaoVincMode === 'massa' ? '<th class="text-center">Sel.</th>' : ''}<th>Nome na planilha</th><th class="text-center">Ocorr.</th><th>Sugestões</th><th>Unidade vinculada</th><th>Tipo</th><th class="text-right">Ação</th></tr></thead><tbody>`;
     rows.forEach((r, i) => {
-        html += `<tr data-vrow="${i}">
-            <td class="font-medium">${r.raw}</td>
-            <td><select class="form-select gestao-vinc-select" data-key="${r.key}" data-current="${r.mapped}" style="min-width:280px"><option value="">-- Selecione --</option>${opts}</select></td>
+        const sugg = _suggestUnitsForRaw(r.raw, unidades, 3);
+        const suggHtml = sugg.length
+            ? `<div class="flex flex-wrap gap-2">${sugg.map(n => `<button type="button" class="btn-secondary !py-1 !px-2 text-xs gestao-vinc-suggest" data-key="${escHtml(r.key)}" data-name="${escHtml(n)}">${escHtml(n)}</button>`).join('')}</div>`
+            : `<span class="text-xs text-slate-400">—</span>`;
+
+        const isCreate = _gestaoVincCreateKey === r.key;
+        const createNome = r.raw;
+        const createTipo = _guessTipoFromRaw(r.raw);
+        const isSelected = _gestaoVincSelected?.has?.(r.key) === true;
+
+        html += `<tr data-vrow="${i}" data-vkey="${escHtml(r.key)}">
+            ${_gestaoVincMode === 'massa'
+                ? `<td class="text-center"><input type="checkbox" class="form-toggle gestao-vinc-check" data-key="${escHtml(r.key)}" ${isSelected ? 'checked' : ''}></td>`
+                : ''
+            }
+            <td class="font-medium">${escHtml(r.raw)}</td>
+            <td class="text-center text-slate-600">${r.count}</td>
+            <td>${suggHtml}</td>
+            <td>
+                ${isCreate
+                    ? `<div class="grid grid-cols-1 md:grid-cols-3 gap-2 min-w-[320px]">
+                           <input type="text" class="form-input gestao-vinc-new-nome md:col-span-2" value="${escHtml(createNome)}" placeholder="Nome da unidade">
+                           <input type="text" class="form-input gestao-vinc-new-sigla" placeholder="Sigla (opcional)">
+                       </div>
+                       <div class="mt-2">
+                           <select class="form-select gestao-vinc-new-tipo">
+                               ${tipoOpts}
+                           </select>
+                       </div>`
+                    : `<div style="min-width:320px;display:grid;gap:6px">
+                           <input type="search" class="form-input gestao-vinc-pick" data-key="${escHtml(r.key)}" list="gestao-unidades-datalist" placeholder="Digite para achar a unidade..." value="${escHtml(r.mapped || '')}" ${isAdmin ? '' : 'disabled'}>
+                           <select class="form-select gestao-vinc-select" data-key="${escHtml(r.key)}" data-current="${escHtml(r.mapped)}" ${isAdmin ? '' : 'disabled'}><option value="">-- Selecione --</option>${opts}</select>
+                       </div>`
+                }
+            </td>
             <td class="gestao-vinc-tipo text-slate-500"></td>
             <td class="text-right whitespace-nowrap">
-                <button type="button" class="btn-primary !py-1 !px-3 text-xs gestao-vinc-save" data-key="${r.key}">Salvar</button>
-                ${r.mapped ? `<button type="button" class="btn-danger !py-1 !px-3 text-xs gestao-vinc-del ml-2" data-key="${r.key}">Remover</button>` : ''}
+                ${isCreate
+                    ? `<button type="button" class="btn-primary !py-1 !px-3 text-xs gestao-vinc-create-save" data-key="${escHtml(r.key)}" ${isAdmin ? '' : 'disabled'}>Criar e vincular</button>
+                       <button type="button" class="btn-secondary !py-1 !px-3 text-xs ml-2 gestao-vinc-create-cancel" data-key="${escHtml(r.key)}">Cancelar</button>`
+                    : `<button type="button" class="btn-primary !py-1 !px-3 text-xs gestao-vinc-save" data-key="${escHtml(r.key)}" ${isAdmin ? '' : 'disabled'}>Salvar</button>
+                       ${r.mapped ? `<button type="button" class="btn-danger !py-1 !px-3 text-xs gestao-vinc-del ml-2" data-key="${escHtml(r.key)}" ${isAdmin ? '' : 'disabled'}>Remover</button>` : ''}
+                       <button type="button" class="btn-secondary !py-1 !px-3 text-xs ml-2 gestao-vinc-create" data-key="${escHtml(r.key)}" ${isAdmin ? '' : 'disabled'}>➕ Criar</button>`
+                }
             </td>
         </tr>`;
     });
-    html += `</tbody></table></div>`;
+    html += `</tbody></table></div><datalist id="gestao-unidades-datalist">${datalist}</datalist>`;
     container.innerHTML = html;
 
     const tipoFromName = (name) => {
@@ -440,6 +610,10 @@ function renderGestaoVinculos() {
         if (t === 'SEMCAS') t = 'SEDE';
         return t;
     };
+
+    container.querySelectorAll('.gestao-vinc-new-tipo').forEach(sel => {
+        sel.value = _guessTipoFromRaw(sel.closest('tr')?.querySelector('td')?.textContent || '') || 'OUTROS';
+    });
 
     container.querySelectorAll('.gestao-vinc-select').forEach(sel => {
         const current = String(sel.dataset.current || '').trim();
@@ -451,9 +625,194 @@ function renderGestaoVinculos() {
         }
         const tr = sel.closest('tr');
         const tipoEl = tr?.querySelector('.gestao-vinc-tipo');
+        const pick = tr?.querySelector('.gestao-vinc-pick');
         const refreshTipo = () => { if (tipoEl) tipoEl.textContent = tipoFromName(sel.value) || '—'; };
         sel.addEventListener('change', refreshTipo);
+        sel.addEventListener('change', () => { if (pick) pick.value = sel.value || ''; });
         refreshTipo();
+    });
+
+    container.querySelectorAll('.gestao-vinc-pick').forEach(inp => {
+        const key = inp.dataset.key;
+        const sel = container.querySelector(`.gestao-vinc-select[data-key="${key}"]`);
+        if (!sel) return;
+
+        const resolveToSelect = () => {
+            const typed = String(inp.value || '').trim();
+            if (!typed) return;
+            const typedNorm = _norm(typed);
+            const exact = [...sel.options].find(o => _norm(o.value) === typedNorm);
+            if (exact) {
+                sel.value = exact.value;
+                sel.dispatchEvent(new Event('change', { bubbles: true }));
+                return;
+            }
+            const partial = [...sel.options].find(o => typedNorm.length >= 3 && _norm(o.value).includes(typedNorm));
+            if (partial) {
+                sel.value = partial.value;
+                sel.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        };
+
+        inp.addEventListener('change', resolveToSelect);
+        inp.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                resolveToSelect();
+            }
+        });
+    });
+
+    container.querySelectorAll('[data-gestao-vinc-mode]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const mode = btn.getAttribute('data-gestao-vinc-mode') || 'lista';
+            _gestaoVincMode = mode === 'massa' ? 'massa' : 'lista';
+            renderGestaoVinculos();
+        });
+    });
+
+    const syncBulkPickToSelect = () => {
+        const pick = document.getElementById('gestao-vinc-bulk-pick');
+        const sel = document.getElementById('gestao-vinc-bulk-select');
+        if (!pick || !sel) return;
+        const typed = String(pick.value || '').trim();
+        if (!typed) return;
+        const typedNorm = _norm(typed);
+        const exact = [...sel.options].find(o => _norm(o.value) === typedNorm);
+        if (exact) { sel.value = exact.value; return; }
+        const partial = [...sel.options].find(o => typedNorm.length >= 3 && _norm(o.value).includes(typedNorm));
+        if (partial) sel.value = partial.value;
+    };
+
+    const bulkPick = document.getElementById('gestao-vinc-bulk-pick');
+    if (bulkPick) {
+        bulkPick.addEventListener('change', syncBulkPickToSelect);
+        bulkPick.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); syncBulkPickToSelect(); }
+        });
+    }
+    const bulkSel = document.getElementById('gestao-vinc-bulk-select');
+    if (bulkSel) {
+        bulkSel.addEventListener('change', () => {
+            if (bulkPick) bulkPick.value = bulkSel.value || '';
+        });
+    }
+
+    container.querySelectorAll('.gestao-vinc-check').forEach(chk => {
+        chk.addEventListener('change', () => {
+            const key = chk.dataset.key || '';
+            if (!key) return;
+            if (chk.checked) _gestaoVincSelected.add(key);
+            else _gestaoVincSelected.delete(key);
+            const cnt = document.getElementById('gestao-vinc-selected-count');
+            if (cnt) cnt.textContent = String(_gestaoVincSelected.size);
+        });
+    });
+
+    const btnSelAll = document.getElementById('gestao-vinc-select-all');
+    if (btnSelAll) {
+        btnSelAll.addEventListener('click', () => {
+            container.querySelectorAll('.gestao-vinc-check').forEach(chk => {
+                chk.checked = true;
+                const key = chk.dataset.key || '';
+                if (key) _gestaoVincSelected.add(key);
+            });
+            const cnt = document.getElementById('gestao-vinc-selected-count');
+            if (cnt) cnt.textContent = String(_gestaoVincSelected.size);
+        });
+    }
+    const btnClr = document.getElementById('gestao-vinc-clear-sel');
+    if (btnClr) {
+        btnClr.addEventListener('click', () => {
+            _gestaoVincSelected = new Set();
+            renderGestaoVinculos();
+        });
+    }
+    const btnApply = document.getElementById('gestao-vinc-apply-bulk');
+    if (btnApply) {
+        btnApply.addEventListener('click', async () => {
+            if (!isAdmin) { showAlert('alert-gestao', 'Permissão negada. Apenas Administradores podem salvar vínculos.', 'error'); return; }
+            const sel = document.getElementById('gestao-vinc-bulk-select');
+            const dest = String(sel?.value || '').trim();
+            if (!dest) { showAlert('alert-gestao', 'Selecione a unidade destino para aplicar.', 'warning'); return; }
+            const keys = [...(_gestaoVincSelected || [])];
+            if (!keys.length) { showAlert('alert-gestao', 'Selecione pelo menos um nome na planilha.', 'warning'); return; }
+            const pairs = keys.map((k) => ({ rawKey: k, canonicalName: dest }));
+            btnApply.disabled = true;
+            try {
+                const ok = await saveGestaoAliasesBulk(pairs);
+                if (ok) {
+                    _gestaoVincSelected = new Set();
+                    renderGestaoVinculos();
+                }
+            } finally {
+                btnApply.disabled = false;
+            }
+        });
+    }
+
+    container.querySelectorAll('.gestao-vinc-suggest').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const key = btn.dataset.key;
+            const name = btn.dataset.name;
+            const sel = container.querySelector(`.gestao-vinc-select[data-key="${key}"]`);
+            if (!sel) return;
+            sel.value = name;
+            sel.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+    });
+
+    container.querySelectorAll('.gestao-vinc-create').forEach(btn => {
+        btn.addEventListener('click', () => {
+            _gestaoVincCreateKey = btn.dataset.key || null;
+            renderGestaoVinculos();
+        });
+    });
+
+    container.querySelectorAll('.gestao-vinc-create-cancel').forEach(btn => {
+        btn.addEventListener('click', () => {
+            _gestaoVincCreateKey = null;
+            renderGestaoVinculos();
+        });
+    });
+
+    container.querySelectorAll('.gestao-vinc-create-save').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const key = btn.dataset.key;
+            const tr = btn.closest('tr');
+            const nome = String(tr?.querySelector('.gestao-vinc-new-nome')?.value || '').trim().replace(/\s+/g, ' ');
+            let tipo = String(tr?.querySelector('.gestao-vinc-new-tipo')?.value || '').trim().toUpperCase();
+            const sigla = String(tr?.querySelector('.gestao-vinc-new-sigla')?.value || '').trim().toUpperCase();
+            if (!nome) { showAlert('alert-gestao', 'Informe o nome da unidade.', 'warning'); return; }
+            if (!tipo) { showAlert('alert-gestao', 'Selecione o tipo da unidade.', 'warning'); return; }
+            if (!isAdmin) { showAlert('alert-gestao', 'Permissão negada. Apenas Administradores podem criar unidades.', 'error'); return; }
+
+            const tipoNorm = tipo === 'SEMCAS' ? 'SEDE' : tipo;
+            const exists = (getUnidades() || []).some((u) => {
+                const uNome = String(u?.nome || '').trim();
+                let uTipo = String(u?.tipo || '').trim().toUpperCase();
+                if (uTipo === 'SEMCAS') uTipo = 'SEDE';
+                return _norm(uNome) === _norm(nome) && uTipo === tipoNorm;
+            });
+            if (exists) { showAlert('alert-gestao', 'Essa unidade já existe no sistema.', 'warning'); return; }
+
+            btn.disabled = true;
+            try {
+                const payload = { nome: capitalizeString(nome), tipo: tipoNorm, atendeAgua: true, atendeGas: true, atendeMateriais: true };
+                if (sigla) payload.sigla = sigla;
+                await addDoc(COLLECTIONS.unidades, payload);
+                const ok = await saveGestaoAlias(key, payload.nome);
+                if (ok) {
+                    _gestaoVincCreateKey = null;
+                    renderGestaoVinculos();
+                }
+            } catch (e) {
+                console.error(e);
+                showAlert('alert-gestao', `Erro ao criar unidade: ${e.message}`, 'error');
+            } finally {
+                btn.disabled = false;
+            }
+        });
     });
 
     container.querySelectorAll('.gestao-vinc-save').forEach(btn => {

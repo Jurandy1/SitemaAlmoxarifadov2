@@ -1,4 +1,4 @@
-import { setDoc, deleteDoc, doc, writeBatch, getDocs, query, orderBy, limit, startAfter, serverTimestamp, Timestamp, documentId } from "firebase/firestore";
+import { addDoc, setDoc, deleteDoc, doc, writeBatch, getDocs, query, orderBy, limit, startAfter, serverTimestamp, Timestamp, documentId } from "firebase/firestore";
 import { auth, COLLECTIONS } from "../services/firestore-service.js";
 import { getMateriais, getUnidades, getUserRole, getSemcasHistDB, getSemcasAliases } from "../utils/cache.js";
 import { showAlert } from "../utils/dom-helpers.js";
@@ -990,6 +990,7 @@ function handleFile(e){
         if(m) tmpParsed.unitName = normalizeUnit(m[0].replace(/[-_]/g, ' ').trim());
     }
 
+    __lastDetectedRawUnit = String(tmpParsed.unitName || "").trim();
     const el=document.getElementById('detectInfo');
     const totalItens=tmpParsed.categories.reduce((s,c)=>s+c.items.length,0);
     const per=typeof parsePeriodFromRows==='function'?parsePeriodFromRows(rows):null;
@@ -1045,6 +1046,30 @@ function handleFile(e){
       uSel.style.borderColor = '';
       uSel.style.boxShadow = '';
     }
+
+    try {
+      const warnEl = document.getElementById('rUWarn');
+      if (warnEl) {
+        if (isUnknown || !found) {
+          const sugg = _suggestUnits(__lastDetectedRawUnit, 5);
+          const chips = sugg.length
+            ? `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+                 <span style="font-size:11px;color:#92400e;font-weight:700">Sugestões:</span>
+                 ${sugg.map((n) => `<button type="button" class="btn btn-s btn-sm" data-sug="${esc(n)}" style="font-size:10px;padding:4px 10px;border:1px solid #fde047;color:#92400e;background:#fff7ed;border-radius:999px">${esc(n)}</button>`).join('')}
+               </div>`
+            : '';
+          warnEl.style.display = 'block';
+          warnEl.innerHTML = `⚠️ Unidade não identificada. Selecione manualmente.${chips}`;
+          warnEl.querySelectorAll('button[data-sug]').forEach((btn) => {
+            btn.addEventListener('click', () => pickSuggestedUnit(btn.getAttribute('data-sug')));
+          });
+        } else {
+          warnEl.style.display = 'none';
+          warnEl.innerHTML = '⚠️ Unidade não identificada. Selecione manualmente.';
+        }
+      }
+    } catch (_) {}
+    try { refreshUnitAssistUI(); } catch (_) {}
     ck();
   }catch(err){toast('Erro ao ler: '+err.message,'red')}};
   reader.readAsArrayBuffer(file);
@@ -8220,13 +8245,46 @@ function buildUnitDetail(allAgg,allUnits){
 
 let __separacaoBooted = false;
 
+let __rUFilterText = "";
+let __lastDetectedRawUnit = "";
+
 function populateUnidadesSelect() {
   const sel = document.getElementById("rU");
   if (!sel) return;
-  const unidades = (getUnidades() || []).filter((u) => (u?.atendeMateriais ?? true) === true);
-  if (!unidades.length) return;
-
+  const q = rmAcc(String(__rUFilterText || "")).toUpperCase().replace(/\s+/g, " ").trim();
+  const unidades = (getUnidades() || [])
+    .filter((u) => (u?.atendeMateriais ?? true) === true)
+    .filter((u) => {
+      if (!q) return true;
+      const nome = String(u?.nome || u?.unidadeNome || "").trim();
+      const sigla = String(u?.sigla || "").trim();
+      const hay = rmAcc(`${nome} ${sigla}`).toUpperCase().replace(/\s+/g, " ").trim();
+      return hay.includes(q);
+    });
   const previous = sel.value || "";
+  if (!unidades.length) {
+    sel.innerHTML = "";
+    const opt0 = document.createElement("option");
+    opt0.value = "";
+    opt0.textContent = "-- Auto-detectar da planilha --";
+    sel.appendChild(opt0);
+    if (q) {
+      const optNF = document.createElement("option");
+      optNF.value = "";
+      optNF.textContent = "— Nenhuma unidade encontrada —";
+      optNF.disabled = true;
+      sel.appendChild(optNF);
+    }
+    if (previous) {
+      const optKeep = document.createElement("option");
+      optKeep.value = previous;
+      optKeep.textContent = `${previous} (selecionada)`;
+      sel.appendChild(optKeep);
+      sel.value = previous;
+    }
+    return;
+  }
+
   const groups = new Map();
 
   for (const u of unidades) {
@@ -8262,8 +8320,250 @@ function populateUnidadesSelect() {
 
   if (previous) {
     const match = [...sel.options].find((o) => o.value === previous);
-    if (match) sel.value = previous;
+    if (match) {
+      sel.value = previous;
+    } else {
+      const optKeep = document.createElement("option");
+      optKeep.value = previous;
+      optKeep.textContent = `${previous} (selecionada)`;
+      sel.insertBefore(optKeep, sel.children[1] || null);
+      sel.value = previous;
+    }
   }
+}
+
+function filterUnidadesSelect() {
+  const v = document.getElementById("rUSearch")?.value || "";
+  __rUFilterText = v;
+  populateUnidadesSelect();
+}
+
+function _unitKey(v) {
+  return rmAcc(String(v || "")).toUpperCase().replace(/\s+/g, " ").trim();
+}
+
+function _suggestUnits(raw, limit = 5) {
+  const units = (getUnidades() || []).filter((u) => (u?.atendeMateriais ?? true) === true);
+  const rawNorm = _unitKey(raw).replace(/[^A-Z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+  if (!rawNorm) return [];
+  const stop = new Set(["DE", "DA", "DO", "DAS", "DOS", "E", "EM", "NA", "NO", "NAS", "NOS", "A", "O"]);
+  const rawTokens = rawNorm.split(" ").filter((t) => t.length >= 2 && !stop.has(t));
+  const rawSet = new Set(rawTokens);
+
+  const scoreUnit = (u) => {
+    const name = String(u?.nome || u?.unidadeNome || "").trim();
+    const sigla = String(u?.sigla || "").trim();
+    const hay0 = _unitKey(`${name} ${sigla}`).replace(/[^A-Z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+    if (!hay0) return { score: 0, name };
+    if (hay0 === rawNorm) return { score: 100, name };
+    let score = 0;
+    if (hay0.includes(rawNorm) || rawNorm.includes(hay0)) score += 60;
+    const tokens = hay0.split(" ").filter((t) => t.length >= 2 && !stop.has(t));
+    let hit = 0;
+    tokens.forEach((t) => { if (rawSet.has(t)) hit++; });
+    if (rawSet.size) score += Math.round((hit / Math.max(rawSet.size, 1)) * 35);
+    if (rawTokens.length && tokens.length && rawTokens[0] === tokens[0]) score += 10;
+    if (score < 0) score = 0;
+    return { score, name };
+  };
+
+  return units
+    .map(scoreUnit)
+    .filter((x) => x.score > 0 && x.name)
+    .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name, "pt-BR"))
+    .slice(0, limit)
+    .map((x) => x.name);
+}
+
+function pickSuggestedUnit(unitName) {
+  const sel = document.getElementById("rU");
+  if (!sel) return;
+  sel.value = String(unitName || "").trim();
+  sel.dispatchEvent(new Event("change", { bubbles: true }));
+  try { ck(); } catch (_) {}
+  try { refreshUnitAssistUI(); } catch (_) {}
+}
+
+async function saveDetectedAlias() {
+  if (getUserRole() !== "admin") { toast("Permissão negada: apenas Admin.", "red"); return; }
+  const raw = String(__lastDetectedRawUnit || "").trim();
+  const sel = document.getElementById("rU");
+  const canon = String(sel?.value || "").trim();
+  if (!raw) { toast("Nome da planilha indisponível para memorizar.", "red"); return; }
+  if (!canon) { toast("Selecione uma unidade para memorizar.", "red"); return; }
+  const ok = await upsertUnitAlias(raw, canon);
+  if (ok) {
+    try { refreshUnitAssistUI(); } catch (_) {}
+  }
+}
+
+function refreshUnitAssistUI() {
+  const warn = document.getElementById("rUWarn");
+  const memo = document.getElementById("rUMemo");
+  const sel = document.getElementById("rU");
+  if (!warn || !memo || !sel) return;
+
+  const raw = String(__lastDetectedRawUnit || "").trim();
+  const canon = String(sel.value || "").trim();
+
+  const showMemo = (() => {
+    if (getUserRole() !== "admin") return false;
+    if (!raw || !canon) return false;
+    return _unitKey(raw) !== _unitKey(canon);
+  })();
+
+  if (showMemo) {
+    memo.style.display = "block";
+    memo.innerHTML = `🧠 Memorizar este nome da planilha como <b>${esc(canon)}</b> <button class="btn btn-s btn-sm" type="button" style="margin-left:6px;font-size:10px;padding:4px 10px;border:1px solid #a5f3fc;color:#155e75;background:#ecfeff;border-radius:6px" onclick="saveDetectedAlias()">Salvar vínculo</button>`;
+  } else {
+    memo.style.display = "none";
+    memo.innerHTML = "";
+  }
+}
+
+function openAddUnidadeDialog() {
+  if (getUserRole() !== "admin") { toast("Permissão negada: apenas Admin.", "red"); return; }
+
+  const modal = document.getElementById("fichaModal");
+  const toolbar = modal?.querySelector?.(".modal-toolbar");
+  const legend = document.getElementById("fichaModalLegend");
+  const actions = document.getElementById("fichaModalActions");
+  const body = document.getElementById("fichaBody");
+  const stats = document.getElementById("fichaStats");
+  if (!modal || !body) { toast("Modal indisponível.", "red"); return; }
+
+  if (toolbar) toolbar.querySelector(".title").textContent = "➕ Nova Unidade";
+  if (stats) stats.innerHTML = "";
+  if (actions) actions.style.display = "none";
+  if (legend) legend.style.display = "none";
+
+  const tipoOptions = [
+    { v: "SEDE", label: "Sede (SEMCAS)" },
+    { v: "CT", label: "CT (Conselho Tutelar)" },
+    { v: "CRAS", label: "CRAS" },
+    { v: "CREAS", label: "CREAS" },
+    { v: "POP", label: "Centro Pop" },
+    { v: "ABRIGO", label: "Abrigo" },
+    { v: "OUTROS", label: "Outros" },
+  ];
+
+  body.innerHTML = `
+    <div style="padding:22px 20px;max-width:520px;margin:0 auto">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+        <div style="font-size:34px;line-height:1">🏢</div>
+        <div>
+          <div style="font-size:16px;font-weight:900;margin:0">Adicionar Unidade</div>
+          <div style="font-size:12px;color:#64748b">Cria uma unidade nova e já deixa disponível para seleção.</div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns: 1fr;gap:10px">
+        <div>
+          <label class="lbl">Nome da Unidade</label>
+          <input class="input" id="newUnitName" placeholder="Ex: CRAS Turu" autocomplete="off">
+        </div>
+        <div class="row" style="grid-template-columns: minmax(0,1fr) minmax(0,1fr);gap:10px">
+          <div>
+            <label class="lbl">Tipo</label>
+            <select class="sel" id="newUnitTipo">
+              <option value="">-- Selecione --</option>
+              ${tipoOptions.map(o => `<option value="${esc(o.v)}">${esc(o.label)}</option>`).join("")}
+            </select>
+          </div>
+          <div>
+            <label class="lbl">Sigla (opcional)</label>
+            <input class="input" id="newUnitSigla" placeholder="Ex: TURU" autocomplete="off">
+          </div>
+        </div>
+      </div>
+
+      <div id="newUnitMsg" style="margin-top:10px;display:none;background:#fef3c7;border:1px solid #fde047;border-radius:8px;padding:8px 10px;font-size:12px;color:#92400e"></div>
+
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
+        <button class="btn btn-s" type="button" onclick="window.__newUnitResolve(null)">Cancelar</button>
+        <button class="btn btn-p" id="btnSaveNewUnit" type="button" onclick="window.__newUnitSave()">Salvar</button>
+      </div>
+    </div>
+  `;
+
+  const showMsg = (txt) => {
+    const el = document.getElementById("newUnitMsg");
+    if (!el) return;
+    if (!txt) { el.style.display = "none"; el.textContent = ""; return; }
+    el.style.display = "block";
+    el.textContent = txt;
+  };
+
+  window.__newUnitResolve = (result) => {
+    modal.classList.remove("open");
+    window.__newUnitResolve = null;
+    window.__newUnitSave = null;
+    if (result && result?.nome) {
+      const sel = document.getElementById("rU");
+      if (sel) {
+        const value = String(result.nome).trim();
+        let og = [...sel.querySelectorAll("optgroup")].find((x) => (x.label || "").toUpperCase() === String(result.tipo || "").toUpperCase());
+        if (!og) {
+          og = document.createElement("optgroup");
+          og.label = String(result.tipo || "OUTROS").toUpperCase();
+          sel.appendChild(og);
+        }
+        const exists = [...sel.options].some((o) => o.value === value);
+        if (!exists) {
+          const opt = document.createElement("option");
+          opt.value = value;
+          opt.textContent = result.sigla ? `${value} [${String(result.sigla).trim().toUpperCase()}]` : value;
+          og.appendChild(opt);
+        }
+        sel.value = value;
+      }
+      const searchEl = document.getElementById("rUSearch");
+      if (searchEl) { searchEl.value = ""; __rUFilterText = ""; }
+      populateUnidadesSelect();
+    }
+  };
+
+  window.__newUnitSave = async () => {
+    const nameEl = document.getElementById("newUnitName");
+    const tipoEl = document.getElementById("newUnitTipo");
+    const siglaEl = document.getElementById("newUnitSigla");
+    const btn = document.getElementById("btnSaveNewUnit");
+    const nome = String(nameEl?.value || "").trim().replace(/\s+/g, " ");
+    let tipo = String(tipoEl?.value || "").trim().toUpperCase();
+    const sigla = String(siglaEl?.value || "").trim().toUpperCase();
+
+    if (!nome) { showMsg("Informe o nome da unidade."); nameEl?.focus?.(); return; }
+    if (!tipo) { showMsg("Selecione o tipo da unidade."); tipoEl?.focus?.(); return; }
+    if (tipo === "SEMCAS") tipo = "SEDE";
+
+    const exists = (getUnidades() || []).some((u) => {
+      const uNome = String(u?.nome || u?.unidadeNome || "").trim();
+      let uTipo = String(u?.tipoUnidade || u?.tipo || "").trim().toUpperCase();
+      if (uTipo === "SEMCAS") uTipo = "SEDE";
+      return rmAcc(uNome).toUpperCase() === rmAcc(nome).toUpperCase() && uTipo === tipo;
+    });
+    if (exists) { showMsg("Essa unidade já existe no sistema."); return; }
+
+    showMsg("");
+    if (btn) { btn.disabled = true; btn.textContent = "Salvando..."; }
+    try {
+      const payload = { nome, tipo, atendeAgua: true, atendeGas: true, atendeMateriais: true };
+      if (sigla) payload.sigla = sigla;
+      await addDoc(COLLECTIONS.unidades, payload);
+      toast("Unidade adicionada.", "green");
+      window.__newUnitResolve({ nome, tipo, sigla });
+    } catch (e) {
+      console.error(e);
+      const code = String(e?.code || "");
+      const msg = String(e?.message || "");
+      showMsg("Erro ao salvar. " + (code ? code + ": " : "") + msg);
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = "Salvar"; }
+    }
+  };
+
+  modal.classList.add("open");
+  setTimeout(() => { document.getElementById("newUnitName")?.focus?.(); }, 50);
 }
 
 function wrapPermissions() {
@@ -8292,7 +8592,7 @@ export function initSeparacao() {
   try { applySeparacaoRoleUI(); } catch (e) { console.error(e); }
   try { setupDataPedidoAuto(); } catch (e) { console.error(e); }
   try {
-    const EXPORTS = { goTab, registrar, previewReq, showUnitConfirmDialog, pegarParaSeparar, entregarReq, abrirFicha, fecharFicha, marcarPronto, marcarProntoLista, voltarSeparacao, printReq, printFicha, cancelarReq, excluirHistoricoReq, renderBuracos, renderUnificar, buildPainel, gerarRelatorio, exportarCSV, handleFile, handleHistFiles, ck, okModal, closeModal, showModal, editEntryYear, editEntryPeriod, toggleDetail, removeHistEntry, openEditor, closeEditor, saveEditor, edRemoveItem, edAddItem, edAddCat, clearHistDB, clearMateriaisDB, removeDuplicatesAuto, recalcAllDates, exportBackup, importBackup, goToFile, goPage, onModeChange, clearFilters, clearPanFilters, clearYears, selAllYears, clearAllAliases, doUnifMerge, toggleUnifSel, unifRemoveSel, clearUnifSel, removeAlias, openPrintBuracos, doPrintBuracos, showOrigemUnidade, showOrigemCategoria, renderRelatorio, renderCorrecaoItens, setFixView, fixGoPage, applyMatFix, applyMatFixBulk, removeMatFix, clearAllMatFixes, applyCatFix, removeCatFix, clearAllCatFixes, closePreRegDialog, skipPreRegDialog, confirmPreRegDialog, copyItemsList, diagnoseAliases, setPanTipo, loadAllHistDBAndRefresh, addFichaItem, removeFichaItem, editMaterial, switchMatView, switchPanSub, PAGE_STATE, debouncedRenderPS, debouncedRenderES, debouncedRenderPE, debouncedRenderHI };
+    const EXPORTS = { goTab, registrar, previewReq, showUnitConfirmDialog, pegarParaSeparar, entregarReq, abrirFicha, fecharFicha, marcarPronto, marcarProntoLista, voltarSeparacao, printReq, printFicha, cancelarReq, excluirHistoricoReq, renderBuracos, renderUnificar, buildPainel, gerarRelatorio, exportarCSV, handleFile, handleHistFiles, ck, okModal, closeModal, showModal, editEntryYear, editEntryPeriod, toggleDetail, removeHistEntry, openEditor, closeEditor, saveEditor, edRemoveItem, edAddItem, edAddCat, clearHistDB, clearMateriaisDB, removeDuplicatesAuto, recalcAllDates, exportBackup, importBackup, goToFile, goPage, onModeChange, clearFilters, clearPanFilters, clearYears, selAllYears, clearAllAliases, doUnifMerge, toggleUnifSel, unifRemoveSel, clearUnifSel, removeAlias, openPrintBuracos, doPrintBuracos, showOrigemUnidade, showOrigemCategoria, renderRelatorio, renderCorrecaoItens, setFixView, fixGoPage, applyMatFix, applyMatFixBulk, removeMatFix, clearAllMatFixes, applyCatFix, removeCatFix, clearAllCatFixes, closePreRegDialog, skipPreRegDialog, confirmPreRegDialog, copyItemsList, diagnoseAliases, setPanTipo, loadAllHistDBAndRefresh, addFichaItem, removeFichaItem, editMaterial, switchMatView, switchPanSub, PAGE_STATE, debouncedRenderPS, debouncedRenderES, debouncedRenderPE, debouncedRenderHI, filterUnidadesSelect, openAddUnidadeDialog, pickSuggestedUnit, saveDetectedAlias };
     Object.entries(EXPORTS).forEach(([k, v]) => { window[k] = v; });
   } catch (e) { console.error(e); }
   try { loadHistDB(); } catch (e) { console.error(e); }
@@ -8305,8 +8605,14 @@ export function initSeparacao() {
       uSel.addEventListener('change', () => {
         uSel.style.borderColor = '';
         uSel.style.boxShadow = '';
+        try { refreshUnitAssistUI(); } catch (_) {}
       });
     }
+  } catch (_) {}
+
+  try {
+    const search = document.getElementById("rUSearch");
+    if (search) search.addEventListener("input", filterUnidadesSelect);
   } catch (_) {}
 }
 
