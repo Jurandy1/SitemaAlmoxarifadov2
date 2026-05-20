@@ -1051,21 +1051,24 @@ function handleFile(e){
       const warnEl = document.getElementById('rUWarn');
       if (warnEl) {
         if (isUnknown || !found) {
-          const sugg = _suggestUnits(__lastDetectedRawUnit, 5);
-          const chips = sugg.length
-            ? `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">
-                 <span style="font-size:11px;color:#92400e;font-weight:700">Sugestões:</span>
-                 ${sugg.map((n) => `<button type="button" class="btn btn-s btn-sm" data-sug="${esc(n)}" style="font-size:10px;padding:4px 10px;border:1px solid #fde047;color:#92400e;background:#fff7ed;border-radius:999px">${esc(n)}</button>`).join('')}
-               </div>`
-            : '';
           warnEl.style.display = 'block';
-          warnEl.innerHTML = `⚠️ Unidade não identificada. Selecione manualmente.${chips}`;
-          warnEl.querySelectorAll('button[data-sug]').forEach((btn) => {
-            btn.addEventListener('click', () => pickSuggestedUnit(btn.getAttribute('data-sug')));
-          });
+          warnEl.innerHTML = `
+      <div style="display:flex;align-items:flex-start;gap:7px;margin-bottom:8px">
+        <span style="font-size:15px;flex-shrink:0">⚠️</span>
+        <div>
+          <b style="color:#92400e;font-size:12px;display:block;margin-bottom:2px">
+            Unidade não identificada automaticamente.
+          </b>
+          <span style="font-size:11px;color:#78350f">
+            Use o campo de busca acima, o dropdown, ou clique numa sugestão:
+          </span>
+        </div>
+      </div>
+      ${buildUnitQuickPick(__lastDetectedRawUnit, 8)}
+    `;
         } else {
           warnEl.style.display = 'none';
-          warnEl.innerHTML = '⚠️ Unidade não identificada. Selecione manualmente.';
+          warnEl.innerHTML = '';
         }
       }
     } catch (_) {}
@@ -8248,9 +8251,63 @@ let __separacaoBooted = false;
 let __rUFilterText = "";
 let __lastDetectedRawUnit = "";
 
+function buildUnitQuickPick(rawUnitName, maxSugs = 8) {
+  const sugs = _suggestUnits(rawUnitName || "", maxSugs);
+  if (!sugs.length) return "";
+
+  const unidades = getUnidades() || [];
+  const TYPE_COLOR = {
+    SEDE: "#6366f1", CT: "#06b6d4", CRAS: "#3b82f6", CREAS: "#8b5cf6",
+    POP: "#14b8a6", ABRIGO: "#ef4444", OUTROS: "#64748b",
+  };
+  const TYPE_ICON = {
+    SEDE: "🏛️", CT: "🏫", CRAS: "🏠", CREAS: "🏢",
+    POP: "🤝", ABRIGO: "🛏️", OUTROS: "📍",
+  };
+
+  const getInfo = (nome) => {
+    const u = unidades.find((x) =>
+      String(x?.nome || "").toLowerCase() === String(nome || "").toLowerCase()
+    );
+    let tipo = String(u?.tipoUnidade || u?.tipo || "OUTROS").toUpperCase();
+    if (tipo === "SEMCAS") tipo = "SEDE";
+    return { icon: TYPE_ICON[tipo] || "📍", color: TYPE_COLOR[tipo] || "#64748b" };
+  };
+
+  const chips = sugs.map((n) => {
+    const { icon, color } = getInfo(n);
+    const safeName = esc(n).replace(/'/g, "\\'");
+    return `<button type="button"
+      onclick="pickSuggestedUnit('${safeName}')"
+      style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;
+             border:0.5px solid ${color}40;background:${color}10;color:var(--color-text-primary, #0f172a);
+             border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;
+             font-family:inherit;white-space:nowrap;transition:.15s"
+      onmouseover="this.style.background='${color}25';this.style.borderColor='${color}80'"
+      onmouseout="this.style.background='${color}10';this.style.borderColor='${color}40'"
+    >${icon} ${esc(n)}</button>`;
+  }).join("");
+
+  const titleTxt = rawUnitName
+    ? `Sugestões para "${esc(rawUnitName.slice(0, 35))}${rawUnitName.length > 35 ? "…" : ""}"`
+    : "Seleção rápida";
+
+  return `<div style="margin-top:8px">
+    <div style="font-size:10px;font-weight:700;color:#64748b;
+                text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">
+      ${titleTxt}
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:5px">${chips}</div>
+  </div>`;
+}
+
 function populateUnidadesSelect() {
   const sel = document.getElementById("rU");
   if (!sel) return;
+  const TYPE_ICON = {
+    SEDE: "🏛️", CT: "🏫", CRAS: "🏠", CREAS: "🏢",
+    POP: "🤝", ABRIGO: "🛏️", OUTROS: "📍",
+  };
   const q = rmAcc(String(__rUFilterText || "")).toUpperCase().replace(/\s+/g, " ").trim();
   const unidades = (getUnidades() || [])
     .filter((u) => (u?.atendeMateriais ?? true) === true)
@@ -8262,57 +8319,43 @@ function populateUnidadesSelect() {
       return hay.includes(q);
     });
   const previous = sel.value || "";
+
+  sel.innerHTML = "";
+  const opt0 = document.createElement("option");
+  opt0.value = "";
+  opt0.textContent = "— Selecione uma unidade —";
+  sel.appendChild(opt0);
+
   if (!unidades.length) {
-    sel.innerHTML = "";
-    const opt0 = document.createElement("option");
-    opt0.value = "";
-    opt0.textContent = "-- Auto-detectar da planilha --";
-    sel.appendChild(opt0);
-    if (q) {
-      const optNF = document.createElement("option");
-      optNF.value = "";
-      optNF.textContent = "— Nenhuma unidade encontrada —";
-      optNF.disabled = true;
-      sel.appendChild(optNF);
-    }
-    if (previous) {
-      const optKeep = document.createElement("option");
-      optKeep.value = previous;
-      optKeep.textContent = `${previous} (selecionada)`;
-      sel.appendChild(optKeep);
-      sel.value = previous;
-    }
+    const optNF = document.createElement("option");
+    optNF.value = "";
+    optNF.textContent = q ? "— Nenhuma unidade encontrada —" : "— Sem unidades cadastradas —";
+    optNF.disabled = true;
+    sel.appendChild(optNF);
     return;
   }
 
   const groups = new Map();
-
   for (const u of unidades) {
     const nome = String(u?.nome || u?.unidadeNome || "").trim();
     if (!nome) continue;
     let tipo = String(u?.tipoUnidade || u?.tipo || "OUTROS").trim().toUpperCase();
     if (tipo === "SEMCAS") tipo = "SEDE";
     if (!groups.has(tipo)) groups.set(tipo, []);
-    const sigla = String(u?.sigla || "").trim();
-    groups.get(tipo).push({ nome, sigla });
+    groups.get(tipo).push({ nome, sigla: String(u?.sigla || "").trim() });
   }
-
   for (const arr of groups.values()) arr.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
   const tiposOrdenados = [...groups.keys()].sort((a, b) => a.localeCompare(b, "pt-BR"));
 
-  sel.innerHTML = "";
-  const opt0 = document.createElement("option");
-  opt0.value = "";
-  opt0.textContent = "-- Auto-detectar da planilha --";
-  sel.appendChild(opt0);
-
   for (const tipo of tiposOrdenados) {
+    const arr = groups.get(tipo);
+    const icon = TYPE_ICON[tipo] || "📍";
     const og = document.createElement("optgroup");
-    og.label = tipo;
-    for (const { nome, sigla } of groups.get(tipo)) {
+    og.label = `${icon} ${tipo} (${arr.length})`;
+    for (const { nome, sigla } of arr) {
       const opt = document.createElement("option");
       opt.value = nome;
-      opt.textContent = sigla ? `${nome} [${sigla}]` : nome;
+      opt.textContent = sigla ? `${nome}  [${sigla}]` : nome;
       og.appendChild(opt);
     }
     sel.appendChild(og);
@@ -8320,15 +8363,7 @@ function populateUnidadesSelect() {
 
   if (previous) {
     const match = [...sel.options].find((o) => o.value === previous);
-    if (match) {
-      sel.value = previous;
-    } else {
-      const optKeep = document.createElement("option");
-      optKeep.value = previous;
-      optKeep.textContent = `${previous} (selecionada)`;
-      sel.insertBefore(optKeep, sel.children[1] || null);
-      sel.value = previous;
-    }
+    if (match) sel.value = previous;
   }
 }
 

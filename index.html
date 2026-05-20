@@ -1532,11 +1532,10 @@
                             <div class="row mb-3">
                                 <div>
                                     <label class="lbl">Unidade (auto-detectada ou selecione)</label>
-                                    <select class="sel" id="rU" onchange="ck()"><option value="">-- Auto-detectar da planilha --</option></select>
-                                    <div style="display:flex;gap:6px;margin-top:6px;align-items:center">
-                                        <input type="search" class="input" id="rUSearch" placeholder="Digite para buscar a unidade..." autocomplete="off" oninput="filterUnidadesSelect()">
-                                        <button class="btn btn-s btn-sm" type="button" style="white-space:nowrap" onclick="openAddUnidadeDialog()">➕ Nova Unidade</button>
+                                    <div style="position:relative;margin-bottom:4px">
+                                        <input type="search" class="input" id="rUSearch" placeholder="Buscar unidade..." autocomplete="off" oninput="filterUnidadesSelect()" style="width:100%">
                                     </div>
+                                    <select class="sel" id="rU" onchange="ck()"><option value="">-- Auto-detectar da planilha --</option></select>
                                     <div id="rUWarn" style="display:none;background:#fef3c7;border:1px solid #fde047;border-radius:6px;padding:6px 10px;font-size:11px;color:#92400e;margin-top:4px">⚠️ Unidade não identificada. Selecione manualmente.</div>
                                     <div id="rUMemo" style="display:none;background:#ecfeff;border:1px solid #a5f3fc;border-radius:6px;padding:6px 10px;font-size:11px;color:#155e75;margin-top:6px"></div>
                                 </div>
