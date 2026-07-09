@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Separação de Materiais — SEMCAS Almoxarifado</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700;9..40,800&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--navy:#0f172a;--accent:#2563eb;--accent2:#1d4ed8;--green:#10b981;--red:#ef4444;--bg:#f1f5f9;--surface:#fff;--border:#e2e8f0;--muted:#64748b;--text:#0f172a}
+body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.topbar{background:var(--navy);color:#fff;padding:10px 20px;display:flex;align-items:center;gap:12px;font-size:13px;position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(0,0,0,.3)}
+.topbar b{font-size:14px}
+.tabs{display:flex;background:var(--surface);border-bottom:1px solid var(--border);overflow-x:auto}
+.tab{padding:12px 18px;font-size:12px;font-weight:700;color:var(--muted);border-bottom:3px solid transparent;white-space:nowrap;cursor:pointer;display:flex;align-items:center;gap:6px;transition:.2s}
+.tab:hover{color:var(--text);background:#f8fafc}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.bc{font-size:9px;font-weight:800;padding:1px 6px;border-radius:10px;min-width:18px;text-align:center}
+.bc.has{background:var(--red);color:#fff}.bc.zero{background:#cbd5e1;color:#64748b}
+.view{display:none;padding:20px;max-width:960px;margin:0 auto}.view.active{display:block}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.04);margin-bottom:16px}
+.card h2{font-size:17px;font-weight:800;margin-bottom:4px;letter-spacing:-.3px}
+.card .desc{font-size:13px;color:var(--muted);margin-bottom:14px}
+label.lbl{display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:4px}
+.input,.sel{width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;outline:none;transition:.15s}
+.input:focus,.sel:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+.sel{appearance:none;background:url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e") right 8px center/1.2em no-repeat var(--surface);padding-right:2.5em;cursor:pointer}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 20px;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:.15s}
+.btn-p{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;box-shadow:0 4px 12px rgba(37,99,235,.3)}.btn-p:hover{transform:translateY(-1px)}
+.btn-s{background:#fff;color:var(--text);border:1.5px solid var(--border)}.btn-s:hover{background:#f8fafc}
+.btn-g{background:linear-gradient(135deg,#10b981,#059669);color:#fff;box-shadow:0 4px 12px rgba(16,185,129,.3)}.btn-g:hover{transform:translateY(-1px)}
+.btn-o{background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;box-shadow:0 4px 12px rgba(245,158,11,.3)}.btn-o:hover{transform:translateY(-1px)}
+.btn-r{background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:#fff;box-shadow:0 4px 12px rgba(139,92,246,.3)}.btn-r:hover{transform:translateY(-1px)}
+.btn-sm{padding:6px 14px;font-size:12px;border-radius:7px}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none!important}
+.w-full{width:100%}.mb-3{margin-bottom:12px}.mt-3{margin-top:12px}
+.fd{border:2px dashed var(--border);border-radius:12px;padding:28px;text-align:center;cursor:pointer;transition:.2s;background:rgba(37,99,235,.02)}
+.fd:hover,.fd.over{border-color:var(--accent);background:rgba(37,99,235,.04)}
+.fn{font-size:12px;color:var(--green);font-weight:600;margin-top:6px}
+.qt{width:100%;border-collapse:collapse;font-size:13px}
+.qt th{background:#f8fafc;padding:10px 12px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--muted);letter-spacing:.5px;border-bottom:2px solid var(--border)}
+.qt td{padding:10px 12px;border-bottom:1px solid #f1f5f9;vertical-align:middle}
+.qt tr:hover td{background:#f8fafc}
+.pill{display:inline-block;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:800;letter-spacing:.3px;text-transform:uppercase}
+.pr{background:#f3e8ff;color:#7c3aed;border:1px solid #ddd6fe}
+.ps{background:#fef3c7;color:#92400e;border:1px solid #fcd34d}
+.pg{background:#d1fae5;color:#065f46;border:1px solid #6ee7b7}
+.empty{text-align:center;padding:40px 20px;color:var(--muted)}.empty .ic{font-size:36px;margin-bottom:8px}
+
+/* FIRST IN QUEUE HIGHLIGHT */
+.first-row td{background:#eff6ff!important}
+
+/* A4 */
+.a4{background:#fff;padding:28px;box-shadow:0 4px 30px rgba(0,0,0,.1);border-radius:3px;min-height:400px;color:#0f172a;font-size:12px;max-width:794px;margin:0 auto}
+.a4h{border-bottom:3px solid #0f172a;padding-bottom:10px;margin-bottom:12px;display:flex;justify-content:space-between}
+.a4h h1{font-size:15px;font-weight:800}.a4h .u{font-size:12px;color:#475569;font-weight:600;margin-top:2px}
+.ch{background:#0f172a;color:#fff;padding:4px 10px;font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;border-radius:4px 4px 0 0;margin-top:10px}
+.it{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:2px}
+.it th{padding:4px 6px;font-size:9px;font-weight:800;color:#475569;text-align:center;border-bottom:2px solid #cbd5e1;text-transform:uppercase;background:#f1f5f9}
+.it th:nth-child(2){text-align:left}
+.it td{padding:4px 6px;border-bottom:1px solid #f1f5f9;vertical-align:middle}
+.it .rok{background:#f0fdf4}.it .rpa{background:#fffbeb}.it .rno{background:#fff1f2}.it .rna{background:#f5f3ff}
+.iq,.io{width:100%;border:1px solid #e2e8f0;border-radius:3px;padding:3px 5px;font-family:inherit;outline:none;box-sizing:border-box}
+.iq{text-align:center;font-size:11px;font-weight:700}.iq.ns{color:#dc2626;background:#fee2e2}
+.io{font-size:10px;color:#475569}
+.bs{display:inline-block;padding:2px 7px;border-radius:4px;font-size:9px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;cursor:pointer;border:1px solid;user-select:none}
+.bna{background:#ede9fe;color:#5b21b6;border-color:#c4b5fd}
+.ba{background:#d1fae5;color:#065f46;border-color:#6ee7b7}
+.bpa{background:#fef3c7;color:#92400e;border-color:#fcd34d}
+.bse{background:#fee2e2;color:#991b1b;border-color:#fca5a5}
+.sum{margin-top:14px;padding:8px 10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;font-size:11px}
+.sigs{margin-top:24px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;font-size:10px}
+.sig{text-align:center}.sigl{border-bottom:1px solid #0f172a;padding-bottom:3px;margin-bottom:3px;min-height:16px;font-weight:500}.sigla{font-size:9px;color:#64748b;font-weight:600}
+.tb{background:var(--navy);padding:10px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-radius:10px;margin-bottom:12px}
+.sts{display:flex;gap:4px;font-size:11px}
+.sp{padding:3px 8px;border-radius:5px;font-weight:600}
+.st{background:#1e293b;color:#94a3b8}.so{background:#052e16;color:#86efac}.spa{background:#451a03;color:#fcd34d}.sn{background:#450a0a;color:#fca5a5}.sna{background:#2e1065;color:#c4b5fd}
+.lg{display:flex;gap:6px;align-items:center;margin-bottom:10px;font-size:10px;color:#64748b;flex-wrap:wrap}
+.bl{font-size:13px;color:var(--accent);font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;margin-bottom:12px}.bl:hover{text-decoration:underline}
+.mo{display:none;position:fixed;inset:0;z-index:9999;background:rgba(2,6,23,.6);backdrop-filter:blur(4px);align-items:center;justify-content:center}
+.mo.open{display:flex}
+.mbox{background:#fff;border-radius:16px;width:90%;max-width:420px;box-shadow:0 25px 50px rgba(0,0,0,.2);overflow:hidden;animation:ms .25s ease}
+.mhd{padding:18px 22px;border-bottom:1px solid #f1f5f9}.mhd h3{font-size:15px;font-weight:800}.mhd p{font-size:12px;color:#64748b;margin-top:3px}
+.mbd{padding:18px 22px}.mft{padding:12px 22px;background:#f8fafc;border-top:1px solid #f1f5f9;display:flex;gap:8px;justify-content:flex-end}
+@keyframes ms{from{opacity:0;transform:translateY(16px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}
+</style>
+</head>
+<body>
+<div class="topbar"><b>SEMCAS Almoxarifado</b><span style="color:#475569">›</span><span>Separação e Entrega de Materiais</span><span style="margin-left:auto;color:#94a3b8;font-size:12px" id="td"></span></div>
+
+<div class="tabs">
+  <div class="tab active" data-tab="req" onclick="goTab('req')">📋 Requisição</div>
+  <div class="tab" data-tab="ps" onclick="goTab('ps')">📦 Para Separar <span class="bc zero" id="c1">0</span></div>
+  <div class="tab" data-tab="es" onclick="goTab('es')">🔧 Em Separação <span class="bc zero" id="c2">0</span></div>
+  <div class="tab" data-tab="pe" onclick="goTab('pe')">✅ Pronto p/ Entrega <span class="bc zero" id="c3">0</span></div>
+  <div class="tab" data-tab="hi" onclick="goTab('hi')">📁 Histórico <span class="bc zero" id="c4">0</span></div>
+</div>
+
+<!-- ═══ REQUISIÇÃO ═══ -->
+<div class="view active" id="tab-req">
+  <div class="card">
+    <h2>📋 Registrar Nova Requisição</h2>
+    <p class="desc">Selecione a unidade e anexe a planilha. Os tipos de material são detectados automaticamente.</p>
+    <div class="row mb-3">
+      <div><label class="lbl">Unidade</label><select class="sel" id="rU" onchange="ck()"><option value="">-- Selecione --</option><optgroup label="CT"><option value="CT Bacanga">CT Bacanga</option><option value="CT Cidade Operária">CT Cidade Operária</option></optgroup><optgroup label="CRAS"><option value="CRAS Bacanga">CRAS Bacanga</option><option value="CRAS Maracanã">CRAS Maracanã</option><option value="CRAS Turu">CRAS Turu</option></optgroup><optgroup label="CREAS"><option value="CREAS Cidade Operária">CREAS Cidade Operária</option><option value="CREAS Coroadinho">CREAS Coroadinho</option></optgroup><optgroup label="Outros"><option value="PROCAD">PROCAD</option></optgroup></select></div>
+      <div><label class="lbl">Tipos detectados</label><div id="tiposDetectados" style="min-height:36px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:6px 0"><span style="color:var(--muted);font-size:12px">Anexe a planilha para detectar...</span></div></div>
+    </div>
+    <div class="mb-3"><label class="lbl">Planilha do Pedido</label>
+      <div class="fd" id="fdrop" onclick="document.getElementById('fi').click()"><div style="font-size:24px">📎</div><div style="font-size:13px;font-weight:600">Clique ou arraste a planilha</div><div style="font-size:11px;color:var(--muted)">.xlsx .xls .ods</div><input type="file" id="fi" accept=".xlsx,.xls,.ods" style="display:none" onchange="hf(event)"><div class="fn" id="fname" style="display:none"></div></div>
+    </div>
+    <div class="row mb-3">
+      <div><label class="lbl">Lançado por</label><input class="input" id="rR" value="Admin"></div>
+      <div><label class="lbl">Observações</label><input class="input" id="rO" placeholder="Opcional"></div>
+    </div>
+    <button class="btn btn-p w-full" id="bR" disabled onclick="registrar()">📝 Registrar Requisição</button>
+  </div>
+</div>
+
+<!-- ═══ PARA SEPARAR ═══ -->
+<div class="view" id="tab-ps">
+  <div class="card">
+    <h2>📦 Fila de Requisições para Separar</h2>
+    <p class="desc">O <b>primeiro da fila</b> é destacado. O separador clica "Pegar para Separar", informa seu nome e a ficha é impressa automaticamente. A requisição vai para "Em Separação".</p>
+    <div id="lps"></div>
+  </div>
+</div>
+
+<!-- ═══ EM SEPARAÇÃO ═══ -->
+<div class="view" id="tab-es">
+  <div class="card" id="cles">
+    <h2>🔧 Em Separação</h2>
+    <p class="desc">Requisições sendo separadas no momento. O separador pode <b>editar</b> a ficha a qualquer momento. Quando terminar, marca como <b>"Pronto p/ Entrega"</b>.</p>
+    <div id="les"></div>
+  </div>
+  <!-- FICHA ABERTA -->
+  <div id="fichaWrap" style="display:none">
+    <div class="bl no-print" onclick="fecharFicha()">← Voltar para lista</div>
+    <div class="tb no-print">
+      <span style="color:#f8fafc;font-weight:700;font-size:13px" id="fichaTitle">📋 Ficha</span>
+      <div class="sts" id="fichaStats"></div>
+      <div style="margin-left:auto;display:flex;gap:8px">
+        <button class="btn btn-s btn-sm" onclick="imprimirFicha()" style="color:#e2e8f0;border-color:#475569">🖨️ Imprimir</button>
+        <button class="btn btn-g btn-sm" onclick="marcarPronto()">✅ Pronto p/ Entrega</button>
+      </div>
+    </div>
+    <div class="lg no-print">
+      <b>Clique no status:</b>
+      <span class="bs bna" style="cursor:default">Não Atendido</span> →
+      <span class="bs ba" style="cursor:default">Atendido</span> →
+      <span class="bs bpa" style="cursor:default">Parcial</span> →
+      <span class="bs bse" style="cursor:default">Sem Estoque</span>
+      <span style="margin-left:8px">| Auto-detecta <b>Parcial</b> quando qtd &lt; solicitada</span>
+    </div>
+    <div class="a4" id="a4ficha"></div>
+  </div>
+</div>
+
+<!-- ═══ PRONTO P/ ENTREGA ═══ -->
+<div class="view" id="tab-pe">
+  <div class="card">
+    <h2>✅ Pronto para Entrega</h2>
+    <p class="desc">Materiais separados aguardando retirada. Quando alguém vier buscar, clique em <b>"Entregar"</b> e informe quem está retirando.</p>
+    <div id="lpe"></div>
+  </div>
+</div>
+
+<!-- ═══ HISTÓRICO ═══ -->
+<div class="view" id="tab-hi">
+  <div class="card">
+    <h2>📁 Histórico de Entregas</h2>
+    <p class="desc">Entregas finalizadas.</p>
+    <div id="lhi"></div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="mo" id="modal">
+  <div class="mbox">
+    <div class="mhd"><h3 id="mT"></h3><p id="mD"></p></div>
+    <div class="mbd"><input class="input" id="mI" style="font-size:15px"></div>
+    <div class="mft">
+      <button class="btn btn-s btn-sm" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-p btn-sm" onclick="okModal()">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════
+// status: 'requisitado' → 'separando' → 'pronto' → 'entregue'
+let REQS=[], nextId=1, curId=null, tmpParsed=null, _mcb=null;
+document.getElementById('td').textContent=new Date().toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'short',year:'numeric'});
+
+// ═══════════════════════════════════════════════════════
+// PARSER v2
+// ═══════════════════════════════════════════════════════
+function n(v){return(v==null?'':String(v)).trim()}
+function extractNum(s){if(!s)return 0;s=n(s);if(s==='00.'||s==='0'||s.toLowerCase()==='nt')return 0;const m=s.match(/^(\d+[\.,]?\d*)/);return m?parseFloat(m[1].replace(',','.')):0}
+function isNoStock(qa){if(!qa)return false;const s=n(qa);return s==='00.'||s==='0'||s.toLowerCase()==='nt'}
+function isHeader(r){const f=n(r[0]).toLowerCase();return f==='material'||f==='materiais'||f==='item'}
+function isFooter(r){const lo=n(r[0]).toLowerCase();return lo.includes('separado por')||lo.includes('entregue por')||lo.includes('recebido por')||lo.includes('atenciosamente')}
+function isSkipLine(f){const lo=f.toLowerCase();return lo.includes('nome da unidade')||/^material\s+para\s+consumo/i.test(lo)||/^solicitação\s+de\s+materia/i.test(lo)||/^solicitacao\s+de\s+materia/i.test(lo)||/^\s*data\s*:/i.test(lo)||/^\d{1,2}[\/\.]\d{1,2}[\/\.]\d{2,4}\s*$/.test(f)||lo==='material para consumo:'||lo==='material para consumo'}
+function isCategory(r){
+  const f=n(r[0]),lo=f.toLowerCase();if(!f)return false;
+  if(/^\d+\s*[-–—.]\s*.+/.test(f))return true;
+  if(/^materia(l|is)\s+(de\s+|para\s+|pcf|descart)/i.test(f))return true;
+  if(/^alimentos?\s/i.test(f))return true;
+  const filled=r.filter(c=>n(c)).length;
+  if(filled===1&&f.length>5&&!/^\d/.test(f)&&f===f.toUpperCase()&&!isSkipLine(f)&&!isFooter(r))return true;
+  if(filled===1&&f.length>8&&!/^\d/.test(f)&&!isSkipLine(f)&&!isFooter(r)&&!isHeader(r))return true;
+  return false;
+}
+function parseXLS(rows){
+  const un=(()=>{for(const r of rows){const f=n(r[0]);if(f.toLowerCase().includes('nome da unidade')){const m=f.match(/nome\s+da\s+unidade\s*:\s*(.+)/i);if(m){let name=m[1].trim();name=name.replace(/\s*\d{1,2}[\/\.]\s*\d{1,2}[\/\.]\s*\d{2,4}\s*$/,'').trim().replace(/[\s:]+$/,'').trim();return name}}if(f&&/^(CT|CRAS|CREAS|ABRIGO|SEDE|PROCAD)\s*.+/i.test(f)&&!f.toLowerCase().includes('nome da unidade'))return f}return'Unidade'})();
+  const cats=[];let cat=null,id=0;
+  for(let ri=0;ri<rows.length;ri++){
+    const row=rows[ri],r=row.map(c=>c==null?'':c);
+    if(r.every(c=>!n(c)))continue;
+    const f=n(r[0]);
+    if(isFooter(r)||isSkipLine(f))continue;
+    if(isHeader(r)){if(cat&&cat.items.length>0){cat={name:'Outros Itens',items:[]};cats.push(cat)}continue}
+    if(isCategory(r)){cat={name:f,items:[]};cats.push(cat);continue}
+    const mat=f;if(!mat)continue;
+    const unid=n(r[1]),qs=n(r[2]),qa=n(r[3]);
+    if(!unid&&!qs&&!qa)continue;
+    if(!cat){cat={name:'Itens',items:[]};cats.push(cat)}
+    id++;
+    const noStock=isNoStock(qa);
+    const numS=extractNum(qs),numA=noStock?0:extractNum(qa);
+    // sem_estoque = planilha marcou "00." (item não tem no estoque)
+    // nao_atendido = sem quantidade atendida (vazio)
+    let st='nao_atendido';
+    if(noStock)st='sem_estoque';
+    else if(numA>0&&numS>0&&numA<numS)st='parcial';
+    else if(numA>0)st='atendido';
+    cat.items.push({id,material:mat,unidade:unid,qtdSolicitada:qs||'0',qtdAtendida:noStock?'':n(qa),status:st,obs:'',tipo:cat?detectTipo(cat.name):'Outros'});
+  }
+  const filtered=cats.filter(c=>c.items.length>0);
+  filtered.forEach(c=>{c.tipo=detectTipo(c.name)});
+  const tipos=[...new Set(filtered.map(c=>c.tipo))];
+  return{unitName:un,categories:filtered.length?filtered:[{name:'Itens',items:[],tipo:'Outros'}],tipos:tipos.length?tipos:['Outros']};
+}
+
+function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}
+function sl(s){return{nao_atendido:'Não Atendido',atendido:'Atendido',parcial:'Parcial',sem_estoque:'Sem Estoque'}[s]||'Não Atendido'}
+function bc(s){return s==='sem_estoque'?'bse':s==='parcial'?'bpa':s==='atendido'?'ba':'bna'}
+function rc(s){return s==='sem_estoque'?'rno':s==='parcial'?'rpa':s==='atendido'?'rok':s==='nao_atendido'?'rna':''}
+function fdt(d){return d.toLocaleDateString('pt-BR')+' '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}
+function today(){return new Date().toLocaleDateString('pt-BR')}
+
+// Detecta o tipo de material a partir do nome da categoria
+function detectTipo(catName){
+  const lo=catName.toLowerCase();
+  if(/expediente|escrit[oó]rio|papelaria/i.test(lo))return'Expediente';
+  if(/limpeza|lavar/i.test(lo))return'Limpeza';
+  if(/higiene|higi[eê]n/i.test(lo))return'Higiene';
+  if(/alimento|alimentício|alimenticio|processado|lanche|scfv|comida|cozinha/i.test(lo))return'Alimentício';
+  if(/descart[aá]vel|descartavel/i.test(lo))return'Descartável';
+  if(/pcf|conviv[eê]ncia|convivencia|servi[çc]o/i.test(lo))return'Atividades';
+  return'Outros';
+}
+
+// Cores dos tipos para pills
+const TIPO_COLORS={
+  'Expediente':['#dbeafe','#1e40af'],
+  'Limpeza':['#d1fae5','#065f46'],
+  'Higiene':['#fce7f3','#9d174d'],
+  'Alimentício':['#fef3c7','#92400e'],
+  'Descartável':['#e0e7ff','#3730a3'],
+  'Atividades':['#f3e8ff','#6b21a8'],
+  'Outros':['#f1f5f9','#475569']
+};
+function tipoPill(tipo){const c=TIPO_COLORS[tipo]||TIPO_COLORS['Outros'];return`<span style="display:inline-block;padding:3px 10px;border-radius:10px;font-size:10px;font-weight:700;background:${c[0]};color:${c[1]}">${tipo}</span>`}
+function tiposPills(tipos){return tipos.map(tipoPill).join(' ')}
+function sumHTML(v){
+  return `<span style="color:#059669">✓${v.filter(i=>i.status==='atendido').length}</span> `+
+    `<span style="color:#d97706">◐${v.filter(i=>i.status==='parcial').length}</span> `+
+    `<span style="color:#dc2626">✗${v.filter(i=>i.status==='sem_estoque').length}</span> `+
+    `<span style="color:#7c3aed">⊘${v.filter(i=>i.status==='nao_atendido').length}</span>`;
+}
+function sumText(v){
+  return `${v.length} itens | <span style="color:#059669">${v.filter(i=>i.status==='atendido').length} atendidos</span> | `+
+    `<span style="color:#d97706">${v.filter(i=>i.status==='parcial').length} parciais</span> | `+
+    `<span style="color:#dc2626">${v.filter(i=>i.status==='sem_estoque').length} sem estoque</span> | `+
+    `<span style="color:#7c3aed">${v.filter(i=>i.status==='nao_atendido').length} não atendidos</span>`;
+}
+
+// ═══════════════════════════════════════════════════════
+// FILE UPLOAD
+// ═══════════════════════════════════════════════════════
+const dz=document.getElementById('fdrop');
+['dragenter','dragover'].forEach(e=>dz.addEventListener(e,ev=>{ev.preventDefault();dz.classList.add('over')}));
+['dragleave','drop'].forEach(e=>dz.addEventListener(e,ev=>{ev.preventDefault();dz.classList.remove('over')}));
+dz.addEventListener('drop',e=>{const f=e.dataTransfer.files[0];if(f){const dt=new DataTransfer();dt.items.add(f);document.getElementById('fi').files=dt.files;hf({target:{files:[f]}})}});
+function hf(e){
+  const file=e.target.files[0];if(!file)return;
+  document.getElementById('fname').textContent='✓ '+file.name;document.getElementById('fname').style.display='block';
+  const reader=new FileReader();
+  reader.onload=ev=>{try{const a=new Uint8Array(ev.target.result),wb=XLSX.read(a,{type:'array'}),ws=wb.Sheets[wb.SheetNames[0]],rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});tmpParsed=parseXLS(rows);tmpParsed.fileName=file.name;
+    // Show detected tipos
+    const el=document.getElementById('tiposDetectados');
+    el.innerHTML=tmpParsed.tipos.map(t=>tipoPill(t)).join(' ');
+    // Auto-detect unidade from spreadsheet
+    const uSel=document.getElementById('rU');
+    const detected=tmpParsed.unitName.toUpperCase();
+    for(let i=0;i<uSel.options.length;i++){if(uSel.options[i].value&&detected.includes(uSel.options[i].value.toUpperCase())){uSel.selectedIndex=i;break}}
+    // Show item count
+    const totalItens=tmpParsed.categories.reduce((s,c)=>s+c.items.length,0);
+    el.innerHTML+=` <span style="font-size:11px;color:var(--muted);margin-left:4px">(${totalItens} itens)</span>`;
+    ck()}catch(err){toast('Erro ao ler: '+err.message,'red')}};
+  reader.readAsArrayBuffer(file);
+}
+function ck(){document.getElementById('bR').disabled=!(document.getElementById('rU').value&&tmpParsed)}
+
+// ═══════════════════════════════════════════════════════
+// REGISTRAR REQUISIÇÃO
+// ═══════════════════════════════════════════════════════
+function registrar(){
+  const unidade=document.getElementById('rU').value;
+  const itemsMap={};tmpParsed.categories.forEach(c=>c.items.forEach(it=>{itemsMap[it.id]={...it}}));
+  REQS.push({id:nextId++,unidade,tipos:tmpParsed.tipos,resp:document.getElementById('rR').value||'Admin',obs:document.getElementById('rO').value,dt:new Date(),fileName:tmpParsed.fileName,parsed:tmpParsed,items:itemsMap,status:'requisitado',separador:null,entregador:null,retiradoPor:null});
+  tmpParsed=null;document.getElementById('fi').value='';document.getElementById('fname').style.display='none';
+  document.getElementById('rU').value='';document.getElementById('rO').value='';
+  document.getElementById('tiposDetectados').innerHTML='<span style="color:var(--muted);font-size:12px">Anexe a planilha para detectar...</span>';
+  document.getElementById('bR').disabled=true;
+  toast('Requisição registrada!','green');
+  goTab('ps');
+}
+
+// ═══════════════════════════════════════════════════════
+// TABS & RENDER
+// ═══════════════════════════════════════════════════════
+function goTab(t){
+  document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===t));
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('tab-'+t).classList.add('active');
+  if(t==='es'){document.getElementById('fichaWrap').style.display='none';document.getElementById('cles').style.display=''}
+  renderAll();
+}
+function updateCounts(){
+  const c=s=>REQS.filter(r=>r.status===s).length;
+  setB('c1',c('requisitado'));setB('c2',c('separando'));setB('c3',c('pronto'));setB('c4',c('entregue'));
+}
+function setB(id,nn){const e=document.getElementById(id);e.textContent=nn;e.className='bc '+(nn>0?'has':'zero')}
+function renderAll(){updateCounts();renderPS();renderES();renderPE();renderHI()}
+
+// ── PARA SEPARAR ──
+function renderPS(){
+  const l=REQS.filter(r=>r.status==='requisitado'),el=document.getElementById('lps');
+  if(!l.length){el.innerHTML='<div class="empty"><div class="ic">📭</div>Nenhuma requisição na fila.</div>';return}
+  let h='<table class="qt"><thead><tr><th>#</th><th>Unidade</th><th>Tipos</th><th>Data</th><th>Itens</th><th>Ação</th></tr></thead><tbody>';
+  l.forEach((r,idx)=>{
+    const ni=Object.keys(r.items).length;
+    const isFirst=idx===0;
+    h+=`<tr class="${isFirst?'first-row':''}">
+      <td style="text-align:center;font-weight:800;color:${isFirst?'var(--accent)':'#94a3b8'}">${idx+1}º</td>
+      <td style="font-weight:700">${esc(r.unidade)}</td>
+      <td>${tiposPills(r.tipos)}</td>
+      <td style="font-size:11px">${fdt(r.dt)}</td>
+      <td><span class="pill pr">${ni} itens</span></td>
+      <td>${isFirst
+        ?'<button class="btn btn-p btn-sm" onclick="pegarParaSeparar()">📦 Pegar para Separar</button>'
+        :'<span style="font-size:11px;color:var(--muted)">Aguardando...</span>'
+      }</td>
+    </tr>`;
+  });
+  h+='</tbody></table>';el.innerHTML=h;
+}
+
+// ── EM SEPARAÇÃO ──
+function renderES(){
+  const l=REQS.filter(r=>r.status==='separando'),el=document.getElementById('les');
+  if(!l.length){el.innerHTML='<div class="empty"><div class="ic">🔧</div>Nenhum material em separação.</div>';return}
+  let h='<table class="qt"><thead><tr><th>Unidade</th><th>Tipos</th><th>Separador</th><th>Resumo</th><th>Ações</th></tr></thead><tbody>';
+  l.forEach(r=>{
+    const v=Object.values(r.items);
+    h+=`<tr>
+      <td style="font-weight:700">${esc(r.unidade)}</td>
+      <td>${tiposPills(r.tipos)}</td>
+      <td>${esc(r.separador)}</td>
+      <td>${sumHTML(v)}</td>
+      <td style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn btn-p btn-sm" onclick="abrirFicha(${r.id})">📝 Editar Ficha</button>
+        <button class="btn btn-s btn-sm" onclick="imprimirReq(${r.id})">🖨️</button>
+        <button class="btn btn-g btn-sm" onclick="marcarProntoLista(${r.id})">✅ Pronto</button>
+      </td>
+    </tr>`;
+  });
+  h+='</tbody></table>';el.innerHTML=h;
+}
+
+// ── PRONTO P/ ENTREGA ──
+function renderPE(){
+  const l=REQS.filter(r=>r.status==='pronto'),el=document.getElementById('lpe');
+  if(!l.length){el.innerHTML='<div class="empty"><div class="ic">✅</div>Nenhum material aguardando retirada.</div>';return}
+  let h='<table class="qt"><thead><tr><th>Unidade</th><th>Tipos</th><th>Separador</th><th>Resumo</th><th>Ação</th></tr></thead><tbody>';
+  l.forEach(r=>{
+    const v=Object.values(r.items);
+    h+=`<tr>
+      <td style="font-weight:700">${esc(r.unidade)}</td>
+      <td>${tiposPills(r.tipos)}</td>
+      <td>${esc(r.separador)}</td>
+      <td>${sumHTML(v)}</td>
+      <td style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn btn-s btn-sm" onclick="imprimirReq(${r.id})">🖨️ Imprimir</button>
+        <button class="btn btn-r btn-sm" onclick="entregarReq(${r.id})">📦 Entregar</button>
+      </td>
+    </tr>`;
+  });
+  h+='</tbody></table>';el.innerHTML=h;
+}
+
+// ── HISTÓRICO ──
+function renderHI(){
+  const l=REQS.filter(r=>r.status==='entregue'),el=document.getElementById('lhi');
+  if(!l.length){el.innerHTML='<div class="empty"><div class="ic">📁</div>Nenhuma entrega no histórico.</div>';return}
+  let h='<table class="qt"><thead><tr><th>Unidade</th><th>Tipos</th><th>Separador</th><th>Retirado por</th><th>Data</th><th>Resumo</th></tr></thead><tbody>';
+  l.forEach(r=>{
+    const v=Object.values(r.items);
+    h+=`<tr>
+      <td style="font-weight:700">${esc(r.unidade)}</td>
+      <td>${tiposPills(r.tipos)}</td>
+      <td>${esc(r.separador)}</td>
+      <td>${esc(r.retiradoPor)}</td>
+      <td style="font-size:11px">${fdt(r.dtEntrega||r.dt)}</td>
+      <td>${sumHTML(v)}</td>
+    </tr>`;
+  });
+  h+='</tbody></table>';el.innerHTML=h;
+}
+
+// ═══════════════════════════════════════════════════════
+// PARA SEPARAR → EM SEPARAÇÃO
+// Pega o PRIMEIRO da fila, pede nome, imprime, move
+// ═══════════════════════════════════════════════════════
+function pegarParaSeparar(){
+  const first=REQS.find(r=>r.status==='requisitado');
+  if(!first)return;
+  showModal('Nome do Separador','Quem vai separar este material?','',function(nome){
+    first.separador=nome;
+    first.status='separando';
+    // Auto-imprimir a ficha
+    imprimirReq(first.id);
+    toast(first.unidade+' → Em Separação por '+nome,'green');
+    goTab('es');
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// EM SEPARAÇÃO — Editar Ficha
+// ═══════════════════════════════════════════════════════
+function abrirFicha(id){
+  curId=id;
+  document.getElementById('cles').style.display='none';
+  document.getElementById('fichaWrap').style.display='';
+  const r=REQS.find(x=>x.id===id);
+  document.getElementById('fichaTitle').textContent='📋 '+r.unidade+' — '+r.separador;
+  renderFicha();
+}
+function fecharFicha(){
+  document.getElementById('fichaWrap').style.display='none';
+  document.getElementById('cles').style.display='';
+  curId=null;renderAll();
+}
+
+function renderFicha(){
+  const r=REQS.find(x=>x.id===curId);if(!r)return;
+  const d=r.parsed,items=r.items;
+  let h=a4Header('FICHA DE SEPARAÇÃO DE MATERIAIS',d.unitName,d.fileName);
+  h+=`<div style="display:flex;gap:12px;margin-bottom:10px;font-size:12px"><span><b>Separador:</b> ${esc(r.separador)}</span><span style="color:var(--muted)">|</span><span><b>Tipos:</b> ${tiposPills(r.tipos)}</span></div>`;
+  d.categories.forEach(cat=>{
+    h+=`<div class="ch">${esc(cat.name)}</div>`;
+    h+=`<table class="it"><thead><tr><th style="width:4%">#</th><th style="width:28%;text-align:left">Material</th><th style="width:7%">Unid.</th><th style="width:9%">Solicit.</th><th style="width:14%">Qtd. Atendida</th><th style="width:10%">Status</th><th style="width:22%">Observação</th></tr></thead><tbody>`;
+    cat.items.forEach((x,i)=>{
+      const m=items[x.id];
+      h+=`<tr class="${rc(m.status)}" data-id="${x.id}">
+        <td style="text-align:center;color:#94a3b8;font-weight:600;font-size:10px">${i+1}</td>
+        <td style="font-weight:600">${esc(m.material)}</td>
+        <td style="text-align:center;color:#64748b;font-size:10px">${esc(m.unidade)}</td>
+        <td style="text-align:center;font-weight:700;color:#1e40af">${esc(m.qtdSolicitada)}</td>
+        <td style="text-align:center;padding:2px 4px"><input class="iq${m.status==='sem_estoque'?' ns':''}" value="${esc(m.qtdAtendida)}" placeholder="—" onchange="editQty(${x.id},this.value)"></td>
+        <td style="text-align:center;padding:2px"><span class="bs ${bc(m.status)}" onclick="cycleStatus(${x.id},this)">${sl(m.status)}</span></td>
+        <td style="padding:2px 4px"><input class="io" value="${esc(m.obs)}" placeholder="Obs..." onchange="editObs(${x.id},this.value)"></td>
+      </tr>`;
+    });
+    h+=`</tbody></table>`;
+  });
+  const v=Object.values(items);
+  h+=`<div class="sum" id="fichaSum"><b>Resumo:</b> ${sumText(v)}</div>`;
+  h+=signaturas(r.separador,'','');
+  document.getElementById('a4ficha').innerHTML=h;
+  updateFichaStats();
+}
+
+function a4Header(titulo,unidade,fileName){
+  return `<div style="text-align:center;margin-bottom:6px;line-height:1.3">
+    <div style="font-size:13px;font-weight:800;text-transform:uppercase">Prefeitura de São Luís</div>
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase">Secretaria Municipal da Criança e Assistência Social – SEMCAS</div>
+    <div style="font-size:10px;font-weight:600;color:#475569;text-transform:uppercase">Coordenação de Administração e Patrimônio</div>
+  </div>
+  <div class="a4h"><div><h1>${titulo}</h1><div class="u">${esc(unidade)}</div></div><div style="text-align:right;font-size:11px;color:#64748b">Data: <b>${today()}</b><br><span style="font-size:9px;color:#94a3b8">${esc(fileName||'')}</span></div></div>`;
+}
+function signaturas(sep,ent,rec){
+  return `<div class="sigs">
+    <div class="sig"><div class="sigl">${esc(sep||'')}</div><div class="sigla">Separado por</div></div>
+    <div class="sig"><div class="sigl">${esc(ent||'')}</div><div class="sigla">Entregue por</div></div>
+    <div class="sig"><div class="sigl">${esc(rec||'')}</div><div class="sigla">Recebido por (assinatura)</div></div>
+  </div>`;
+}
+
+function cycleStatus(id,el){
+  const r=REQS.find(x=>x.id===curId);if(!r)return;
+  const order=['nao_atendido','atendido','parcial','sem_estoque'];
+  const cur=r.items[id].status,nx=order[(order.indexOf(cur)+1)%order.length];
+  r.items[id].status=nx;
+  if(nx==='sem_estoque')r.items[id].qtdAtendida='0';
+  const tr=el.closest('tr'),qi=tr.querySelector('.iq');
+  tr.className=rc(nx);el.className='bs '+bc(nx);el.textContent=sl(nx);
+  if(qi){qi.classList.toggle('ns',nx==='sem_estoque');if(nx==='sem_estoque')qi.value='0'}
+  autoDetect(id);updateFichaStats();
+}
+function editQty(id,v){const r=REQS.find(x=>x.id===curId);if(!r)return;r.items[id].qtdAtendida=v;autoDetect(id);updateFichaStats()}
+function editObs(id,v){const r=REQS.find(x=>x.id===curId);if(r)r.items[id].obs=v}
+
+function autoDetect(id){
+  const r=REQS.find(x=>x.id===curId);if(!r)return;
+  const m=r.items[id];if(m.status==='sem_estoque')return;
+  const s=extractNum(m.qtdSolicitada),a=extractNum(m.qtdAtendida);
+  if(a>0&&s>0&&a<s)m.status='parcial';
+  else if(a>0&&s>0)m.status='atendido';
+  else if(a===0)m.status='nao_atendido';
+  const tr=document.querySelector(`#a4ficha tr[data-id="${id}"]`);
+  if(tr){const b=tr.querySelector('.bs');tr.className=rc(m.status);if(b){b.className='bs '+bc(m.status);b.textContent=sl(m.status)}}
+}
+function updateFichaStats(){
+  const r=REQS.find(x=>x.id===curId);if(!r)return;const v=Object.values(r.items);
+  document.getElementById('fichaStats').innerHTML=`<span class="sp st">Total: <b>${v.length}</b></span><span class="sp so">✓ ${v.filter(i=>i.status==='atendido').length}</span><span class="sp spa">◐ ${v.filter(i=>i.status==='parcial').length}</span><span class="sp sn">✗ ${v.filter(i=>i.status==='sem_estoque').length}</span><span class="sp sna">⊘ ${v.filter(i=>i.status==='nao_atendido').length}</span>`;
+}
+function imprimirFicha(){const r=REQS.find(x=>x.id===curId);if(r)imprimirReq(r.id)}
+
+// ═══════════════════════════════════════════════════════
+// MARCAR PRONTO (da ficha ou da lista)
+// ═══════════════════════════════════════════════════════
+function marcarPronto(){
+  const r=REQS.find(x=>x.id===curId);if(!r)return;
+  // Converte "Não Atendido" → "Atendido"
+  Object.values(r.items).forEach(i=>{if(i.status==='nao_atendido')i.status='atendido'});
+  r.status='pronto';
+  curId=null;
+  toast(r.unidade+' → Pronto para Entrega!','green');
+  goTab('pe');
+}
+function marcarProntoLista(id){
+  const r=REQS.find(x=>x.id===id);if(!r)return;
+  Object.values(r.items).forEach(i=>{if(i.status==='nao_atendido')i.status='atendido'});
+  r.status='pronto';
+  toast(r.unidade+' → Pronto para Entrega!','green');
+  renderAll();
+}
+
+// ═══════════════════════════════════════════════════════
+// PRONTO → ENTREGUE
+// ═══════════════════════════════════════════════════════
+function entregarReq(id){
+  showModal('Quem está retirando?','Nome de quem veio buscar o material:','',function(nome){
+    const r=REQS.find(x=>x.id===id);if(!r)return;
+    r.retiradoPor=nome;
+    r.status='entregue';
+    r.dtEntrega=new Date();
+    toast(r.unidade+' entregue para '+nome,'green');
+    renderAll();
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// IMPRIMIR (abre nova janela com A4)
+// ═══════════════════════════════════════════════════════
+function imprimirReq(id){
+  const r=REQS.find(x=>x.id===id);if(!r)return;
+  const d=r.parsed,items=r.items;
+  let h=a4Header('FICHA DE SEPARAÇÃO DE MATERIAIS',d.unitName,d.fileName);
+  h+=`<div style="display:flex;gap:12px;margin-bottom:10px;font-size:12px"><span><b>Separador:</b> ${esc(r.separador||'')}</span><span>|</span><span><b>Tipos:</b> ${tiposPills(r.tipos)}</span></div>`;
+  d.categories.forEach(cat=>{
+    h+=`<div class="ch">${esc(cat.name)}</div>`;
+    h+=`<table class="it"><thead><tr><th style="width:4%">#</th><th style="width:30%;text-align:left">Material</th><th style="width:8%">Unid.</th><th style="width:10%">Solicit.</th><th style="width:12%">Atendida</th><th style="width:11%">Status</th><th style="width:20%">Obs</th></tr></thead><tbody>`;
+    cat.items.forEach((x,i)=>{
+      const m=items[x.id];
+      h+=`<tr class="${rc(m.status)}"><td style="text-align:center;color:#94a3b8;font-size:10px;font-weight:600">${i+1}</td><td style="font-weight:600">${esc(m.material)}</td><td style="text-align:center;color:#64748b;font-size:10px">${esc(m.unidade)}</td><td style="text-align:center;font-weight:700;color:#1e40af">${esc(m.qtdSolicitada)}</td><td style="text-align:center;font-weight:700">${esc(m.qtdAtendida||'—')}</td><td style="text-align:center"><span class="bs ${bc(m.status)}">${sl(m.status)}</span></td><td style="font-size:10px;color:#475569">${esc(m.obs||'')}</td></tr>`;
+    });
+    h+=`</tbody></table>`;
+  });
+  const v=Object.values(items);
+  h+=`<div class="sum"><b>Resumo:</b> ${sumText(v)}</div>`;
+  h+=signaturas(r.separador,r.entregador||'',r.retiradoPor||'');
+  openPrintWindow(h);
+}
+
+function openPrintWindow(contentHTML){
+  const w=window.open('','_blank','width=850,height=1100');
+  if(!w){toast('Popup bloqueado! Permita popups.','red');return}
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Imprimir — SEMCAS</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700;9..40,800&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',system-ui,sans-serif;color:#0f172a;padding:10mm;background:#fff}
+.a4h{border-bottom:3px solid #0f172a;padding-bottom:10px;margin-bottom:12px;display:flex;justify-content:space-between}
+.a4h h1{font-size:15px;font-weight:800}.a4h .u{font-size:12px;color:#475569;font-weight:600;margin-top:2px}
+.ch{background:#0f172a;color:#fff;padding:4px 10px;font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;border-radius:4px 4px 0 0;margin-top:10px}
+.it{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:2px}
+.it th{padding:4px 6px;font-size:9px;font-weight:800;color:#475569;text-align:center;border-bottom:2px solid #cbd5e1;text-transform:uppercase;background:#f1f5f9}
+.it th:nth-child(2){text-align:left}
+.it td{padding:4px 6px;border-bottom:1px solid #e2e8f0;vertical-align:middle}
+.it .rok{background:#f0fdf4}.it .rpa{background:#fffbeb}.it .rno{background:#fff1f2}.it .rna{background:#f5f3ff}
+.bs{display:inline-block;padding:2px 7px;border-radius:4px;font-size:9px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;border:1px solid}
+.bna{background:#ede9fe;color:#5b21b6;border-color:#c4b5fd}
+.ba{background:#d1fae5;color:#065f46;border-color:#6ee7b7}
+.bpa{background:#fef3c7;color:#92400e;border-color:#fcd34d}
+.bse{background:#fee2e2;color:#991b1b;border-color:#fca5a5}
+.sum{margin-top:14px;padding:8px 10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;font-size:11px}
+.sigs{margin-top:24px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;font-size:10px}
+.sig{text-align:center}.sigl{border-bottom:1px solid #0f172a;padding-bottom:3px;margin-bottom:3px;min-height:16px;font-weight:500}.sigla{font-size:9px;color:#64748b;font-weight:600}
+@page{size:A4 portrait;margin:5mm}
+</style></head><body>${contentHTML}
+<script>window.onload=function(){window.print()}<\/script>
+</body></html>`);
+  w.document.close();
+}
+
+// ═══════════════════════════════════════════════════════
+// MODAL
+// ═══════════════════════════════════════════════════════
+function showModal(t,d,dv,cb){
+  _mcb=cb;
+  document.getElementById('mT').textContent=t;
+  document.getElementById('mD').textContent=d;
+  const inp=document.getElementById('mI');inp.value=dv||'';inp.placeholder=t;
+  document.getElementById('modal').classList.add('open');
+  setTimeout(()=>inp.focus(),100);
+  inp.onkeydown=e=>{if(e.key==='Enter')okModal()};
+}
+function okModal(){const v=document.getElementById('mI').value.trim();if(!v)return;document.getElementById('modal').classList.remove('open');if(_mcb)_mcb(v);_mcb=null}
+function closeModal(){document.getElementById('modal').classList.remove('open');_mcb=null}
+
+// ═══════════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════════
+function toast(msg,color){
+  const t=document.createElement('div');t.textContent=msg;
+  Object.assign(t.style,{position:'fixed',bottom:'20px',left:'50%',transform:'translateX(-50%)',background:color==='green'?'#059669':'#dc2626',color:'#fff',padding:'10px 24px',borderRadius:'10px',fontSize:'13px',fontWeight:'700',zIndex:'10000',boxShadow:'0 8px 24px rgba(0,0,0,.2)',animation:'ms .3s ease'});
+  document.body.appendChild(t);setTimeout(()=>t.remove(),2500);
+}
+
+renderAll();
+</script>
+</body>
+</html>

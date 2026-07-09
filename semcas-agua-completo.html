@@ -1,0 +1,1230 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>Controle de Água — SEMCAS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<!--
+  ╔══════════════════════════════════════════════════════════════════════╗
+  ║  SEMCAS — Controle de Água  (HTML estrutural)                       ║
+  ║                                                                      ║
+  ║  IDs mapeados para DOM_ELEMENTS em control-helpers.js / dom-         ║
+  ║  helpers.js. Não altere IDs sem atualizar o JS correspondente.       ║
+  ╚══════════════════════════════════════════════════════════════════════╝
+-->
+
+<style>
+/* ── RESET / BASE ─────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --navy:        #0D1B3E;
+  --navy-light:  #1E3370;
+  --accent:      #2563EB;
+  --accent-glow: rgba(37,99,235,0.12);
+  --teal:        #0F9B7E;
+  --teal-glow:   rgba(15,155,126,0.1);
+  --amber:       #D97706;
+  --danger:      #DC2626;
+  --danger-glow: rgba(220,38,38,0.08);
+  --surface:     #F8F9FC;
+  --surface-2:   #EEF1F8;
+  --border:      rgba(13,27,62,0.1);
+  --border-md:   rgba(13,27,62,0.18);
+  --text:        #0D1B3E;
+  --text-muted:  #4B5A7A;
+  --text-faint:  #8896B3;
+  --white:       #ffffff;
+  --sidebar-w:   240px;
+  --topbar-h:    44px;
+}
+
+body {
+  font-family: 'Sora', sans-serif;
+  background: var(--surface);
+  color: var(--text);
+  display: flex;
+  min-height: 100vh;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* ── TOPBAR ───────────────────────────────────────────────────────────── */
+.topbar {
+  position: fixed; top: 0; left: 0; right: 0; height: var(--topbar-h);
+  background: var(--navy); display: flex; align-items: center;
+  padding: 0 20px; gap: 8px; z-index: 100; font-size: 12px;
+  color: rgba(255,255,255,.7);
+}
+.topbar-logo { font-weight: 600; color: #fff; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+.topbar-sep  { color: rgba(255,255,255,.3); }
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 16px; }
+.status-dot { width: 7px; height: 7px; border-radius: 50%; background: #22C55E; box-shadow: 0 0 6px rgba(34,197,94,.6); }
+.tv-btn {
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.15);
+  color: rgba(255,255,255,.9); padding: 4px 12px; border-radius: 6px;
+  font-size: 11px; font-weight: 500; cursor: pointer; font-family: inherit;
+}
+.tv-btn:hover { background: rgba(255,255,255,.18); }
+
+/* ── SIDEBAR ──────────────────────────────────────────────────────────── */
+.sidebar {
+  width: var(--sidebar-w); background: var(--white);
+  border-right: 1px solid var(--border);
+  position: fixed; top: var(--topbar-h); left: 0; bottom: 0;
+  overflow-y: auto; display: flex; flex-direction: column; z-index: 50;
+  transition: transform .3s;
+}
+.sidebar-brand { padding: 20px 20px 16px; border-bottom: 1px solid var(--border); }
+.brand-logo { display: flex; align-items: center; gap: 10px; }
+.brand-icon { width: 34px; height: 34px; background: var(--navy); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+.brand-name { font-size: 15px; font-weight: 600; color: var(--navy); }
+.brand-sub  { font-size: 10px; color: var(--text-faint); letter-spacing: .04em; text-transform: uppercase; margin-top: 1px; }
+
+.nav-section { padding: 14px 12px 6px; }
+.nav-label   { font-size: 10px; font-weight: 600; color: var(--text-faint); letter-spacing: .08em; text-transform: uppercase; padding: 0 8px; margin-bottom: 6px; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+  border-radius: 8px; color: var(--text-muted); font-size: 13px;
+  cursor: pointer; transition: all .15s; margin-bottom: 2px; text-decoration: none;
+}
+.nav-item:hover { background: var(--surface); color: var(--text); }
+.nav-item.active { background: var(--accent-glow); color: var(--accent); font-weight: 500; }
+.nav-item svg { width: 15px; height: 15px; flex-shrink: 0; opacity: .7; }
+.nav-item.active svg { opacity: 1; }
+
+.sidebar-footer {
+  margin-top: auto; padding: 14px 16px; border-top: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+}
+.user-avatar { width: 32px; height: 32px; background: var(--navy); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: #fff; flex-shrink: 0; }
+.user-name   { font-size: 12px; font-weight: 500; color: var(--text); }
+.user-role   { display: inline-block; font-size: 10px; font-weight: 500; background: #FEF3C7; color: #92400E; padding: 1px 7px; border-radius: 4px; margin-top: 2px; }
+.logout-btn  { margin-left: auto; background: none; border: none; color: var(--text-faint); cursor: pointer; padding: 4px; border-radius: 6px; }
+.logout-btn:hover { color: var(--danger); }
+
+/* ── MAIN ─────────────────────────────────────────────────────────────── */
+.main { margin-left: var(--sidebar-w); margin-top: var(--topbar-h); flex: 1; display: flex; flex-direction: column; min-height: calc(100vh - var(--topbar-h)); }
+
+/* ── PAGE HEADER ──────────────────────────────────────────────────────── */
+.page-header { background: var(--white); border-bottom: 1px solid var(--border); padding: 22px 32px 0; }
+.page-eyebrow { font-size: 11px; font-weight: 500; color: var(--accent); letter-spacing: .06em; text-transform: uppercase; margin-bottom: 5px; display: flex; align-items: center; gap: 6px; }
+.page-eyebrow::before { content: ''; display: block; width: 14px; height: 2px; background: var(--accent); border-radius: 1px; }
+.page-title  { font-size: 21px; font-weight: 600; color: var(--navy); letter-spacing: -.02em; display: flex; align-items: center; gap: 9px; }
+.page-desc   { font-size: 13px; color: var(--text-muted); margin-top: 3px; }
+
+/* ── MAIN TAB NAV ─────────────────────────────────────────────────────── */
+.tab-nav { display: flex; gap: 0; margin-top: 18px; border-bottom: none; }
+.nav-btn {
+  display: flex; align-items: center; gap: 7px;
+  padding: 10px 16px; font-size: 13px; font-weight: 400;
+  color: var(--text-muted); cursor: pointer; border: none; background: none;
+  border-bottom: 2px solid transparent; font-family: inherit;
+  transition: all .15s; white-space: nowrap;
+}
+.nav-btn:hover { color: var(--text); }
+.nav-btn.active { color: var(--accent); font-weight: 500; border-bottom-color: var(--accent); }
+.nav-btn svg { width: 14px; height: 14px; }
+
+/* ── SUB NAV ──────────────────────────────────────────────────────────── */
+#sub-nav-agua {
+  display: flex; gap: 8px; padding: 12px 32px;
+  background: var(--white); border-bottom: 1px solid var(--border);
+}
+.sub-nav-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 15px; border-radius: 8px; font-size: 13px;
+  cursor: pointer; font-family: inherit; transition: all .15s;
+  border: 1px solid var(--border-md);
+}
+.sub-nav-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 500; }
+.sub-nav-btn:not(.active) { background: var(--white); color: var(--text-muted); }
+.sub-nav-btn:not(.active):hover { background: var(--surface); color: var(--text); }
+.sub-nav-btn svg { width: 13px; height: 13px; }
+
+/* ── CONTENT AREA ─────────────────────────────────────────────────────── */
+#content-agua { padding: 24px 32px; flex: 1; }
+
+/* ── CARDS & LAYOUT ───────────────────────────────────────────────────── */
+.stats-strip {
+  display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 22px;
+}
+.strip-card {
+  background: var(--white); border: 1px solid var(--border);
+  border-radius: 12px; padding: 15px 18px;
+  display: flex; align-items: center; gap: 12px;
+  position: relative; overflow: hidden; transition: box-shadow .2s;
+}
+.strip-card:hover { box-shadow: 0 3px 12px rgba(13,27,62,.07); }
+.strip-card::after { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; border-radius: 0 2px 2px 0; }
+.strip-card.s-neutral::after  { background: var(--border-md); }
+.strip-card.s-positive::after { background: var(--teal); }
+.strip-card.s-negative::after { background: var(--danger); }
+.strip-card.s-accent::after   { background: var(--accent); }
+.strip-icon { width: 36px; height: 36px; border-radius: 9px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.strip-icon.i-neutral  { background: var(--surface-2); }
+.strip-icon.i-positive { background: var(--teal-glow); }
+.strip-icon.i-negative { background: var(--danger-glow); }
+.strip-icon.i-accent   { background: var(--accent-glow); }
+.strip-label { font-size: 10px; color: var(--text-faint); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 2px; }
+.strip-value { font-size: 21px; font-weight: 600; font-family: 'IBM Plex Mono', monospace; letter-spacing: -.02em; }
+.strip-value.v-neutral  { color: var(--navy); }
+.strip-value.v-positive { color: var(--teal); }
+.strip-value.v-negative { color: var(--danger); }
+.strip-value.v-accent   { color: var(--accent); }
+
+/* GRID LAYOUT */
+.layout-grid { display: grid; grid-template-columns: 280px 1fr; gap: 18px; align-items: start; }
+
+/* STOCK PANEL */
+.stock-panel {
+  background: var(--white); border: 1px solid var(--border); border-radius: 14px; overflow: hidden;
+}
+.stock-panel-header {
+  padding: 15px 18px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.stock-panel-title { font-size: 13px; font-weight: 600; color: var(--navy); }
+.stock-panel-badge {
+  font-size: 10px; font-weight: 500;
+  background: var(--surface-2); color: var(--text-faint);
+  padding: 2px 8px; border-radius: 10px;
+}
+.stock-rows { padding: 4px 0; }
+.stock-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 11px 18px; border-bottom: 1px solid var(--border); font-size: 13px;
+}
+.stock-row:last-child { border-bottom: none; }
+.stock-row-label { color: var(--text-muted); display: flex; align-items: center; gap: 8px; }
+.dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.dot-gray  { background: var(--text-faint); }
+.dot-green { background: var(--teal); }
+.dot-red   { background: var(--danger); }
+.dot-blue  { background: var(--accent); }
+.stock-row-value { font-weight: 600; font-family: 'IBM Plex Mono', monospace; font-size: 14px; }
+.v-green { color: var(--teal); }
+.v-red   { color: var(--danger); }
+
+.stock-disponivel {
+  padding: 14px 18px; background: var(--accent-glow);
+  border-top: 1px solid rgba(37,99,235,.15);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.disp-label { font-size: 11px; font-weight: 600; color: var(--accent); text-transform: uppercase; letter-spacing: .05em; }
+.disp-value { font-size: 30px; font-weight: 600; color: var(--accent); font-family: 'IBM Plex Mono', monospace; }
+
+/* Barra de consumo */
+.bar-wrap { padding: 14px 18px; border-top: 1px solid var(--border); }
+.bar-label { font-size: 11px; color: var(--text-faint); margin-bottom: 7px; display: flex; justify-content: space-between; }
+.bar-track { height: 7px; background: var(--surface-2); border-radius: 4px; overflow: hidden; }
+.bar-fill  { height: 100%; border-radius: 4px; background: var(--teal); transition: width .6s ease; }
+
+/* ESTOQUE INICIAL (oculto por padrão se não definido) */
+#alert-inicial-agua { padding: 14px 18px; }
+#btn-abrir-inicial-agua {
+  margin: 14px 18px; display: inline-flex; align-items: center; gap: 6px;
+  background: var(--accent); color: #fff; padding: 8px 16px; border-radius: 8px;
+  font-size: 13px; font-weight: 500; border: none; cursor: pointer; font-family: inherit;
+}
+#form-inicial-agua-container { padding: 14px 18px; border-top: 1px solid var(--border); }
+
+/* FORM CARD */
+.form-card { background: var(--white); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+.form-tabs  { display: flex; border-bottom: 1px solid var(--border); }
+.form-tab-btn {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 13px 14px; font-size: 13px; color: var(--text-muted);
+  cursor: pointer; border: none; background: none;
+  border-bottom: 2px solid transparent; font-family: inherit; transition: all .15s;
+}
+.form-tab-btn:hover { color: var(--text); background: var(--surface); }
+.form-tab-btn.active { color: var(--accent); font-weight: 500; border-bottom-color: var(--accent); }
+.form-tab-btn svg { width: 14px; height: 14px; }
+
+.form-body { padding: 22px; }
+.form-info {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: 11px 14px;
+  font-size: 12px; color: var(--text-muted); line-height: 1.55;
+  margin-bottom: 18px; display: flex; gap: 9px;
+}
+.form-info svg { flex-shrink: 0; margin-top: 1px; color: var(--accent); }
+.form-group   { margin-bottom: 16px; }
+.form-label   { font-size: 12px; font-weight: 500; color: var(--text); margin-bottom: 6px; display: block; }
+.form-label span { color: var(--text-faint); font-weight: 400; }
+.form-input, .form-select {
+  width: 100%; padding: 9px 12px;
+  border: 1px solid var(--border-md); border-radius: 8px;
+  font-size: 13px; color: var(--text); background: var(--white);
+  font-family: inherit; transition: all .15s; outline: none; appearance: none;
+}
+.form-input:focus, .form-select:focus {
+  border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow);
+}
+.form-input::placeholder { color: var(--text-faint); }
+.form-input:disabled { background: var(--surface-2); cursor: not-allowed; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.sel-wrap { position: relative; }
+.sel-wrap::after {
+  content: ''; position: absolute; right: 11px; top: 50%; transform: translateY(-50%);
+  width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent;
+  border-top: 5px solid var(--text-faint); pointer-events: none;
+}
+
+/* Alerta de saldo */
+#unidade-saldo-alerta-agua {
+  margin-bottom: 14px; padding: 10px 14px;
+  border-radius: 8px; font-size: 12px; line-height: 1.5;
+  display: none;
+}
+#unidade-saldo-alerta-agua.show { display: block; }
+.alert-error   { background: #FEF2F2; border: 1px solid #FECACA; color: #991B1B; }
+.alert-success { background: #F0FDF4; border: 1px solid #BBF7D0; color: #166534; }
+.alert-info    { background: #EFF6FF; border: 1px solid #BFDBFE; color: #1D4ED8; }
+.alert-warning { background: #FFFBEB; border: 1px solid #FDE68A; color: #92400E; }
+
+/* Alert box genérico */
+.alert-box {
+  border-radius: 8px; padding: 10px 14px; font-size: 12px; margin-bottom: 14px; display: none;
+}
+.alert-box.show { display: block; }
+
+/* Submit button */
+.btn-submit {
+  width: 100%; padding: 11px; border: none; border-radius: 8px;
+  font-size: 14px; font-weight: 500; font-family: inherit;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  cursor: pointer; transition: all .15s; margin-top: 4px;
+}
+.btn-submit.btn-accent { background: var(--accent); color: #fff; }
+.btn-submit.btn-accent:hover { background: var(--navy-light); }
+.btn-submit.btn-teal  { background: var(--teal); color: #fff; }
+.btn-submit.btn-teal:hover  { background: #0a7a64; }
+.btn-submit:disabled  { opacity: .5; cursor: not-allowed; }
+.btn-submit svg { width: 15px; height: 15px; }
+
+/* LOADING SPINNER */
+.loading-spinner-small {
+  width: 18px; height: 18px; border: 2px solid rgba(255,255,255,.3);
+  border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── TABLE VIEWS ──────────────────────────────────────────────────────── */
+.table-view-card {
+  background: var(--white); border: 1px solid var(--border);
+  border-radius: 14px; overflow: hidden; margin-bottom: 18px;
+}
+.table-view-header {
+  padding: 15px 20px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;
+}
+.table-view-title { font-size: 13px; font-weight: 600; color: var(--navy); }
+.filter-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.filter-input, .filter-select {
+  padding: 6px 11px; border: 1px solid var(--border-md); border-radius: 7px;
+  font-size: 12px; color: var(--text); background: var(--white);
+  font-family: inherit; outline: none; transition: all .15s; appearance: none;
+}
+.filter-input:focus, .filter-select:focus { border-color: var(--accent); }
+.filter-input::placeholder { color: var(--text-faint); }
+.btn-outline-sm {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 6px 12px; border: 1px solid var(--border-md); border-radius: 7px;
+  background: var(--white); color: var(--text-muted); font-size: 12px;
+  cursor: pointer; font-family: inherit; transition: all .15s;
+}
+.btn-outline-sm:hover { background: var(--surface); color: var(--text); }
+.btn-outline-sm svg { width: 12px; height: 12px; }
+
+/* Saldo filter buttons */
+.saldo-filter-btns { display: flex; gap: 6px; }
+.saldo-btn {
+  padding: 5px 12px; border-radius: 20px; font-size: 11px; font-weight: 500;
+  border: 1px solid var(--border-md); background: var(--white);
+  cursor: pointer; font-family: inherit; transition: all .15s; color: var(--text-muted);
+}
+.saldo-btn.active.devendo { background: #FEF2F2; border-color: #FECACA; color: var(--danger); }
+.saldo-btn.active.credito { background: #EFF6FF; border-color: #BFDBFE; color: var(--accent); }
+.saldo-btn.active.zerado  { background: #F0FDF4; border-color: #BBF7D0; color: var(--teal); }
+.saldo-btn.active.todos   { background: var(--accent-glow); border-color: rgba(37,99,235,.2); color: var(--accent); }
+
+/* Data table */
+.table-scroll { overflow-x: auto; }
+.data-table {
+  width: 100%; border-collapse: collapse; font-size: 13px;
+}
+.data-table thead tr { background: var(--surface-2); }
+.data-table th {
+  padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600;
+  color: var(--text-faint); text-transform: uppercase; letter-spacing: .05em;
+  white-space: nowrap;
+}
+.data-table td { padding: 11px 14px; border-bottom: 1px solid var(--border); color: var(--text-muted); }
+.data-table tbody tr:last-child td { border-bottom: none; }
+.data-table tbody tr:hover td { background: var(--surface); }
+.data-table td.bold { font-weight: 600; color: var(--text); }
+
+/* Badges */
+.badge { display: inline-block; font-size: 11px; font-weight: 500; padding: 2px 9px; border-radius: 20px; }
+.badge-blue    { background: #EFF6FF; color: #1D4ED8; }
+.badge-green   { background: #F0FDF4; color: #166534; }
+.badge-red     { background: #FEF2F2; color: #991B1B; }
+.badge-gray    { background: var(--surface-2); color: var(--text-muted); }
+.badge-amber   { background: #FFFBEB; color: #92400E; }
+.table-group-header td { padding: 8px 14px; background: var(--surface); font-size: 11px; font-weight: 600; color: var(--text-faint); text-transform: uppercase; letter-spacing: .06em; }
+
+/* Action buttons in tables */
+.btn-danger { display: inline-flex; align-items: center; gap: 4px; padding: 5px 10px; border: none; border-radius: 6px; background: #FEF2F2; color: var(--danger); font-size: 11px; cursor: pointer; transition: all .15s; font-family: inherit; }
+.btn-danger:hover { background: var(--danger); color: #fff; }
+.btn-icon svg { width: 13px; height: 13px; }
+
+/* Debito buttons row */
+.debito-btns { display: flex; gap: 8px; align-items: center; }
+.debito-btn {
+  padding: 5px 14px; border-radius: 20px; font-size: 12px; font-weight: 500;
+  border: 1px solid var(--border-md); background: var(--white);
+  cursor: pointer; font-family: inherit; transition: all .15s; color: var(--text-muted);
+}
+.debito-btn.active { background: var(--danger); border-color: var(--danger); color: #fff; }
+.debito-btn.active.credito-mode { background: var(--accent); border-color: var(--accent); }
+
+/* Resumo filters */
+.resumo-filters {
+  display: flex; gap: 8px; flex-wrap: wrap; padding: 12px 20px;
+  border-bottom: 1px solid var(--border); background: var(--surface);
+}
+
+/* ── EMPTY STATE ──────────────────────────────────────────────────────── */
+.empty-state { padding: 32px 20px; text-align: center; color: var(--text-faint); font-size: 13px; }
+
+/* ── FOOTER ───────────────────────────────────────────────────────────── */
+.page-footer {
+  padding: 14px 32px; border-top: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--white); font-size: 12px; color: var(--text-faint); margin-top: auto;
+}
+
+/* ── ANIMATIONS ───────────────────────────────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+#content-agua > * { animation: fadeUp .25s ease both; }
+
+/* ── HIDDEN UTIL ──────────────────────────────────────────────────────── */
+.hidden { display: none !important; }
+
+/* ── MOBILE ───────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .sidebar { transform: translateX(-100%); }
+  .main { margin-left: 0; }
+  .stats-strip { grid-template-columns: repeat(2, 1fr); }
+  .layout-grid { grid-template-columns: 1fr; }
+  .form-row { grid-template-columns: 1fr; }
+  #content-agua { padding: 16px; }
+  .page-header { padding: 16px 16px 0; }
+  #sub-nav-agua { padding: 10px 16px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══ TOPBAR ══════════════════════════════════════════════════════════ -->
+<div class="topbar">
+  <span class="topbar-logo">Prefeitura de São Luís</span>
+  <span class="topbar-sep">›</span>
+  <span>SEMCAS</span>
+  <span class="topbar-sep">›</span>
+  <span>Secretaria Municipal da Criança e Assistência Social</span>
+  <div class="topbar-right">
+    <span style="font-size:12px;color:rgba(255,255,255,.45)">sex., 13 mar. 2026</span>
+    <button class="tv-btn" id="btn-modo-tv">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>
+      </svg>
+      Modo TV
+    </button>
+    <div style="display:flex;align-items:center;gap:5px;font-size:12px;color:#4ADE80;">
+      <div class="status-dot"></div>Online
+    </div>
+  </div>
+</div>
+
+<!-- ══ SIDEBAR ═════════════════════════════════════════════════════════ -->
+<aside class="sidebar" id="main-sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-logo">
+      <div class="brand-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8">
+          <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+          <polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+      </div>
+      <div>
+        <div class="brand-name">SEMCAS</div>
+        <div class="brand-sub">Almoxarifado v2</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-label">Principal</div>
+    <a class="nav-item nav-btn" data-tab="inicio" href="#">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+        <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+      </svg>
+      Início
+    </a>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-label">Operacional</div>
+    <a class="nav-item nav-btn active" data-tab="agua" href="#">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
+      </svg>
+      Controle de Água
+    </a>
+    <a class="nav-item nav-btn" data-tab="gas" href="#">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
+        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+      </svg>
+      Controle de Gás
+    </a>
+    <a class="nav-item nav-btn" data-tab="materiais" href="#">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="2" y="7" width="20" height="14" rx="2"/>
+        <path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/>
+      </svg>
+      Entrega Materiais
+    </a>
+    <a class="nav-item nav-btn" data-tab="social" href="#">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
+        <circle cx="9" cy="7" r="4"/>
+        <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
+      </svg>
+      Assistência Social
+    </a>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-label">Administrativo</div>
+    <a class="nav-item nav-btn" data-tab="unidades" href="#">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+      </svg>
+      Gestão Unidades
+    </a>
+    <a class="nav-item nav-btn" data-tab="usuarios" href="#">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
+        <circle cx="12" cy="7" r="4"/>
+      </svg>
+      Gestão Usuários
+    </a>
+    <a class="nav-item nav-btn" data-tab="feriados" href="#">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="4" width="18" height="18" rx="2"/>
+        <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+        <line x1="3" y1="10" x2="21" y2="10"/>
+      </svg>
+      Feriados
+    </a>
+    <a class="nav-item nav-btn" data-tab="relatorios" href="#">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+      </svg>
+      Relatórios
+    </a>
+  </div>
+
+  <div class="sidebar-footer">
+    <div class="user-avatar" id="user-avatar-initials">US</div>
+    <div>
+      <div class="user-name" id="user-display-name">jujuba100054</div>
+      <span class="user-role" id="user-role-badge">Admin</span>
+    </div>
+    <button class="logout-btn" id="btn-logout" title="Sair">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
+        <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+      </svg>
+    </button>
+  </div>
+</aside>
+
+<!-- ══ MAIN ════════════════════════════════════════════════════════════ -->
+<main class="main">
+
+  <!-- PAGE HEADER -->
+  <div class="page-header">
+    <div>
+      <div class="page-eyebrow">Operacional</div>
+      <h1 class="page-title">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2">
+          <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
+        </svg>
+        Controle de Água
+      </h1>
+      <p class="page-desc">Movimentações, estoque, saldos e análise de consumo</p>
+    </div>
+
+    <!-- MAIN TAB NAV -->
+    <nav class="tab-nav" id="agua-tab-nav">
+      <button class="nav-btn active" data-tab="agua" data-subview="movimentacao-agua">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+          <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+        </svg>
+        Lançamento
+      </button>
+      <button class="nav-btn" data-tab="agua" data-subview="entradas-agua">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="7 23 3 19 7 15"/>
+          <path d="M21 13v2a4 4 0 01-4 4H3"/>
+          <polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/>
+        </svg>
+        Entradas (Estoque)
+      </button>
+      <button class="nav-btn" data-tab="agua" data-subview="status-agua">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/>
+          <polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/>
+        </svg>
+        Saldo nas Unidades
+      </button>
+      <button class="nav-btn" data-tab="agua" data-subview="historico-agua">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <polyline points="12 6 12 12 16 14"/>
+        </svg>
+        Histórico Geral
+      </button>
+      <button class="nav-btn" data-tab="agua" data-subview="previsao-agua">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/>
+          <line x1="6" y1="20" x2="6" y2="14"/>
+        </svg>
+        Análise e Previsão
+      </button>
+    </nav>
+  </div>
+
+  <!-- SUB NAV (Lançamento / Resumo de Débitos) -->
+  <nav id="sub-nav-agua">
+    <button class="sub-nav-btn active" data-subview="movimentacao-agua">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+      </svg>
+      Lançamento
+    </button>
+    <button class="sub-nav-btn" data-subview="resumo-debitos-agua">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="3" width="18" height="18" rx="2"/>
+        <line x1="8" y1="12" x2="16" y2="12"/><line x1="12" y1="8" x2="12" y2="16"/>
+      </svg>
+      Resumo de Débitos
+    </button>
+  </nav>
+
+  <!-- ══ CONTENT AREA ════════════════════════════════════════════════ -->
+  <div id="content-agua">
+
+    <!-- STATS STRIP (sempre visível no módulo de água) -->
+    <div id="resumo-estoque-agua-el" class="stats-strip hidden">
+      <div class="strip-card s-neutral">
+        <div class="strip-icon i-neutral">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2">
+            <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
+          </svg>
+        </div>
+        <div>
+          <div class="strip-label">Estoque Inicial</div>
+          <div class="strip-value v-neutral" id="estoque-agua-inicial-el">—</div>
+        </div>
+      </div>
+      <div class="strip-card s-positive">
+        <div class="strip-icon i-positive">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2">
+            <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
+            <polyline points="17 6 23 6 23 12"/>
+          </svg>
+        </div>
+        <div>
+          <div class="strip-label">Total de Entradas</div>
+          <div class="strip-value v-positive" id="estoque-agua-entradas-el">—</div>
+        </div>
+      </div>
+      <div class="strip-card s-negative">
+        <div class="strip-icon i-negative">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2">
+            <polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/>
+            <polyline points="17 18 23 18 23 12"/>
+          </svg>
+        </div>
+        <div>
+          <div class="strip-label">Total de Saídas</div>
+          <div class="strip-value v-negative" id="estoque-agua-saidas-el">—</div>
+        </div>
+      </div>
+      <div class="strip-card s-accent">
+        <div class="strip-icon i-accent">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2">
+            <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
+          </svg>
+        </div>
+        <div>
+          <div class="strip-label">Disponível Agora</div>
+          <div class="strip-value v-accent" id="estoque-agua-atual-el">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LOADING estoque -->
+    <div id="loading-estoque-agua-el" style="padding:20px;text-align:center;color:var(--text-faint);font-size:13px;">
+      Carregando estoque...
+    </div>
+
+    <!-- BTN abrir estoque inicial (se não definido) -->
+    <button id="btn-abrir-inicial-agua" class="hidden">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+      </svg>
+      Definir Estoque Inicial
+    </button>
+
+    <!-- FORM estoque inicial -->
+    <div id="form-inicial-agua-container" class="hidden">
+      <div id="alert-inicial-agua" class="alert-box"></div>
+      <form id="form-inicial-agua">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="input-inicial-qtd-agua">Quantidade inicial (galões)</label>
+            <input type="number" id="input-inicial-qtd-agua" class="form-input" min="0" placeholder="Ex: 50" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="input-inicial-responsavel-agua">Responsável</label>
+            <input type="text" id="input-inicial-responsavel-agua" class="form-input" placeholder="Seu nome" required>
+          </div>
+        </div>
+        <button type="submit" id="btn-submit-inicial-agua" class="btn-submit btn-accent">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+            <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+            <polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
+          </svg>
+          Salvar Inicial
+        </button>
+      </form>
+    </div>
+
+    <!-- ══ SUBVIEW: MOVIMENTAÇÃO (Lançamento) ══════════════════════════ -->
+    <div id="subview-movimentacao-agua">
+
+      <!-- INNER NAV: Resumo ↔ Lançamento -->
+      <div class="module-inner-subnav" style="display:flex;gap:8px;margin-bottom:18px;">
+        <button class="sub-nav-btn" data-inner="resumo" id="btn-inner-agua-resumo">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/>
+          </svg>
+          Resumo
+        </button>
+        <button class="sub-nav-btn active" data-inner="lancamento" id="btn-inner-agua-lancamento">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          Lançamento
+        </button>
+      </div>
+
+      <!-- RESUMO INNER -->
+      <div id="inner-agua-resumo" class="hidden">
+        <div class="layout-grid">
+          <!-- Stock panel (estoque) -->
+          <div class="stock-panel">
+            <div class="stock-panel-header">
+              <span class="stock-panel-title">Estoque de Água</span>
+              <span class="stock-panel-badge" id="agua-updated-badge">Atualizado agora</span>
+            </div>
+            <div class="stock-rows">
+              <div class="stock-row">
+                <span class="stock-row-label"><span class="dot dot-gray"></span>Estoque inicial</span>
+                <span class="stock-row-value" id="estoque-agua-inicial-el-2">—</span>
+              </div>
+              <div class="stock-row">
+                <span class="stock-row-label"><span class="dot dot-green"></span>Total de entradas</span>
+                <span class="stock-row-value v-green" id="estoque-agua-entradas-el-2">—</span>
+              </div>
+              <div class="stock-row">
+                <span class="stock-row-label"><span class="dot dot-red"></span>Total de saídas</span>
+                <span class="stock-row-value v-red" id="estoque-agua-saidas-el-2">—</span>
+              </div>
+            </div>
+            <div class="stock-disponivel">
+              <span class="disp-label">💧 Disponível</span>
+              <span class="disp-value" id="estoque-agua-atual-el-2">—</span>
+            </div>
+            <div class="bar-wrap">
+              <div class="bar-label">
+                <span>Consumo vs. total</span>
+                <span id="bar-agua-pct">—</span>
+              </div>
+              <div class="bar-track">
+                <div class="bar-fill" id="bar-agua-fill" style="width:0%"></div>
+              </div>
+            </div>
+          </div>
+          <!-- Debitos resumo -->
+          <div>
+            <div class="table-view-card">
+              <div class="table-view-header">
+                <div>
+                  <div class="table-view-title">Resumo de Débitos — Água</div>
+                </div>
+                <div class="debito-btns">
+                  <button class="debito-btn active" id="btn-debito-agua">Devendo</button>
+                  <button class="debito-btn" id="btn-credito-agua">Crédito</button>
+                </div>
+              </div>
+              <div class="resumo-filters">
+                <input type="text" id="filtro-debito-agua" class="filter-input" placeholder="Filtrar unidade...">
+                <select id="filtro-resumo-agua-tipo" class="filter-select">
+                  <option value="">Todos os tipos</option>
+                </select>
+                <input type="number" id="filtro-resumo-agua-pend-min" class="filter-input" style="width:120px" placeholder="Pend. mín.">
+                <input type="date"   id="filtro-resumo-agua-data-ini" class="filter-input">
+                <input type="date"   id="filtro-resumo-agua-data-fim" class="filter-input">
+              </div>
+              <div class="table-scroll">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Unidade</th><th>Tipo</th><th style="text-align:center">Pendentes</th><th>Origem da Dívida</th>
+                    </tr>
+                  </thead>
+                  <tbody id="table-debito-agua-resumo">
+                    <tr><td colspan="4" class="empty-state">Carregando...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- LANÇAMENTO INNER -->
+      <div id="inner-agua-lancamento">
+        <div class="layout-grid">
+
+          <!-- Stock panel (mini) -->
+          <div class="stock-panel">
+            <div class="stock-panel-header">
+              <span class="stock-panel-title">Estoque de Água</span>
+            </div>
+            <div class="stock-rows">
+              <div class="stock-row">
+                <span class="stock-row-label"><span class="dot dot-gray"></span>Inicial</span>
+                <span class="stock-row-value" id="estoque-agua-inicial-el-mini">—</span>
+              </div>
+              <div class="stock-row">
+                <span class="stock-row-label"><span class="dot dot-green"></span>Entradas</span>
+                <span class="stock-row-value v-green" id="estoque-agua-entradas-el-mini">—</span>
+              </div>
+              <div class="stock-row">
+                <span class="stock-row-label"><span class="dot dot-red"></span>Saídas</span>
+                <span class="stock-row-value v-red" id="estoque-agua-saidas-el-mini">—</span>
+              </div>
+            </div>
+            <div class="stock-disponivel">
+              <span class="disp-label">💧 Disponível</span>
+              <span class="disp-value" id="estoque-agua-atual-el">—</span>
+            </div>
+          </div>
+
+          <!-- FORM CARD -->
+          <div class="form-card">
+            <!-- TABS: Saída / Entrada -->
+            <div class="form-tabs">
+              <button class="form-tab-btn active" data-form="saida-agua">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="17 1 21 5 17 9"/>
+                  <path d="M3 11V9a4 4 0 014-4h14"/>
+                </svg>
+                Saída (Unidades)
+              </button>
+              <button class="form-tab-btn" data-form="entrada-agua">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="7 23 3 19 7 15"/>
+                  <path d="M21 13v2a4 4 0 01-4 4H3"/>
+                </svg>
+                Entrada (Estoque)
+              </button>
+            </div>
+
+            <!-- FORM: SAÍDA / ENTREGA -->
+            <form id="form-agua" class="form-body">
+              <div class="form-info">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>
+                  <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <span>Movimentação refere-se às operações com as unidades (saída/retorno). Para compras/reposição no almoxarifado, utilize a aba <strong>Entrada (Estoque)</strong>.</span>
+              </div>
+
+              <div id="alert-agua" class="alert-box"></div>
+
+              <!-- Alerta de saldo da unidade -->
+              <div id="unidade-saldo-alerta-agua"></div>
+
+              <!-- Select tipo (oculto — fixo em entrega, mantido para o JS) -->
+              <select id="select-tipo-agua" class="hidden">
+                <option value="entrega" selected>Entrega</option>
+              </select>
+
+              <div class="form-group">
+                <label class="form-label" for="select-unidade-agua">
+                  Unidade <span>(Apenas habilitadas)</span>
+                </label>
+                <div class="sel-wrap">
+                  <select id="select-unidade-agua" class="form-select" required>
+                    <option value="">-- Selecione a unidade --</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Qtd Entregue -->
+              <div id="form-group-qtd-entregue-agua" class="form-group">
+                <label class="form-label" for="input-qtd-entregue-agua">
+                  Qtd. Entregue <span>(Galão 20L Cheio)</span>
+                </label>
+                <input type="number" id="input-qtd-entregue-agua" class="form-input" min="1" value="1" required>
+              </div>
+
+              <!-- Qtd Retorno (oculto por padrão) -->
+              <div id="form-group-qtd-retorno-agua" class="form-group hidden">
+                <label class="form-label" for="input-qtd-retorno-agua">
+                  Qtd. Devolvida <span>(Galão Vazio)</span>
+                </label>
+                <input type="number" id="input-qtd-retorno-agua" class="form-input" min="0" value="0">
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="input-data-agua">
+                  Data da Movimentação <span>(Cheio/Vazio)</span>
+                </label>
+                <input type="date" id="input-data-agua" class="form-input" required>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="input-responsavel-agua">
+                  Responsável na Unidade <span>(Cheio/Vazio)</span>
+                </label>
+                <input type="text" id="input-responsavel-agua" class="form-input"
+                  placeholder="Nome de quem recebeu ou devolveu" required>
+              </div>
+
+              <button type="submit" class="btn-submit btn-accent">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+                  <polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
+                </svg>
+                Salvar Movimentação
+              </button>
+            </form>
+
+            <!-- FORM: ENTRADA ESTOQUE -->
+            <form id="form-entrada-agua" class="form-body hidden">
+              <div class="form-info">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>
+                  <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <span>Registre aqui a compra ou reposição de galões no estoque central do almoxarifado.</span>
+              </div>
+
+              <div id="alert-agua-entrada" class="alert-box"></div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label" for="input-qtd-entrada-agua">Qtd. de Galões Adquiridos</label>
+                  <input type="number" id="input-qtd-entrada-agua" class="form-input" min="1" value="1" required>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="input-nf-entrada-agua">Nota Fiscal <span>(Opcional)</span></label>
+                  <input type="text" id="input-nf-entrada-agua" class="form-input" placeholder="NF-123 ou N/A">
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="input-data-entrada-agua">Data da Entrada</label>
+                <input type="date" id="input-data-entrada-agua" class="form-input" required>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="input-responsavel-entrada-agua">Responsável pelo Lançamento</label>
+                <input type="text" id="input-responsavel-entrada-agua" class="form-input"
+                  placeholder="Nome do responsável" required>
+              </div>
+
+              <button type="submit" id="btn-submit-entrada-agua" class="btn-submit btn-teal">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+                  <polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
+                </svg>
+                Registrar Entrada no Estoque
+              </button>
+            </form>
+
+          </div><!-- /form-card -->
+        </div><!-- /layout-grid -->
+      </div><!-- /inner-agua-lancamento -->
+
+    </div><!-- /subview-movimentacao-agua -->
+
+    <!-- ══ SUBVIEW: ENTRADAS (Estoque) ════════════════════════════════ -->
+    <div id="subview-entradas-agua" class="hidden">
+      <div class="table-view-card">
+        <div class="table-view-header">
+          <div class="table-view-title">Histórico de Entradas — Estoque</div>
+          <div class="filter-row">
+            <input type="text" id="filtro-historico-estoque-agua" class="filter-input" placeholder="Filtrar...">
+          </div>
+        </div>
+        <div id="alert-historico-estoque-agua" class="alert-box" style="margin:12px 20px;"></div>
+        <div class="table-scroll">
+          <table class="data-table" id="table-historico-estoque-agua-wrap">
+            <!-- thead gerado dinamicamente por renderAguaEstoqueHistory() -->
+            <tbody id="table-historico-estoque-agua">
+              <tr><td colspan="7" class="empty-state">Carregando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SUBVIEW: STATUS / SALDO NAS UNIDADES ═══════════════════════ -->
+    <div id="subview-status-agua" class="hidden">
+      <div class="table-view-card">
+        <div class="table-view-header">
+          <div class="table-view-title">Saldo por Unidade</div>
+          <div class="filter-row">
+            <input type="text" id="filtro-status-agua" class="filter-input" placeholder="Filtrar unidade...">
+            <div id="filtro-saldo-agua-controls" class="saldo-filter-btns">
+              <button class="saldo-btn active devendo" data-filter="devendo">Devendo</button>
+              <button class="saldo-btn credito" data-filter="credito">Crédito</button>
+              <button class="saldo-btn zerado" data-filter="zero">Zerado</button>
+              <button class="saldo-btn todos" data-filter="todos">Todos</button>
+            </div>
+          </div>
+        </div>
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Unidade</th><th>Tipo</th>
+                <th style="text-align:center">Entregues</th>
+                <th style="text-align:center">Recebidos</th>
+                <th style="text-align:center">Saldo</th>
+                <th>Última Movimentação</th>
+              </tr>
+            </thead>
+            <tbody id="table-status-agua">
+              <tr><td colspan="6" class="empty-state">Carregando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SUBVIEW: HISTÓRICO GERAL ═══════════════════════════════════ -->
+    <div id="subview-historico-agua" class="hidden">
+      <div class="table-view-card">
+        <div class="table-view-header">
+          <div class="table-view-title">Histórico Geral de Movimentações</div>
+          <div class="filter-row" style="flex-wrap:wrap;gap:6px;">
+            <input type="text"   id="filtro-historico-agua"    class="filter-input" placeholder="Busca rápida...">
+            <select             id="filtro-tipo-agua"          class="filter-select">
+              <option value="">Tipo</option>
+              <option value="entrega">Entrega</option>
+              <option value="retorno">Retorno</option>
+              <option value="retirada">Retirada</option>
+            </select>
+            <select             id="filtro-unidade-tipo-agua"  class="filter-select">
+              <option value="">Tipo unidade</option>
+              <option value="CRAS">CRAS</option>
+              <option value="CREAS">CREAS</option>
+              <option value="SEDE">SEDE</option>
+            </select>
+            <select             id="filtro-unidade-agua"       class="filter-select">
+              <option value="">Todas unidades</option>
+            </select>
+            <input type="text"   id="filtro-responsavel-agua"  class="filter-input" placeholder="Responsável...">
+            <select             id="filtro-origem-agua"        class="filter-select">
+              <option value="">Origem</option>
+              <option value="manual">Manual</option>
+              <option value="importacao">Importação</option>
+            </select>
+            <input type="date"   id="filtro-data-ini-agua"     class="filter-input">
+            <input type="date"   id="filtro-data-fim-agua"     class="filter-input">
+            <button id="btn-limpar-filtros-agua" class="btn-outline-sm">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="1 4 1 10 7 10"/>
+                <path d="M3.51 15a9 9 0 1 0 .49-3.5"/>
+              </svg>
+              Limpar
+            </button>
+          </div>
+        </div>
+        <div id="alert-historico-agua" class="alert-box" style="margin:12px 20px;"></div>
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>ID</th><th>Unidade</th><th>Tipo</th>
+                <th style="text-align:center">Qtd.</th>
+                <th>Data</th><th>Resp. Almox.</th><th>Resp. Unidade</th>
+                <th>Lançado Em</th><th style="text-align:center">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="table-historico-agua-all">
+              <tr><td colspan="9" class="empty-state">Carregando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SUBVIEW: ANÁLISE E PREVISÃO ════════════════════════════════ -->
+    <div id="subview-previsao-agua" class="hidden">
+      <div class="table-view-card" style="padding:24px;">
+        <div class="table-view-title" style="margin-bottom:16px;">Análise e Previsão de Consumo</div>
+        <!-- Conteúdo gerado pelo módulo previsao.js -->
+        <p style="font-size:13px;color:var(--text-muted);">Selecione os parâmetros para gerar a análise de consumo.</p>
+      </div>
+    </div>
+
+  </div><!-- /content-agua -->
+
+  <!-- FOOTER -->
+  <footer class="page-footer">
+    <span style="display:flex;align-items:center;gap:8px;font-weight:500;color:var(--text-muted);">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+      </svg>
+      Prefeitura de São Luís · SEMCAS
+    </span>
+    <span>© 2026 — Sistema Almoxarifado v2</span>
+  </footer>
+
+</main>
+
+<!--
+  ══════════════════════════════════════════════════════════════════════
+  SCRIPT DE NAVEGAÇÃO LOCAL (substituir pelo app.js + módulos reais)
+  Este bloco simula a troca de subviews para preview/protótipo.
+  No sistema real, switchSubTabView() de dom-helpers.js faz isso.
+  ══════════════════════════════════════════════════════════════════════
+-->
+<script>
+  // Mapeamento das subviews
+  const SUBVIEWS_AGUA = [
+    'movimentacao-agua',
+    'entradas-agua',
+    'status-agua',
+    'historico-agua',
+    'previsao-agua',
+    'resumo-debitos-agua',
+  ];
+
+  function showSubview(id) {
+    SUBVIEWS_AGUA.forEach(sv => {
+      const el = document.getElementById('subview-' + sv);
+      if (el) el.classList.toggle('hidden', sv !== id);
+    });
+  }
+
+  // TAB NAV principal (Lançamento, Entradas, Saldo, Histórico, Análise)
+  document.querySelectorAll('#agua-tab-nav .nav-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#agua-tab-nav .nav-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const sv = btn.dataset.subview;
+      if (sv) showSubview(sv);
+    });
+  });
+
+  // SUB NAV (Lançamento / Resumo de Débitos)
+  document.querySelectorAll('#sub-nav-agua .sub-nav-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#sub-nav-agua .sub-nav-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const sv = btn.dataset.subview;
+      if (sv === 'resumo-debitos-agua') {
+        showSubview('movimentacao-agua'); // permanece no container
+        // Em produção: switchSubTabView('agua','resumo-debitos-agua')
+      } else {
+        showSubview(sv || 'movimentacao-agua');
+      }
+    });
+  });
+
+  // INNER NAV: Resumo ↔ Lançamento
+  document.getElementById('btn-inner-agua-resumo')?.addEventListener('click', () => {
+    document.getElementById('inner-agua-resumo')?.classList.remove('hidden');
+    document.getElementById('inner-agua-lancamento')?.classList.add('hidden');
+    document.getElementById('btn-inner-agua-resumo').classList.add('active');
+    document.getElementById('btn-inner-agua-lancamento').classList.remove('active');
+  });
+  document.getElementById('btn-inner-agua-lancamento')?.addEventListener('click', () => {
+    document.getElementById('inner-agua-lancamento')?.classList.remove('hidden');
+    document.getElementById('inner-agua-resumo')?.classList.add('hidden');
+    document.getElementById('btn-inner-agua-lancamento').classList.add('active');
+    document.getElementById('btn-inner-agua-resumo').classList.remove('active');
+  });
+
+  // FORM TABS: Saída ↔ Entrada
+  document.querySelectorAll('.form-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.form-tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const which = btn.dataset.form;
+      document.getElementById('form-agua').classList.toggle('hidden', which !== 'saida-agua');
+      document.getElementById('form-entrada-agua').classList.toggle('hidden', which !== 'entrada-agua');
+    });
+  });
+
+  // SALDO FILTER BUTTONS (UI only; lógica real em agua-control.js)
+  document.querySelectorAll('#filtro-saldo-agua-controls .saldo-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#filtro-saldo-agua-controls .saldo-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+
+  // DÉBITO MODE BUTTONS (UI only)
+  document.getElementById('btn-debito-agua')?.addEventListener('click', () => {
+    document.getElementById('btn-debito-agua').classList.add('active');
+    document.getElementById('btn-credito-agua').classList.remove('active');
+  });
+  document.getElementById('btn-credito-agua')?.addEventListener('click', () => {
+    document.getElementById('btn-credito-agua').classList.add('active','credito-mode');
+    document.getElementById('btn-debito-agua').classList.remove('active');
+  });
+</script>
+
+</body>
+</html>
