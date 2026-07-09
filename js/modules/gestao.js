@@ -596,7 +596,7 @@ function renderGestaoVinculos() {
                        <button type="button" class="btn-secondary !py-1 !px-3 text-xs ml-2 gestao-vinc-create-cancel" data-key="${escHtml(r.key)}">Cancelar</button>`
                     : `<button type="button" class="btn-primary !py-1 !px-3 text-xs gestao-vinc-save" data-key="${escHtml(r.key)}" ${isAdmin ? '' : 'disabled'}>Salvar</button>
                        ${r.mapped ? `<button type="button" class="btn-danger !py-1 !px-3 text-xs gestao-vinc-del ml-2" data-key="${escHtml(r.key)}" ${isAdmin ? '' : 'disabled'}>Remover</button>` : ''}
-                       <button type="button" class="btn-secondary !py-1 !px-3 text-xs ml-2 gestao-vinc-create" data-key="${escHtml(r.key)}" ${isAdmin ? '' : 'disabled'}>➕ Criar</button>`
+                       <button type="button" class="btn-secondary !py-1 !px-3 text-xs ml-2 gestao-vinc-create" data-key="${escHtml(r.key)}" ${isAdmin ? '' : 'disabled'}><i data-lucide="plus"></i> Criar</button>`
                 }
             </td>
         </tr>`;
@@ -836,6 +836,7 @@ function renderGestaoVinculos() {
             if (ok) renderGestaoVinculos();
         });
     });
+    if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') lucide.createIcons();
 }
 
 // =========================================================================

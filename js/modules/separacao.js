@@ -195,6 +195,16 @@ function ensureSeparacaoStyles() {
   .separacao-module .db-stat { min-width: 0; }
   .separacao-module .file-item { flex-direction: column; align-items: stretch; width: 100%; }
   .separacao-module .file-actions { justify-content: flex-end; }
+  .separacao-module .lc-ic { width: 14px; height: 14px; display: inline-block; vertical-align: -2px; flex-shrink: 0; }
+  .separacao-module .lc-ic-lg { width: 28px; height: 28px; vertical-align: middle; }
+  .separacao-module .btn .lc-ic { margin-right: 4px; }
+  .separacao-module .tab .lc-ic { margin-right: 4px; }
+  .separacao-module .file-actions button {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border: 1px solid var(--border); border-radius: 6px;
+    background: #fff; cursor: pointer; padding: 0; color: #475569;
+  }
+  .separacao-module .file-actions button:hover { background: #f1f5f9; border-color: #cbd5e1; }
   .separacao-module .rel-table th,
   .separacao-module .rel-table td { padding: 5px 4px; font-size: 10px; }
   .separacao-module .ficha-info-bar { flex-direction: column; gap: 6px; }
@@ -507,6 +517,21 @@ if (tdEl) {
 const SL={nao_atendido:'Não Atendido',atendido:'Atendido',parcial:'Parcial',sem_estoque:'Sem Estoque',excedido:'Excedido'};
 const TIPO_CLS={'Expediente':'tipo-expediente','Limpeza':'tipo-limpeza','Higiene':'tipo-higiene','Alimentício':'tipo-alimenticio','Descartável':'tipo-descartavel','Atividades':'tipo-atividades','Outros':'tipo-outros'};
 function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}
+function lc(name, cls = 'lc-ic') { return `<i data-lucide="${name}" class="${cls}"></i>`; }
+function actBtn(onclick, icon, label = '', cls = 'btn btn-s btn-sm', title = '', extraStyle = '') {
+  const t = title ? ` title="${esc(title)}"` : '';
+  const st = extraStyle ? ` style="${extraStyle}"` : '';
+  const lbl = label ? `<span>${label}</span>` : '';
+  return `<button type="button" class="${cls}" onclick="${onclick}"${t}${st}>${lc(icon)}${lbl}</button>`;
+}
+function emptyIc(icon, msg) {
+  return `<div class="empty"><div class="ic">${lc(icon, 'lc-ic lc-ic-lg')}</div>${msg}</div>`;
+}
+function refreshIcons() {
+  try {
+    if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') lucide.createIcons();
+  } catch (_) {}
+}
 function jsArg(v){
   if (v === null) return 'null';
   if (v === undefined) return 'undefined';
@@ -1302,7 +1327,7 @@ function previewReq() {
   const statsEl = document.getElementById('fichaStats');
   if (!titleEl || !bodyEl || !modalEl || !statsEl) { toast('Tela de pré-visualização indisponível.', 'red'); return; }
   
-  titleEl.textContent='👁️ Pré-visualização: '+displayUnit(req.unidade);
+  titleEl.innerHTML='<i data-lucide="eye"></i> Pré-visualização: '+esc(displayUnit(req.unidade));
   
   const actions = document.getElementById('fichaModalActions');
   const legend = document.getElementById('fichaModalLegend');
@@ -1311,7 +1336,7 @@ function previewReq() {
   
   bodyEl.innerHTML=buildFichaHTML(req, true);
   modalEl.classList.add('open');
-  
+  refreshIcons();
   // Limpar os fstats na pré-visualização, pois não há contagem real ainda
   statsEl.innerHTML='';
 }
@@ -2508,6 +2533,7 @@ function goTab(t){
   else if(t==='db') renderRelatorio();
   else if(t==='bur') renderBuracos();
   else if(t==='unif') renderUnificar();
+  refreshIcons();
 }
 
 let _panSub = 'geral';
@@ -2530,6 +2556,7 @@ function switchMatView(view) {
     if (bEntrega) { bEntrega.style.background = '#1e40af'; bEntrega.style.color = '#fff'; }
     if (bPainel) { bPainel.style.background = 'transparent'; bPainel.style.color = '#94a3b8'; }
   }
+  refreshIcons();
 }
 
 function switchPanSub(sub) {
@@ -2556,7 +2583,7 @@ function renderAll(){
   else if(activeTab === 'es') renderES();
   else if(activeTab === 'pe') renderPE();
   else if(activeTab === 'hi') renderHI();
-  else if(activeTab === 'rel') renderRelatorio();
+  else if(activeTab === 'rel') renderCorrecaoItens();
   else if(activeTab === 'db') renderRelatorio();
   else if(activeTab === 'pan') buildPainel();
   else { renderPS(); } // fallback
@@ -2567,43 +2594,46 @@ function renderPS(){
   if(!el) return;
   const b=(document.getElementById('buscaPS')?.value||'').toLowerCase();
   const all=REQS.filter(r=>r.status==='requisitado' && (!b || r.unidade.toLowerCase().includes(b)));
-  if(!all.length){el.innerHTML='<div class="empty"><div class="ic">📭</div>'+(b?'Nenhuma requisição encontrada para "'+esc(b)+'"':'Nenhuma requisição na fila.')+'</div>';return}
+  if(!all.length){el.innerHTML=emptyIc('inbox', b?'Nenhuma requisição encontrada para "'+esc(b)+'"':'Nenhuma requisição na fila.'); refreshIcons(); return}
   const pg=paginate(all, PAGE_STATE.ps);
   const offset=(pg.page-1)*PAGE_SIZE;
   const canCancel = getUserRole() === 'admin';
   let h='<div class="tbl-wrap"><table class="qt"><thead><tr><th>#</th><th>Unidade</th><th>Tipos</th><th>Requisitado por</th><th>Data</th><th>Itens</th><th>Ação</th></tr></thead><tbody>';
-  pg.items.forEach((r,i)=>{const ni=Object.keys(r.items).length;const pos=offset+i;h+=`<tr class="${pos===0?'first-row':''}"><td style="text-align:center;font-weight:800;color:${pos===0?'var(--accent)':'#94a3b8'}">${pos+1}º</td><td style="font-weight:700">${esc(displayUnit(r.unidade))}</td><td>${tiposPills(r.tipos)}</td><td style="font-size:11px;color:#475569">${esc(r.resp||'')}</td><td style="font-size:11px">${fdt(r.dt)}</td><td><span class="pill pr">${ni} itens</span></td><td style="display:flex;gap:6px"><button class="btn btn-p btn-sm" onclick="pegarParaSeparar(${jsArg(r.id)})">📦 Pegar</button>${canCancel?`<button class="btn btn-s btn-sm" style="color:var(--red);border-color:#fca5a5" onclick="cancelarReq(${jsArg(r.id)})" title="Cancelar">🗑️</button>`:''}</td></tr>`});
+  pg.items.forEach((r,i)=>{const ni=Object.keys(r.items).length;const pos=offset+i;h+=`<tr class="${pos===0?'first-row':''}"><td style="text-align:center;font-weight:800;color:${pos===0?'var(--accent)':'#94a3b8'}">${pos+1}º</td><td style="font-weight:700">${esc(displayUnit(r.unidade))}</td><td>${tiposPills(r.tipos)}</td><td style="font-size:11px;color:#475569">${esc(r.resp||'')}</td><td style="font-size:11px">${fdt(r.dt)}</td><td><span class="pill pr">${ni} itens</span></td><td style="display:flex;gap:6px">${actBtn(`pegarParaSeparar(${jsArg(r.id)})`, 'hand', 'Pegar', 'btn btn-p btn-sm')}${canCancel?actBtn(`cancelarReq(${jsArg(r.id)})`, 'trash-2', '', 'btn btn-s btn-sm', 'Cancelar', 'color:var(--red);border-color:#fca5a5') : ''}</td></tr>`});
   h+='</tbody></table></div>';
   h+=paginationHTML('ps', pg.page, pg.total, pg.count);
   el.innerHTML=h;
+  refreshIcons();
 }
 function renderES(){
   const el=document.getElementById('les');
   if(!el) return;
   const b=(document.getElementById('buscaES')?.value||'').toLowerCase();
   const all=REQS.filter(r=>r.status==='separando' && (!b || r.unidade.toLowerCase().includes(b)));
-  if(!all.length){el.innerHTML='<div class="empty"><div class="ic">🔧</div>'+(b?'Nenhum encontrado para "'+esc(b)+'"':'Nenhum em separação.')+'</div>';return}
+  if(!all.length){el.innerHTML=emptyIc('wrench', b?'Nenhum encontrado para "'+esc(b)+'"':'Nenhum em separação.'); refreshIcons(); return}
   const pg=paginate(all, PAGE_STATE.es);
   const canCancel = getUserRole() === 'admin';
   let h='<div class="tbl-wrap"><table class="qt"><thead><tr><th>Unidade</th><th>Tipos</th><th>Separador</th><th>Resumo</th><th>Ações</th></tr></thead><tbody>';
-  pg.items.forEach(r=>{const v=Object.values(r.items);h+=`<tr><td style="font-weight:700">${esc(displayUnit(r.unidade))}</td><td>${tiposPills(r.tipos)}</td><td>${esc(r.separador)}</td><td>${sumHTML(v)}</td><td style="display:flex;gap:6px"><button class="btn btn-p btn-sm" onclick="abrirFicha(${jsArg(r.id)})">📝 Editar</button><button class="btn btn-s btn-sm" onclick="printReq(${jsArg(r.id)})" title="Imprimir">🖨️</button><button type="button" class="btn btn-g btn-sm" onclick="marcarProntoLista(${jsArg(r.id)}, event)" title="Marcar Pronto">✅</button>${canCancel?`<button class="btn btn-s btn-sm" style="color:var(--red);border-color:#fca5a5" onclick="cancelarReq(${jsArg(r.id)})" title="Cancelar">🗑️</button>`:''}</td></tr>`});
+  pg.items.forEach(r=>{const v=Object.values(r.items);h+=`<tr><td style="font-weight:700">${esc(displayUnit(r.unidade))}</td><td>${tiposPills(r.tipos)}</td><td>${esc(r.separador)}</td><td>${sumHTML(v)}</td><td style="display:flex;gap:6px">${actBtn(`abrirFicha(${jsArg(r.id)})`, 'pencil', 'Editar', 'btn btn-p btn-sm')}${actBtn(`printReq(${jsArg(r.id)})`, 'printer', '', 'btn btn-s btn-sm', 'Imprimir')}${actBtn(`marcarProntoLista(${jsArg(r.id)}, event)`, 'check-circle', '', 'btn btn-g btn-sm', 'Marcar Pronto')}${canCancel?actBtn(`cancelarReq(${jsArg(r.id)})`, 'trash-2', '', 'btn btn-s btn-sm', 'Cancelar', 'color:var(--red);border-color:#fca5a5') : ''}</td></tr>`});
   h+='</tbody></table></div>';
   h+=paginationHTML('es', pg.page, pg.total, pg.count);
   el.innerHTML=h;
+  refreshIcons();
 }
 function renderPE(){
   const el=document.getElementById('lpe');
   if(!el) return;
   const b=(document.getElementById('buscaPE')?.value||'').toLowerCase();
   const all=REQS.filter(r=>r.status==='pronto' && (!b || r.unidade.toLowerCase().includes(b)));
-  if(!all.length){el.innerHTML='<div class="empty"><div class="ic">✅</div>'+(b?'Nenhum encontrado para "'+esc(b)+'"':'Nenhum aguardando retirada.')+'</div>';return}
+  if(!all.length){el.innerHTML=emptyIc('package-check', b?'Nenhum encontrado para "'+esc(b)+'"':'Nenhum aguardando retirada.'); refreshIcons(); return}
   const pg=paginate(all, PAGE_STATE.pe);
   const canCancel = getUserRole() === 'admin';
   let h='<div class="tbl-wrap"><table class="qt"><thead><tr><th>Unidade</th><th>Tipos</th><th>Separador</th><th>Resumo</th><th>Ação</th></tr></thead><tbody>';
-  pg.items.forEach(r=>{const v=Object.values(r.items);h+=`<tr><td style="font-weight:700">${esc(displayUnit(r.unidade))}</td><td>${tiposPills(r.tipos)}</td><td>${esc(r.separador)}</td><td>${sumHTML(v)}</td><td style="display:flex;gap:6px"><button class="btn btn-s btn-sm" onclick="printReq(${jsArg(r.id)})" title="Imprimir">🖨️</button><button class="btn btn-r btn-sm" onclick="entregarReq(${jsArg(r.id)})">📦 Entregar</button><button class="btn btn-s btn-sm" onclick="voltarSeparacao(${jsArg(r.id)})" title="Voltar p/ Separação">↩️</button>${canCancel?`<button class="btn btn-s btn-sm" style="color:var(--red);border-color:#fca5a5" onclick="cancelarReq(${jsArg(r.id)})" title="Cancelar">🗑️</button>`:''}</td></tr>`});
+  pg.items.forEach(r=>{const v=Object.values(r.items);h+=`<tr><td style="font-weight:700">${esc(displayUnit(r.unidade))}</td><td>${tiposPills(r.tipos)}</td><td>${esc(r.separador)}</td><td>${sumHTML(v)}</td><td style="display:flex;gap:6px">${actBtn(`printReq(${jsArg(r.id)})`, 'printer', '', 'btn btn-s btn-sm', 'Imprimir')}${actBtn(`entregarReq(${jsArg(r.id)})`, 'truck', 'Entregar', 'btn btn-r btn-sm')}${actBtn(`voltarSeparacao(${jsArg(r.id)})`, 'undo-2', '', 'btn btn-s btn-sm', 'Voltar p/ Separação')}${canCancel?actBtn(`cancelarReq(${jsArg(r.id)})`, 'trash-2', '', 'btn btn-s btn-sm', 'Cancelar', 'color:var(--red);border-color:#fca5a5') : ''}</td></tr>`});
   h+='</tbody></table></div>';
   h+=paginationHTML('pe', pg.page, pg.total, pg.count);
   el.innerHTML=h;
+  refreshIcons();
 }
 function renderHI(){
   const el=document.getElementById('lhi');
@@ -2612,14 +2642,15 @@ function renderHI(){
   const all=REQS.filter(r=>r.status==='entregue' && (!b || r.unidade.toLowerCase().includes(b)));
   // Mais recentes primeiro
   all.sort((a,c)=>(c.dtEntrega||c.dt)-(a.dtEntrega||a.dt));
-  if(!all.length){el.innerHTML='<div class="empty"><div class="ic">📁</div>'+(b?'Nenhuma entrega encontrada para "'+esc(b)+'"':'Nenhuma entrega registrada.')+'</div>';return}
+  if(!all.length){el.innerHTML=emptyIc('history', b?'Nenhuma entrega encontrada para "'+esc(b)+'"':'Nenhuma entrega registrada.'); refreshIcons(); return}
   const pg=paginate(all, PAGE_STATE.hi);
   const isAdmin = getUserRole() === 'admin';
   let h='<div class="tbl-wrap"><table class="qt"><thead><tr><th>Unidade</th><th>Tipos</th><th>Separador</th><th>Retirado por</th><th>Data</th><th>Resumo</th><th></th></tr></thead><tbody>';
-  pg.items.forEach(r=>{const v=Object.values(r.items);h+=`<tr><td style="font-weight:700">${esc(displayUnit(r.unidade))}</td><td>${tiposPills(r.tipos)}</td><td>${esc(r.separador)}</td><td>${esc(r.retiradoPor)}</td><td style="font-size:11px">${fdt(r.dtEntrega||r.dt)}</td><td>${sumHTML(v)}</td><td style="display:flex;gap:6px;justify-content:flex-end"><button class="btn btn-s btn-sm" onclick="printReq(${jsArg(r.id)})" title="Reimprimir">🖨️</button>${isAdmin?`<button class="btn btn-s btn-sm" style="color:var(--red);border-color:#fca5a5" onclick="excluirHistoricoReq(${jsArg(r.id)})" title="Excluir do Histórico">🗑️</button>`:''}</td></tr>`});
+  pg.items.forEach(r=>{const v=Object.values(r.items);h+=`<tr><td style="font-weight:700">${esc(displayUnit(r.unidade))}</td><td>${tiposPills(r.tipos)}</td><td>${esc(r.separador)}</td><td>${esc(r.retiradoPor)}</td><td style="font-size:11px">${fdt(r.dtEntrega||r.dt)}</td><td>${sumHTML(v)}</td><td style="display:flex;gap:6px;justify-content:flex-end">${actBtn(`printReq(${jsArg(r.id)})`, 'printer', '', 'btn btn-s btn-sm', 'Reimprimir')}${isAdmin?actBtn(`excluirHistoricoReq(${jsArg(r.id)})`, 'trash-2', '', 'btn btn-s btn-sm', 'Excluir do Histórico', 'color:var(--red);border-color:#fca5a5') : ''}</td></tr>`});
   h+='</tbody></table></div>';
   h+=paginationHTML('hi', pg.page, pg.total, pg.count);
   el.innerHTML=h;
+  refreshIcons();
 }
 
 async function upsertUnitAlias(rawKey, canonicalName){
@@ -2768,7 +2799,7 @@ function pegarParaSeparar(reqId){const f=reqId?REQS.find(r=>String(r.id)===Strin
 
 function abrirFicha(id, readOnly = false){
   curId=id;const r=findReq(id);if(!r)return;
-  document.getElementById('fichaTitle').textContent=(readOnly ? '👁️ ' : '📋 ') + displayUnit(r.unidade) + (r.separador ? ' — ' + r.separador : '');
+  document.getElementById('fichaTitle').innerHTML=(readOnly ? lc('eye') + ' ' : lc('clipboard-list') + ' ') + esc(displayUnit(r.unidade)) + (r.separador ? ' — ' + esc(r.separador) : '');
   
   // Hide actions if readOnly
   const actions = document.getElementById('fichaModalActions');
@@ -2779,6 +2810,7 @@ function abrirFicha(id, readOnly = false){
   document.getElementById('fichaBody').innerHTML=buildFichaHTML(r, readOnly);
   document.getElementById('fichaModal').classList.add('open');
   updateStats();
+  refreshIcons();
   
   if (!readOnly) {
     document.getElementById('fichaBody').querySelectorAll('tr[data-id]').forEach(row=>{
@@ -4948,11 +4980,19 @@ function editEntryYear(id){
 }
 
 function toggleDetail(id){const el=document.getElementById(id);if(el)el.style.display=el.style.display==='none'?'':'none';}
-function selAllUnits(){for(const o of document.getElementById('rFiltUnits').options)o.selected=true;}
-function selAllCats(){for(const o of document.getElementById('rFiltCats').options)o.selected=true;}
+function selAllUnits(){const el=document.getElementById('rFiltUnits');if(el)for(const o of el.options)o.selected=true;}
+function selAllCats(){const el=document.getElementById('rFiltCats');if(el)for(const o of el.options)o.selected=true;}
 function clearFilters(){
-  for(const o of document.getElementById('rFiltUnits').options)o.selected=false;
-  for(const o of document.getElementById('rFiltCats').options)o.selected=false;
+  const u=document.getElementById('rFiltUnits');
+  const c=document.getElementById('rFiltCats');
+  if (u) for(const o of u.options)o.selected=false;
+  if (c) for(const o of c.options)o.selected=false;
+  const df=document.getElementById('rFiltDateFrom');
+  const dt=document.getElementById('rFiltDateTo');
+  if (df) df.value='';
+  if (dt) dt.value='';
+  clearYears();
+  try { showOrigemUnidade(); showOrigemCategoria(); } catch (_) {}
 }
 
 function removeAlias(from){delete HIST_ALIASES[rmAcc(from).toUpperCase()];HIST_DB.forEach(e=>(e.units||[]).forEach(u=>{u.unitName=normalizeUnit(u.rawUnit||u.unitName);}));invalidateAggCache();saveHistDB();renderRelatorio();if(document.getElementById('tab-unif')?.classList.contains('active'))renderUnificar();}
@@ -5121,10 +5161,10 @@ function renderRelatorio(){
         +'</div>'
         +'</div>'
         +'<div class="file-actions" style="display:flex;flex-wrap:wrap;gap:4px">'
-        +'<button onclick="openEditor(\''+e.id+'\')">📝</button>'
-        +'<button onclick="editEntryPeriod(\''+e.id+'\')">📅</button>'
-        +'<button onclick="editEntryYear(\''+e.id+'\')">📆</button>'
-        +'<button onclick="removeHistEntry(\''+e.id+'\')">✕</button>'
+        +`<button type="button" onclick="openEditor('${e.id}')" title="Editar">${lc('pencil')}</button>`
+        +`<button type="button" onclick="editEntryPeriod('${e.id}')" title="Período">${lc('calendar')}</button>`
+        +`<button type="button" onclick="editEntryYear('${e.id}')" title="Ano">${lc('calendar-days')}</button>`
+        +`<button type="button" onclick="removeHistEntry('${e.id}')" title="Excluir">${lc('trash-2')}</button>`
         +'</div>'
         +'</div>';
     }).join('');
@@ -5154,6 +5194,7 @@ function renderRelatorio(){
     }
     if (banners) fl.insertAdjacentHTML('afterbegin', '<div style="grid-column:1 / -1">' + banners + '</div>');
   }
+  refreshIcons();
 }
 
 function getSelYears(){return [...document.querySelectorAll('#rYearChecks input:checked')].map(i=>+i.value);}
@@ -6008,10 +6049,10 @@ function renderCorrecaoItens() {
 
   // Header
   h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">'
-    + '<div><h1 style="font-size:18px;font-weight:800;margin:0">🔧 Padronização do Sistema</h1>'
+    + '<div><h1 style="font-size:18px;font-weight:800;margin:0;display:flex;align-items:center;gap:8px">' + lc('settings-2') + ' Padronização do Sistema</h1>'
     + '<div style="font-size:11px;color:var(--muted)">Unifique nomes de materiais e categorias para manter o sistema organizado</div></div>'
-    + '<div style="display:flex;gap:6px"><button class="btn btn-s btn-sm" onclick="diagnoseAliases()" title="Verifica se as regras estão sendo salvas no Firebase">🔧 Diagnóstico</button>'
-    + '<button class="btn btn-s btn-sm" onclick="renderCorrecaoItens()">🔄 Atualizar</button></div></div>';
+    + '<div style="display:flex;gap:6px">' + actBtn('diagnoseAliases()', 'stethoscope', 'Diagnóstico', 'btn btn-s btn-sm', 'Verifica regras no Firebase')
+    + actBtn('renderCorrecaoItens()', 'refresh-cw', 'Atualizar', 'btn btn-s btn-sm') + '</div></div>';
 
   // Scan categories
   const allCats = scanAllCategories();
@@ -6041,14 +6082,13 @@ function renderCorrecaoItens() {
   h += '</datalist>';
 
   h += '<div style="display:flex;gap:0;margin-bottom:16px;border:1.5px solid var(--border);border-radius:8px;overflow:hidden">'
-    + '<button class="fix-tab' + (_fixView === 'sugestoes' ? ' act' : '') + '" onclick="setFixView(\'sugestoes\')">🤖 Sugestões' + (nSugestoes ? ' (' + nSugestoes + ')' : '') + '</button>'
-    + '<button class="fix-tab' + (_fixView === 'todos' ? ' act' : '') + '" onclick="setFixView(\'todos\')">📋 Itens (' + nTotal + ')</button>'
-    + '<button class="fix-tab' + (_fixView === 'regras' ? ' act' : '') + '" onclick="setFixView(\'regras\')">📜 Regras (' + nRules + ')</button>'
-    + '<button class="fix-tab' + (_fixView === 'categorias' ? ' act' : '') + '" onclick="setFixView(\'categorias\')">🗂️ Categorias (' + nCats + ')</button>'
+    + '<button class="fix-tab' + (_fixView === 'sugestoes' ? ' act' : '') + '" onclick="setFixView(\'sugestoes\')">' + lc('sparkles') + ' Sugestões' + (nSugestoes ? ' (' + nSugestoes + ')' : '') + '</button>'
+    + '<button class="fix-tab' + (_fixView === 'todos' ? ' act' : '') + '" onclick="setFixView(\'todos\')">' + lc('list') + ' Itens (' + nTotal + ')</button>'
+    + '<button class="fix-tab' + (_fixView === 'regras' ? ' act' : '') + '" onclick="setFixView(\'regras\')">' + lc('scroll-text') + ' Regras (' + nRules + ')</button>'
+    + '<button class="fix-tab' + (_fixView === 'categorias' ? ' act' : '') + '" onclick="setFixView(\'categorias\')">' + lc('folder-tree') + ' Categorias (' + nCats + ')</button>'
     + '</div>';
 
-  // Search
-  h += '<div style="margin-bottom:12px"><input class="input" id="fixSearch" placeholder="🔍 Buscar item por nome..." value="' + esc(_fixSearchTerm) + '" '
+  h += '<div style="margin-bottom:12px;display:flex;align-items:center;gap:6px"><span style="flex-shrink:0">' + lc('search') + '</span><input class="input" id="fixSearch" placeholder="Buscar item por nome..." value="' + esc(_fixSearchTerm) + '" '
     + 'oninput="_fixSearchTerm=this.value;renderCorrecaoItens()" style="max-width:400px;font-size:13px"></div>';
 
   const searchLo = rmAcc(_fixSearchTerm || '').toLowerCase();
@@ -6072,6 +6112,7 @@ function renderCorrecaoItens() {
     searchEl.focus();
     searchEl.setSelectionRange(searchEl.value.length, searchEl.value.length);
   }
+  refreshIcons();
 }
 
 function renderFixSugestoes(withVariations, pendingSimilar, items, searchLo) {
@@ -7162,18 +7203,20 @@ function needsContinuidade(name) { return CONTINUIDADE_REGEX.test(name); }
 // ═══════════════════════════════════════════════════════════════════
 function openPrintBuracos() {
   const panel = document.getElementById('printBuracosPanel');
+  if (!panel) return;
   panel.style.display = 'block';
   
-  // Populate year
   const allYears = [...new Set(HIST_DB.map(e => e.year).filter(Boolean))].sort();
   const ySel = document.getElementById('printBurYear');
-  const curBurYear = document.getElementById('burYearSel').value;
+  const burYearSel = document.getElementById('burYearSel');
+  const uSel = document.getElementById('printBurUnits');
+  if (!ySel || !uSel) return;
+  const curBurYear = burYearSel?.value || '';
   ySel.innerHTML = '<option value="">Todos os anos</option>' + allYears.map(y => '<option value="'+y+'"'+(String(y)===curBurYear?' selected':'')+'>'+y+'</option>').join('');
   
   // Populate units
   const unitNames = new Set();
   HIST_DB.forEach(e => (e.units||[]).forEach(u => { if(needsContinuidade(u.unitName)) unitNames.add(u.unitName); }));
-  const uSel = document.getElementById('printBurUnits');
   uSel.innerHTML = [...unitNames].sort().map(u => '<option value="'+esc(u)+'">'+esc(u)+'</option>').join('');
 }
 
@@ -7324,18 +7367,21 @@ function doPrintBuracos() {
   w.document.write('</body></html>');
   w.document.close();
   
-  document.getElementById('printBuracosPanel').style.display = 'none';
+  document.getElementById('printBuracosPanel')?.style && (document.getElementById('printBuracosPanel').style.display = 'none');
 }
 
 function renderBuracos() {
   const el = document.getElementById('buracosContent');
+  if (!el) return;
   if (!HIST_DB.length) {
-    el.innerHTML = '<div class="empty"><div class="ic">🕳️</div>Carregue planilhas na aba Relatório para analisar.</div>';
+    el.innerHTML = emptyIc('circle-dashed', 'Carregue planilhas no Banco de Dados para analisar.');
+    refreshIcons();
     return;
   }
   
   const allYears = [...new Set(HIST_DB.map(e => e.year).filter(Boolean))].sort();
   const ySel = document.getElementById('burYearSel');
+  if (!ySel) return;
   const prevY = ySel.value;
   ySel.innerHTML = '<option value="">Todos os anos</option>' + allYears.map(y => '<option value="'+y+'"'+(String(y)===prevY?' selected':'')+'>'+y+'</option>').join('');
   
@@ -8921,7 +8967,7 @@ export function initSeparacao() {
   try { applySeparacaoRoleUI(); } catch (e) { console.error(e); }
   try { setupDataPedidoAuto(); } catch (e) { console.error(e); }
   try {
-    const EXPORTS = { goTab, registrar, previewReq, showUnitConfirmDialog, pegarParaSeparar, entregarReq, abrirFicha, fecharFicha, marcarPronto, marcarProntoLista, voltarSeparacao, printReq, printFicha, cancelarReq, excluirHistoricoReq, renderBuracos, renderUnificar, buildPainel, gerarRelatorio, exportarCSV, handleFile, handleHistFiles, ck, okModal, closeModal, showModal, editEntryYear, editEntryPeriod, toggleDetail, removeHistEntry, openEditor, closeEditor, saveEditor, edRemoveItem, edAddItem, edAddCat, clearHistDB, clearMateriaisDB, removeDuplicatesAuto, recalcAllDates, exportBackup, importBackup, goToFile, goPage, onModeChange, clearFilters, clearPanFilters, clearYears, selAllYears, clearAllAliases, doUnifMerge, toggleUnifSel, unifRemoveSel, clearUnifSel, removeAlias, openPrintBuracos, doPrintBuracos, showOrigemUnidade, showOrigemCategoria, renderRelatorio, renderCorrecaoItens, setFixView, fixGoPage, applyMatFix, applyMatFixBulk, removeMatFix, clearAllMatFixes, applyCatFix, removeCatFix, clearAllCatFixes, closePreRegDialog, skipPreRegDialog, confirmPreRegDialog, copyItemsList, diagnoseAliases, setPanTipo, loadAllHistDBAndRefresh, addFichaItem, removeFichaItem, editMaterial, switchMatView, switchPanSub, PAGE_STATE, debouncedRenderPS, debouncedRenderES, debouncedRenderPE, debouncedRenderHI, filterUnidadesSelect, openAddUnidadeDialog, pickSuggestedUnit, saveDetectedAlias };
+    const EXPORTS = { goTab, registrar, previewReq, showUnitConfirmDialog, pegarParaSeparar, entregarReq, abrirFicha, fecharFicha, marcarPronto, marcarProntoLista, voltarSeparacao, printReq, printFicha, cancelarReq, excluirHistoricoReq, renderBuracos, renderUnificar, buildPainel, gerarRelatorio, exportarCSV, handleFile, handleHistFiles, ck, okModal, closeModal, showModal, editEntryYear, editEntryPeriod, toggleDetail, removeHistEntry, openEditor, closeEditor, saveEditor, edRemoveItem, edAddItem, edAddCat, clearHistDB, clearMateriaisDB, removeDuplicatesAuto, recalcAllDates, exportBackup, importBackup, goToFile, goPage, onModeChange, clearFilters, clearPanFilters, clearYears, selAllYears, selAllUnits, selAllCats, clearAllAliases, doUnifMerge, toggleUnifSel, unifRemoveSel, clearUnifSel, removeAlias, openPrintBuracos, doPrintBuracos, showOrigemUnidade, showOrigemCategoria, renderRelatorio, renderCorrecaoItens, setFixView, fixGoPage, applyMatFix, applyMatFixBulk, removeMatFix, clearAllMatFixes, applyCatFix, removeCatFix, clearAllCatFixes, closePreRegDialog, skipPreRegDialog, confirmPreRegDialog, copyItemsList, diagnoseAliases, setPanTipo, loadAllHistDBAndRefresh, addFichaItem, removeFichaItem, editMaterial, switchMatView, switchPanSub, PAGE_STATE, debouncedRenderPS, debouncedRenderES, debouncedRenderPE, debouncedRenderHI, filterUnidadesSelect, openAddUnidadeDialog, pickSuggestedUnit, saveDetectedAlias };
     Object.entries(EXPORTS).forEach(([k, v]) => { window[k] = v; });
   } catch (e) { console.error(e); }
   try { loadHistDB(); } catch (e) { console.error(e); }
@@ -8943,6 +8989,8 @@ export function initSeparacao() {
     const search = document.getElementById("rUSearch");
     if (search) search.addEventListener("input", filterUnidadesSelect);
   } catch (_) {}
+
+  refreshIcons();
 }
 
 export function onSeparacaoTabChange() {
@@ -8950,6 +8998,7 @@ export function onSeparacaoTabChange() {
   try { populateUnidadesSelect(); } catch (e) { console.error(e); }
   try { applySeparacaoRoleUI(); } catch (e) { console.error(e); }
   try { renderAll(); } catch (e) { console.error(e); }
+  refreshIcons();
 }
 
 export function renderSeparacao() {

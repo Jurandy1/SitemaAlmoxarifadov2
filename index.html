@@ -1501,33 +1501,33 @@
             <div id="content-materiais" class="fade-in hidden">
                 <!-- ═══ SUB-MENU PRINCIPAL DO ALMOXARIFADO ═══ -->
                 <div style="display:flex;align-items:center;gap:0;background:#0f172a;border-radius:12px;overflow:hidden;margin-bottom:12px;box-shadow:0 4px 12px rgba(0,0,0,.15)">
-                    <button class="mat-main-tab active" id="matTabEntrega" onclick="switchMatView('entrega')" style="flex:1;padding:14px 20px;border:none;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;transition:.2s;background:#1e40af;color:#fff">📦 Entrega de Materiais</button>
-                    <button class="mat-main-tab" id="matTabPainel" onclick="switchMatView('painel')" style="flex:1;padding:14px 20px;border:none;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;transition:.2s;background:transparent;color:#94a3b8">📊 Painel do Almoxarifado</button>
+                    <button class="mat-main-tab active" id="matTabEntrega" onclick="switchMatView('entrega')" style="flex:1;padding:14px 20px;border:none;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;transition:.2s;background:#1e40af;color:#fff"><i data-lucide="truck"></i> Entrega de Materiais</button>
+                    <button class="mat-main-tab" id="matTabPainel" onclick="switchMatView('painel')" style="flex:1;padding:14px 20px;border:none;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;transition:.2s;background:transparent;color:#94a3b8"><i data-lucide="bar-chart-3"></i> Painel do Almoxarifado</button>
                 </div>
 
                 <!-- ═══ BLOCO 1: ENTREGA DE MATERIAIS ═══ -->
                 <div id="matViewEntrega">
                 <div class="separacao-module">
                     <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:6px 0;flex-wrap:wrap">
-                        <button class="btn btn-s btn-sm" style="font-size:10px;padding:4px 10px;border:1px solid #cbd5e1;color:#64748b;background:#f8fafc;border-radius:6px" onclick="exportBackup()">⬇️ Backup</button>
-                        <button class="btn btn-s btn-sm" style="font-size:10px;padding:4px 10px;border:1px solid #cbd5e1;color:#64748b;background:#f8fafc;border-radius:6px" onclick="document.getElementById('impBackup').click()">⬆️ Restaurar</button>
+                        <button class="btn btn-s btn-sm" style="font-size:10px;padding:4px 10px;border:1px solid #cbd5e1;color:#64748b;background:#f8fafc;border-radius:6px;display:inline-flex;align-items:center;gap:4px" onclick="exportBackup()"><i data-lucide="download"></i> Backup</button>
+                        <button class="btn btn-s btn-sm" style="font-size:10px;padding:4px 10px;border:1px solid #cbd5e1;color:#64748b;background:#f8fafc;border-radius:6px;display:inline-flex;align-items:center;gap:4px" onclick="document.getElementById('impBackup').click()"><i data-lucide="upload"></i> Restaurar</button>
                         <input type="file" id="impBackup" accept=".json" style="display:none" onchange="importBackup(event)">
                         <span style="color:#94a3b8;font-size:11px" id="td"></span>
                     </div>
                     <div class="tabs">
-                        <div class="tab active" data-tab="req" onclick="goTab('req')">📋 Requisição</div>
-                        <div class="tab" data-tab="ps" onclick="goTab('ps')">📦 Para Separar <span class="bc zero" id="c1">0</span></div>
-                        <div class="tab" data-tab="es" onclick="goTab('es')">🔧 Em Separação <span class="bc zero" id="c2">0</span></div>
-                        <div class="tab" data-tab="pe" onclick="goTab('pe')">✅ Pronto <span class="bc zero" id="c3">0</span></div>
-                        <div class="tab" data-tab="hi" onclick="goTab('hi')">📂 Histórico <span class="bc zero" id="c4">0</span></div>
-                        <div class="tab" data-tab="db" onclick="goTab('db')">🗄️ Banco de Dados</div>
-                        <div class="tab" data-tab="rel" onclick="goTab('rel')">🔧 Padronização</div>
+                        <div class="tab active" data-tab="req" onclick="goTab('req')"><i data-lucide="clipboard-list"></i> Requisição</div>
+                        <div class="tab" data-tab="ps" onclick="goTab('ps')"><i data-lucide="package"></i> Para Separar <span class="bc zero" id="c1">0</span></div>
+                        <div class="tab" data-tab="es" onclick="goTab('es')"><i data-lucide="wrench"></i> Em Separação <span class="bc zero" id="c2">0</span></div>
+                        <div class="tab" data-tab="pe" onclick="goTab('pe')"><i data-lucide="check-circle"></i> Pronto <span class="bc zero" id="c3">0</span></div>
+                        <div class="tab" data-tab="hi" onclick="goTab('hi')"><i data-lucide="history"></i> Histórico <span class="bc zero" id="c4">0</span></div>
+                        <div class="tab" data-tab="db" onclick="goTab('db')"><i data-lucide="database"></i> Banco de Dados</div>
+                        <div class="tab" data-tab="rel" onclick="goTab('rel')"><i data-lucide="settings-2"></i> Padronização</div>
                     </div>
 
                     <!-- tab-req -->
                     <div class="view active" id="tab-req">
                         <div class="card">
-                            <h2>📋 Registrar Nova Requisição</h2>
+                            <h2><i data-lucide="clipboard-list" class="inline-block" style="width:18px;height:18px;vertical-align:-3px"></i> Registrar Nova Requisição</h2>
                             <p class="desc">Anexe a planilha. O sistema detecta automaticamente unidade, tipos e formato.</p>
                             <div class="row mb-3">
                                 <div>
@@ -1536,13 +1536,13 @@
                                         <input type="search" class="input" id="rUSearch" placeholder="Buscar unidade..." autocomplete="off" oninput="filterUnidadesSelect()" style="width:100%">
                                     </div>
                                     <select class="sel" id="rU" onchange="ck()"><option value="">— Selecione a unidade cadastrada —</option></select>
-                                    <div id="rUWarn" style="display:none;background:#fef3c7;border:1px solid #fde047;border-radius:6px;padding:6px 10px;font-size:11px;color:#92400e;margin-top:4px">⚠️ Unidade da planilha não bate com o cadastro. Escolha a unidade correta na lista — o sistema não cria unidade nova pela planilha.</div>
+                                    <div id="rUWarn" style="display:none;background:#fef3c7;border:1px solid #fde047;border-radius:6px;padding:6px 10px;font-size:11px;color:#92400e;margin-top:4px;align-items:flex-start;gap:6px"><i data-lucide="alert-triangle" style="width:14px;height:14px;flex-shrink:0;margin-top:1px"></i><span>Unidade da planilha não bate com o cadastro. Escolha a unidade correta na lista — o sistema não cria unidade nova pela planilha.</span></div>
                                     <div id="rUMemo" style="display:none;background:#ecfeff;border:1px solid #a5f3fc;border-radius:6px;padding:6px 10px;font-size:11px;color:#155e75;margin-top:6px"></div>
                                 </div>
                                 <div><label class="lbl">Nome na planilha</label><div id="detectInfo" style="min-height:36px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:6px 0"><span style="color:var(--muted);font-size:12px">Anexe a planilha...</span></div></div>
                             </div>
                             <div class="mb-3"><label class="lbl">Planilha do Pedido</label>
-                                <div class="fd" id="fdrop" onclick="document.getElementById('fi').click()"><div style="font-size:24px">📎</div><div style="font-size:13px;font-weight:600">Clique ou arraste</div><div style="font-size:11px;color:var(--muted)">.xlsx .xls .ods .docx .odt .pdf</div><input type="file" id="fi" accept=".xlsx,.xls,.ods,.docx,.doc,.odt,.pdf" style="display:none" onchange="handleFile(event)"><div class="fn" id="fname" style="display:none"></div></div>
+                                <div class="fd" id="fdrop" onclick="document.getElementById('fi').click()"><div style="font-size:24px"><i data-lucide="paperclip" style="width:28px;height:28px"></i></div><div style="font-size:13px;font-weight:600">Clique ou arraste</div><div style="font-size:11px;color:var(--muted)">.xlsx .xls .ods .docx .odt .pdf</div><input type="file" id="fi" accept=".xlsx,.xls,.ods,.docx,.doc,.odt,.pdf" style="display:none" onchange="handleFile(event)"><div class="fn" id="fname" style="display:none"></div></div>
                             </div>
                             <div class="row mb-3">
                                 <div><label class="lbl">Lançado por</label><input class="input" id="rR" value="Admin"></div>
@@ -1557,44 +1557,44 @@
                                 <div></div>
                             </div>
                             <div style="display:flex;gap:8px">
-                                <button class="btn btn-s w-full" id="bPreview" disabled onclick="previewReq()" style="flex:1">👁️ Visualizar</button>
-                                <button class="btn btn-p w-full" id="bR" disabled onclick="registrar()" style="flex:2">📝 Registrar Requisição</button>
+                                <button class="btn btn-s w-full" id="bPreview" disabled onclick="previewReq()" style="flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px"><i data-lucide="eye"></i> Visualizar</button>
+                                <button class="btn btn-p w-full" id="bR" disabled onclick="registrar()" style="flex:2;display:inline-flex;align-items:center;justify-content:center;gap:6px"><i data-lucide="file-plus"></i> Registrar Requisição</button>
                             </div>
                         </div>
                     </div>
 
                     <div class="view" id="tab-ps">
                         <div class="card">
-                            <h2>📦 Fila para Separar</h2>
+                            <h2><i data-lucide="package" class="inline-block" style="width:18px;height:18px;vertical-align:-3px"></i> Fila para Separar</h2>
                             <p class="desc">Primeiro da fila destacado. Separador informa o nome e a ficha é impressa.</p>
-                            <input type="text" class="input mb-3" id="buscaPS" placeholder="🔍 Procurar unidade..." onkeyup="PAGE_STATE.ps=1;debouncedRenderPS()">
+                            <input type="text" class="input mb-3" id="buscaPS" placeholder="Procurar unidade..." onkeyup="PAGE_STATE.ps=1;debouncedRenderPS()">
                             <div id="lps"></div>
                         </div>
                     </div>
 
                     <div class="view" id="tab-es">
                         <div class="card">
-                            <h2>🔧 Em Separação</h2>
+                            <h2><i data-lucide="wrench" class="inline-block" style="width:18px;height:18px;vertical-align:-3px"></i> Em Separação</h2>
                             <p class="desc">Clique em "Editar" para abrir a ficha A4 em tela cheia.</p>
-                            <input type="text" class="input mb-3" id="buscaES" placeholder="🔍 Procurar unidade..." onkeyup="PAGE_STATE.es=1;debouncedRenderES()">
+                            <input type="text" class="input mb-3" id="buscaES" placeholder="Procurar unidade..." onkeyup="PAGE_STATE.es=1;debouncedRenderES()">
                             <div id="les"></div>
                         </div>
                     </div>
 
                     <div class="view" id="tab-pe">
                         <div class="card">
-                            <h2>✅ Pronto para Entrega</h2>
+                            <h2><i data-lucide="check-circle" class="inline-block" style="width:18px;height:18px;vertical-align:-3px"></i> Pronto para Entrega</h2>
                             <p class="desc">Quando alguém vier buscar, clique "Entregar" e informe quem retirou.</p>
-                            <input type="text" class="input mb-3" id="buscaPE" placeholder="🔍 Procurar unidade..." onkeyup="PAGE_STATE.pe=1;debouncedRenderPE()">
+                            <input type="text" class="input mb-3" id="buscaPE" placeholder="Procurar unidade..." onkeyup="PAGE_STATE.pe=1;debouncedRenderPE()">
                             <div id="lpe"></div>
                         </div>
                     </div>
 
                     <div class="view" id="tab-hi">
                         <div class="card">
-                            <h2>📁 Histórico</h2>
+                            <h2><i data-lucide="history" class="inline-block" style="width:18px;height:18px;vertical-align:-3px"></i> Histórico</h2>
                             <p class="desc">Entregas finalizadas.</p>
-                            <input type="text" class="input mb-3" id="buscaHI" placeholder="🔍 Procurar unidade..." onkeyup="PAGE_STATE.hi=1;debouncedRenderHI()">
+                            <input type="text" class="input mb-3" id="buscaHI" placeholder="Procurar unidade..." onkeyup="PAGE_STATE.hi=1;debouncedRenderHI()">
                             <div id="lhi"></div>
                         </div>
                     </div>
@@ -1611,7 +1611,7 @@
                             </div>
                             <div class="rel-layout" style="grid-template-columns: 360px 1fr; gap: 12px">
                                 <div class="rel-panel" style="margin-bottom:12px">
-                                    <h3>🗄️ Banco de Dados</h3>
+                                    <h3><i data-lucide="database" class="inline-block" style="width:16px;height:16px;vertical-align:-2px"></i> Banco de Dados</h3>
                                     <div>
                                         <label class="lbl">Unidade</label>
                                         <select class="sel" id="rDbUnit" onchange="PAGE_STATE.files=1;renderRelatorio()">
@@ -1623,11 +1623,11 @@
                                         <input class="db-search" id="dbSearch" placeholder="Digite parte do nome do arquivo..." onkeyup="PAGE_STATE.files=1;renderRelatorio()">
                                     </div>
                                     <div style="margin-top:10px">
-                                        <button class="btn btn-s btn-sm" style="width:100%;font-size:11px" onclick="var x=document.getElementById('dbAdv'); x.style.display=(x.style.display==='none'?'block':'none');">⚙️ Ações</button>
+                                        <button class="btn btn-s btn-sm" style="width:100%;font-size:11px;display:inline-flex;align-items:center;justify-content:center;gap:6px" onclick="var x=document.getElementById('dbAdv'); x.style.display=(x.style.display==='none'?'block':'none');"><i data-lucide="settings"></i> Ações</button>
                                     </div>
                                     <div id="dbAdv" style="display:none;margin-top:10px">
                                         <div class="fd" id="rDrop" onclick="document.getElementById('rFi').click()" style="margin-bottom:10px;padding:14px">
-                                            <div style="font-size:18px">📎</div>
+                                            <div style="font-size:18px"><i data-lucide="paperclip" style="width:22px;height:22px"></i></div>
                                             <div style="font-size:12px;font-weight:600">Importar planilhas</div>
                                             <div style="font-size:10px;color:var(--muted)">.xlsx .xls .ods .docx .odt .pdf — múltiplos</div>
                                             <input type="file" id="rFi" accept=".xlsx,.xls,.ods,.docx,.doc,.odt,.pdf" style="display:none" multiple onchange="handleHistFiles(event)">
@@ -1637,10 +1637,10 @@
                                             <div class="progress-bar"><div class="progress-fill" id="rProgressBar" style="width:0%"></div></div>
                                         </div>
                                         <div style="display:flex;gap:6px;flex-wrap:wrap">
-                                            <button class="btn btn-s" style="flex:1;font-size:11px;min-width:140px" onclick="clearHistDB()">🗑️ Limpar banco</button>
-                                            <button class="btn btn-s" style="flex:1;font-size:11px;min-width:140px;color:#dc2626;border-color:#fecaca" onclick="clearMateriaisDB()">🧹 Limpar Materiais</button>
-                                            <button class="btn btn-s" style="flex:1;font-size:11px;min-width:140px;color:#d97706;border-color:#fde047" onclick="removeDuplicatesAuto()">🔍 Duplicatas</button>
-                                            <button class="btn btn-s" style="flex:1;font-size:11px;min-width:140px;color:#0369a1;border-color:#bae6fd" onclick="recalcAllDates()">📅 Recalcular datas</button>
+                                            <button class="btn btn-s" style="flex:1;font-size:11px;min-width:140px;display:inline-flex;align-items:center;justify-content:center;gap:4px" onclick="clearHistDB()"><i data-lucide="trash-2"></i> Limpar banco</button>
+                                            <button class="btn btn-s" style="flex:1;font-size:11px;min-width:140px;color:#dc2626;border-color:#fecaca;display:inline-flex;align-items:center;justify-content:center;gap:4px" onclick="clearMateriaisDB()"><i data-lucide="eraser"></i> Limpar Materiais</button>
+                                            <button class="btn btn-s" style="flex:1;font-size:11px;min-width:140px;color:#d97706;border-color:#fde047;display:inline-flex;align-items:center;justify-content:center;gap:4px" onclick="removeDuplicatesAuto()"><i data-lucide="copy"></i> Duplicatas</button>
+                                            <button class="btn btn-s" style="flex:1;font-size:11px;min-width:140px;color:#0369a1;border-color:#bae6fd;display:inline-flex;align-items:center;justify-content:center;gap:4px" onclick="recalcAllDates()"><i data-lucide="calendar"></i> Recalcular datas</button>
                                         </div>
                                     </div>
                                 </div>
@@ -1657,19 +1657,26 @@
                             <!-- Relatório de Consumo (colapsável) -->
                             <div class="card" style="margin-top:12px">
                                 <div style="cursor:pointer;display:flex;align-items:center;justify-content:space-between" onclick="var x=document.getElementById('reportSection');x.style.display=(x.style.display==='none'?'block':'none')">
-                                    <h2 style="margin:0">📊 Relatório de Consumo</h2>
-                                    <span style="color:var(--muted);font-size:18px">▾</span>
+                                    <h2 style="margin:0;display:flex;align-items:center;gap:8px"><i data-lucide="bar-chart-2"></i> Relatório de Consumo</h2>
+                                    <span style="color:var(--muted);font-size:18px"><i data-lucide="chevron-down"></i></span>
                                 </div>
                                 <div id="reportSection" style="display:none;margin-top:14px">
                                     <div class="filter-grid">
                                         <div>
                                             <label class="lbl">Unidades</label>
                                             <select class="sel-multi" id="rFiltUnits" multiple size="4" onchange="showOrigemUnidade()"></select>
+                                            <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap">
+                                                <button type="button" class="btn btn-s btn-sm" style="font-size:10px" onclick="selAllUnits()"><i data-lucide="check-square"></i> Todas</button>
+                                                <button type="button" class="btn btn-s btn-sm" style="font-size:10px" onclick="clearFilters()"><i data-lucide="filter-x"></i> Limpar</button>
+                                            </div>
                                             <div id="origemUnidade" style="margin-top:4px"></div>
                                         </div>
                                         <div>
                                             <label class="lbl">Categorias</label>
                                             <select class="sel-multi" id="rFiltCats" multiple size="4" onchange="showOrigemCategoria()"></select>
+                                            <div style="margin-top:4px">
+                                                <button type="button" class="btn btn-s btn-sm" style="font-size:10px" onclick="selAllCats()"><i data-lucide="check-square"></i> Todas</button>
+                                            </div>
                                             <div id="origemCategoria" style="margin-top:4px"></div>
                                         </div>
                                         <div>
@@ -1700,10 +1707,10 @@
                                         <input class="input" id="rRankItem" placeholder="Filtrar item (ex: ARROZ)" style="font-size:11px;padding:6px 8px">
                                     </div>
                                     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
-                                        <button class="btn btn-p btn-sm" onclick="gerarRelatorio()">📊 Gerar</button>
-                                        <button class="btn btn-s btn-sm" onclick="exportarCSV()">⬇️ CSV</button>
-                                        <button class="btn btn-s btn-sm" onclick="selAllYears()">☑ Anos</button>
-                                        <button class="btn btn-s btn-sm" onclick="clearYears()">✕</button>
+                                        <button class="btn btn-p btn-sm" onclick="gerarRelatorio()" style="display:inline-flex;align-items:center;gap:4px"><i data-lucide="bar-chart-2"></i> Gerar</button>
+                                        <button class="btn btn-s btn-sm" onclick="exportarCSV()" style="display:inline-flex;align-items:center;gap:4px"><i data-lucide="download"></i> CSV</button>
+                                        <button class="btn btn-s btn-sm" onclick="selAllYears()" style="display:inline-flex;align-items:center;gap:4px"><i data-lucide="check-square"></i> Anos</button>
+                                        <button class="btn btn-s btn-sm" onclick="clearYears()" style="display:inline-flex;align-items:center;gap:4px" title="Limpar anos"><i data-lucide="x"></i></button>
                                         <label style="display:flex;align-items:center;gap:3px;font-size:10px;cursor:pointer"><input type="checkbox" id="rFiltZeros"> Zeros</label>
                                     </div>
                                     <div id="rReport"><div class="rel-empty"><div class="ic">📊</div>Clique em Gerar.</div></div>
@@ -1719,12 +1726,12 @@
                     <div class="modal-ficha" id="fichaModal">
                         <div class="modal-inner">
                             <div class="modal-toolbar">
-                                <span class="title" id="fichaTitle">📋 Ficha</span>
+                                <span class="title" id="fichaTitle"><i data-lucide="clipboard-list"></i> Ficha</span>
                                 <div class="fstats" id="fichaStats"></div>
                                 <div style="margin-left:auto;display:flex;gap:8px" id="fichaModalActions">
-                                    <button class="btn btn-s btn-sm" id="btnImprimirFicha" onclick="printFicha()" style="color:#e2e8f0;border-color:#475569">🖨️ Imprimir</button>
-                                    <button type="button" class="btn btn-g btn-sm" id="btnMarcarProntoFicha" onclick="marcarPronto(event)">✅ Pronto</button>
-                                    <button class="btn btn-s btn-sm" onclick="fecharFicha()" style="color:#e2e8f0;border-color:#475569">✕ Fechar</button>
+                                    <button class="btn btn-s btn-sm" id="btnImprimirFicha" onclick="printFicha()" style="color:#e2e8f0;border-color:#475569;display:inline-flex;align-items:center;gap:4px"><i data-lucide="printer"></i> Imprimir</button>
+                                    <button type="button" class="btn btn-g btn-sm" id="btnMarcarProntoFicha" onclick="marcarPronto(event)" style="display:inline-flex;align-items:center;gap:4px"><i data-lucide="check-circle"></i> Pronto</button>
+                                    <button class="btn btn-s btn-sm" onclick="fecharFicha()" style="color:#e2e8f0;border-color:#475569;display:inline-flex;align-items:center;gap:4px"><i data-lucide="x"></i> Fechar</button>
                                 </div>
                             </div>
                             <div class="legend" id="fichaModalLegend">
@@ -1739,15 +1746,15 @@
                         </div>
                     </div>
 
-                    <div class="mo" id="modal"><div class="mbox"><div class="mhd"><h3 id="mT"></h3><p id="mD"></p></div><div class="mbd"><input class="input" id="mI" style="font-size:15px"></div><div class="mft"><button class="btn btn-s btn-sm" onclick="closeModal()">Cancelar</button><button class="btn btn-p btn-sm" onclick="okModal()">Confirmar</button></div></div></div>
+                    <div class="mo" id="modal"><div class="mbox"><div class="mhd"><h3 id="mT"></h3><p id="mD"></p></div><div class="mbd"><input class="input" id="mI" style="font-size:15px"></div><div class="mft"><button class="btn btn-s btn-sm" onclick="closeModal()" style="display:inline-flex;align-items:center;gap:4px"><i data-lucide="x"></i> Cancelar</button><button class="btn btn-p btn-sm" onclick="okModal()" style="display:inline-flex;align-items:center;gap:4px"><i data-lucide="check"></i> Confirmar</button></div></div></div>
 
                     <div class="editor-modal" id="editorModal">
                         <div class="editor-inner">
                             <div class="editor-hd">
-                                <h3 id="editorTitle">📝 Editar Planilha</h3>
+                                <h3 id="editorTitle" style="display:flex;align-items:center;gap:8px"><i data-lucide="pencil"></i> Editar Planilha</h3>
                                 <div style="display:flex;gap:8px">
-                                    <button class="btn btn-g btn-sm" onclick="saveEditor()">💾 Salvar</button>
-                                    <button class="btn btn-s btn-sm" style="color:#e2e8f0;border-color:#475569" onclick="closeEditor()">✕ Fechar</button>
+                                    <button class="btn btn-g btn-sm" onclick="saveEditor()" style="display:inline-flex;align-items:center;gap:4px"><i data-lucide="save"></i> Salvar</button>
+                                    <button class="btn btn-s btn-sm" style="color:#e2e8f0;border-color:#475569;display:inline-flex;align-items:center;gap:4px" onclick="closeEditor()"><i data-lucide="x"></i> Fechar</button>
                                 </div>
                             </div>
                             <div class="editor-body" id="editorBody"></div>
@@ -1761,16 +1768,16 @@
                     <div style="max-width:1200px;margin:0 auto">
                         <!-- Sub-abas do Painel -->
                         <div style="display:flex;gap:0;background:#fff;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,.04)">
-                            <button class="pan-sub-tab active" data-pansub="geral" onclick="switchPanSub('geral')" style="flex:1;padding:11px 14px;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;background:#2563eb;color:#fff;transition:.2s;display:flex;align-items:center;justify-content:center;gap:6px">📌 Geral</button>
-                            <button class="pan-sub-tab" data-pansub="itens" onclick="switchPanSub('itens')" style="flex:1;padding:11px 14px;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;background:transparent;color:#64748b;transition:.2s;display:flex;align-items:center;justify-content:center;gap:6px">🥫 Itens</button>
-                            <button class="pan-sub-tab" data-pansub="tipos" onclick="switchPanSub('tipos')" style="flex:1;padding:11px 14px;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;background:transparent;color:#64748b;transition:.2s;display:flex;align-items:center;justify-content:center;gap:6px">🏷️ Tipos</button>
-                            <button class="pan-sub-tab" data-pansub="alertas" onclick="switchPanSub('alertas')" style="flex:1;padding:11px 14px;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;background:transparent;color:#64748b;transition:.2s;display:flex;align-items:center;justify-content:center;gap:6px">🚨 Alertas</button>
+                            <button class="pan-sub-tab active" data-pansub="geral" onclick="switchPanSub('geral')" style="flex:1;padding:11px 14px;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;background:#2563eb;color:#fff;transition:.2s;display:flex;align-items:center;justify-content:center;gap:6px"><i data-lucide="layout-dashboard"></i> Geral</button>
+                            <button class="pan-sub-tab" data-pansub="itens" onclick="switchPanSub('itens')" style="flex:1;padding:11px 14px;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;background:transparent;color:#64748b;transition:.2s;display:flex;align-items:center;justify-content:center;gap:6px"><i data-lucide="package"></i> Itens</button>
+                            <button class="pan-sub-tab" data-pansub="tipos" onclick="switchPanSub('tipos')" style="flex:1;padding:11px 14px;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;background:transparent;color:#64748b;transition:.2s;display:flex;align-items:center;justify-content:center;gap:6px"><i data-lucide="tags"></i> Tipos</button>
+                            <button class="pan-sub-tab" data-pansub="alertas" onclick="switchPanSub('alertas')" style="flex:1;padding:11px 14px;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;background:transparent;color:#64748b;transition:.2s;display:flex;align-items:center;justify-content:center;gap:6px"><i data-lucide="bell"></i> Alertas</button>
                         </div>
                         <!-- Filtros do Painel -->
                         <div id="panFilters" style="display:none;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,.04)">
                             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-                                <span style="font-size:12px;font-weight:800;color:#475569">🔍 Filtrar</span>
-                                <button class="btn btn-s btn-sm" onclick="clearPanFilters()" style="font-size:10px">✕ Limpar</button>
+                                <span style="font-size:12px;font-weight:800;color:#475569;display:flex;align-items:center;gap:6px"><i data-lucide="filter"></i> Filtrar</span>
+                                <button class="btn btn-s btn-sm" onclick="clearPanFilters()" style="font-size:10px;display:inline-flex;align-items:center;gap:4px"><i data-lucide="x"></i> Limpar</button>
                             </div>
                             <div id="panTipoChips" class="tipo-chips" style="margin-bottom:8px"></div>
                             <div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap">
@@ -2298,8 +2305,8 @@
                 <div id="alert-gestao" class="alert mb-4"></div>
 
                 <div class="sub-nav flex flex-wrap gap-2 mb-4">
-                    <button class="sub-nav-btn active" data-subview-gestao="unidades">🏢 Unidades Cadastradas</button>
-                    <button class="sub-nav-btn" data-subview-gestao="vinculos">🔗 Vínculos Materiais</button>
+                    <button class="sub-nav-btn active" data-subview-gestao="unidades"><i data-lucide="building"></i> Unidades Cadastradas</button>
+                    <button class="sub-nav-btn" data-subview-gestao="vinculos"><i data-lucide="link"></i> Vínculos Materiais</button>
                 </div>
 
                 <div id="gestao-sub-unidades" class="gestao-subview">

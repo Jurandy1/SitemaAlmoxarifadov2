@@ -413,10 +413,10 @@ function showPreRegDialog(issues, onConfirm, deps) {
   // Botões
   h += `
     <div style="display:flex;gap:8px;justify-content:center;margin-top:16px">
-      <button class="btn btn-s" onclick="closePreRegDialog()">Cancelar</button>
-      <button class="btn btn-s" onclick="skipPreRegDialog()">Ignorar e Registrar</button>
-      <button class="btn btn-p" id="btnConfirmPreReg" onclick="confirmPreRegDialog()">
-        ✅ Aplicar e Registrar
+      <button class="btn btn-s" onclick="closePreRegDialog()" style="display:inline-flex;align-items:center;gap:4px"><i data-lucide="x"></i> Cancelar</button>
+      <button class="btn btn-s" onclick="skipPreRegDialog()" style="display:inline-flex;align-items:center;gap:4px"><i data-lucide="skip-forward"></i> Ignorar e Registrar</button>
+      <button class="btn btn-p" id="btnConfirmPreReg" onclick="confirmPreRegDialog()" style="display:inline-flex;align-items:center;gap:4px">
+        <i data-lucide="check-circle"></i> Aplicar e Registrar
       </button>
     </div>
   </div>`;
@@ -429,7 +429,7 @@ function showPreRegDialog(issues, onConfirm, deps) {
   const body    = document.getElementById("fichaBody");
   const stats   = document.getElementById("fichaStats");
 
-  if (toolbar) toolbar.querySelector(".title").textContent = "🔍 Revisão de Itens";
+  if (toolbar) toolbar.querySelector(".title").innerHTML = '<i data-lucide="search"></i> Revisão de Itens';
   if (stats)   stats.innerHTML   = "";
   if (actions) actions.style.display = "none";
   if (legend)  legend.style.display  = "none";
@@ -464,13 +464,16 @@ function showPreRegDialog(issues, onConfirm, deps) {
     btn.style.opacity  = pending.length ? "0.5" : "";
     btn.style.cursor   = pending.length ? "not-allowed" : "";
     btn.innerHTML      = pending.length
-      ? `⚠️ Escolha ${pending.length} item(ns) para continuar`
-      : "✅ Aplicar e Registrar";
+      ? `<i data-lucide="alert-triangle"></i> Escolha ${pending.length} item(ns) para continuar`
+      : '<i data-lucide="check-circle"></i> Aplicar e Registrar';
   };
 
   window._preRegIssues   = issues; // inclui blocked (já aceitos)
   window._preRegCallback = onConfirm;
-  setTimeout(() => window.__validatePreReg?.(), 50);
+  setTimeout(() => {
+    window.__validatePreReg?.();
+    try { if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons(); } catch (_) {}
+  }, 50);
 }
 
 // ── Fechar / Pular / Confirmar ─────────────────────────────────────
