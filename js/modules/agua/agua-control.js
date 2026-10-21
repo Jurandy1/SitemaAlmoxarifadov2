@@ -867,6 +867,15 @@ export function renderAguaMovimentacoesHistory() {
     const isAdmin = role === 'admin';
 
     const recent = (getAguaMovimentacoes() || []).slice(0, AGUA_HIST_PAGE_SIZE);
+    // Remove do histórico local o que foi excluído: tudo que está dentro da janela do listener
+    // (mais recentes) e não veio nele já não existe no banco
+    const idsRecentes = new Set(recent.map(m => m?.id));
+    const limiteJanela = recent.length < AGUA_HIST_PAGE_SIZE
+        ? -Infinity
+        : Math.min(...recent.map(m => m?.registradoEm?.toMillis?.() ?? Infinity));
+    for (const [id, m] of (recent.length ? aguaHistLoadedById : [])) {
+        if (!idsRecentes.has(id) && (m?.registradoEm?.toMillis?.() ?? -Infinity) >= limiteJanela) aguaHistLoadedById.delete(id);
+    }
     mergeAguaHist(recent);
     if (!aguaHistCursor) aguaHistCursor = getAguaMovCursor() || null;
 
