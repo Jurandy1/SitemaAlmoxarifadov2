@@ -1,31 +1,54 @@
 // js/modules/movimentacao-modal-handler.js
-import { Timestamp, addDoc, serverTimestamp, doc, setDoc, increment } from "firebase/firestore";
+import { Timestamp, serverTimestamp, doc, increment, writeBatch } from "firebase/firestore";
 import { DOM_ELEMENTS, showAlert } from "../utils/dom-helpers.js";
 import { capitalizeString, formatTimestamp } from "../utils/formatters.js";
-import { COLLECTIONS } from "../services/firestore-service.js";
+import { COLLECTIONS, db } from "../services/firestore-service.js";
 import { getUserRole } from "../utils/cache.js";
 
-const RESUMO_DOC_ID   = 'resumo-agua';
-const RESUMO_DOC_TIPO = '__resumo__';
+const RESUMO_DOC_ID          = 'resumo-agua';
+const RESUMO_DOC_TIPO        = '__resumo__';
+const RESUMO_UNIDADES_DOC_ID = 'resumo-unidades-agua';
+const RESUMO_GAS_DOC_ID      = 'resumo-gas';
+
+// Mesmo corte usado em gas-control.js/dashboard.js: movimentações anteriores
+// a esta data não contam no estoque de gás, logo não entram no resumo.
+const GAS_CUTOFF_MS = new Date('2026-04-30T00:00:00.000').getTime();
 
 /**
- * Atualiza o doc resumo-agua em estoqueAgua com os totais
- * acumulados de saídas e retornos. Usa increment() — atomicamente seguro.
- * Não lança exceção (falha silenciosa para não bloquear o fluxo principal).
+ * Adiciona ao batch os increments dos docs de resumo (totais e saldos por
+ * unidade), para que movimentação + resumo sejam gravados atomicamente.
  */
-async function _atualizarResumo(itemType, qtdEntregue, qtdRetorno) {
-    try {
-        const estoqueCol = itemType === 'agua' ? COLLECTIONS.estoqueAgua : null;
-        if (!estoqueCol) return; // Gas ainda usa abordagem legacy
-        const resumoRef = doc(estoqueCol, RESUMO_DOC_ID);
-        const update = { tipo: RESUMO_DOC_TIPO, atualizadoEm: serverTimestamp() };
-        if (qtdEntregue > 0) update.totalSaidas   = increment(qtdEntregue);
-        if (qtdRetorno  > 0) update.totalRetornos = increment(qtdRetorno);
-        if (qtdEntregue > 0 || qtdRetorno > 0) {
-            await setDoc(resumoRef, update, { merge: true });
+function _appendResumoToBatch(batch, { itemType, unidadeId, qtdEntregue, qtdRetorno, dataTemp }) {
+    if (qtdEntregue <= 0 && qtdRetorno <= 0) return;
+
+    const isGas = itemType === 'gas';
+    if (isGas && dataTemp.toMillis() < GAS_CUTOFF_MS) return; // fora do corte: não contabiliza
+
+    const estoqueCol = isGas ? COLLECTIONS.estoqueGas : COLLECTIONS.estoqueAgua;
+    const resumoRef  = doc(estoqueCol, isGas ? RESUMO_GAS_DOC_ID : RESUMO_DOC_ID);
+
+    const totais = { tipo: RESUMO_DOC_TIPO, atualizadoEm: serverTimestamp() };
+    if (qtdEntregue > 0) totais.totalSaidas   = increment(qtdEntregue);
+    if (qtdRetorno  > 0) totais.totalRetornos = increment(qtdRetorno);
+
+    const saldoUnidade = {};
+    if (qtdEntregue > 0) saldoUnidade.entregues = increment(qtdEntregue);
+    if (qtdRetorno  > 0) saldoUnidade.recebidos = increment(qtdRetorno);
+
+    if (isGas) {
+        // Gás: totais e saldos por unidade no mesmo doc resumo-gas
+        if (unidadeId) totais.saldos = { [unidadeId]: saldoUnidade };
+        batch.set(resumoRef, totais, { merge: true });
+    } else {
+        batch.set(resumoRef, totais, { merge: true });
+        if (unidadeId) {
+            const saldosRef = doc(estoqueCol, RESUMO_UNIDADES_DOC_ID);
+            batch.set(saldosRef, {
+                tipo: '__resumo_unidades__',
+                atualizadoEm: serverTimestamp(),
+                saldos: { [unidadeId]: saldoUnidade }
+            }, { merge: true });
         }
-    } catch (err) {
-        console.warn('[resumo-agua] Falha ao atualizar (não crítico):', err);
     }
 }
 
@@ -164,65 +187,54 @@ export async function handleFinalMovimentacaoSubmit() {
         ? 'SEDE'
         : (tipoUnidadeRaw || '').toUpperCase();
 
-    let msgSucesso       = [];
-    let operacoesComErro = 0;
+    let msgSucesso = [];
 
     try {
         const timestamp = serverTimestamp();
 
+        // Movimentações + resumos gravados num ÚNICO batch atômico:
+        // ou tudo entra (docs + increments dos resumos), ou nada entra.
+        // Isso elimina o drift entre movimentações e o doc resumo.
+        const batch = writeBatch(db);
+
         // 1. ENTREGA (SAÍDA DE ESTOQUE)
         if (qtdEntregue > 0) {
-            try {
-                await addDoc(collection, {
-                    unidadeId,
-                    unidadeNome,
-                    tipoUnidade,
-                    tipo: 'entrega',
-                    quantidade: qtdEntregue,
-                    data: dataTemp,
-                    responsavel: responsavelUnidade,
-                    responsavelAlmoxarifado: nomeAlmoxarifado,
-                    registradoEm: timestamp
-                });
-                msgSucesso.push(`${qtdEntregue} ${itemLabel} entregue(s)`);
-            } catch (error) {
-                console.error(`Erro ao salvar entrega (${itemType}):`, error);
-                operacoesComErro++;
-                throw error;
-            }
+            batch.set(doc(collection), {
+                unidadeId,
+                unidadeNome,
+                tipoUnidade,
+                tipo: 'entrega',
+                quantidade: qtdEntregue,
+                data: dataTemp,
+                responsavel: responsavelUnidade,
+                responsavelAlmoxarifado: nomeAlmoxarifado,
+                registradoEm: timestamp
+            });
+            msgSucesso.push(`${qtdEntregue} ${itemLabel} entregue(s)`);
         }
 
         // 2. RETORNO (ENTRADA EM ESTOQUE VAZIO/CRÉDITO)
         if (qtdRetorno > 0) {
-            try {
-                await addDoc(collection, {
-                    unidadeId,
-                    unidadeNome,
-                    tipoUnidade,
-                    tipo: 'retorno',
-                    quantidade: qtdRetorno,
-                    data: dataTemp,
-                    responsavel: responsavelUnidade,
-                    responsavelAlmoxarifado: nomeAlmoxarifado,
-                    registradoEm: timestamp
-                });
-                msgSucesso.push(`${qtdRetorno} ${itemLabel} recebido(s)`);
-            } catch (error) {
-                console.error(`Erro ao salvar retorno (${itemType}):`, error);
-                operacoesComErro++;
-                throw error;
-            }
+            batch.set(doc(collection), {
+                unidadeId,
+                unidadeNome,
+                tipoUnidade,
+                tipo: 'retorno',
+                quantidade: qtdRetorno,
+                data: dataTemp,
+                responsavel: responsavelUnidade,
+                responsavelAlmoxarifado: nomeAlmoxarifado,
+                registradoEm: timestamp
+            });
+            msgSucesso.push(`${qtdRetorno} ${itemLabel} recebido(s)`);
         }
 
-        if (operacoesComErro > 0) {
-            throw new Error("Erro de Escrita (Verifique o console para detalhes).");
-        }
+        // 3. RESUMOS (totais + saldos por unidade), no mesmo batch
+        _appendResumoToBatch(batch, { itemType, unidadeId, qtdEntregue, qtdRetorno, dataTemp });
+
+        await batch.commit();
 
         showAlert(alertId, `Movimentação salva! ${msgSucesso.join('; ')}.`, 'success');
-
-        if (itemType === 'agua') {
-            _atualizarResumo('agua', qtdEntregue > 0 ? qtdEntregue : 0, qtdRetorno > 0 ? qtdRetorno : 0);
-        }
 
         if (formToReset) formToReset.reset();
 

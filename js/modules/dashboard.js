@@ -227,18 +227,29 @@ function renderDashboardAguaSummary() {
 
 function renderDashboardGasSummary() {
     try {
-        const estoqueGas = filterGasAfterCutoff(getEstoqueGas() || []);
+        const estoqueGasAll = getEstoqueGas() || [];
+        const estoqueGas = filterGasAfterCutoff(estoqueGasAll);
         const movs = filterGasAfterCutoff(
             (getGasMovimentacoes() || []).filter(m => !isHistoricoImportado(m))
         );
 
         const estoqueInicial = estoqueGas.filter(e => e.tipo === 'inicial').reduce((sum, e) => sum + (parseInt(e.quantidade, 10) || 0), 0);
         const totalEntradas = estoqueGas.filter(e => e.tipo === 'entrada').reduce((sum, e) => sum + (parseInt(e.quantidade, 10) || 0), 0);
-        const totalSaidas = movs.filter(m => m.tipo === 'entrega').reduce((sum, m) => sum + (parseInt(m.quantidade, 10) || 0), 0);
+
+        // Prioridade: doc resumo-gas cobre todo o histórico pós-corte,
+        // além da janela limit(300) do listener. Fallback: cache.
+        const resumoGas = estoqueGasAll.find(e => e.id === 'resumo-gas' || e.tipo === '__resumo__');
+        const temResumoGas = resumoGas && typeof resumoGas.totalSaidas === 'number';
+
+        const totalSaidas = temResumoGas
+            ? resumoGas.totalSaidas
+            : movs.filter(m => m.tipo === 'entrega').reduce((sum, m) => sum + (parseInt(m.quantidade, 10) || 0), 0);
         const estoqueAtual = Math.max(0, estoqueInicial + totalEntradas - totalSaidas);
 
-        const totalEntregueGeral = movs.filter(m => m.tipo === 'entrega').reduce((sum, m) => sum + (parseInt(m.quantidade, 10) || 0), 0);
-        const totalRecebidoGeral = movs.filter(m => (m.tipo === 'retorno' || m.tipo === 'retirada')).reduce((sum, m) => sum + (parseInt(m.quantidade, 10) || 0), 0);
+        const totalEntregueGeral = totalSaidas;
+        const totalRecebidoGeral = temResumoGas
+            ? (resumoGas.totalRetornos || 0)
+            : movs.filter(m => (m.tipo === 'retorno' || m.tipo === 'retirada')).reduce((sum, m) => sum + (parseInt(m.quantidade, 10) || 0), 0);
 
         const movs30Dias = filterLast30Days(movs);
         const totalEntregue30d = movs30Dias.filter(m => m.tipo === 'entrega').reduce((sum, m) => sum + (parseInt(m.quantidade, 10) || 0), 0);
@@ -590,7 +601,7 @@ function renderTVDashboard(containerSeparacao, containerPronto) {
             if (!groups.length) {
                 container.innerHTML = `
                     <div class="empty">
-                        <div class="empty-ic">${panelType === 'rdy' ? '🕐' : '✔'}</div>
+                        <div class="empty-ic">${panelType === 'rdy' ? '' : ''}</div>
                         <div class="empty-tx">${panelType === 'rdy' ? 'Nenhum material aguardando retirada' : 'Nenhuma requisição em preparação'}</div>
                     </div>
                 `;
@@ -649,12 +660,12 @@ function createTVCard(m, panelType, escapeHTML) {
         const atendidos = items.filter(i => i.status === 'atendido' || (Number(i.qtdAtendida) > 0 && i.status !== 'sem_estoque')).length;
         const preview = items.slice(0, 4).map(i => esc(i.material || '')).join(', ');
         const more = totalItens > 4 ? ` +${totalItens - 4}` : '';
-        obsHtml = `<div class="card-obs" title="${esc(preview + more)}">📋 ${totalItens} itens${panelType === 'rdy' && atendidos ? ` · ${atendidos} atend.` : ''}${preview ? ' · ' + preview + more : ''}</div>`;
+        obsHtml = `<div class="card-obs" title="${esc(preview + more)}">${totalItens} itens${panelType === 'rdy' && atendidos ? ` · ${atendidos} atend.` : ''}${preview ? ' · ' + preview + more : ''}</div>`;
     } else if (m.itens) {
         obsHtml = `<div class="card-obs" title="${esc(m.itens)}">↳ ${esc(m.itens)}</div>`;
     }
 
-    const separador = m.responsavelSeparador ? `<div class="card-sep">👤 ${esc(m.responsavelSeparador)}</div>` : '<span></span>';
+    const separador = m.responsavelSeparador ? `<div class="card-sep">${esc(m.responsavelSeparador)}</div>` : '<span></span>';
     const time = esc(formatTimestamp(m.dataSeparacao || m.dataRetirada || m.registradoEm));
     const icon = panelType === 'rdy' ? '✓' : '◎';
     const id = esc(m.id || '');
@@ -726,7 +737,7 @@ function openTVFichaById(id) {
     const status = esc(String(m.status || '').toUpperCase());
     const quando = esc(formatTimestamp(m.dataSeparacao || m.dataRetirada || m.registradoEm));
 
-    titleEl.textContent = `📦 ${unidade}`;
+    titleEl.textContent = `${unidade}`;
 
     const itemsObj = m.itemsMap && typeof m.itemsMap === 'object' ? m.itemsMap : {};
     const items = Object.values(itemsObj).filter(Boolean);
@@ -744,13 +755,13 @@ function openTVFichaById(id) {
 
     bodyEl.innerHTML = `
         <div class="tv-ficha-meta">
-            <span class="tv-chip">🏷️ ${tipoUnidade}</span>
-            <span class="tv-chip">📌 ${status}</span>
-            <span class="tv-chip">🕒 ${quando}</span>
-            ${tipos ? `<span class="tv-chip">🧾 ${tipos}</span>` : ''}
-            ${separador ? `<span class="tv-chip">👤 Separador: ${separador}</span>` : ''}
-            ${entreguePor ? `<span class="tv-chip">📦 Entregue por: ${entreguePor}</span>` : ''}
-            ${retiradoPor ? `<span class="tv-chip">🤝 Retirado por: ${retiradoPor}</span>` : ''}
+            <span class="tv-chip">${tipoUnidade}</span>
+            <span class="tv-chip">${status}</span>
+            <span class="tv-chip">${quando}</span>
+            ${tipos ? `<span class="tv-chip">${tipos}</span>` : ''}
+            ${separador ? `<span class="tv-chip">Separador: ${separador}</span>` : ''}
+            ${entreguePor ? `<span class="tv-chip">Entregue por: ${entreguePor}</span>` : ''}
+            ${retiradoPor ? `<span class="tv-chip">Retirado por: ${retiradoPor}</span>` : ''}
         </div>
         ${items.length ? `<table class="tv-items"><thead><tr><th class="c-mat">Material</th><th class="c-un">Un.</th><th class="c-sol">Solic.</th><th class="c-ate">Atend.</th><th class="c-st">Status</th></tr></thead><tbody>${rows}</tbody></table>${more}` : '<div style="font-size:12px;color:#64748b">Sem itens detalhados nesta requisição.</div>'}
     `;

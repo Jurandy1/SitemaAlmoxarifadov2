@@ -98,12 +98,19 @@ service cloud.firestore {
 
       match /estoqueAgua/{docId} {
         allow read: if request.auth != null;
-        allow create, update, delete: if isAdmin();
+        // Docs de resumo (agregados de contagem): editores precisam incrementar
+        // ao registrar/movimentar água — a gravação é atômica com a movimentação.
+        // Editores também lançam entradas de estoque (pedido da gestão)
+        allow create, update: if isEditorOrAdmin();
+        allow delete: if isAdmin();
       }
 
       match /estoqueGas/{docId} {
         allow read: if request.auth != null;
-        allow create, update, delete: if isAdmin();
+        // Doc de resumo do gás: mesmo racional do resumo de água
+        // Editores também lançam entradas de estoque (pedido da gestão)
+        allow create, update: if isEditorOrAdmin();
+        allow delete: if isAdmin();
       }
 
       match /socialCestaEstoque/{docId} {

@@ -22,10 +22,28 @@ import { generateGasReport }         from "./gas-report.js";
 // ─── CORTE DE DATA: apenas dados a partir de 30/04/2026 contam nos CÁLCULOS ──
 // ATENÇÃO: Este filtro NÃO é aplicado ao Histórico Geral (exibição).
 //          Ele é aplicado somente em: estoque atual, status de saldo, dashboard.
-const GAS_CUTOFF_MS = new Date('2026-04-30T00:00:00.000').getTime();
+export const GAS_CUTOFF_MS = new Date('2026-04-30T00:00:00.000').getTime();
 
 function _filterAfterCutoff(items) {
     return (items || []).filter(item => (item.data?.toMillis?.() ?? 0) >= GAS_CUTOFF_MS);
+}
+
+// ─── RESUMO ACUMULADO (doc resumo-gas em estoqueGas) ─────────────────────────
+// O listener de controleGas carrega só as 300 movimentações mais recentes.
+// O doc resumo-gas acumula totais e saldos por unidade (pós-corte) via
+// increment(), então os cálculos não quebram quando o histórico passa de 300.
+let _cachedGasResumo = null;
+
+export function getCachedGasResumo() {
+    const est = getEstoqueGas() || [];
+    const fromData = est.find(e => e.id === 'resumo-gas' || e.tipo === '__resumo__');
+    if (fromData) _cachedGasResumo = fromData;
+    return _cachedGasResumo;
+}
+
+export function getGasSaldosUnidades() {
+    const resumo = getCachedGasResumo();
+    return (resumo && resumo.saldos && typeof resumo.saldos === 'object') ? resumo.saldos : null;
 }
 
 // =========================================================================
@@ -37,11 +55,20 @@ function _filterAfterCutoff(items) {
 // =========================================================================
 export function getGasStockSummaryFiltered() {
     const estoqueData = _filterAfterCutoff(getEstoqueGas() || []);
-    const movs        = _filterAfterCutoff(getGasMovimentacoes() || []);
     const inicial  = estoqueData.filter(e => e.tipo === 'inicial').reduce((s, e) => s + (parseInt(e.quantidade, 10) || 0), 0);
     const entradas = estoqueData.filter(e => e.tipo === 'entrada').reduce((s, e) => s + (parseInt(e.quantidade, 10) || 0), 0);
-    const saidas   = movs.filter(m => m.tipo === 'entrega').reduce((s, m) => s + (parseInt(m.quantidade, 10) || 0), 0);
-    const atual    = Math.max(0, inicial + entradas - saidas);
+
+    // Prioridade: doc resumo-gas (acumula TODAS as saídas pós-corte, mesmo as
+    // que já saíram da janela de 300 do listener). Fallback: cache limitado.
+    const resumo = getCachedGasResumo();
+    let saidas;
+    if (resumo && typeof resumo.totalSaidas === 'number') {
+        saidas = resumo.totalSaidas;
+    } else {
+        const movs = _filterAfterCutoff(getGasMovimentacoes() || []);
+        saidas = movs.filter(m => m.tipo === 'entrega').reduce((s, m) => s + (parseInt(m.quantidade, 10) || 0), 0);
+    }
+    const atual = Math.max(0, inicial + entradas - saidas);
     return { inicial, entradas, saidas, atual };
 }
 
@@ -150,7 +177,7 @@ export async function handleInicialEstoqueSubmit(e) {
             tipo: 'inicial', quantidade, responsavel,
             data: Timestamp.now(), registradoEm: serverTimestamp(),
         });
-        showAlert('alert-inicial-gas', '✅ Estoque inicial de gás definido com sucesso!', 'success');
+        showAlert('alert-inicial-gas', 'Estoque inicial de gás definido com sucesso!', 'success');
         e.target?.reset();
     } catch (error) {
         showAlert('alert-inicial-gas', `Erro ao salvar: ${error.message}`, 'error');
@@ -173,8 +200,8 @@ export async function handleEntradaEstoqueSubmit(e) {
     if (!isReady()) { showAlert('alert-gas', 'Erro: Não autenticado.', 'error'); return; }
 
     const role = getUserRole();
-    if (role !== 'admin') {
-        showAlert('alert-gas', 'Permissão negada. Apenas Administradores podem lançar entradas no estoque.', 'error');
+    if (role !== 'admin' && role !== 'editor') {
+        showAlert('alert-gas', 'Permissão negada. Entre com seu usuário para lançar entradas no estoque.', 'error');
         return;
     }
 
@@ -196,7 +223,7 @@ export async function handleEntradaEstoqueSubmit(e) {
             tipo: 'entrada', quantidade, data, responsavel, notaFiscal,
             registradoEm: serverTimestamp(),
         });
-        showAlert('alert-gas', '✅ Entrada no estoque salva com sucesso!', 'success');
+        showAlert('alert-gas', 'Entrada no estoque salva com sucesso!', 'success');
         DOM_ELEMENTS.formEntradaGas?.reset();
         if (DOM_ELEMENTS.inputDataEntradaGas) DOM_ELEMENTS.inputDataEntradaGas.value = getTodayDateString();
     } catch (error) {
@@ -316,6 +343,15 @@ export function renderGasStatus() {
         };
     });
 
+    // Totais do resumo-gas (cobrem todo o histórico pós-corte, além da janela
+    // de 300 do listener). O loop acima segue válido para o último lançamento.
+    const saldosAgregados = getGasSaldosUnidades();
+    if (saldosAgregados) {
+        statusMap.forEach((s, id) => {
+            s.totalSaidas = parseInt(saldosAgregados[id]?.entregues, 10) || 0;
+        });
+    }
+
     const lista = Array.from(statusMap.values())
         .filter(s => s.totalSaidas > 0)
         .sort((a, b) => b.totalSaidas - a.totalSaidas || a.nome.localeCompare(b.nome));
@@ -359,8 +395,10 @@ export function renderGasEstoqueHistory() {
 
     const isAdmin = getUserRole() === 'admin';
 
-    // ✅ SEM _filterAfterCutoff — exibe todo o histórico
-    const ordenado = [...(getEstoqueGas() || [])]
+    // SEM _filterAfterCutoff — exibe todo o histórico
+    // (docs de resumo não são lançamentos: fora da tabela)
+    const ordenado = (getEstoqueGas() || [])
+        .filter(e => e.tipo === 'inicial' || e.tipo === 'entrada')
         .sort((a, b) => (b.registradoEm?.toMillis() || 0) - (a.registradoEm?.toMillis() || 0));
 
     if (ordenado.length === 0) {
@@ -374,7 +412,7 @@ export function renderGasEstoqueHistory() {
         const details    = `${isInicial ? 'Estoque Inicial' : 'Entrada Manual'}: ${m.quantidade} botijão(ões).`;
         const oldTag     = isOld
             ? `<span title="Anterior ao corte de 30/04/2026 — não contabilizado no estoque atual"
-                 style="font-size:9px;color:#94a3b8;margin-left:4px">⚠️ não contabilizado</span>`
+                 style="font-size:9px;color:#94a3b8;margin-left:4px">não contabilizado</span>`
             : '';
         return `<tr style="${isOld ? 'opacity:.65' : ''}">
             <td>${_badge(isInicial ? 'badge-blue' : 'badge-green', isInicial ? 'Inicial (Sistema)' : 'Entrada Manual')}${oldTag}</td>
@@ -405,7 +443,7 @@ export function renderGasMovimentacoesHistory() {
 
     const isAdmin  = getUserRole() === 'admin';
 
-    // ✅ SEM _filterAfterCutoff na base — exibe todo o histórico
+    // SEM _filterAfterCutoff na base — exibe todo o histórico
     const ordenado = getFilteredGasMovimentacoes()
         .sort((a, b) => (b.registradoEm?.toMillis() || 0) - (a.registradoEm?.toMillis() || 0));
 
@@ -419,7 +457,7 @@ export function renderGasMovimentacoesHistory() {
         const details = `Saída — ${escapeHTML(m.unidadeNome || 'N/A')} (${m.quantidade} botijão(ões))`;
         const oldTag  = isOld
             ? `<span title="Anterior ao corte de 30/04/2026 — não contabilizado no estoque atual"
-                 style="font-size:9px;color:#94a3b8;margin-left:4px">⚠️</span>`
+                 style="font-size:9px;color:#94a3b8;margin-left:4px"></span>`
             : '';
         return `<tr style="${isOld ? 'opacity:.65' : ''}">
             <td class="text-xs text-gray-400 font-mono">${escapeHTML(m.id)}</td>
@@ -492,7 +530,7 @@ function populateGasFilterUnidades() {
     sel.value = anterior || '';
 }
 
-// ✅ FIX 2: getFilteredGasMovimentacoes não aplica mais _filterAfterCutoff na base.
+// FIX 2: getFilteredGasMovimentacoes não aplica mais _filterAfterCutoff na base.
 // Mostra TODOS os registros, respeitando apenas os filtros manuais do usuário.
 function getFilteredGasMovimentacoes() {
     const unidadeId      = document.getElementById('filtro-unidade-gas')?.value     || '';
@@ -502,7 +540,7 @@ function getFilteredGasMovimentacoes() {
     const dataIniStr     = document.getElementById('filtro-data-inicio-gas')?.value  || '';
     const dataFimStr     = document.getElementById('filtro-data-fim-gas')?.value     || '';
 
-    // ✅ Usa todos os registros, sem corte de data automático
+    // Usa todos os registros, sem corte de data automático
     const base       = (getGasMovimentacoes() || []).filter(m => m.tipo === 'entrega');
     const dataIniMs  = dataIniStr ? dateToTimestamp(dataIniStr)?.toMillis() : null;
     const dataFimMs  = dataFimStr ? dateToTimestamp(dataFimStr)?.toMillis() : null;

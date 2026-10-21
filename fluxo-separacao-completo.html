@@ -91,37 +91,37 @@ label.lbl{display:block;font-size:12px;font-weight:700;color:#475569;margin-bott
 <div class="topbar"><b>SEMCAS Almoxarifado</b><span style="color:#475569">›</span><span>Separação e Entrega de Materiais</span><span style="margin-left:auto;color:#94a3b8;font-size:12px" id="td"></span></div>
 
 <div class="tabs">
-  <div class="tab active" data-tab="req" onclick="goTab('req')">📋 Requisição</div>
-  <div class="tab" data-tab="ps" onclick="goTab('ps')">📦 Para Separar <span class="bc zero" id="c1">0</span></div>
-  <div class="tab" data-tab="es" onclick="goTab('es')">🔧 Em Separação <span class="bc zero" id="c2">0</span></div>
-  <div class="tab" data-tab="pe" onclick="goTab('pe')">✅ Pronto p/ Entrega <span class="bc zero" id="c3">0</span></div>
-  <div class="tab" data-tab="hi" onclick="goTab('hi')">📁 Histórico <span class="bc zero" id="c4">0</span></div>
+  <div class="tab active" data-tab="req" onclick="goTab('req')">Requisição</div>
+  <div class="tab" data-tab="ps" onclick="goTab('ps')">Para Separar <span class="bc zero" id="c1">0</span></div>
+  <div class="tab" data-tab="es" onclick="goTab('es')">Em Separação <span class="bc zero" id="c2">0</span></div>
+  <div class="tab" data-tab="pe" onclick="goTab('pe')">Pronto p/ Entrega <span class="bc zero" id="c3">0</span></div>
+  <div class="tab" data-tab="hi" onclick="goTab('hi')">Histórico <span class="bc zero" id="c4">0</span></div>
 </div>
 
 <!-- ═══ REQUISIÇÃO ═══ -->
 <div class="view active" id="tab-req">
   <div class="card">
-    <h2>📋 Registrar Nova Requisição</h2>
+    <h2>Registrar Nova Requisição</h2>
     <p class="desc">Selecione a unidade e anexe a planilha. Os tipos de material são detectados automaticamente.</p>
     <div class="row mb-3">
       <div><label class="lbl">Unidade</label><select class="sel" id="rU" onchange="ck()"><option value="">-- Selecione --</option><optgroup label="CT"><option value="CT Bacanga">CT Bacanga</option><option value="CT Cidade Operária">CT Cidade Operária</option></optgroup><optgroup label="CRAS"><option value="CRAS Bacanga">CRAS Bacanga</option><option value="CRAS Maracanã">CRAS Maracanã</option><option value="CRAS Turu">CRAS Turu</option></optgroup><optgroup label="CREAS"><option value="CREAS Cidade Operária">CREAS Cidade Operária</option><option value="CREAS Coroadinho">CREAS Coroadinho</option></optgroup><optgroup label="Outros"><option value="PROCAD">PROCAD</option></optgroup></select></div>
       <div><label class="lbl">Tipos detectados</label><div id="tiposDetectados" style="min-height:36px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:6px 0"><span style="color:var(--muted);font-size:12px">Anexe a planilha para detectar...</span></div></div>
     </div>
     <div class="mb-3"><label class="lbl">Planilha do Pedido</label>
-      <div class="fd" id="fdrop" onclick="document.getElementById('fi').click()"><div style="font-size:24px">📎</div><div style="font-size:13px;font-weight:600">Clique ou arraste a planilha</div><div style="font-size:11px;color:var(--muted)">.xlsx .xls .ods</div><input type="file" id="fi" accept=".xlsx,.xls,.ods" style="display:none" onchange="hf(event)"><div class="fn" id="fname" style="display:none"></div></div>
+      <div class="fd" id="fdrop" onclick="document.getElementById('fi').click()"><div style="font-size:24px"></div><div style="font-size:13px;font-weight:600">Clique ou arraste a planilha</div><div style="font-size:11px;color:var(--muted)">.xlsx .xls .ods</div><input type="file" id="fi" accept=".xlsx,.xls,.ods" style="display:none" onchange="hf(event)"><div class="fn" id="fname" style="display:none"></div></div>
     </div>
     <div class="row mb-3">
       <div><label class="lbl">Lançado por</label><input class="input" id="rR" value="Admin"></div>
       <div><label class="lbl">Observações</label><input class="input" id="rO" placeholder="Opcional"></div>
     </div>
-    <button class="btn btn-p w-full" id="bR" disabled onclick="registrar()">📝 Registrar Requisição</button>
+    <button class="btn btn-p w-full" id="bR" disabled onclick="registrar()">Registrar Requisição</button>
   </div>
 </div>
 
 <!-- ═══ PARA SEPARAR ═══ -->
 <div class="view" id="tab-ps">
   <div class="card">
-    <h2>📦 Fila de Requisições para Separar</h2>
+    <h2>Fila de Requisições para Separar</h2>
     <p class="desc">O <b>primeiro da fila</b> é destacado. O separador clica "Pegar para Separar", informa seu nome e a ficha é impressa automaticamente. A requisição vai para "Em Separação".</p>
     <div id="lps"></div>
   </div>
@@ -130,7 +130,7 @@ label.lbl{display:block;font-size:12px;font-weight:700;color:#475569;margin-bott
 <!-- ═══ EM SEPARAÇÃO ═══ -->
 <div class="view" id="tab-es">
   <div class="card" id="cles">
-    <h2>🔧 Em Separação</h2>
+    <h2>Em Separação</h2>
     <p class="desc">Requisições sendo separadas no momento. O separador pode <b>editar</b> a ficha a qualquer momento. Quando terminar, marca como <b>"Pronto p/ Entrega"</b>.</p>
     <div id="les"></div>
   </div>
@@ -138,11 +138,11 @@ label.lbl{display:block;font-size:12px;font-weight:700;color:#475569;margin-bott
   <div id="fichaWrap" style="display:none">
     <div class="bl no-print" onclick="fecharFicha()">← Voltar para lista</div>
     <div class="tb no-print">
-      <span style="color:#f8fafc;font-weight:700;font-size:13px" id="fichaTitle">📋 Ficha</span>
+      <span style="color:#f8fafc;font-weight:700;font-size:13px" id="fichaTitle">Ficha</span>
       <div class="sts" id="fichaStats"></div>
       <div style="margin-left:auto;display:flex;gap:8px">
-        <button class="btn btn-s btn-sm" onclick="imprimirFicha()" style="color:#e2e8f0;border-color:#475569">🖨️ Imprimir</button>
-        <button class="btn btn-g btn-sm" onclick="marcarPronto()">✅ Pronto p/ Entrega</button>
+        <button class="btn btn-s btn-sm" onclick="imprimirFicha()" style="color:#e2e8f0;border-color:#475569">Imprimir</button>
+        <button class="btn btn-g btn-sm" onclick="marcarPronto()">Pronto p/ Entrega</button>
       </div>
     </div>
     <div class="lg no-print">
@@ -160,7 +160,7 @@ label.lbl{display:block;font-size:12px;font-weight:700;color:#475569;margin-bott
 <!-- ═══ PRONTO P/ ENTREGA ═══ -->
 <div class="view" id="tab-pe">
   <div class="card">
-    <h2>✅ Pronto para Entrega</h2>
+    <h2>Pronto para Entrega</h2>
     <p class="desc">Materiais separados aguardando retirada. Quando alguém vier buscar, clique em <b>"Entregar"</b> e informe quem está retirando.</p>
     <div id="lpe"></div>
   </div>
@@ -169,7 +169,7 @@ label.lbl{display:block;font-size:12px;font-weight:700;color:#475569;margin-bott
 <!-- ═══ HISTÓRICO ═══ -->
 <div class="view" id="tab-hi">
   <div class="card">
-    <h2>📁 Histórico de Entregas</h2>
+    <h2>Histórico de Entregas</h2>
     <p class="desc">Entregas finalizadas.</p>
     <div id="lhi"></div>
   </div>
@@ -351,7 +351,7 @@ function renderAll(){updateCounts();renderPS();renderES();renderPE();renderHI()}
 // ── PARA SEPARAR ──
 function renderPS(){
   const l=REQS.filter(r=>r.status==='requisitado'),el=document.getElementById('lps');
-  if(!l.length){el.innerHTML='<div class="empty"><div class="ic">📭</div>Nenhuma requisição na fila.</div>';return}
+  if(!l.length){el.innerHTML='<div class="empty"><div class="ic"></div>Nenhuma requisição na fila.</div>';return}
   let h='<table class="qt"><thead><tr><th>#</th><th>Unidade</th><th>Tipos</th><th>Data</th><th>Itens</th><th>Ação</th></tr></thead><tbody>';
   l.forEach((r,idx)=>{
     const ni=Object.keys(r.items).length;
@@ -363,7 +363,7 @@ function renderPS(){
       <td style="font-size:11px">${fdt(r.dt)}</td>
       <td><span class="pill pr">${ni} itens</span></td>
       <td>${isFirst
-        ?'<button class="btn btn-p btn-sm" onclick="pegarParaSeparar()">📦 Pegar para Separar</button>'
+        ?'<button class="btn btn-p btn-sm" onclick="pegarParaSeparar()">Pegar para Separar</button>'
         :'<span style="font-size:11px;color:var(--muted)">Aguardando...</span>'
       }</td>
     </tr>`;
@@ -374,7 +374,7 @@ function renderPS(){
 // ── EM SEPARAÇÃO ──
 function renderES(){
   const l=REQS.filter(r=>r.status==='separando'),el=document.getElementById('les');
-  if(!l.length){el.innerHTML='<div class="empty"><div class="ic">🔧</div>Nenhum material em separação.</div>';return}
+  if(!l.length){el.innerHTML='<div class="empty"><div class="ic"></div>Nenhum material em separação.</div>';return}
   let h='<table class="qt"><thead><tr><th>Unidade</th><th>Tipos</th><th>Separador</th><th>Resumo</th><th>Ações</th></tr></thead><tbody>';
   l.forEach(r=>{
     const v=Object.values(r.items);
@@ -384,9 +384,9 @@ function renderES(){
       <td>${esc(r.separador)}</td>
       <td>${sumHTML(v)}</td>
       <td style="display:flex;gap:6px;flex-wrap:wrap">
-        <button class="btn btn-p btn-sm" onclick="abrirFicha(${r.id})">📝 Editar Ficha</button>
-        <button class="btn btn-s btn-sm" onclick="imprimirReq(${r.id})">🖨️</button>
-        <button class="btn btn-g btn-sm" onclick="marcarProntoLista(${r.id})">✅ Pronto</button>
+        <button class="btn btn-p btn-sm" onclick="abrirFicha(${r.id})">Editar Ficha</button>
+        <button class="btn btn-s btn-sm" onclick="imprimirReq(${r.id})"></button>
+        <button class="btn btn-g btn-sm" onclick="marcarProntoLista(${r.id})">Pronto</button>
       </td>
     </tr>`;
   });
@@ -396,7 +396,7 @@ function renderES(){
 // ── PRONTO P/ ENTREGA ──
 function renderPE(){
   const l=REQS.filter(r=>r.status==='pronto'),el=document.getElementById('lpe');
-  if(!l.length){el.innerHTML='<div class="empty"><div class="ic">✅</div>Nenhum material aguardando retirada.</div>';return}
+  if(!l.length){el.innerHTML='<div class="empty"><div class="ic"></div>Nenhum material aguardando retirada.</div>';return}
   let h='<table class="qt"><thead><tr><th>Unidade</th><th>Tipos</th><th>Separador</th><th>Resumo</th><th>Ação</th></tr></thead><tbody>';
   l.forEach(r=>{
     const v=Object.values(r.items);
@@ -406,8 +406,8 @@ function renderPE(){
       <td>${esc(r.separador)}</td>
       <td>${sumHTML(v)}</td>
       <td style="display:flex;gap:6px;flex-wrap:wrap">
-        <button class="btn btn-s btn-sm" onclick="imprimirReq(${r.id})">🖨️ Imprimir</button>
-        <button class="btn btn-r btn-sm" onclick="entregarReq(${r.id})">📦 Entregar</button>
+        <button class="btn btn-s btn-sm" onclick="imprimirReq(${r.id})">Imprimir</button>
+        <button class="btn btn-r btn-sm" onclick="entregarReq(${r.id})">Entregar</button>
       </td>
     </tr>`;
   });
@@ -417,7 +417,7 @@ function renderPE(){
 // ── HISTÓRICO ──
 function renderHI(){
   const l=REQS.filter(r=>r.status==='entregue'),el=document.getElementById('lhi');
-  if(!l.length){el.innerHTML='<div class="empty"><div class="ic">📁</div>Nenhuma entrega no histórico.</div>';return}
+  if(!l.length){el.innerHTML='<div class="empty"><div class="ic"></div>Nenhuma entrega no histórico.</div>';return}
   let h='<table class="qt"><thead><tr><th>Unidade</th><th>Tipos</th><th>Separador</th><th>Retirado por</th><th>Data</th><th>Resumo</th></tr></thead><tbody>';
   l.forEach(r=>{
     const v=Object.values(r.items);
@@ -458,7 +458,7 @@ function abrirFicha(id){
   document.getElementById('cles').style.display='none';
   document.getElementById('fichaWrap').style.display='';
   const r=REQS.find(x=>x.id===id);
-  document.getElementById('fichaTitle').textContent='📋 '+r.unidade+' — '+r.separador;
+  document.getElementById('fichaTitle').textContent=''+r.unidade+' — '+r.separador;
   renderFicha();
 }
 function fecharFicha(){

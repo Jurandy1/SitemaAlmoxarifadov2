@@ -179,6 +179,9 @@
                     <div class="user-name" id="user-email-display">Usuário</div>
                     <span class="user-role" id="user-role-display">Carregando...</span>
                 </div>
+                <button id="btn-trocar-senha" class="logout-btn" title="Trocar senha" type="button" style="display:none">
+                    <i data-lucide="key-round"></i>
+                </button>
                 <button id="btn-logout" class="logout-btn" title="Sair">
                     <i data-lucide="log-out"></i>
                 </button>
@@ -1651,7 +1654,7 @@
                                     <div id="rFileList" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(280px, 1fr));gap:10px;margin-top:10px">
                                         <div style="font-size:11px;color:var(--muted);text-align:center;padding:10px;grid-column:1 / -1">Selecione uma unidade.</div>
                                     </div>
-                                    <div style="font-size:10px;color:var(--muted);margin-top:8px">🟢 Ano detectado automaticamente &nbsp;⚠️ Ano não encontrado — clique para corrigir</div>
+                                    <div style="font-size:10px;color:var(--muted);margin-top:8px">Ano detectado automaticamente &nbsp;Ano não encontrado — clique para corrigir</div>
                                 </div>
                             </div>
                             <!-- Relatório de Consumo (colapsável) -->
@@ -1692,9 +1695,9 @@
                                         <div>
                                             <label class="lbl">Análise</label>
                                             <select class="sel" id="rFiltMode" style="font-size:11px;padding:6px 8px" onchange="onModeChange()">
-                                                <option value="standard">📊 Consumo Real</option>
-                                                <option value="ranking">🏆 Ranking</option>
-                                                <option value="yearcomp">📅 Ano a ano</option>
+                                                <option value="standard">Consumo Real</option>
+                                                <option value="ranking">Ranking</option>
+                                                <option value="yearcomp">Ano a ano</option>
                                             </select>
                                             <select class="sel" id="rFiltGroup" style="font-size:11px;padding:6px 8px;margin-top:6px">
                                                 <option value="unit">Por Unidade</option>
@@ -1713,7 +1716,7 @@
                                         <button class="btn btn-s btn-sm" onclick="clearYears()" style="display:inline-flex;align-items:center;gap:4px" title="Limpar anos"><i data-lucide="x"></i></button>
                                         <label style="display:flex;align-items:center;gap:3px;font-size:10px;cursor:pointer"><input type="checkbox" id="rFiltZeros"> Zeros</label>
                                     </div>
-                                    <div id="rReport"><div class="rel-empty"><div class="ic">📊</div>Clique em Gerar.</div></div>
+                                    <div id="rReport"><div class="rel-empty"><div class="ic"></div>Clique em Gerar.</div></div>
                                 </div>
                             </div>
                         </div>
@@ -1763,36 +1766,67 @@
                 </div>
                 </div><!-- /matViewEntrega -->
 
-                <!-- ═══ BLOCO 2: PAINEL DO ALMOXARIFADO (standalone) ═══ -->
+                <!-- ═══ BLOCO 2: PAINEL DO ALMOXARIFADO (relatórios analíticos) ═══ -->
                 <div id="matViewPainel" style="display:none">
                     <div style="max-width:1200px;margin:0 auto">
-                        <!-- Sub-abas do Painel -->
                         <div style="display:flex;gap:0;background:#fff;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,.04)">
-                            <button class="pan-sub-tab active" data-pansub="geral" onclick="switchPanSub('geral')" style="flex:1;padding:11px 14px;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;background:#2563eb;color:#fff;transition:.2s;display:flex;align-items:center;justify-content:center;gap:6px"><i data-lucide="layout-dashboard"></i> Geral</button>
-                            <button class="pan-sub-tab" data-pansub="itens" onclick="switchPanSub('itens')" style="flex:1;padding:11px 14px;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;background:transparent;color:#64748b;transition:.2s;display:flex;align-items:center;justify-content:center;gap:6px"><i data-lucide="package"></i> Itens</button>
-                            <button class="pan-sub-tab" data-pansub="tipos" onclick="switchPanSub('tipos')" style="flex:1;padding:11px 14px;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;background:transparent;color:#64748b;transition:.2s;display:flex;align-items:center;justify-content:center;gap:6px"><i data-lucide="tags"></i> Tipos</button>
-                            <button class="pan-sub-tab" data-pansub="alertas" onclick="switchPanSub('alertas')" style="flex:1;padding:11px 14px;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;background:transparent;color:#64748b;transition:.2s;display:flex;align-items:center;justify-content:center;gap:6px"><i data-lucide="bell"></i> Alertas</button>
+                            <button class="pan-sub-tab active" data-pansub="geral" onclick="switchPanSub('geral')" style="flex:1;padding:11px 10px;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;background:#2563eb;color:#fff;transition:.2s;display:flex;align-items:center;justify-content:center;gap:6px"><i data-lucide="layout-dashboard"></i> Visão geral</button>
+                            <button class="pan-sub-tab" data-pansub="itens" onclick="switchPanSub('itens')" style="flex:1;padding:11px 10px;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;background:transparent;color:#64748b;transition:.2s;display:flex;align-items:center;justify-content:center;gap:6px"><i data-lucide="package"></i> Itens consumidos</button>
+                            <button class="pan-sub-tab" data-pansub="atendimento" onclick="switchPanSub('atendimento')" style="flex:1;padding:11px 10px;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;background:transparent;color:#64748b;transition:.2s;display:flex;align-items:center;justify-content:center;gap:6px"><i data-lucide="check-circle"></i> Atendimento</button>
+                            <button class="pan-sub-tab" data-pansub="frequencia" onclick="switchPanSub('frequencia')" style="flex:1;padding:11px 10px;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;background:transparent;color:#64748b;transition:.2s;display:flex;align-items:center;justify-content:center;gap:6px"><i data-lucide="calendar-days"></i> Frequência</button>
                         </div>
-                        <!-- Filtros do Painel -->
                         <div id="panFilters" style="display:none;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,.04)">
-                            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-                                <span style="font-size:12px;font-weight:800;color:#475569;display:flex;align-items:center;gap:6px"><i data-lucide="filter"></i> Filtrar</span>
-                                <button class="btn btn-s btn-sm" onclick="clearPanFilters()" style="font-size:10px;display:inline-flex;align-items:center;gap:4px"><i data-lucide="x"></i> Limpar</button>
+                            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:8px">
+                                <span style="font-size:12px;font-weight:800;color:#475569;display:flex;align-items:center;gap:6px"><i data-lucide="filter"></i> Filtros do relatório</span>
+                                <div style="display:flex;gap:6px;flex-wrap:wrap">
+                                    <button class="btn btn-s btn-sm" type="button" onclick="applyPanDatePreset('30d')" style="font-size:10px">30 dias</button>
+                                    <button class="btn btn-s btn-sm" type="button" onclick="applyPanDatePreset('mes')" style="font-size:10px">Mês atual</button>
+                                    <button class="btn btn-s btn-sm" type="button" onclick="applyPanDatePreset('trimestre')" style="font-size:10px">Trimestre</button>
+                                    <button class="btn btn-s btn-sm" type="button" onclick="applyPanDatePreset('ano')" style="font-size:10px">Ano</button>
+                                    <button class="btn btn-s btn-sm" type="button" onclick="clearPanFilters()" style="font-size:10px;display:inline-flex;align-items:center;gap:4px"><i data-lucide="x"></i> Limpar</button>
+                                </div>
                             </div>
-                            <div id="panTipoChips" class="tipo-chips" style="margin-bottom:8px"></div>
-                            <div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap">
-                                <div style="flex:1;min-width:200px">
+                            <div id="panTipoChips" class="tipo-chips" style="margin-bottom:10px"></div>
+                            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;align-items:end">
+                                <div>
+                                    <label style="font-size:10px;font-weight:700;color:#64748b;display:block;margin-bottom:3px">De</label>
+                                    <input type="date" class="input" id="panDateFrom" style="font-size:12px;padding:6px 8px" onchange="buildPainel()">
+                                </div>
+                                <div>
+                                    <label style="font-size:10px;font-weight:700;color:#64748b;display:block;margin-bottom:3px">Até</label>
+                                    <input type="date" class="input" id="panDateTo" style="font-size:12px;padding:6px 8px" onchange="buildPainel()">
+                                </div>
+                                <div>
+                                    <label style="font-size:10px;font-weight:700;color:#64748b;display:block;margin-bottom:3px">Tipo de unidade</label>
+                                    <select class="sel" id="panTipoSel" onchange="setPanTipo(this.value, true)" style="font-size:12px"><option value="">— Todos —</option></select>
+                                </div>
+                                <div>
                                     <label style="font-size:10px;font-weight:700;color:#64748b;display:block;margin-bottom:3px">Unidade</label>
                                     <select class="sel" id="panUnitSel" onchange="buildPainel()" style="font-size:12px"><option value="">— Todas —</option></select>
                                 </div>
+                                <div>
+                                    <label style="font-size:10px;font-weight:700;color:#64748b;display:block;margin-bottom:3px">Categoria</label>
+                                    <select class="sel" id="panCatSel" onchange="buildPainel()" style="font-size:12px"><option value="">— Todas —</option></select>
+                                </div>
+                                <div>
+                                    <label style="font-size:10px;font-weight:700;color:#64748b;display:block;margin-bottom:3px">Material (busca)</label>
+                                    <input class="input" id="panItemQ" placeholder="ex: papel A4" style="font-size:12px;padding:6px 8px" onchange="buildPainel()" onkeydown="if(event.key==='Enter'){event.preventDefault();buildPainel()}">
+                                </div>
+                                <div>
+                                    <label style="font-size:10px;font-weight:700;color:#64748b;display:block;margin-bottom:3px">Cobertura</label>
+                                    <select class="sel" id="panCoverage" onchange="buildPainel()" style="font-size:12px">
+                                        <option value="all">Todas as linhas</option>
+                                        <option value="full">Só com solicitado+atendido</option>
+                                        <option value="delivery_only">Só entrega registrada (antigos)</option>
+                                    </select>
+                                </div>
                             </div>
                         </div>
-                        <!-- Conteúdo dinâmico -->
                         <div id="panContent">
                             <div style="text-align:center;padding:60px 20px;color:#64748b">
-                                <div style="font-size:48px;margin-bottom:12px">📊</div>
+                                <div style="font-size:48px;margin-bottom:12px"></div>
                                 <b style="font-size:16px;color:#0f172a">Painel do Almoxarifado</b>
-                                <br><span style="font-size:13px">Carregue planilhas no <b>Banco de Dados</b> para gerar o painel.</span>
+                                <br><span style="font-size:13px">Abra esta aba para carregar o relatório completo por unidade, tipo e período.</span>
                             </div>
                         </div>
                     </div>
@@ -2361,7 +2395,7 @@
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                             <div class="md:col-span-2">
                                 <label class="form-label text-xs">Buscar</label>
-                                <input type="text" class="form-input" id="gestao-vinc-busca" placeholder="🔍 Ex: TRANSFERÊNCIA DE RENDA-SGBSTR">
+                                <input type="text" class="form-input" id="gestao-vinc-busca" placeholder="Ex: TRANSFERÊNCIA DE RENDA-SGBSTR">
                             </div>
                             <div>
                                 <label class="form-label text-xs">Mostrar</label>
@@ -2484,7 +2518,7 @@
                          </div>
                          <div class="md:col-span-1">
                              <label for="input-add-user-password" class="form-label text-xs">Senha</label>
-                             <input type="password" id="input-add-user-password" class="form-input" placeholder="Opcional (ou deixe vazio para definir via e-mail)">
+                             <input type="password" id="input-add-user-password" class="form-input" placeholder="Senha inicial (mín. 6 caracteres)">
                          </div>
                          <div class="md:col-span-1">
                              <label for="select-add-user-role" class="form-label text-xs">Permissão</label>
@@ -2500,7 +2534,7 @@
                              </button>
                          </div>
                      </form>
-                     <p class="text-xs text-slate-500 mt-3">Recomendado: deixe a senha em branco e use o link de redefinição para o primeiro acesso.</p>
+                     <p class="text-xs text-slate-500 mt-3">Defina uma senha inicial e passe para a pessoa. No primeiro acesso ela cria uma senha própria (botão de chave no menu).</p>
                      <div id="alert-add-user" class="alert mt-3"></div>
                  </div>
 

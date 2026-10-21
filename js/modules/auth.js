@@ -49,6 +49,7 @@ import {
     setSemcasHistDB,
     setSemcasAliases,
     setUserRole,
+    getUnidades,
     getEstoqueAgua,
     getEstoqueGas,
     getAguaMovimentacoes,
@@ -275,14 +276,22 @@ function __computeStockSummary() {
 
     const tsOf = (it) => __tsToMs(it?.data) || __tsToMs(it?.registradoEm) || __tsToMs(it?.criadoEm);
     const estGasC = estGas.filter(e => tsOf(e) >= __GAS_CUTOFF_TS);
-    const movGasC = gasMov
-        .filter(m => tsOf(m) >= __GAS_CUTOFF_TS)
-        .filter(m => !_isHistImportado(m));
     const gasInicial  = estGasC.filter(e => e?.tipo === 'inicial')
         .reduce((s, e) => s + (parseInt(e?.quantidade, 10) || 0), 0);
     const gasEntradas = estGasC.filter(e => e?.tipo === 'entrada')
         .reduce((s, e) => s + (parseInt(e?.quantidade, 10) || 0), 0);
-    const gasSaidas   = movGasC.reduce((s, m) => s + (parseInt(m?.quantidade, 10) || 0), 0);
+
+    // Prioridade: resumo-gas (histórico completo pós-corte). Fallback: janela do listener.
+    const resumoGas = estGas.find(e => e?.id === 'resumo-gas' || e?.tipo === '__resumo__');
+    let gasSaidas;
+    if (resumoGas && typeof resumoGas.totalSaidas === 'number') {
+        gasSaidas = resumoGas.totalSaidas;
+    } else {
+        const movGasC = gasMov
+            .filter(m => tsOf(m) >= __GAS_CUTOFF_TS)
+            .filter(m => !_isHistImportado(m));
+        gasSaidas = movGasC.reduce((s, m) => s + (parseInt(m?.quantidade, 10) || 0), 0);
+    }
     const gas = Math.max(0, gasInicial + gasEntradas - gasSaidas);
 
     return { agua, gas };
@@ -374,6 +383,149 @@ async function _migrateAguaResumo(collections) {
         }
     } finally {
         _migratingResumo = false;
+    }
+}
+
+// =======================================================================
+// MIGRAÇÃO: saldos de água por unidade (doc resumo-unidades-agua)
+// -----------------------------------------------------------------------
+// O status/débitos por unidade era calculado sobre o cache limit(90),
+// perdendo movimentações antigas. Este doc acumula entregues/recebidos
+// por unidade para TODO o histórico; depois é mantido por increment().
+// =======================================================================
+let _migratingSaldosUnidades = false;
+const RESUMO_UNIDADES_DOC_ID = 'resumo-unidades-agua';
+const RESUMO_UNIDADES_LS_KEY = 'semcas_resumo_agua_unidades_v1';
+
+async function _migrateAguaSaldosUnidades(collections) {
+    if (_migratingSaldosUnidades) return;
+    try {
+        if (typeof localStorage !== 'undefined' && localStorage.getItem(RESUMO_UNIDADES_LS_KEY)) return;
+    } catch (_) {}
+
+    _migratingSaldosUnidades = true;
+    try {
+        const ref = doc(collections.estoqueAgua, RESUMO_UNIDADES_DOC_ID);
+        const snapDoc = await getDoc(ref);
+        if (snapDoc.exists()) {
+            try { localStorage.setItem(RESUMO_UNIDADES_LS_KEY, '1'); } catch (_) {}
+            return;
+        }
+
+        console.log('[MIGRACAO] Criando resumo de saldos por unidade (leitura unica de controleAgua)...');
+        const snap = await getDocs(collections.aguaMov);
+
+        // Movimentações antigas podem não ter unidadeId: resolve pelo nome
+        const normName = (x) => String(x || '').toLowerCase().replace(/\s+/g, ' ').trim();
+        const nameToId = new Map((getUnidades() || []).map(u => [normName(u.nome), u.id]));
+
+        const saldos = {};
+        snap.docs.forEach(d => {
+            const m = d.data();
+            if (_isHistImportado(m)) return;
+            const qty = parseInt(m.quantidade, 10) || 0;
+            if (qty <= 0) return;
+            const uid = m.unidadeId || nameToId.get(normName(m.unidadeNome));
+            if (!uid) return;
+            const s = saldos[uid] || (saldos[uid] = { entregues: 0, recebidos: 0 });
+            if (m.tipo === 'entrega')                                s.entregues += qty;
+            else if (m.tipo === 'retorno' || m.tipo === 'retirada') s.recebidos += qty;
+        });
+
+        await setDoc(ref, {
+            tipo:         '__resumo_unidades__',
+            saldos,
+            atualizadoEm: serverTimestamp()
+        });
+
+        try { localStorage.setItem(RESUMO_UNIDADES_LS_KEY, '1'); } catch (_) {}
+        console.log('[MIGRACAO OK] Saldos por unidade criados:', Object.keys(saldos).length, 'unidades');
+    } catch (err) {
+        const code = String(err?.code || '').toLowerCase();
+        const msg  = String(err?.message || '').toLowerCase();
+        if (code === 'permission-denied' || msg.includes('missing or insufficient permissions')) {
+            console.warn('[MIGRACAO] Sem permissao para criar saldos por unidade. Loop desativado.');
+            try { localStorage.setItem(RESUMO_UNIDADES_LS_KEY, '1'); } catch (_) {}
+        } else {
+            console.error('[MIGRACAO] Erro ao criar saldos por unidade:', err?.message || err);
+        }
+    } finally {
+        _migratingSaldosUnidades = false;
+    }
+}
+
+// =======================================================================
+// MIGRAÇÃO: resumo do estoque de gás (doc resumo-gas em estoqueGas)
+// -----------------------------------------------------------------------
+// Mesmo esquema da água: acumula totais e saldos por unidade das
+// movimentações PÓS-CORTE (30/04/2026), para o cálculo não quebrar
+// quando o histórico passar do limit(300) do listener.
+// =======================================================================
+let _migratingGasResumo = false;
+const RESUMO_GAS_DOC_ID = 'resumo-gas';
+const RESUMO_GAS_LS_KEY = 'semcas_resumo_gas_v1';
+
+async function _migrateGasResumo(collections) {
+    if (_migratingGasResumo) return;
+    try {
+        if (typeof localStorage !== 'undefined' && localStorage.getItem(RESUMO_GAS_LS_KEY)) return;
+    } catch (_) {}
+
+    _migratingGasResumo = true;
+    try {
+        const ref = doc(collections.estoqueGas, RESUMO_GAS_DOC_ID);
+        const snapDoc = await getDoc(ref);
+        if (snapDoc.exists()) {
+            try { localStorage.setItem(RESUMO_GAS_LS_KEY, '1'); } catch (_) {}
+            return;
+        }
+
+        console.log('[MIGRACAO] Criando resumo de gas (leitura unica de controleGas)...');
+        const snap = await getDocs(collections.gasMov);
+
+        const normName = (x) => String(x || '').toLowerCase().replace(/\s+/g, ' ').trim();
+        const nameToId = new Map((getUnidades() || []).map(u => [normName(u.nome), u.id]));
+
+        let totalSaidas = 0, totalRetornos = 0;
+        const saldos = {};
+        snap.docs.forEach(d => {
+            const m = d.data();
+            if (_isHistImportado(m)) return;
+            if (__tsToMs(m.data) < __GAS_CUTOFF_TS) return; // fora do corte
+            const qty = parseInt(m.quantidade, 10) || 0;
+            if (qty <= 0) return;
+            const uid = m.unidadeId || nameToId.get(normName(m.unidadeNome));
+            const s = uid ? (saldos[uid] || (saldos[uid] = { entregues: 0, recebidos: 0 })) : null;
+            if (m.tipo === 'entrega') {
+                totalSaidas += qty;
+                if (s) s.entregues += qty;
+            } else if (m.tipo === 'retorno' || m.tipo === 'retirada') {
+                totalRetornos += qty;
+                if (s) s.recebidos += qty;
+            }
+        });
+
+        await setDoc(ref, {
+            tipo:         '__resumo__',
+            totalSaidas,
+            totalRetornos,
+            saldos,
+            atualizadoEm: serverTimestamp()
+        });
+
+        try { localStorage.setItem(RESUMO_GAS_LS_KEY, '1'); } catch (_) {}
+        console.log('[MIGRACAO OK] Resumo de gas criado:', { totalSaidas, totalRetornos });
+    } catch (err) {
+        const code = String(err?.code || '').toLowerCase();
+        const msg  = String(err?.message || '').toLowerCase();
+        if (code === 'permission-denied' || msg.includes('missing or insufficient permissions')) {
+            console.warn('[MIGRACAO] Sem permissao para criar resumo de gas. Loop desativado.');
+            try { localStorage.setItem(RESUMO_GAS_LS_KEY, '1'); } catch (_) {}
+        } else {
+            console.error('[MIGRACAO] Erro ao criar resumo de gas:', err?.message || err);
+        }
+    } finally {
+        _migratingGasResumo = false;
     }
 }
 
@@ -495,6 +647,12 @@ async function initFirestoreListeners(renderDash, renderControls, renderModules)
         if (!temResumo) {
             _migrateAguaResumo(COLLECTIONS).catch(() => {});
         }
+
+        // Idem para o agregado de saldos por unidade
+        const temSaldosUnidades = data.some(e => e.tipo === '__resumo_unidades__');
+        if (!temSaldosUnidades) {
+            _migrateAguaSaldosUnidades(COLLECTIONS).catch(() => {});
+        }
     });
 
     // ── Estoque Gas ───────────────────────────────────────────────────
@@ -505,6 +663,12 @@ async function initFirestoreListeners(renderDash, renderControls, renderModules)
         setEstoqueInicialDefinido('gas', inicial);
         scheduleRenders({ dash: true, modules: true }, renderDash, renderControls, renderModules);
         __scheduleStatusSummaryPublish();
+
+        // Cria o doc resumo-gas se ainda nao existir (guardas anti-loop internas)
+        const temResumoGas = data.some(e => e.tipo === '__resumo__');
+        if (!temResumoGas) {
+            _migrateGasResumo(COLLECTIONS).catch(() => {});
+        }
     });
 
     if (isTvMode) {

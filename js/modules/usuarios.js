@@ -6,7 +6,7 @@ import {
   setDoc,
   serverTimestamp,
 } from "firebase/firestore";
-import { createUserWithEmailAndPassword, getAuth, sendPasswordResetEmail } from "firebase/auth";
+import { createUserWithEmailAndPassword, getAuth } from "firebase/auth";
 import { initializeApp, deleteApp } from "firebase/app";
 import { DOM_ELEMENTS, showAlert } from "../utils/dom-helpers.js";
 import { getUserRole } from "../utils/cache.js";
@@ -14,20 +14,6 @@ import { COLLECTIONS, auth } from "../services/firestore-service.js";
 import { firebaseConfig } from "../firebase-config.js";
 import { isReady } from "./auth.js";
 
-function generateTempPassword() {
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*";
-  const bytes = new Uint8Array(16);
-  if (globalThis.crypto?.getRandomValues) {
-    globalThis.crypto.getRandomValues(bytes);
-  } else {
-    for (let i = 0; i < bytes.length; i += 1) bytes[i] = Math.floor(Math.random() * 256);
-  }
-  let out = "";
-  for (let i = 0; i < bytes.length; i += 1) {
-    out += alphabet[bytes[i] % alphabet.length];
-  }
-  return out;
-}
 
 let allUsers = [];
 let unsubscribeUserRoles = null;
@@ -151,10 +137,10 @@ async function handleCreateUser(e) {
     return;
   }
 
-  const password = passwordRaw.trim() ? passwordRaw : generateTempPassword();
-  const usedTempPassword = !passwordRaw.trim();
-  if (password.length < 6) {
-    showAlert("alert-add-user", "Senha fraca. Use pelo menos 6 caracteres ou deixe vazio para definir por e-mail.", "warning");
+  // Sem e-mail de redefinição: o admin define a senha inicial e a pessoa troca no primeiro acesso
+  const password = passwordRaw;
+  if (password.trim().length < 6) {
+    showAlert("alert-add-user", "Defina uma senha inicial com pelo menos 6 caracteres. A pessoa troca no primeiro acesso.", "warning");
     return;
   }
 
@@ -189,18 +175,7 @@ async function handleCreateUser(e) {
       throw roleErr;
     }
 
-    // Tenta enviar o e-mail de redefinição de senha para o novo usuário
-    let resetMsg = "";
-    try {
-      await sendPasswordResetEmail(auth, email);
-      resetMsg = " E-mail de redefinição de senha enviado.";
-    } catch (mailErr) {
-      console.warn("Falha ao enviar e-mail de redefinição:", mailErr);
-      resetMsg = " (Não foi possível enviar o e-mail de redefinição agora.)";
-    }
-
-    const tempMsg = usedTempPassword ? " Senha temporária gerada (recomendado redefinir por e-mail)." : "";
-    showAlert("alert-add-user", `Usuário '${email}' criado como '${role}'.${tempMsg}${resetMsg}`, "success");
+    showAlert("alert-add-user", `Usuário '${email}' criado como '${role}'. Passe a senha inicial para a pessoa: ela vai criar uma senha própria no primeiro acesso.`, "success");
     DOM_ELEMENTS.formAddUser.reset();
     // MELHORIA UX: Renderiza a tabela imediatamente.
     renderUsuariosTable();

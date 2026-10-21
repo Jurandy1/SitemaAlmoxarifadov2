@@ -686,9 +686,15 @@ function renderPermissionsUI() {
         }
     });
 
+    // Entrada de estoque de água/gás: Editor e Admin podem lançar (só Anônimo é bloqueado)
+    [DOM_ELEMENTS.formEntradaAgua, DOM_ELEMENTS.formEntradaGas].forEach(form => {
+        if (!form) return;
+        form.classList.toggle('disabled-by-role', isAnon);
+        form.querySelectorAll('input, select, button').forEach(child => child.disabled = isAnon);
+    });
+
     const estoqueElementsToDisable = [
-        // Formulários em si (Entrada/Inicial)
-        DOM_ELEMENTS.formEntradaAgua, DOM_ELEMENTS.formEntradaGas,
+        // Estoque inicial
         DOM_ELEMENTS.formInicialAgua, DOM_ELEMENTS.formInicialGas,
         // Containers (para o botão 'Definir Estoque Inicial')
         DOM_ELEMENTS.formInicialAguaContainer, DOM_ELEMENTS.formInicialGasContainer,

@@ -21,7 +21,7 @@ import { getTodayDateString, dateToTimestamp, capitalizeString, formatTimestampC
 import { isReady, getUserId } from "../auth.js";
 import { COLLECTIONS } from "../../services/firestore-service.js";
 import { executeFinalMovimentacao } from "../movimentacao-modal-handler.js";
-import { BaseControl } from "../base-control.js";
+import { BaseControl, getCachedAguaResumo } from "../base-control.js";
 
 // VARIÁVEIS DE ESTADO LOCAL
 let debitoAguaMode = 'devendo';
@@ -83,7 +83,9 @@ function getAguaHistoricoFiltrado() {
     const dataFimStr = dataFimEl?.value || '';
 
     const dataIniMs = dataIniStr ? dateToTimestamp(dataIniStr)?.toMillis() : null;
-    const dataFimMs = dataFimStr ? dateToTimestamp(dataFimStr)?.toMillis() : null;
+    const dataFimMsRaw = dataFimStr ? dateToTimestamp(dataFimStr)?.toMillis() : null;
+    // Inclui o dia final inteiro (até 23:59:59.999), como no módulo de gás
+    const dataFimMs = dataFimMsRaw ? dataFimMsRaw + 86_399_999 : null;
 
     const unidadesMap = new Map((getUnidades() || []).map(u => {
         let uTipo = (u.tipo || 'N/A').toUpperCase();
@@ -190,11 +192,6 @@ function isHistoricoImportado(m) {
 export function calcularEstoqueAguaAtual() {
     const estoqueAgua = getEstoqueAgua();
 
-    // IMPORTANTE:
-    // Só ignorar históricos realmente importados.
-    // O problema anterior estava filtrando movimentações válidas.
-    const movs = (getAguaMovimentacoes() || []).filter(m => !isHistoricoImportado(m));
-
     const estoqueInicial = estoqueAgua
         .filter(e => e.tipo === 'inicial')
         .reduce((sum, e) => sum + (parseInt(e.quantidade, 10) || 0), 0);
@@ -203,11 +200,24 @@ export function calcularEstoqueAguaAtual() {
         .filter(e => e.tipo === 'entrada')
         .reduce((sum, e) => sum + (parseInt(e.quantidade, 10) || 0), 0);
 
-    // CORREÇÃO:
-    // contabiliza TODAS as entregas reais
-    const totalSaidas = movs
-        .filter(m => m.tipo === 'entrega')
-        .reduce((sum, m) => sum + (parseInt(m.quantidade, 10) || 0), 0);
+    // O listener de movimentações carrega só as 90 mais recentes (limit(90)):
+    // as saídas TÊM que vir do doc resumo-agua, que acumula o histórico completo.
+    // Somar o cache aqui subconta as saídas e infla o estoque disponível.
+    const resumo = estoqueAgua.find(e =>
+            e.tipo === '__resumo__' || e.tipo === 'resumo-acumulado' ||
+            e.id === 'resumo-agua' || e.id === 'resumo-acumulado')
+        || getCachedAguaResumo();
+
+    let totalSaidas;
+    if (resumo && typeof resumo.totalSaidas === 'number') {
+        totalSaidas = resumo.totalSaidas;
+    } else {
+        // Fallback (resumo ainda não criado/migrado): cache limitado
+        const movs = (getAguaMovimentacoes() || []).filter(m => !isHistoricoImportado(m));
+        totalSaidas = movs
+            .filter(m => m.tipo === 'entrega')
+            .reduce((sum, m) => sum + (parseInt(m.quantidade, 10) || 0), 0);
+    }
 
     return {
         estoqueInicial,
@@ -215,6 +225,22 @@ export function calcularEstoqueAguaAtual() {
         totalSaidas,
         estoqueAtual: estoqueInicial + totalEntradas - totalSaidas
     };
+}
+
+// =========================================================================
+// SALDOS POR UNIDADE: doc agregado resumo-unidades-agua (em estoqueAgua)
+// mantido por increment() a cada movimentação/exclusão. Cobre todo o
+// histórico, diferente do cache de movimentações (limit(90)).
+// =========================================================================
+let _cachedAguaSaldosUnidades = null;
+
+export function getAguaSaldosUnidades() {
+    const est = getEstoqueAgua() || [];
+    const docSaldos = est.find(e => e.tipo === '__resumo_unidades__' || e.id === 'resumo-unidades-agua');
+    if (docSaldos && docSaldos.saldos && typeof docSaldos.saldos === 'object') {
+        _cachedAguaSaldosUnidades = docSaldos.saldos;
+    }
+    return _cachedAguaSaldosUnidades;
 }
 
 
@@ -255,9 +281,9 @@ export async function handleEntradaEstoqueSubmit(e) {
     e.preventDefault();
     if (!isReady()) { showAlert('alert-agua', 'Erro: Não autenticado.', 'error'); return; } 
     
-    const role = getUserRole(); 
-    if (role !== 'admin') { 
-        showAlert('alert-agua', "Permissão negada. Apenas Administradores podem lançar entradas no estoque.", 'error'); return; 
+    const role = getUserRole();
+    if (role !== 'admin' && role !== 'editor') {
+        showAlert('alert-agua', "Permissão negada. Entre com seu usuário para lançar entradas no estoque.", 'error'); return;
     }
     
     const inputQtd = DOM_ELEMENTS.inputQtdEntradaAgua.value;
@@ -320,6 +346,12 @@ export function toggleAguaFormInputs() {
 
 export function getUnidadeSaldoAgua(unidadeId) {
     if (!unidadeId) return 0;
+    const saldos = getAguaSaldosUnidades();
+    if (saldos) {
+        const s = saldos[unidadeId];
+        return (parseInt(s?.entregues, 10) || 0) - (parseInt(s?.recebidos, 10) || 0);
+    }
+    // Fallback: cache limitado (limit(90)) enquanto o agregado não existe
     const movimentacoes = getAguaMovimentacoes().filter(m => !isHistoricoImportado(m));
     const entregues = movimentacoes.filter(m => m.unidadeId === unidadeId && m.tipo === 'entrega').reduce((sum, m) => sum + (parseInt(m.quantidade, 10) || 0), 0);
     const recebidos = movimentacoes.filter(m => m.unidadeId === unidadeId && (m.tipo === 'retorno' || m.tipo === 'retirada')).reduce((sum, m) => sum + (parseInt(m.quantidade, 10) || 0), 0);
@@ -425,14 +457,25 @@ export function renderAguaStatus(newFilter = null) {
          if (!unidadeStatus) return;
          if (m.tipo === 'entrega') unidadeStatus.entregues += (parseInt(m.quantidade,10)||0);
          else if (m.tipo === 'retorno' || m.tipo === 'retirada') unidadeStatus.recebidos += (parseInt(m.quantidade,10)||0);
-         
+
          if (unidadeStatus.ultimosLancamentos.length === 0) {
              unidadeStatus.ultimosLancamentos.push({
-                 id: m.id, respUnidade: m.responsavel, respAlmox: m.responsavelAlmoxarifado || 'N/A', 
+                 id: m.id, respUnidade: m.responsavel, respAlmox: m.responsavelAlmoxarifado || 'N/A',
                  data: m.data, registradoEm: m.registradoEm, tipo: m.tipo, quantidade: m.quantidade
             });
          }
      });
+
+     // Totais vindos do agregado por unidade (cobre o histórico completo).
+     // O loop acima continua necessário para o "último lançamento".
+     const saldosAgregados = getAguaSaldosUnidades();
+     if (saldosAgregados) {
+         statusMap.forEach((s, id) => {
+             const agg = saldosAgregados[id];
+             s.entregues = parseInt(agg?.entregues, 10) || 0;
+             s.recebidos = parseInt(agg?.recebidos, 10) || 0;
+         });
+     }
 
      let statusArray = Array.from(statusMap.values())
          .map(s => ({ ...s, pendentes: s.entregues - s.recebidos })) 
@@ -510,11 +553,21 @@ export function renderAguaDebitosResumo() {
     movsOrdenadas.forEach(m => {
         let s = statusMap.get(m.unidadeId) || nameIndex.get(_normName(m.unidadeNome));
         if (!s) return;
-        if (m.tipo === 'entrega') s.entregues += (parseInt(m.quantidade,10)||0); 
+        if (m.tipo === 'entrega') s.entregues += (parseInt(m.quantidade,10)||0);
         else if (m.tipo === 'retorno' || m.tipo === 'retirada') s.recebidos += (parseInt(m.quantidade,10)||0);
-        
+
         if (!s.ultimo) s.ultimo = { id: m.id, data: m.data, tipo: m.tipo, quantidade: m.quantidade, respUnidade: m.responsavel, respAlmox: m.responsavelAlmoxarifado || 'N/A' };
     });
+
+    // Totais do agregado por unidade (histórico completo, além do limit(90))
+    const saldosAgregadosDeb = getAguaSaldosUnidades();
+    if (saldosAgregadosDeb) {
+        statusMap.forEach((s, id) => {
+            const agg = saldosAgregadosDeb[id];
+            s.entregues = parseInt(agg?.entregues, 10) || 0;
+            s.recebidos = parseInt(agg?.recebidos, 10) || 0;
+        });
+    }
 
     // Determina o movimento que iniciou a dívida atual (cruzamento do saldo para > 0)
     const porUnidade = new Map();
@@ -719,7 +772,8 @@ export function renderAguaEstoqueHistory() {
         }
     }
 
-    const estoque = getEstoqueAgua();
+    // Docs de resumo (__resumo__/__resumo_unidades__) não são lançamentos: fora da tabela
+    const estoque = getEstoqueAgua().filter(e => e.tipo === 'inicial' || e.tipo === 'entrada');
     const role = getUserRole();
     const isAdmin = role === 'admin';
     const itemType = 'água';
@@ -930,7 +984,8 @@ function checkAguaHistoryIntegrity() {
         if (!m.quantidade || m.quantidade <= 0) inconsistenciasMov++;
     });
 
-    const estoque = getEstoqueAgua();
+    // Ignora docs de resumo — são agregados, não lançamentos
+    const estoque = getEstoqueAgua().filter(e => e.tipo === 'inicial' || e.tipo === 'entrada');
     let inconsistenciasEstoque = 0;
     estoque.forEach(e => {
         if (!e.id) inconsistenciasEstoque++;

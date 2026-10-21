@@ -172,13 +172,13 @@ export function generateGasReport(startDateStr, endDateStr) {
     <div class="org">Secretaria Municipal da Criança e Assistência Social — Prefeitura de São Luís · MA</div>
   </div>
   <div class="header-meta">
-    <div class="doc-title">🔥 Controle de Gás</div>
-    <div class="doc-period">📅 Período: ${_escHTML(periodLabel)}</div>
+    <div class="doc-title">Controle de Gás</div>
+    <div class="doc-period">Período: ${_escHTML(periodLabel)}</div>
     <div class="doc-generated">Gerado em: ${_escHTML(generatedAt)}</div>
   </div>
 </header>
 
-<div class="cutoff-note">⚠️ Este relatório considera apenas dados a partir de <strong>30/04/2026</strong>. Lançamentos anteriores a essa data não são contabilizados.</div>
+<div class="cutoff-note">Este relatório considera apenas dados a partir de <strong>30/04/2026</strong>. Lançamentos anteriores a essa data não são contabilizados.</div>
 
 <div class="summary-section">
   <div class="kpi"><div class="kpi-label">Estoque Inicial</div><div class="kpi-value blue">${totalInicial}</div><div class="kpi-sub">botijões</div></div>
@@ -189,7 +189,7 @@ export function generateGasReport(startDateStr, endDateStr) {
 
 <div class="spacer"></div>
 
-<div class="section-header"><span>📦</span><h2>Entradas de Estoque</h2><span class="section-badge">${estoque.length} registro(s)</span></div>
+<div class="section-header"><span></span><h2>Entradas de Estoque</h2><span class="section-badge">${estoque.length} registro(s)</span></div>
 <div class="section-note"><strong>Inicial (Sistema)</strong> = saldo de abertura definido no sistema · <strong>Entrada Manual</strong> = compra/reposição registrada</div>
 <table>
   <thead><tr>
@@ -200,7 +200,7 @@ export function generateGasReport(startDateStr, endDateStr) {
 
 <div class="spacer"></div>
 
-<div class="section-header"><span>📤</span><h2>Saídas por Unidade</h2><span class="section-badge">${movs.length} registro(s)</span></div>
+<div class="section-header"><span></span><h2>Saídas por Unidade</h2><span class="section-badge">${movs.length} registro(s)</span></div>
 <table>
   <thead><tr>
     <th>Unidade</th><th>Tipo</th><th class="num">Qtd.</th><th>Data</th><th>Resp. Almox.</th><th>Resp. Unidade</th><th>Lançado Em</th>

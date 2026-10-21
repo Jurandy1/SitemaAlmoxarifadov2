@@ -88,7 +88,7 @@ function detectItemIssues(parsed) {
           original: rawMat,
           item,
           suggested: resultado.corrected,
-          reason: "📝 Padronização do nome",
+          reason: "Padronização do nome",
         });
         return;
       }
@@ -227,7 +227,7 @@ function showPreRegDialog(issues, onConfirm, deps) {
   const visibleCount = (visibleIssues || []).length;
   if (visibleCount === 0 && blockedIssues.length === 0) {
     if (silentlyFixed > 0) {
-      _toast?.(`✨ ${silentlyFixed} correção(ões) automática(s) aplicada(s).`, 'green');
+      _toast?.(`${silentlyFixed} correção(ões) automática(s) aplicada(s).`, 'green');
     }
     onConfirm?.(true, []);
     return;
@@ -239,13 +239,13 @@ function showPreRegDialog(issues, onConfirm, deps) {
   // Header
   h += `
     <div style="text-align:center;margin-bottom:16px">
-      <div style="font-size:32px;margin-bottom:6px">🔍</div>
+      <div style="font-size:32px;margin-bottom:6px"></div>
       <h2 style="font-size:16px;font-weight:800;margin:0">Revisão antes de Registrar</h2>
       ${silentlyFixed > 0 ? `
       <div style="display:inline-flex;align-items:center;gap:6px;background:#ecfdf5;
                   border:1px solid #a7f3d0;color:#065f46;border-radius:999px;
                   padding:4px 12px;margin-top:8px;font-size:11px;font-weight:700">
-        ✨ ${silentlyFixed} correção(ões) automática(s) aplicada(s)
+        ${silentlyFixed} correção(ões) automática(s) aplicada(s)
         <span style="font-weight:400;color:#047857">
           (acentos, maiúsc/minúsc, plural)
         </span>
@@ -254,7 +254,7 @@ function showPreRegDialog(issues, onConfirm, deps) {
         O sistema detectou ${visibleIssues.length} item(ns) que precisam da sua atenção
       </p>
       ${nChoose > 0 ? `<p style="font-size:11px;color:#b91c1c;margin-top:6px;font-weight:700">
-        ⚠️ ${nChoose} item(ns) exigem ESCOLHA obrigatória antes de registrar</p>` : ""}
+        ${nChoose} item(ns) exigem ESCOLHA obrigatória antes de registrar</p>` : ""}
     </div>`;
 
   // Bloqueados — aviso automático
@@ -263,7 +263,7 @@ function showPreRegDialog(issues, onConfirm, deps) {
       <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;
                   padding:12px 14px;margin-bottom:12px">
         <div style="font-size:11px;font-weight:800;color:#991b1b;margin-bottom:6px">
-          🚫 ${blockedIssues.length} item(ns) bloqueado(s) — removido(s) automaticamente
+          ${blockedIssues.length} item(ns) bloqueado(s) — removido(s) automaticamente
         </div>`;
     blockedIssues.forEach((f) => {
       h += `<div style="font-size:12px;color:#7f1d1d;padding:2px 0">
@@ -285,7 +285,7 @@ function showPreRegDialog(issues, onConfirm, deps) {
              style="background:#fff7ed;border:2px solid #fb923c;border-radius:10px;
                     padding:14px;margin-bottom:10px">
           <div style="font-size:10px;color:#9a3412;font-weight:800;margin-bottom:6px">
-            🎯 ESCOLHA OBRIGATÓRIA
+            ESCOLHA OBRIGATÓRIA
           </div>
           <div style="font-size:11px;color:#64748b;margin-bottom:6px">${_esc(fix.reason)}</div>
           <div style="background:#fff;border:1px solid #fed7aa;border-radius:6px;
@@ -299,7 +299,7 @@ function showPreRegDialog(issues, onConfirm, deps) {
         h += `
           <div style="font-size:11px;color:#0369a1;background:#f0f9ff;border:1px solid #bae6fd;
                       border-radius:6px;padding:5px 10px;margin-bottom:8px">
-            💡 ${_esc(fix.hint)}
+            ${_esc(fix.hint)}
             ${fix.suggested ? ` → sugestão: <b>${_esc(fix.suggested)}</b>` : ""}
           </div>`;
       }
@@ -348,7 +348,7 @@ function showPreRegDialog(issues, onConfirm, deps) {
                    style="margin-top:3px;flex-shrink:0">
             <div style="flex:1" data-fix data-accepted="false">
               <div style="font-size:10px;color:#475569;font-weight:700;margin-bottom:4px">
-                ✂️ SEPARAR ITEM
+                SEPARAR ITEM
                 <span style="font-weight:400;color:#94a3b8">
                   (desmarcado por padrão — marque somente se necessário)
                 </span>
@@ -358,7 +358,7 @@ function showPreRegDialog(issues, onConfirm, deps) {
               </div>
               <div style="background:#dcfce7;border:1px solid #86efac;border-radius:6px;
                           padding:5px 10px;margin-bottom:6px;font-size:11px;color:#166534">
-                ✅ <b>Quantidades copiadas:</b> cada item dividido recebe a mesma quantidade do original.
+                <b>Quantidades copiadas:</b> cada item dividido recebe a mesma quantidade do original.
               </div>
               <div style="background:#fee2e2;border:1px solid #fecaca;border-radius:6px;
                           padding:6px 10px;margin-bottom:6px">
@@ -394,7 +394,7 @@ function showPreRegDialog(issues, onConfirm, deps) {
                    style="margin-top:3px;flex-shrink:0">
             <div style="flex:1" data-fix data-accepted="true">
               <div style="font-size:10px;color:#92400e;font-weight:700;margin-bottom:4px">
-                📝 PADRONIZAR NOME
+                PADRONIZAR NOME
               </div>
               <div style="font-size:11px;color:#64748b;margin-bottom:4px">${_esc(fix.reason)}</div>
               <span style="font-size:12px;color:#991b1b;text-decoration:line-through">
@@ -495,7 +495,7 @@ function confirmPreRegDialog() {
   const issues  = window._preRegIssues || [];
   const unchosen = issues.filter((f) => f.type === "choose" && !f.chosen);
   if (unchosen.length) {
-    _toast(`⚠️ Escolha uma opção para ${unchosen.length} item(ns) destacado(s) em laranja.`, "red");
+    _toast(`Escolha uma opção para ${unchosen.length} item(ns) destacado(s) em laranja.`, "red");
     unchosen.forEach((u) => {
       const el = document.querySelector(`[data-choose-idx="${issues.indexOf(u)}"]`);
       if (el) {

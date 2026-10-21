@@ -208,7 +208,7 @@ const LS_CHAT_NOTIFY = "semcas_chat_notify_v1";
 
    host.innerHTML = `
      <button id="semcas-chat-fab" title="Abrir chat do almoxarifado" aria-label="Abrir chat">
-       💬
+       
        <span id="semcas-chat-badge"></span>
      </button>
  
@@ -219,7 +219,7 @@ const LS_CHAT_NOTIFY = "semcas_chat_notify_v1";
            <div class="sc-header-name" id="sc-hname">Chat Almoxarifado</div>
            <div class="sc-header-sub" id="sc-hsub">Secretaria Municipal da Criança e Assistência Social</div>
          </div>
-        <button class="sc-bell ${notifyEnabled ? "on" : ""}" id="sc-bell" aria-label="Notificações" title="Notificações">🔔</button>
+        <button class="sc-bell ${notifyEnabled ? "on" : ""}" id="sc-bell" aria-label="Notificações" title="Notificações"></button>
          <div class="sc-online" title="Online"></div>
          <button class="sc-close" id="sc-close" aria-label="Fechar chat">×</button>
        </div>
@@ -228,10 +228,10 @@ const LS_CHAT_NOTIFY = "semcas_chat_notify_v1";
          !identificado
            ? `
        <div class="sc-id-form" id="sc-id-form">
-         <div class="sc-id-form-title">🔐 Identifique-se para enviar mensagens</div>
+         <div class="sc-id-form-title">Identifique-se para enviar mensagens</div>
          <input id="sc-id-nome" placeholder="Seu nome completo" maxlength="50">
          <input id="sc-id-unidade" placeholder="Sua unidade (ex: CRAS Centro)" maxlength="60">
-         <button class="sc-id-btn" id="sc-id-btn">✔ Confirmar e entrar no chat</button>
+         <button class="sc-id-btn" id="sc-id-btn">Confirmar e entrar no chat</button>
        </div>`
            : ""
        }
@@ -251,7 +251,7 @@ const LS_CHAT_NOTIFY = "semcas_chat_notify_v1";
        </div>`
            : `
        <div class="sc-input-area locked" id="sc-input-area">
-         🔒 Informe seus dados acima para enviar
+         Informe seus dados acima para enviar
        </div>`
        }
      </div>
@@ -292,21 +292,21 @@ const LS_CHAT_NOTIFY = "semcas_chat_notify_v1";
 
   async function requestNotifyPermission() {
     if (typeof Notification === "undefined") {
-      showWarn("⚠️ Seu navegador não suporta notificações.");
+      showWarn("Seu navegador não suporta notificações.");
       return false;
     }
     if (Notification.permission === "granted") return true;
     if (Notification.permission === "denied") {
-      showWarn("⚠️ Notificações bloqueadas no navegador.");
+      showWarn("Notificações bloqueadas no navegador.");
       return false;
     }
     try {
       const r = await Notification.requestPermission();
       if (r === "granted") return true;
-      showWarn("⚠️ Permissão de notificação negada.");
+      showWarn("Permissão de notificação negada.");
       return false;
     } catch (_) {
-      showWarn("⚠️ Não foi possível solicitar notificação.");
+      showWarn("Não foi possível solicitar notificação.");
       return false;
     }
   }
@@ -383,7 +383,7 @@ const LS_CHAT_NOTIFY = "semcas_chat_notify_v1";
    function renderMsgs(lista) {
      msgs.innerHTML = "";
      if (!lista.length) {
-       msgs.innerHTML = '<div class="sc-sys">Nenhuma mensagem ainda. Seja o primeiro! 👋</div>';
+       msgs.innerHTML = '<div class="sc-sys">Nenhuma mensagem ainda. Seja o primeiro! </div>';
        return;
      }
      lista.forEach((m) => {
@@ -440,10 +440,10 @@ const LS_CHAT_NOTIFY = "semcas_chat_notify_v1";
  
        const r = await chatCtrl.enviar(texto);
        if (!r.ok) {
-         if (r.motivo === "palavrao") showWarn("⚠️ Mensagem bloqueada: use linguagem adequada.");
-         else if (r.motivo === "longo") showWarn(`⚠️ Máximo ${r.max} caracteres.`);
-         else if (r.motivo === "permissao") showWarn("⚠️ Chat sem permissão no Firestore. Atualize as regras.");
-         else showWarn("⚠️ Erro ao enviar. Tente novamente.");
+         if (r.motivo === "palavrao") showWarn("Mensagem bloqueada: use linguagem adequada.");
+         else if (r.motivo === "longo") showWarn(`Máximo ${r.max} caracteres.`);
+         else if (r.motivo === "permissao") showWarn("Chat sem permissão no Firestore. Atualize as regras.");
+         else showWarn("Erro ao enviar. Tente novamente.");
          ta.value = texto;
        }
      }

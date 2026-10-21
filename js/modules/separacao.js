@@ -7,6 +7,19 @@ import { getFeriadosISOSetCached } from "./feriados.js";
 import { getSafeRows, isDocxFile, isOdtFile, odtToRows, docxToRows } from "./materiais/leitores-arquivos.js";
 import { applyItemFixes, showPreRegDialog, closePreRegDialog, skipPreRegDialog, confirmPreRegDialog } from "./materiais/modal-revisao-itens.js";
 import { showUnitConfirmDialog } from "./materiais/modal-confirmar-unidade.js";
+import {
+  configureRelatorioPainel,
+  buildPainelRelatorio,
+  switchPanSubRelatorio,
+  setPanTipoRelatorio,
+  clearPanFiltersRelatorio,
+  applyPanDatePreset,
+  exportarPainelCSV,
+  imprimirPainelRelatorio,
+  populateConsumoFilters,
+  invalidatePainelData,
+} from "./materiais/relatorio-painel.js";
+import { invalidateReportCaches } from "../utils/db-utils.js";
 
 let __stylesInjected = false;
 
@@ -251,8 +264,10 @@ const DataStore = {
           formato: m.formato || "padrao",
           resp: m.resp || m.lancadoPor || m.responsavelLancamento || "",
           obs: m.obs || m.itens || "",
-          dt: (m.registradoEm || m.dataRequisicao || null)?.toDate
-            ? (m.registradoEm || m.dataRequisicao).toDate().toISOString()
+          // dataRequisicao PRIMEIRO: registradoEm é regravado a cada salvamento
+          // e não representa a data original do pedido
+          dt: (m.dataRequisicao || m.registradoEm || null)?.toDate
+            ? (m.dataRequisicao || m.registradoEm).toDate().toISOString()
             : null,
           fileName: m.fileName || "",
           periodLabel: m.periodLabel || m.periodoLabel || "",
@@ -1136,7 +1151,7 @@ function handleFile(e){
     const per=typeof parsePeriodFromRows==='function'?parsePeriodFromRows(rows):null;
     const fy=typeof finalizePeriod==='function'?finalizePeriod(per,new Date().getFullYear()):null;
     const perTag=fy&&fy.label!=='?'
-      ?'<span style="font-size:10px;color:var(--muted);margin-left:4px">📅 '+fy.label+(fy.yearAssumed?' <span style="color:#f59e0b">⚠️ ano assumido</span>':'')+'</span>'
+      ?'<span style="font-size:10px;color:var(--muted);margin-left:4px">'+fy.label+(fy.yearAssumed?' <span style="color:#f59e0b">ano assumido</span>':'')+'</span>'
       :'';
     const fmtTag=tmpParsed.formato==='docx'
       ?'<span class="format-tag" style="background:#e0e7ff;color:#3730a3">Formato DOCX</span>'
@@ -1191,7 +1206,7 @@ function handleFile(e){
           warnEl.style.display = 'block';
           warnEl.innerHTML = `
       <div style="display:flex;align-items:flex-start;gap:7px;margin-bottom:8px">
-        <span style="font-size:15px;flex-shrink:0">⚠️</span>
+        <span style="font-size:15px;flex-shrink:0"></span>
         <div>
           <b style="color:#92400e;font-size:12px;display:block;margin-bottom:2px">
             Unidade da planilha não foi reconhecida no cadastro.
@@ -2047,7 +2062,7 @@ function detectItemIssues(parsed) {
             options,
             suggested,
             hint: item.unidade ? `Unidade na planilha: "${item.unidade}"` : '',
-            reason: '⚠️ Item com "OU" — escolha qual variante registrar'
+            reason: 'Item com "OU" — escolha qual variante registrar'
           });
           return;
         }
@@ -2160,7 +2175,7 @@ function detectItemIssues(parsed) {
       issues.push({
         type: 'rename', catIdx, itemIdx, original: rawMat, item,
         suggested: finalName,
-        reason: reasons.length ? '📝 ' + reasons.join(' + ') : 'Padronização do nome'
+        reason: reasons.length ? '' + reasons.join(' + ') : 'Padronização do nome'
       });
     });
   });
@@ -2174,7 +2189,7 @@ async function registrar(){
   const uSel = document.getElementById('rU');
   const selectedUnit = String(uSel?.value || '').trim();
   if (!selectedUnit) {
-    toast('⚠️ Selecione a unidade cadastrada no campo "Unidade" antes de registrar.', 'red');
+    toast('Selecione a unidade cadastrada no campo "Unidade" antes de registrar.', 'red');
     uSel?.focus?.();
     uSel.style.borderColor = '#ef4444';
     uSel.style.boxShadow = '0 0 0 3px rgba(239,68,68,.2)';
@@ -2182,7 +2197,7 @@ async function registrar(){
     return;
   }
   if (!isRegisteredUnit(selectedUnit)) {
-    toast('⚠️ A unidade selecionada não está cadastrada. Use Gestão de Unidades para cadastrar.', 'red');
+    toast('A unidade selecionada não está cadastrada. Use Gestão de Unidades para cadastrar.', 'red');
     return;
   }
   const finalUnit = selectedUnit;
@@ -2215,7 +2230,7 @@ async function doRegistrar(finalUnit){
   const uSel=document.getElementById('rU');
   const unidade = resolveSelectedUnit(finalUnit || uSel?.value || '');
   if (!unidade) {
-    toast('⚠️ Unidade inválida. Selecione uma unidade cadastrada.', 'red');
+    toast('Unidade inválida. Selecione uma unidade cadastrada.', 'red');
     return;
   }
   const itemsMap={};tmpParsed.categories.forEach(c=>c.items.forEach(it=>{itemsMap[it.id]={...it}}));
@@ -2325,18 +2340,29 @@ function addReqToHistDB(req) {
   
   const parsedCats = (req?.parsed?.categories || []);
   const categories = parsedCats.map(c => {
+    const catNameCanon = getCanonicalCat(normalizeCat(c.name||'Outros')) || normalizeCat(c.name||'Outros');
     return {
-      catName: normalizeCat(c.name||'Outros'),
+      catName: catNameCanon,
       items: (c.items||[]).map(origIt => {
         const editedIt = req.items[origIt.id];
-        let qty = 0;
-        // REGRA DE OURO: Vai a quantidade ATENDIDA, modificada em separação!
-        if(editedIt && editedIt.status !== 'sem_estoque' && editedIt.status !== 'nao_atendido') {
-           const qa = extractNum(editedIt.qtdAtendida);
-           qty = qa;
-           if (!qty) qty = extractNum(editedIt.qtdSolicitada);
+        const qs = editedIt ? extractNum(editedIt.qtdSolicitada) : extractNum(origIt.qtdSolicitada);
+        let qa = 0;
+        let itemStatus = 'nao_atendido';
+        if (editedIt) {
+          itemStatus = editedIt.status || 'nao_atendido';
+          if (editedIt.status !== 'sem_estoque' && editedIt.status !== 'nao_atendido') {
+            qa = extractNum(editedIt.qtdAtendida);
+            if (!qa && editedIt.status === 'atendido') qa = qs;
+          }
         }
-        return { material: origIt.material||'', qty };
+        return {
+          material: origIt.material||'',
+          qty: qa,
+          qtySolicitada: qs,
+          qtyAtendida: qa,
+          itemStatus,
+          tipoItem: editedIt?.tipo || origIt.tipo || detectTipo(catNameCanon),
+        };
       }).filter(it => it.material)
     };
   }).filter(c => c.items.length > 0);
@@ -2346,49 +2372,92 @@ function addReqToHistDB(req) {
     console.warn('Requisição ignorada no histórico: unidade não cadastrada', req.unidade);
     return null;
   }
-  const entryId = 'req_' + Date.now() + '_' + Math.random().toString(36).substring(2,6);
+  const tipoUnidade = req.tipoUnidade || classifyUnit(unitName)?.id || '';
+  // ID determinístico por requisição: reentregar/re-hidratar a mesma
+  // requisição sobrescreve a mesma entrada (merge) em vez de duplicar
+  // as quantidades no banco histórico.
+  const entryId = req.histEntryId || ('req_' + String(req.id));
   const entry = {
     id: entryId,
+    reqId: String(req.id),
     fileName: req.fileName,
     weekStart: fin.ws, weekEnd: fin.we,
     weekLabel: fin.label, year: fin.year, month: fin.month,
     yearAssumed: fin.yearAssumed,
-    units: [{ unitName, rawUnit: req.unidade, categories }]
+    dataEntrega: req.dtEntrega ? (req.dtEntrega.toISOString?.() || String(req.dtEntrega)) : null,
+    units: [{
+      unitName,
+      rawUnit: req.unidade,
+      unidadeId: req.unidadeId || null,
+      tipoUnidade,
+      categories,
+    }]
   };
-  
-  HIST_DB.push(entry);
+
+  const existingIdx = HIST_DB.findIndex(e => String(e?.id) === String(entryId));
+  if (existingIdx >= 0) HIST_DB[existingIdx] = entry;
+  else HIST_DB.push(entry);
   invalidateAggCache();
+  try { invalidatePainelData(); } catch (_) {}
+  try { invalidateReportCaches(); } catch (_) {}
   return entry;
 }
 
 function buildHistEntryFromParsed(parsed,fin){
-  const categories=(parsed.categories||[]).map(c=>({
-    catName:normalizeCat(c.name||'Outros'),
-    items:(c.items||[]).map(it=>{
-      let qty=0;
-      const qaStr = it.qtdAtendida;
-      const qsStr = it.qtdSolicitada;
-      
-      // REGRA DE OURO (Fallback): Se inserido direto no "Banco de Dados", tenta a Atendida primeiro, se não tiver, usa Solicitada.
-      if (qaStr !== undefined && qaStr !== null && String(qaStr).trim() !== '') {
-          qty = extractNum(qaStr);
-      } else if (qsStr !== undefined && qsStr !== null && String(qsStr).trim() !== '') {
-          qty = extractNum(qsStr);
-      } else if (typeof it.qty === 'number') {
-          qty = it.qty; 
-      }
-      return{material:it.material||'',qty};
-    }).filter(it=>it.material) 
-  })).filter(c=>c.items.length>0);
+  const categories=(parsed.categories||[]).map(c=>{
+    const catNameCanon = getCanonicalCat(normalizeCat(c.name||'Outros')) || normalizeCat(c.name||'Outros');
+    return {
+      catName: catNameCanon,
+      items:(c.items||[]).map(it=>{
+        let qty=0;
+        const qaStr = it.qtdAtendida;
+        const qsStr = it.qtdSolicitada;
+        const hasQa = qaStr !== undefined && qaStr !== null && String(qaStr).trim() !== '';
+        const hasQs = qsStr !== undefined && qsStr !== null && String(qsStr).trim() !== '';
+        const qs = hasQs ? extractNum(qsStr) : null;
+        let qa = null;
+
+        // REGRA DE OURO (Fallback): Se inserido direto no "Banco de Dados", tenta a Atendida primeiro, se não tiver, usa Solicitada.
+        if (hasQa) {
+            qa = extractNum(qaStr);
+            qty = qa;
+        } else if (hasQs) {
+            qty = qs;
+            qa = qs;
+        } else if (typeof it.qty === 'number') {
+            qty = it.qty;
+            qa = it.qty;
+        }
+        const itemStatus = hasQs
+          ? (qa <= 0 ? 'nao_atendido' : (qs != null && qa < qs ? 'parcial' : (qs != null && qa > qs ? 'excedido' : 'atendido')))
+          : 'entrega_registrada';
+        return {
+          material: it.material||'',
+          qty,
+          qtySolicitada: qs,
+          qtyAtendida: qa,
+          itemStatus,
+          tipoItem: it.tipo || detectTipo(catNameCanon),
+        };
+      }).filter(it=>it.material)
+    };
+  }).filter(c=>c.items.length>0);
 
   const unitName = resolveRegisteredUnit(parsed.unitName) || resolveRegisteredUnit(normalizeUnit(parsed.unitName));
   if (!unitName) return null;
+  const tipoUnidade = classifyUnit(unitName)?.id || '';
   return{
     fileName:parsed.fileName,
     weekStart:fin.ws, weekEnd:fin.we,
     weekLabel:fin.label, year:fin.year, month:fin.month,
     yearAssumed:fin.yearAssumed,
-    units:[{unitName,rawUnit:parsed.unitName,categories}]
+    units:[{
+      unitName,
+      rawUnit:parsed.unitName,
+      unidadeId: null,
+      tipoUnidade,
+      categories,
+    }]
   };
 }
 
@@ -2434,7 +2503,9 @@ function syncReqsFromCache() {
   const mapped = mats.map((m) => {
     const st = String(m.status || "").toLowerCase();
     const status = st === "separacao" ? "separando" : st === "retirada" ? "pronto" : st;
-    const dt = (m.registradoEm || m.dataRequisicao || null)?.toDate ? (m.registradoEm || m.dataRequisicao).toDate() : new Date();
+    // dataRequisicao PRIMEIRO: registradoEm muda a cada salvamento e embaralhava
+    // a data e a ordem da fila de separação
+    const dt = (m.dataRequisicao || m.registradoEm || null)?.toDate ? (m.dataRequisicao || m.registradoEm).toDate() : new Date();
     const dtEntrega = (m.dataEntrega || null)?.toDate ? m.dataEntrega.toDate() : null;
     return {
       id: m.id,
@@ -2501,7 +2572,10 @@ let __histRehydrated = false;
 async function tryRehydrateHistFromDeliveredOnce(){
   if (__histRehydrated) return;
   if ((HIST_DB || []).length > 0) { __histRehydrated = true; return; }
-  const delivered = (REQS || []).filter(r => r.status === 'entregue');
+  // Só re-hidrata entregas que NUNCA entraram no banco (sem histEntryId/dbAdded).
+  // Sem este filtro, uma corrida entre os listeners (materiais chega antes do
+  // banco histórico) recriava TODAS as entregas com IDs novos → duplicação.
+  const delivered = (REQS || []).filter(r => r.status === 'entregue' && !r.histEntryId && !r.dbAdded);
   if (!delivered.length) { __histRehydrated = true; return; }
   const created = [];
   delivered.forEach(r => {
@@ -2560,14 +2634,19 @@ function switchMatView(view) {
 }
 
 function switchPanSub(sub) {
-  const allowed = new Set(['geral','itens','tipos','alertas']);
-  _panSub = allowed.has(sub) ? sub : 'geral';
-  document.querySelectorAll('.pan-sub-tab').forEach(btn => {
-    const active = btn.getAttribute('data-pansub') === _panSub;
-    btn.style.background = active ? '#2563eb' : 'transparent';
-    btn.style.color = active ? '#fff' : '#64748b';
-  });
-  buildPainel();
+  return switchPanSubRelatorio(sub);
+}
+
+function buildPainel(opts) {
+  return buildPainelRelatorio(opts && typeof opts === 'object' ? opts : {});
+}
+
+function setPanTipo(id, exato) {
+  return setPanTipoRelatorio(id, exato);
+}
+
+function clearPanFilters() {
+  return clearPanFiltersRelatorio();
 }
 function updateCounts(){const c=s=>REQS.filter(r=>r.status===s).length;setB('c1',c('requisitado'));setB('c2',c('separando'));setB('c3',c('pronto'));setB('c4',c('entregue'))}
 function setB(id,nn){const e=document.getElementById(id);if(!e)return;e.textContent=nn;if(nn>0){e.classList.remove('bg-gray-200','text-gray-700');e.classList.add('bg-blue-100','text-blue-700');}else{e.classList.remove('bg-blue-100','text-blue-700');e.classList.add('bg-gray-200','text-gray-700');}}
@@ -2594,6 +2673,8 @@ function renderPS(){
   if(!el) return;
   const b=(document.getElementById('buscaPS')?.value||'').toLowerCase();
   const all=REQS.filter(r=>r.status==='requisitado' && (!b || r.unidade.toLowerCase().includes(b)));
+  // Fila FIFO estável: mais antigo primeiro (a posição não muda com edições)
+  all.sort((a,c)=>(a.dt?.getTime?.()||0)-(c.dt?.getTime?.()||0));
   if(!all.length){el.innerHTML=emptyIc('inbox', b?'Nenhuma requisição encontrada para "'+esc(b)+'"':'Nenhuma requisição na fila.'); refreshIcons(); return}
   const pg=paginate(all, PAGE_STATE.ps);
   const offset=(pg.page-1)*PAGE_SIZE;
@@ -2610,6 +2691,7 @@ function renderES(){
   if(!el) return;
   const b=(document.getElementById('buscaES')?.value||'').toLowerCase();
   const all=REQS.filter(r=>r.status==='separando' && (!b || r.unidade.toLowerCase().includes(b)));
+  all.sort((a,c)=>(a.dt?.getTime?.()||0)-(c.dt?.getTime?.()||0));
   if(!all.length){el.innerHTML=emptyIc('wrench', b?'Nenhum encontrado para "'+esc(b)+'"':'Nenhum em separação.'); refreshIcons(); return}
   const pg=paginate(all, PAGE_STATE.es);
   const canCancel = getUserRole() === 'admin';
@@ -2625,6 +2707,7 @@ function renderPE(){
   if(!el) return;
   const b=(document.getElementById('buscaPE')?.value||'').toLowerCase();
   const all=REQS.filter(r=>r.status==='pronto' && (!b || r.unidade.toLowerCase().includes(b)));
+  all.sort((a,c)=>(a.dt?.getTime?.()||0)-(c.dt?.getTime?.()||0));
   if(!all.length){el.innerHTML=emptyIc('package-check', b?'Nenhum encontrado para "'+esc(b)+'"':'Nenhum aguardando retirada.'); refreshIcons(); return}
   const pg=paginate(all, PAGE_STATE.pe);
   const canCancel = getUserRole() === 'admin';
@@ -2734,7 +2817,7 @@ function renderVinculos(){
     });
   }
   list.sort((a,b) => a.raw.localeCompare(b.raw, 'pt-BR'));
-  if(!list.length){el.innerHTML='<div class="empty"><div class="ic">🔗</div>Nenhum vínculo pendente.</div>';return;}
+  if(!list.length){el.innerHTML='<div class="empty"><div class="ic"></div>Nenhum vínculo pendente.</div>';return;}
   let h='<div class="tbl-wrap"><table class="qt"><thead><tr><th>Nome na planilha</th><th>Vincular à unidade</th><th>Tipo</th><th></th></tr></thead><tbody>';
   list.forEach((x,idx) => {
     const mapped = HIST_ALIASES[x.k] || '';
@@ -2743,7 +2826,7 @@ function renderVinculos(){
       return unitByName.has(String(n||'').toLowerCase()) ? n : '';
     })();
     const sel = mapped || auto || '';
-    h += `<tr><td style="font-weight:700">${esc(x.raw)}</td><td><select class="sel" style="min-width:260px" data-vk="${esc(x.k)}" data-vraw="${esc(x.raw)}" data-vsel="${esc(sel)}"><option value="">— Selecione —</option>${unidades.map(u=>`<option value="${esc(u.nome||u.unidadeNome||'')}">${esc(u.nome||u.unidadeNome||'')}</option>`).join('')}</select></td><td data-vtipo style="color:#64748b;font-size:12px"></td><td style="display:flex;gap:6px;justify-content:flex-end"><button class="btn btn-p btn-sm" type="button" data-vsave="${esc(x.k)}">💾 Salvar</button>${HIST_ALIASES[x.k]?`<button class="btn btn-s btn-sm" type="button" data-vdel="${esc(x.k)}" style="color:var(--red);border-color:#fecaca">✕ Remover</button>`:''}</td></tr>`;
+    h += `<tr><td style="font-weight:700">${esc(x.raw)}</td><td><select class="sel" style="min-width:260px" data-vk="${esc(x.k)}" data-vraw="${esc(x.raw)}" data-vsel="${esc(sel)}"><option value="">— Selecione —</option>${unidades.map(u=>`<option value="${esc(u.nome||u.unidadeNome||'')}">${esc(u.nome||u.unidadeNome||'')}</option>`).join('')}</select></td><td data-vtipo style="color:#64748b;font-size:12px"></td><td style="display:flex;gap:6px;justify-content:flex-end"><button class="btn btn-p btn-sm" type="button" data-vsave="${esc(x.k)}">Salvar</button>${HIST_ALIASES[x.k]?`<button class="btn btn-s btn-sm" type="button" data-vdel="${esc(x.k)}" style="color:var(--red);border-color:#fecaca">✕ Remover</button>`:''}</td></tr>`;
   });
   h += '</tbody></table></div>';
   el.innerHTML = h;
@@ -2871,7 +2954,7 @@ function buildFichaHTML(r,isPrint){
     +`<div style="font-size:${hdr.t4}px;font-weight:800">COORDENAÇÃO DE ADMINISTRAÇÃO E PATRIMÔNIO</div>`
     +`</div>`
     +`</div>`;
-  h+=`<div class="ficha-header"><div><h1>FICHA DE SEPARAÇÃO DE MATERIAIS</h1><div class="ficha-unit">${esc(displayUnit(r.unidade||d.unitName))}</div></div><div style="text-align:right;font-size:11px;color:#64748b">Pedido: <b>${pedido}</b><br>Entrega: <b>${entrega}</b>${perLbl?`<br><span style="font-size:10px;color:#64748b">📅 ${perLbl}</span>`:''}${reqId?`<br><span style="font-size:10px;color:#64748b">ID: <b>${reqId}</b></span>`:''}<br><span style="font-size:9px;color:#94a3b8">${esc(d.fileName||'')}</span></div></div>`;
+  h+=`<div class="ficha-header"><div><h1>FICHA DE SEPARAÇÃO DE MATERIAIS</h1><div class="ficha-unit">${esc(displayUnit(r.unidade||d.unitName))}</div></div><div style="text-align:right;font-size:11px;color:#64748b">Pedido: <b>${pedido}</b><br>Entrega: <b>${entrega}</b>${perLbl?`<br><span style="font-size:10px;color:#64748b">${perLbl}</span>`:''}${reqId?`<br><span style="font-size:10px;color:#64748b">ID: <b>${reqId}</b></span>`:''}<br><span style="font-size:9px;color:#94a3b8">${esc(d.fileName||'')}</span></div></div>`;
   const sep = esc(r.separador||'');
   const ent = esc(r.entreguePor||'');
   const ret = esc(r.retiradoPor||'');
@@ -3183,11 +3266,20 @@ async function loadAllHistDBAndRefresh(){
 }
 
 function exportarCSV() {
+  // Se o Painel estiver aberto e já tiver linhas filtradas, prioriza export enriquecido.
+  try {
+    const painelVisivel = document.getElementById('matViewPainel')?.style?.display !== 'none';
+    if (painelVisivel) {
+      exportarPainelCSV();
+      return;
+    }
+  } catch (_) {}
+
   if (!LAST_REPORT_DATA || !LAST_REPORT_DATA.length) {
     toast('Nenhum dado para exportar. Gere o relatório primeiro.', 'red');
     return;
   }
-  const mode = document.getElementById('rFiltMode').value;
+  const mode = document.getElementById('rFiltMode')?.value || 'standard';
   let rows = [];
   
   if(mode === 'standard' || mode === 'yearcomp') {
@@ -3196,11 +3288,14 @@ function exportarCSV() {
       Categoria: r.cat,
       Item: r.material,
       Planilhas: r.uWeeks,
-      Total_Exato: r.total
+      Total_Exato: r.total,
+      Media_Semana: r.avgWeek,
+      Media_Mes: r.avgMonth
     }));
   } else {
     rows = LAST_REPORT_DATA.map(r => ({
       Unidade: r.unit,
+      Categoria: r.cat || '',
       Item: r.material,
       Total_Exato: r.total
     }));
@@ -3349,7 +3444,7 @@ function openEditor(entryId) {
   if (!e) { toast('Arquivo não encontrado.', 'red'); return; }
   _editingId = entryId;
   
-  document.getElementById('editorTitle').textContent = '📝 ' + e.fileName;
+  document.getElementById('editorTitle').textContent = '' + e.fileName;
   
   let h = '<div style="margin-bottom:12px;font-size:11px;color:var(--muted)">'
     + 'Período: <b>' + esc(e.weekLabel || '?') + '</b> · Ano: <b>' + e.year + '</b>'
@@ -4105,23 +4200,26 @@ function resolveRegisteredUnit(raw) {
   const s = String(raw).trim().replace(/\s+/g, ' ');
   const k = rmAcc(s).toUpperCase();
 
+  const unidades = getRegisteredUnitsList();
+  const norm = (x) => rmAcc(String(x || '')).toUpperCase().replace(/\s+/g, ' ').trim();
+  const normRaw = norm(s);
+
+  // Nome exato no cadastro vence sigla, alias e fuzzy
+  // (ex.: "Cras Estiva" não pode cair na unidade de sigla "ESTIVA", nem em "Cras Estiva Sub Prefeitura")
+  const exactList = normRaw.length >= 3 ? unidades.filter((u) => norm(getRegisteredUnitName(u)) === normRaw) : [];
+  if (exactList.length === 1) return getRegisteredUnitName(exactList[0]);
+
   const bySigla = resolveByCadastroSigla(s);
-  if (bySigla) return bySigla;
+  if (bySigla && !exactList.length) return bySigla;
 
   const byAcronym = resolveAcronymHint(s);
-  if (byAcronym) return byAcronym;
+  if (byAcronym && !exactList.length) return byAcronym;
 
   if (/^(fornecimento|data:|unidade de acolhimento$|separado|entregue|recebido)/i.test(s)) return null;
 
-  const unidades = getRegisteredUnitsList();
   if (!unidades.length) return null;
-
-  const norm = (x) => rmAcc(String(x || '')).toUpperCase().replace(/\s+/g, ' ').trim();
-  const normRaw = norm(s);
   if (normRaw.length < 3) return null;
 
-  // Nome exato no cadastro vence alias e fuzzy (ex.: "Cras Estiva" ≠ "Cras Estiva Sub Prefeitura")
-  const exactList = unidades.filter((u) => norm(getRegisteredUnitName(u)) === normRaw);
   if (exactList.length === 1) return getRegisteredUnitName(exactList[0]);
   if (exactList.length > 1) {
     const hintTipo = /\bCREAS\b/i.test(s) ? 'CREAS'
@@ -4961,7 +5059,7 @@ function editEntryYear(id){
   const e=HIST_DB.find(x=>x.id===id);if(!e)return;
   showModal(
     'Corrigir ano',
-    e.fileName+'\n'+( e.yearAssumed?'⚠️ Ano não encontrado no arquivo — informe o correto':'✅ Detectado automaticamente: '+e.year ),
+    e.fileName+'\n'+( e.yearAssumed?'Ano não encontrado no arquivo — informe o correto':'Detectado automaticamente: '+e.year ),
     String(e.year),
     function(val){
       const y=parseInt(val);
@@ -5014,7 +5112,7 @@ async function removeHistEntry(id) {
 // ─── Identificação de Buracos / Lapsos (Gaps) ──────────────────────
 function analyzeGaps(unitName, unitEntries, globalWs, globalWe) {
   if (!isAbrigo(unitName)) {
-    return `<div class="gap-note gap-info">ℹ️ <b>Perfil Sob Demanda:</b> Unidade de requisições pontuais/esporádicas (${unitEntries.length} pedidos no período analisado).</div>`;
+    return `<div class="gap-note gap-info"><b>Perfil Sob Demanda:</b> Unidade de requisições pontuais/esporádicas (${unitEntries.length} pedidos no período analisado).</div>`;
   }
   
   let periods = unitEntries.map(e => {
@@ -5026,7 +5124,7 @@ function analyzeGaps(unitName, unitEntries, globalWs, globalWe) {
     };
   }).filter(Boolean);
 
-  if (periods.length === 0) return `<div class="gap-note">⚠️ Sem datas válidas para calcular continuidade.</div>`;
+  if (periods.length === 0) return `<div class="gap-note">Sem datas válidas para calcular continuidade.</div>`;
   
   const hasAssumedYear = periods.some(p => p.hasAssumed);
   periods.sort((a,b) => a.ws - b.ws);
@@ -5081,12 +5179,12 @@ function analyzeGaps(unitName, unitEntries, globalWs, globalWe) {
     }
   }
   
-  let assumeWarn = hasAssumedYear ? ` <br><span style="color:#ef4444;font-weight:bold;font-size:10px">(⚠️ Aviso: O sistema assumiu o ano atual em algumas planilhas. Se o buraco for irreal, corrija o ano no Banco de Dados clicando no ícone ⚠️.)</span>` : '';
+  let assumeWarn = hasAssumedYear ? ` <br><span style="color:#ef4444;font-weight:bold;font-size:10px">(Aviso: O sistema assumiu o ano atual em algumas planilhas. Se o buraco for irreal, corrija o ano no Banco de Dados clicando no ícone .)</span>` : '';
 
   if (gaps.length === 0) {
-    return `<div class="gap-note gap-ok">✅ <b>Abastecimento Contínuo:</b> Foi calculado que este abrigo foi abastecido de forma contínua durante todo o período analisado (${globalWs?fmt(globalWs):''} a ${globalWe?fmt(globalWe):''}), sem falhas maiores que 7 dias.${assumeWarn}</div>`;
+    return `<div class="gap-note gap-ok"><b>Abastecimento Contínuo:</b> Foi calculado que este abrigo foi abastecido de forma contínua durante todo o período analisado (${globalWs?fmt(globalWs):''} a ${globalWe?fmt(globalWe):''}), sem falhas maiores que 7 dias.${assumeWarn}</div>`;
   } else {
-    return `<div class="gap-note">⚠️ <b>Buracos Identificados (${gaps.length}):</b> Faltam planilhas / não houve abastecimento neste abrigo nos seguintes lapsos:<br> <b>&bull; ${gaps.join('</b><br><b>&bull; ')}</b>${assumeWarn}</div>`;
+    return `<div class="gap-note"><b>Buracos Identificados (${gaps.length}):</b> Faltam planilhas / não houve abastecimento neste abrigo nos seguintes lapsos:<br> <b>&bull; ${gaps.join('</b><br><b>&bull; ')}</b>${assumeWarn}</div>`;
   }
 }
 
@@ -5112,10 +5210,16 @@ function renderRelatorio(){
   const statItemsEl = document.getElementById('rStatItems');
   if (statFilesEl && statWeeksEl && statUnitsEl && statItemsEl) {
     const nAssumed=HIST_DB.filter(e=>e.yearAssumed).length;
-    statFilesEl.textContent=HIST_DB.length+(nAssumed?' ('+nAssumed+' ⚠️)':'');
+    statFilesEl.textContent=HIST_DB.length+(nAssumed?' ('+nAssumed+' )':'');
     statWeeksEl.textContent=new Set(HIST_DB.map(e=>e.weekStart)).size;
     statUnitsEl.textContent=allUnits.size;
     statItemsEl.textContent=totalRec;
+  }
+
+  try {
+    populateConsumoFilters(HIST_DB, { getCanonicalCat });
+  } catch (e) {
+    console.warn('Falha ao popular filtros do relatório de consumo:', e);
   }
 
   const fl=document.getElementById('rFileList');
@@ -5149,15 +5253,15 @@ function renderRelatorio(){
     fl.innerHTML=flPg.items.map(e=>{
       const assumed=e.yearAssumed;
       const yrHtml=assumed
-        ?'<span class="yr-assumed" onclick="editEntryYear(\''+e.id+'\')">⚠️ '+e.year+' (clique p/ corrigir)</span>'
-        :'<span class="yr-detected">🟢 '+e.year+'</span>';
+        ?'<span class="yr-assumed" onclick="editEntryYear(\''+e.id+'\')">'+e.year+' (clique p/ corrigir)</span>'
+        :'<span class="yr-detected">'+e.year+'</span>';
       const _isDup=_dupMap&&isDuplicate(e.id,_dupMap);
       return'<div class="file-item" data-file-id="'+e.id+'" style="'+(e.discrepancy?'background:#fff7ed;border-color:#fb923c':e.yearAssumed?'background:#fefce8;border-color:#fde047':'')+(_isDup?'background:#fef2f2;border-color:#fca5a5':'')+ '; min-width: 0;">'
         +'<div style="flex:1;overflow:hidden">'
         +'<div class="file-item-name" title="'+esc(e.fileName)+'">'+esc(e.fileName)+'</div>'
         +'<div class="file-item-date">'+esc(e.weekLabel||'?')+' · '+yrHtml+' · '+(e.units||[]).length+' unid.'
-        +(_isDup?' <span style="color:#dc2626;font-weight:700">⚠️ POSSÍVEL DUPLICATA</span>':'')
-        +(e.discrepancy?'<br><span style="color:#d97706;font-size:9px;font-weight:700">⚠️ ATENÇÃO: Nome do arquivo sugere <b>'+esc(e.discrepancy.fileDate)+'</b> mas dentro da planilha está <b>'+esc(e.discrepancy.contentDate)+'</b> — Verifique se a data interna está correta</span>':'')
+        +(_isDup?' <span style="color:#dc2626;font-weight:700">POSSÍVEL DUPLICATA</span>':'')
+        +(e.discrepancy?'<br><span style="color:#d97706;font-size:9px;font-weight:700">ATENÇÃO: Nome do arquivo sugere <b>'+esc(e.discrepancy.fileDate)+'</b> mas dentro da planilha está <b>'+esc(e.discrepancy.contentDate)+'</b> — Verifique se a data interna está correta</span>':'')
         +'</div>'
         +'</div>'
         +'<div class="file-actions" style="display:flex;flex-wrap:wrap;gap:4px">'
@@ -5175,21 +5279,21 @@ function renderRelatorio(){
     let banners = '';
     if (HIST_DB_PARTIAL) {
       banners += '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:11px;color:#1e40af">'
-        + '📉 <b>Modo econômico ativo</b>: apenas parte do histórico foi carregada automaticamente. '
+        + '<b>Modo econômico ativo</b>: apenas parte do histórico foi carregada automaticamente. '
         + '<button class="btn btn-s btn-sm" style="font-size:10px;margin-left:6px;border-color:#bfdbfe" onclick="loadAllHistDBAndRefresh()">Carregar tudo</button>'
         + '</div>';
     }
     if (nDupsInDB > 0) {
       banners += '<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:11px;color:#991b1b">'
-        + '🔴 <b>' + nDupsInDB + ' arquivo(s) possivelmente duplicado(s)</b> (destacados em vermelho). '
+        + '<b>' + nDupsInDB + ' arquivo(s) possivelmente duplicado(s)</b> (destacados em vermelho). '
         + 'Mesmo período, mesmas unidades e mesmas quantidades. '
         + '<button class="btn btn-s btn-sm" style="font-size:10px;color:#dc2626;border-color:#fca5a5;margin-left:6px" onclick="removeDuplicatesAuto()">Remover duplicatas</button>'
         + '</div>';
     }
     if (nAssumedInDB > 0) {
       banners += '<div style="background:#fef3c7;border:1px solid #fde047;border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:11px;color:#92400e">'
-        + '⚠️ <b>' + nAssumedInDB + ' arquivo(s) sem ano detectado</b> (destacados em amarelo). '
-        + 'Clique no ⚠️ ao lado do ano para corrigir manualmente.'
+        + '<b>' + nAssumedInDB + ' arquivo(s) sem ano detectado</b> (destacados em amarelo). '
+        + 'Clique no ao lado do ano para corrigir manualmente.'
         + '</div>';
     }
     if (banners) fl.insertAdjacentHTML('afterbegin', '<div style="grid-column:1 / -1">' + banners + '</div>');
@@ -5344,7 +5448,7 @@ function buildAgg(entries,selUnits,selCats){
 }
 
 function gerarRelatorio(){
-  document.getElementById('rReport').innerHTML='<div style="text-align:center;padding:40px;color:var(--muted)"><div style="font-size:24px;margin-bottom:8px">⏳</div>Processando '+HIST_DB.length+' arquivo(s)...</div>';
+  document.getElementById('rReport').innerHTML='<div style="text-align:center;padding:40px;color:var(--muted)"><div style="font-size:24px;margin-bottom:8px"></div>Processando '+HIST_DB.length+' arquivo(s)...</div>';
   
   if (typeof getFeriadosISOSetCached === 'function') {
     getFeriadosISOSetCached().then(set => {
@@ -5367,7 +5471,7 @@ function _gerarRelatorioImpl(){
   const entries=filterEntries();
 
   if(!entries.length){
-    document.getElementById('rReport').innerHTML='<div class="rel-empty"><div class="ic">🔍</div>Nenhum dado para os anos/filtros selecionados.</div>';
+    document.getElementById('rReport').innerHTML='<div class="rel-empty"><div class="ic"></div>Nenhum dado para os anos/filtros selecionados.</div>';
     return;
   }
   
@@ -5399,7 +5503,7 @@ function _gerarRelatorioImpl(){
   LAST_REPORT_DATA=data;
   
   if(!data.length){
-    document.getElementById('rReport').innerHTML='<div class="rel-empty"><div class="ic">📭</div>Nenhum item encontrado.<br><span style="font-size:11px;color:var(--muted)">Tente marcar "Mostrar zeros" ou ajuste os filtros.</span></div>';
+    document.getElementById('rReport').innerHTML='<div class="rel-empty"><div class="ic"></div>Nenhum item encontrado.<br><span style="font-size:11px;color:var(--muted)">Tente marcar "Mostrar zeros" ou ajuste os filtros.</span></div>';
     return;
   }
 
@@ -5409,13 +5513,13 @@ function _gerarRelatorioImpl(){
 
   let mathNote='';
   if(HIST_DB_PARTIAL){
-    mathNote+='<div class="math-note">📉 <b>Modo econômico ativo</b>: o relatório pode estar incompleto porque apenas parte do histórico foi carregada. '
+    mathNote+='<div class="math-note"><b>Modo econômico ativo</b>: o relatório pode estar incompleto porque apenas parte do histórico foi carregada. '
       +'<button class="btn btn-s btn-sm" style="font-size:10px;margin-left:6px" onclick="loadAllHistDBAndRefresh()">Carregar tudo</button>'
       +'</div>';
   }
   if(nAssumed>0){
-    mathNote+='<div class="math-note">⚠️ <b>'+nAssumed+' arquivo(s)</b> com ano não detectado automaticamente. '
-      +'As médias podem estar incorretas — corrija os anos na lista de arquivos (clique em ⚠️).</div>';
+    mathNote+='<div class="math-note"><b>'+nAssumed+' arquivo(s)</b> com ano não detectado automaticamente. '
+      +'As médias podem estar incorretas — corrija os anos na lista de arquivos (clique em ).</div>';
   }
 
   let h=mathNote
@@ -5553,7 +5657,7 @@ function buildRankingTable(data){
     if(!byMat[k])byMat[k]={mat:r.material,cat:r.cat,rows:[]};
     byMat[k].rows.push(r);
   });
-  if(!Object.keys(byMat).length)return'<div class="rel-empty"><div class="ic">🔍</div>Nenhum item encontrado com esse filtro.</div>';
+  if(!Object.keys(byMat).length)return'<div class="rel-empty"><div class="ic"></div>Nenhum item encontrado com esse filtro.</div>';
 
   let h='<div class="tbl-wrap"><table class="rel-table"><thead><tr>'
     +'<th>Item</th><th>Unidade</th><th class="num">Total Exato</th>'
@@ -5567,7 +5671,7 @@ function buildRankingTable(data){
       +'<b style="font-size:13px">'+esc(mo.mat)+'</b></td></tr>';
     rowsSorted.forEach((r,i)=>{
       const pct=Math.round((r.total/maxTotal)*100);
-      const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':'';
+      const medal=i===0?'':i===1?'':i===2?'':'';
       h+='<tr>'
         +'<td style="padding-left:16px;font-size:11px;color:var(--muted)">'+medal+'</td>'
         +'<td><span class="rel-badge rel-badge-unit">'+esc(r.unit)+'</span></td>'
@@ -5585,7 +5689,7 @@ function buildRankingTable(data){
 }
 
 function buildYearCompTable(data,yearsInData){
-  if(yearsInData.length<2)return'<div class="rel-empty"><div class="ic">📅</div>Selecione pelo menos 2 anos para comparar.<br><span style="font-size:11px;color:var(--muted)">Carregue arquivos de anos diferentes e marque ambos nos filtros de ano.</span></div>';
+  if(yearsInData.length<2)return'<div class="rel-empty"><div class="ic"></div>Selecione pelo menos 2 anos para comparar.<br><span style="font-size:11px;color:var(--muted)">Carregue arquivos de anos diferentes e marque ambos nos filtros de ano.</span></div>';
 
   const byKey={};
   data.forEach(r=>{
@@ -5599,7 +5703,7 @@ function buildYearCompTable(data,yearsInData){
   const yr1 = sortedYears.length > 1 ? sortedYears[sortedYears.length-2] : sortedYears[0];
 
   let h='<div class="math-note" style="background:#f0f9ff;border-color:#bae6fd;color:#0c4a6e">'
-    +'📊 Comparando o consumo exato de <b>'+yr1+'</b> vs <b>'+yr2+'</b>. '
+    +'Comparando o consumo exato de <b>'+yr1+'</b> vs <b>'+yr2+'</b>. '
     +'</div>';
 
   h+='<div style="overflow-x:auto"><table class="rel-table"><thead><tr>'
@@ -5642,7 +5746,7 @@ function buildDetailRow(rid,r,colspan){
   
   // Per-file exact breakdown
   if (r.perFile && r.perFile.length) {
-    inner += '<div style="font-size:10px;font-weight:700;color:#475569;margin-bottom:4px">📋 Quantidade por Planilha/Semana:</div>';
+    inner += '<div style="font-size:10px;font-weight:700;color:#475569;margin-bottom:4px">Quantidade por Planilha/Semana:</div>';
     inner += '<table style="width:100%;font-size:11px;border-collapse:collapse">';
     inner += '<tr style="font-size:9px;color:var(--muted)"><td style="padding:2px 4px">Período</td><td style="padding:2px 4px">Arquivo</td><td style="text-align:right;padding:2px 4px">Qtd Exata</td></tr>';
     r.perFile.forEach(f => {
@@ -5711,9 +5815,9 @@ async function saveMatAliases() {
         }
       });
       if (saved) {
-        console.info('[Aliases] ✅ CONFIRMADO no Firebase:', savedCount, 'regras persistidas');
+        console.info('[Aliases] CONFIRMADO no Firebase:', savedCount, 'regras persistidas');
       } else {
-        console.error('[Aliases] ⚠️ Doc matConfig não encontrado após salvar!');
+        console.error('[Aliases] Doc matConfig não encontrado após salvar!');
       }
     } catch (verifyErr) {
       console.warn('[Aliases] Não foi possível verificar persistência:', verifyErr);
@@ -5722,11 +5826,11 @@ async function saveMatAliases() {
     invalidateAggCache();
     return true;
   } catch (e) {
-    console.error('[Aliases] ❌ Erro ao salvar:', e);
+    console.error('[Aliases] Erro ao salvar:', e);
     const code = e?.code || '';
     const msg = e?.message || String(e);
     if (code === 'permission-denied') {
-      toast('❌ Permissão negada no Firebase — verifique as regras do Firestore', 'red');
+      toast('Permissão negada no Firebase — verifique as regras do Firestore', 'red');
     } else {
       toast('Erro ao salvar: ' + (code ? code + ' - ' : '') + msg, 'red');
     }
@@ -5736,7 +5840,7 @@ async function saveMatAliases() {
 
 // Diagnóstico do sistema de aliases
 async function diagnoseAliases() {
-  console.group('🔧 DIAGNÓSTICO ALIASES');
+  console.group('DIAGNÓSTICO ALIASES');
   console.log('Sistema pronto (isReady):', typeof isReady === 'function' ? isReady() : 'N/A');
   console.log('Usuário:', auth?.currentUser?.email || 'não logado');
   console.log('Role:', typeof getUserRole === 'function' ? getUserRole() : 'N/A');
@@ -5750,7 +5854,7 @@ async function diagnoseAliases() {
       console.log('  - Doc:', d.id, '→', Object.keys(d.data()?.matAliases || {}).length, 'regras,', Object.keys(d.data()?.catAliases || {}).length, 'categorias');
     });
   } catch (e) {
-    console.error('  ❌ Erro ao ler coleção:', e?.code, e?.message);
+    console.error('  Erro ao ler coleção:', e?.code, e?.message);
   }
   console.groupEnd();
   toast('Diagnóstico completo — abra o Console (F12)', 'blue');
@@ -5767,12 +5871,12 @@ async function loadMatAliases() {
         if (data?.matAliases) MAT_ALIASES = data.matAliases;
         if (data?.catAliases) CAT_ALIASES = data.catAliases;
         loaded = true;
-        console.info('[Aliases] ✅ Carregadas:', Object.keys(MAT_ALIASES).length, 'itens,', Object.keys(CAT_ALIASES).length, 'categorias');
+        console.info('[Aliases] Carregadas:', Object.keys(MAT_ALIASES).length, 'itens,', Object.keys(CAT_ALIASES).length, 'categorias');
       }
     });
     if (!loaded) console.info('[Aliases] Nenhuma regra salva ainda — começando com catálogo padrão');
   } catch (e) {
-    console.error('[Aliases] ❌ Erro ao carregar:', e);
+    console.error('[Aliases] Erro ao carregar:', e);
   }
 }
 
@@ -6069,7 +6173,7 @@ function renderCorrecaoItens() {
     + '</div>';
 
   if (!items.size && !allCats.size) {
-    h += '<div class="pan-empty"><div class="ic">📦</div>Nenhum dado encontrado. Registre requisições ou carregue planilhas no Banco de Dados.</div>';
+    h += '<div class="pan-empty"><div class="ic"></div>Nenhum dado encontrado. Registre requisições ou carregue planilhas no Banco de Dados.</div>';
     tabEl.innerHTML = h + '</div>';
     return;
   }
@@ -6123,7 +6227,7 @@ function renderFixSugestoes(withVariations, pendingSimilar, items, searchLo) {
   if (searchLo) filteredVars = filteredVars.filter(v => rmAcc(v.key).toLowerCase().includes(searchLo) || v.namesArr.some(([n]) => rmAcc(n).toLowerCase().includes(searchLo)));
 
   if (filteredVars.length) {
-    h += '<div class="pan-section"><h2>🔍 Variações Detectadas (' + filteredVars.length + ')</h2>'
+    h += '<div class="pan-section"><h2>Variações Detectadas (' + filteredVars.length + ')</h2>'
       + '<p class="sub">Itens que são o mesmo material mas aparecem com nomes levemente diferentes nas planilhas</p>';
 
     filteredVars.sort((a, b) => b.namesArr.length - a.namesArr.length).slice(0, 30).forEach((v, idx) => {
@@ -6134,7 +6238,7 @@ function renderFixSugestoes(withVariations, pendingSimilar, items, searchLo) {
         + '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">'
         + '<div><span style="font-weight:800;font-size:13px">' + esc(bestName) + '</span>'
         + ' <span style="font-size:10px;color:var(--muted)">' + v.namesArr.length + ' variações · ' + totalOccur + ' ocorrências · ' + v.units.size + ' unid.</span></div>'
-        + '<button class="btn btn-g btn-sm" onclick="applyMatFixBulk([\'' + esc(v.key).replace(/'/g, "\\'") + '\'],document.getElementById(\'' + id + '\').value)">✅ Unificar</button>'
+        + '<button class="btn btn-g btn-sm" onclick="applyMatFixBulk([\'' + esc(v.key).replace(/'/g, "\\'") + '\'],document.getElementById(\'' + id + '\').value)">Unificar</button>'
         + '</div>';
 
       h += '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">';
@@ -6147,7 +6251,7 @@ function renderFixSugestoes(withVariations, pendingSimilar, items, searchLo) {
       h += '<div style="margin-top:8px;display:flex;gap:6px;align-items:center">'
         + '<label style="font-size:10px;font-weight:700;color:#475569;white-space:nowrap">Nome correto:</label>'
         + '<input class="input" id="' + id + '" value="' + esc(bestName) + '" list="catList" style="flex:1;font-size:12px;padding:6px 10px' + (hasCatalog ? ';border-color:#10b981;background:#f0fdf4' : '') + '">'
-        + (hasCatalog ? '<span style="font-size:9px;color:#10b981;font-weight:700;white-space:nowrap">📗 Catálogo</span>' : '')
+        + (hasCatalog ? '<span style="font-size:9px;color:#10b981;font-weight:700;white-space:nowrap">Catálogo</span>' : '')
         + '</div></div>';
     });
 
@@ -6160,7 +6264,7 @@ function renderFixSugestoes(withVariations, pendingSimilar, items, searchLo) {
   if (searchLo) filteredSimilar = filteredSimilar.filter(group => group.some(k => rmAcc(k).toLowerCase().includes(searchLo)));
 
   if (filteredSimilar.length) {
-    h += '<div class="pan-section"><h2>🧩 Itens Possivelmente Iguais (' + filteredSimilar.length + ')</h2>'
+    h += '<div class="pan-section"><h2>Itens Possivelmente Iguais (' + filteredSimilar.length + ')</h2>'
       + '<p class="sub">Itens com nomes muito parecidos que podem ser o mesmo material — verifique e unifique se necessário</p>';
 
     filteredSimilar.slice(0, 20).forEach((group, gIdx) => {
@@ -6176,8 +6280,8 @@ function renderFixSugestoes(withVariations, pendingSimilar, items, searchLo) {
 
       h += '<div style="background:#fefce8;border:1px solid #fde047;border-radius:10px;padding:12px;margin-bottom:8px">'
         + '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">'
-        + '<span style="font-weight:800;font-size:12px;color:#92400e">⚡ Grupo de ' + group.length + ' itens similares</span>'
-        + '<button class="btn btn-g btn-sm" onclick="applyMatFixBulk([' + group.map(k => "'" + esc(k).replace(/'/g, "\\'") + "'").join(',') + '],document.getElementById(\'' + id + '\').value)">✅ Unificar Todos</button>'
+        + '<span style="font-weight:800;font-size:12px;color:#92400e">Grupo de ' + group.length + ' itens similares</span>'
+        + '<button class="btn btn-g btn-sm" onclick="applyMatFixBulk([' + group.map(k => "'" + esc(k).replace(/'/g, "\\'") + "'").join(',') + '],document.getElementById(\'' + id + '\').value)">Unificar Todos</button>'
         + '</div>';
 
       h += '<div style="margin-top:6px;display:flex;flex-direction:column;gap:3px">';
@@ -6203,7 +6307,7 @@ function renderFixSugestoes(withVariations, pendingSimilar, items, searchLo) {
   }
 
   if (!filteredVars.length && !filteredSimilar.length) {
-    h += '<div class="empty"><div class="ic">✅</div>' + (searchLo ? 'Nenhuma sugestão encontrada para "' + esc(_fixSearchTerm) + '".' : 'Nenhuma variação ou item similar detectado! Todos os itens estão bem padronizados.') + '</div>';
+    h += '<div class="empty"><div class="ic"></div>' + (searchLo ? 'Nenhuma sugestão encontrada para "' + esc(_fixSearchTerm) + '".' : 'Nenhuma variação ou item similar detectado! Todos os itens estão bem padronizados.') + '</div>';
   }
 
   return h;
@@ -6225,17 +6329,17 @@ function renderFixTodos(items, searchLo) {
   _fixPage = Math.max(1, Math.min(_fixPage, totalPages || 1));
   const paged = list.slice((_fixPage - 1) * FIX_PAGE_SIZE, _fixPage * FIX_PAGE_SIZE);
 
-  let h = '<div class="pan-section"><h2>📋 Todos os Itens (' + total + ')</h2>'
+  let h = '<div class="pan-section"><h2>Todos os Itens (' + total + ')</h2>'
     + '<p class="sub">Lista completa de materiais — clique no lápis para renomear</p>';
   
   // ─── TOOLBAR: Copiar itens ───
   h += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;padding:10px;background:#f8fafc;border:1px solid var(--border);border-radius:8px">'
-    + '<span style="font-size:11px;color:#475569;font-weight:700;align-self:center;margin-right:4px">📋 COPIAR:</span>'
-    + '<button class="btn btn-s btn-sm" style="font-size:10px" onclick="copyItemsList(\'names\')">📝 Apenas nomes</button>'
-    + '<button class="btn btn-s btn-sm" style="font-size:10px" onclick="copyItemsList(\'detailed\')">📊 Detalhado (TSV)</button>'
-    + '<button class="btn btn-s btn-sm" style="font-size:10px" onclick="copyItemsList(\'variations\')">🔀 Com variações</button>'
-    + '<button class="btn btn-s btn-sm" style="font-size:10px" onclick="copyItemsList(\'csv\')">📥 CSV (excel)</button>'
-    + '<button class="btn btn-s btn-sm" style="font-size:10px" onclick="copyItemsList(\'json\')">⚙️ JSON</button>'
+    + '<span style="font-size:11px;color:#475569;font-weight:700;align-self:center;margin-right:4px">COPIAR:</span>'
+    + '<button class="btn btn-s btn-sm" style="font-size:10px" onclick="copyItemsList(\'names\')">Apenas nomes</button>'
+    + '<button class="btn btn-s btn-sm" style="font-size:10px" onclick="copyItemsList(\'detailed\')">Detalhado (TSV)</button>'
+    + '<button class="btn btn-s btn-sm" style="font-size:10px" onclick="copyItemsList(\'variations\')">Com variações</button>'
+    + '<button class="btn btn-s btn-sm" style="font-size:10px" onclick="copyItemsList(\'csv\')">CSV (excel)</button>'
+    + '<button class="btn btn-s btn-sm" style="font-size:10px" onclick="copyItemsList(\'json\')">JSON</button>'
     + '</div>';
 
   h += '<div class="tbl-wrap"><table class="rel-table"><thead><tr>'
@@ -6250,12 +6354,12 @@ function renderFixTodos(items, searchLo) {
   paged.forEach(r => {
     const hasFix = !!r.canonical;
     h += '<tr>'
-      + '<td style="font-weight:700">' + esc(r.displayName) + (hasFix ? ' <span style="font-size:9px;color:#10b981;font-weight:800">✅ CORRIGIDO</span>' : '') + '</td>'
+      + '<td style="font-weight:700">' + esc(r.displayName) + (hasFix ? ' <span style="font-size:9px;color:#10b981;font-weight:800">CORRIGIDO</span>' : '') + '</td>'
       + '<td style="text-align:center;color:var(--muted)">' + r.totalOccur + '</td>'
       + '<td style="text-align:center">' + (r.nVariations > 1 ? '<span style="color:#f59e0b;font-weight:700">' + r.nVariations + '</span>' : '<span style="color:#10b981">1</span>') + '</td>'
       + '<td style="text-align:center;color:var(--muted)">' + r.nUnits + '</td>'
       + '<td style="font-size:10px">' + r.cats.slice(0, 2).map(c => '<span class="rel-badge rel-badge-cat" style="font-size:9px">' + esc(c) + '</span>').join(' ') + '</td>'
-      + '<td style="text-align:center"><button class="btn btn-s btn-sm" style="font-size:10px" onclick="showModal(\'Renomear Item\',\'Nome atual: ' + esc(r.displayName).replace(/'/g, "\\'") + '\',\'' + esc(r.displayName).replace(/'/g, "\\'") + '\',function(v){applyMatFix(\'' + esc(r.key).replace(/'/g, "\\'") + '\',v)})">✏️</button>'
+      + '<td style="text-align:center"><button class="btn btn-s btn-sm" style="font-size:10px" onclick="showModal(\'Renomear Item\',\'Nome atual: ' + esc(r.displayName).replace(/'/g, "\\'") + '\',\'' + esc(r.displayName).replace(/'/g, "\\'") + '\',function(v){applyMatFix(\'' + esc(r.key).replace(/'/g, "\\'") + '\',v)})"></button>'
       + (hasFix ? ' <button class="btn btn-s btn-sm" style="font-size:10px;color:var(--red)" onclick="removeMatFix(\'' + esc(r.key).replace(/'/g, "\\'") + '\')">↩️</button>' : '')
       + '</td></tr>';
   });
@@ -6356,7 +6460,7 @@ function copyItemsList(format) {
   // Copia para clipboard
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(text).then(
-      () => toast('✅ ' + list.length + ' itens copiados para área de transferência!', 'green'),
+      () => toast('' + list.length + ' itens copiados para área de transferência!', 'green'),
       () => fallbackCopy(text, list.length)
     );
   } else {
@@ -6374,7 +6478,7 @@ function fallbackCopy(text, count) {
   ta.select();
   try {
     document.execCommand('copy');
-    toast('✅ ' + count + ' itens copiados!', 'green');
+    toast('' + count + ' itens copiados!', 'green');
   } catch (_) {
     // Último fallback: modal com texto
     const w = window.open('', '_blank');
@@ -6392,11 +6496,11 @@ function renderFixRegras(searchLo) {
   let filtered = rules;
   if (searchLo) filtered = filtered.filter(([k, v]) => rmAcc(k).toLowerCase().includes(searchLo) || rmAcc(v).toLowerCase().includes(searchLo));
 
-  let h = '<div class="pan-section"><h2>📜 Regras de Correção Ativas (' + filtered.length + '/' + rules.length + ')</h2>'
+  let h = '<div class="pan-section"><h2>Regras de Correção Ativas (' + filtered.length + '/' + rules.length + ')</h2>'
     + '<p class="sub">Cada regra define que um nome original de material deve ser substituído pelo nome correto nos relatórios e no Painel</p>';
 
   if (!filtered.length) {
-    h += '<div class="empty"><div class="ic">📜</div>' + (searchLo ? 'Nenhuma regra encontrada para "' + esc(_fixSearchTerm) + '".' : 'Nenhuma regra de correção ativa. Use as Sugestões para criar regras.') + '</div>';
+    h += '<div class="empty"><div class="ic"></div>' + (searchLo ? 'Nenhuma regra encontrada para "' + esc(_fixSearchTerm) + '".' : 'Nenhuma regra de correção ativa. Use as Sugestões para criar regras.') + '</div>';
     h += '</div>';
     return h;
   }
@@ -6428,7 +6532,7 @@ function renderFixRegras(searchLo) {
   });
 
   if (rules.length > 0) {
-    h += '<div style="margin-top:12px"><button class="btn btn-s btn-sm" style="color:#dc2626;border-color:#fca5a5;font-size:10px" onclick="clearAllMatFixes()">🗑️ Remover todas as regras</button></div>';
+    h += '<div style="margin-top:12px"><button class="btn btn-s btn-sm" style="color:#dc2626;border-color:#fca5a5;font-size:10px" onclick="clearAllMatFixes()">Remover todas as regras</button></div>';
   }
 
   h += '</div>';
@@ -6447,7 +6551,7 @@ function renderFixCategorias(allCats, searchLo) {
   const catRules = Object.entries(CAT_ALIASES);
   
   // ═══ CATEGORIAS PADRÃO — com itens agrupados ═══
-  h += '<div class="pan-section"><h2>📊 Categorias Padrão do Sistema</h2>'
+  h += '<div class="pan-section"><h2>Categorias Padrão do Sistema</h2>'
     + '<p class="sub">Todas as categorias detectadas são classificadas automaticamente em 5 categorias padrão. Expanda para ver os itens.</p>';
   
   // Agrupa categorias detectadas por categoria padrão
@@ -6465,12 +6569,12 @@ function renderFixCategorias(allCats, searchLo) {
   });
   
   // Renderiza cada grupo
-  const STD_ICONS = { expediente: '📝', limpeza: '🧽', higiene: '🧼', descartavel: '♻️', processados: '🍽️', outros: '❓' };
+  const STD_ICONS = { expediente: '', limpeza: '', higiene: '', descartavel: '', processados: '', outros: '' };
   
   Object.values(grouped).forEach(g => {
     if (g.variations.length === 0) return;
     const groupId = 'grpCat_' + g.std.id;
-    const icon = STD_ICONS[g.std.id] || '📦';
+    const icon = STD_ICONS[g.std.id] || '';
     
     // Coleta todos os itens dessa categoria padrão
     const itemsInCat = new Map(); // material → count
@@ -6522,12 +6626,12 @@ function renderFixCategorias(allCats, searchLo) {
         h += '<button class="btn btn-p btn-sm" style="margin-bottom:10px" onclick="'
           + 'if(confirm(\'Unificar ' + keysToFix.length + ' variação(ões) como &quot;' + g.std.name.replace(/'/g, "\\'") + '&quot;?\')){' 
           + keysToFix.map(k => 'applyCatFix(\'' + k.replace(/'/g,"\\'") + '\',\'' + g.std.name.replace(/'/g,"\\'") + '\')').join(';')
-          + '}">✨ Unificar todas as ' + keysToFix.length + ' variações como &quot;' + esc(g.std.name) + '&quot;</button>';
+          + '}">Unificar todas as ' + keysToFix.length + ' variações como &quot;' + esc(g.std.name) + '&quot;</button>';
       }
     }
     
     // Lista de variações detectadas
-    h += '<div style="font-size:11px;font-weight:700;color:#64748b;margin-bottom:6px;margin-top:4px">📋 VARIAÇÕES DETECTADAS:</div>';
+    h += '<div style="font-size:11px;font-weight:700;color:#64748b;margin-bottom:6px;margin-top:4px">VARIAÇÕES DETECTADAS:</div>';
     h += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px">';
     g.variations.forEach(v => {
       const target = v.hasAlias ? CAT_ALIASES[v.key] : null;
@@ -6535,7 +6639,7 @@ function renderFixCategorias(allCats, searchLo) {
       h += '<span style="display:inline-flex;align-items:center;gap:4px;background:' 
         + (isCorrect ? '#d1fae5;border:1px solid #86efac' : (v.hasAlias ? '#fef3c7;border:1px solid #fde68a' : '#f1f5f9;border:1px solid #cbd5e1'))
         + ';padding:3px 8px;border-radius:6px;font-size:11px">'
-        + (isCorrect ? '✅ ' : (v.hasAlias ? '⚠️ ' : ''))
+        + (isCorrect ? '' : (v.hasAlias ? '' : ''))
         + esc(v.mainName) + ' <span style="opacity:.7">(' + v.data.count + 'x)</span>';
       if (!isCorrect && g.std.id !== 'outros') {
         h += '<button class="btn btn-s btn-sm" style="font-size:9px;padding:1px 6px;margin-left:4px" onclick="applyCatFix(\'' + v.key.replace(/'/g,"\\'") + '\',\'' + g.std.name.replace(/'/g,"\\'") + '\')">Padronizar</button>';
@@ -6546,7 +6650,7 @@ function renderFixCategorias(allCats, searchLo) {
     
     // Lista de itens (para poder revisar)
     if (itemsSorted.length > 0) {
-      h += '<div style="font-size:11px;font-weight:700;color:#64748b;margin-bottom:6px">📦 ITENS CADASTRADOS NESSA CATEGORIA (' + itemsSorted.length + '):</div>';
+      h += '<div style="font-size:11px;font-weight:700;color:#64748b;margin-bottom:6px">ITENS CADASTRADOS NESSA CATEGORIA (' + itemsSorted.length + '):</div>';
       h += '<div style="max-height:250px;overflow-y:auto;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px">';
       h += '<table style="width:100%;font-size:11px"><tbody>';
       itemsSorted.forEach(([mat, cnt]) => {
@@ -6563,7 +6667,7 @@ function renderFixCategorias(allCats, searchLo) {
   
   // ═══ REGRAS DE CATEGORIA ATIVAS ═══
   if (catRules.length > 0) {
-    h += '<div class="pan-section"><h2>✅ Regras Ativas (' + catRules.length + ')</h2>'
+    h += '<div class="pan-section"><h2>Regras Ativas (' + catRules.length + ')</h2>'
       + '<p class="sub">Categorias que já foram padronizadas</p>';
     catRules.sort((a, b) => a[1].localeCompare(b[1])).forEach(([fromKey, toName]) => {
       h += '<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;margin-bottom:4px;font-size:12px">'
@@ -6573,7 +6677,7 @@ function renderFixCategorias(allCats, searchLo) {
         + '<button class="btn btn-s btn-sm" style="margin-left:auto;font-size:9px;padding:2px 6px;color:#dc2626;border-color:#fca5a5" onclick="removeCatFix(\'' + esc(fromKey).replace(/'/g, "\\'") + '\')">✕</button>'
         + '</div>';
     });
-    h += '<div style="margin-top:8px"><button class="btn btn-s btn-sm" style="color:#dc2626;border-color:#fca5a5;font-size:10px" onclick="clearAllCatFixes()">🗑️ Remover todas</button></div>';
+    h += '<div style="margin-top:8px"><button class="btn btn-s btn-sm" style="color:#dc2626;border-color:#fca5a5;font-size:10px" onclick="clearAllCatFixes()">Remover todas</button></div>';
     h += '</div>';
   }
   
@@ -6589,25 +6693,29 @@ function renderFixCategorias(allCats, searchLo) {
 // CLASSIFICAÇÃO DE UNIDADES POR TIPO
 // ═══════════════════════════════════════════════════════════════════
 const UNIT_TYPES = [
-  { id:'sede',     label:'Sede/Admin',       icon:'🏛️', color:'#6366f1', re:/sede|semcas|admin|astec|arquivo|contrato|alta\s*complex|coordena[cç][aã]o|diretoria|superintend[eê]ncia|secret[aá]ria|gabinete|assessoria|abordagem|comunica[cç][aã]o|auditoria|recep[cç][aã]o|sub\s*solo|planejamento|recursos\s*humanos|inform[aá]tica|manuten[cç][aã]o|transporte|almoxarifado|patrim[oô]nio|protocolo|cadastro|fundo|regula[cç][aã]o|vigil[aâ]ncia|medida|socio\s*educativ|cmdca|cmas|cogetep|pcdif|igas|articula[cç][aã]o|or[cç]ament|contabilidade|presta[cç][aã]o|paif|scfv|paefi|furo\s*de\s*estoque|casa\s*do\s*bairro|circo\s*escola|n[uú]cleo/i },
-  { id:'cras',     label:'CRAS',             icon:'🏠', color:'#3b82f6', re:/^cras\b/i },
-  { id:'creas',    label:'CREAS',            icon:'🏢', color:'#8b5cf6', re:/^creas\b/i },
-  { id:'ct',       label:'CT',               icon:'🏫', color:'#06b6d4', re:/^ct\b|conselho\s*tutelar/i },
-  { id:'centropop',label:'Centro Pop',       icon:'🤝', color:'#14b8a6', re:/centro\s*pop/i },
-  { id:'conselho', label:'Conselho/PROCAD',  icon:'📋', color:'#f59e0b', re:/procad|aepeti/i },
-  { id:'abrigo',   label:'Abrigo/Acolhimento',icon:'🛏️', color:'#ef4444', re:/abrigo|acolh|resid[eê]ncia|rep[uú]blica|luz\s*e\s*vida|recanto|ilpi|casa\s*de|mulher|elizangela|pop\s*rua/i },
-  { id:'externo',  label:'Unidade Externa',  icon:'🔗', color:'#64748b', re:/^externo$/i },
+  { id:'sede',     label:'Sede/Admin',       icon:'', color:'#6366f1', re:/sede|semcas|admin|astec|arquivo|contrato|alta\s*complex|coordena[cç][aã]o|diretoria|superintend[eê]ncia|secret[aá]ria|gabinete|assessoria|abordagem|comunica[cç][aã]o|auditoria|recep[cç][aã]o|sub\s*solo|planejamento|recursos\s*humanos|inform[aá]tica|manuten[cç][aã]o|transporte|almoxarifado|patrim[oô]nio|protocolo|cadastro|fundo|regula[cç][aã]o|vigil[aâ]ncia|medida|socio\s*educativ|cmdca|cmas|cogetep|pcdif|igas|articula[cç][aã]o|or[cç]ament|contabilidade|presta[cç][aã]o|paif|scfv|paefi|furo\s*de\s*estoque|casa\s*do\s*bairro|circo\s*escola|n[uú]cleo/i },
+  { id:'cras',     label:'CRAS',             icon:'', color:'#3b82f6', re:/^cras\b/i },
+  { id:'creas',    label:'CREAS',            icon:'', color:'#8b5cf6', re:/^creas\b/i },
+  { id:'ct',       label:'CT',               icon:'', color:'#06b6d4', re:/^ct\b|conselho\s*tutelar/i },
+  { id:'centropop',label:'Centro Pop',       icon:'', color:'#14b8a6', re:/centro\s*pop/i },
+  { id:'conselho', label:'Conselho/PROCAD',  icon:'', color:'#f59e0b', re:/procad|aepeti/i },
+  { id:'abrigo',   label:'Abrigo/Acolhimento',icon:'', color:'#ef4444', re:/abrigo|acolh|resid[eê]ncia|rep[uú]blica|luz\s*e\s*vida|recanto|ilpi|casa\s*de|mulher|elizangela|pop\s*rua/i },
+  { id:'externo',  label:'Unidade Externa',  icon:'', color:'#64748b', re:/^externo$/i },
 ];
 
 function classifyUnit(name) {
-  if (!name) return { id:'outros', label:'Outros', icon:'❓', color:'#94a3b8' };
+  if (!name) return { id:'outros', label:'Outros', icon:'', color:'#94a3b8' };
   
   // ── PRIORIDADE 1: Buscar no cadastro de Gestão de Unidades ──
   try {
     const norm = s => rmAcc(String(s||'')).toLowerCase().trim().replace(/\s+/g,' ');
     const target = norm(name);
     const units = getUnidades() || [];
-    const u = units.find(x => norm(x?.nome || x?.unidadeNome || '') === target);
+    const matches = units.filter(x => norm(x?.nome || x?.unidadeNome || '') === target);
+    // Nome repetido no cadastro (ex.: "Creas Coroadinho" como CREAS e como SEDE):
+    // vale o cadastro cujo tipo bate com o que o próprio nome indica
+    const hintTipo = /^creas\b/.test(target) ? 'creas' : /^cras\b/.test(target) ? 'cras' : /^ct\b/.test(target) ? 'ct' : null;
+    const u = (hintTipo && matches.find(x => String(x?.tipo || '').toLowerCase().trim() === hintTipo)) || matches[0];
     if (u?.tipo) {
       let t = String(u.tipo).toLowerCase().trim();
       if (t === 'semcas') t = 'sede';
@@ -6626,27 +6734,14 @@ function classifyUnit(name) {
   for (const t of UNIT_TYPES) {
     if (t.re.test(name)) return t;
   }
-  return { id:'outros', label:'Outros', icon:'❓', color:'#94a3b8' };
+  return { id:'outros', label:'Outros', icon:'', color:'#94a3b8' };
 }
 
 let _panTipo = '', _panUnit = '';
 
-function setPanTipo(id) {
-  _panTipo = (_panTipo === id) ? '' : id;
-  _panUnit = '';
-  document.getElementById('panUnitSel').value = '';
-  buildPainel();
-}
-
-function clearPanFilters() {
-  _panTipo = ''; _panUnit = '';
-  document.getElementById('panUnitSel').value = '';
-  buildPainel();
-}
-
 function renderPanFilters(allUnits) {
   const filtersEl = document.getElementById('panFilters');
-  filtersEl.style.display = 'block';
+  if (filtersEl) filtersEl.style.display = 'block';
   
   // Count units per type
   const typeCounts = {};
@@ -6657,7 +6752,8 @@ function renderPanFilters(allUnits) {
   
   // Render type chips
   const chipsEl = document.getElementById('panTipoChips');
-  chipsEl.innerHTML = '<span class="tipo-chip' + (!_panTipo ? ' active' : '') + '" onclick="clearPanFilters()">📊 Geral</span>'
+  if (!chipsEl) return;
+  chipsEl.innerHTML = '<span class="tipo-chip' + (!_panTipo ? ' active' : '') + '" onclick="clearPanFilters()">Geral</span>'
     + UNIT_TYPES.filter(t => typeCounts[t.id]).map(t => 
       '<span class="tipo-chip' + (_panTipo === t.id ? ' active' : '') + '" onclick="setPanTipo(\'' + t.id + '\')" style="' + (_panTipo === t.id ? 'background:' + t.color + ';border-color:' + t.color : '') + '">'
       + t.icon + ' ' + t.label + ' <span class="cnt">(' + (typeCounts[t.id]||0) + ')</span></span>'
@@ -6665,6 +6761,7 @@ function renderPanFilters(allUnits) {
   
   // Render unit dropdown (filtered by type)
   const unitSel = document.getElementById('panUnitSel');
+  if (!unitSel) return;
   const filteredUnits = _panTipo ? allUnits.filter(u => classifyUnit(u).id === _panTipo) : allUnits;
   const prevVal = _panUnit;
   const _ufCounts = {};
@@ -6710,12 +6807,12 @@ function buildComparativo(allAgg, units, tipoLabel, tipoColor) {
   
   // Insights textuais
   if (aboveAvg.length > 0) {
-    h += '<div class="insight-card">📊 <b>' + aboveAvg.length + ' unidade(s) acima da média</b> (>' + Math.round(avgTotal*1.2) + '): '
+    h += '<div class="insight-card"><b>' + aboveAvg.length + ' unidade(s) acima da média</b> (>' + Math.round(avgTotal*1.2) + '): '
       + aboveAvg.map(s => '<b>' + esc(s.unit) + '</b> (' + s.total + ')').join(', ')
       + '. Consumo ' + Math.round(((aboveAvg[0].total - avgTotal)/avgTotal)*100) + '% acima da média geral.</div>';
   }
   if (belowAvg.length > 0) {
-    h += '<div class="insight-card" style="background:linear-gradient(135deg,#fef2f2,#fee2e2);border-color:#fecaca">⚠️ <b>' + belowAvg.length + ' unidade(s) abaixo da média</b> (<' + Math.round(avgTotal*0.8) + '): '
+    h += '<div class="insight-card" style="background:linear-gradient(135deg,#fef2f2,#fee2e2);border-color:#fecaca"><b>' + belowAvg.length + ' unidade(s) abaixo da média</b> (<' + Math.round(avgTotal*0.8) + '): '
       + belowAvg.map(s => '<b>' + esc(s.unit) + '</b> (' + s.total + ')').join(', ')
       + '. Verificar se estão sendo abastecidas corretamente.</div>';
   }
@@ -6724,7 +6821,7 @@ function buildComparativo(allAgg, units, tipoLabel, tipoColor) {
   h += '<div style="margin-top:12px">';
   stats.forEach((s, i) => {
     const pct = Math.round((s.total / maxTotal) * 100);
-    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i+1) + 'º';
+    const medal = i === 0 ? '' : i === 1 ? '' : i === 2 ? '' : (i+1) + 'º';
     const barColor = s.total > avgTotal * 1.2 ? '#ef4444' : s.total < avgTotal * 0.8 ? '#f59e0b' : '#3b82f6';
     h += '<div class="comp-rank">'
       + '<div class="comp-rank-pos" style="background:' + (i < 3 ? tipoColor + '20' : '#f1f5f9') + ';color:' + (i < 3 ? tipoColor : '#94a3b8') + '">' + medal + '</div>'
@@ -6802,7 +6899,7 @@ function buildTopItemsTipo(allAgg, units) {
   // Items exclusivos de certas unidades
   const exclusivos = Object.values(byItem).filter(r => r.unitCount.size === 1 && r.total > 5);
   if (exclusivos.length > 0) {
-    h += '<div class="insight-card" style="margin-top:10px">🔎 <b>' + exclusivos.length + ' item(ns) consumido(s) por apenas 1 unidade</b>: '
+    h += '<div class="insight-card" style="margin-top:10px"><b>' + exclusivos.length + ' item(ns) consumido(s) por apenas 1 unidade</b>: '
       + exclusivos.slice(0,5).map(r => '<b>' + esc(r.mat) + '</b> (' + [...r.unitCount][0] + ')').join(', ')
       + (exclusivos.length > 5 ? ' e mais ' + (exclusivos.length-5) + '...' : '') + '</div>';
   }
@@ -6834,7 +6931,7 @@ function buildUnitProfile(allAgg, unitName, allYears) {
   
   // Seção de arquivos de origem
   h += '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:12px;margin-bottom:16px">'
-    + '<div style="font-weight:800;font-size:12px;margin-bottom:6px;color:#0369a1">📂 Arquivos de Origem (' + unitFiles.length + ')</div>'
+    + '<div style="font-weight:800;font-size:12px;margin-bottom:6px;color:#0369a1">Arquivos de Origem (' + unitFiles.length + ')</div>'
     + buildUnitFilesHTML(unitName)
     + '</div>';
   
@@ -6887,7 +6984,7 @@ function buildUnitProfile(allAgg, unitName, allYears) {
       const prev = yrSorted[yrSorted.length-2], curr = yrSorted[yrSorted.length-1];
       const diff = curr[1] - prev[1];
       const pctChange = prev[1] ? Math.round((diff/prev[1])*100) : 0;
-      h += '<div class="insight-card">' + (diff > 0 ? '📈' : diff < 0 ? '📉' : '➡️')
+      h += '<div class="insight-card">' + (diff > 0 ? '' : diff < 0 ? '' : '')
         + ' <b>' + prev[0] + ' → ' + curr[0] + ':</b> '
         + (diff > 0 ? '+' : '') + diff + ' itens (' + (diff >= 0 ? '+' : '') + pctChange + '%). '
         + 'Total ' + prev[0] + ': <span class="val">' + prev[1] + '</span> → '
@@ -6939,7 +7036,7 @@ function buildUnitFilesHTML(unitName) {
     h += '<div style="font-size:10px;font-weight:800;color:var(--muted);margin-top:6px;margin-bottom:3px">' 
       + yr + ' <span style="font-weight:400">(' + fls.length + ' arquivo' + (fls.length>1?'s':'') + ')</span></div>';
     fls.forEach(f => {
-      const yrIcon = f.yearAssumed ? '<span style="color:#f59e0b" title="Ano assumido">⚠️</span>' : '<span style="color:#10b981">🟢</span>';
+      const yrIcon = f.yearAssumed ? '<span style="color:#f59e0b" title="Ano assumido"></span>' : '<span style="color:#10b981"></span>';
       h += '<div style="display:flex;align-items:center;gap:6px;padding:3px 6px;margin-bottom:2px;background:#f8fafc;border-radius:5px;font-size:10px">'
         + yrIcon
         + '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600" title="' + esc(f.fileName) + '">' + esc(f.fileName) + '</span>'
@@ -6987,8 +7084,8 @@ function buildFileInspector(fileId) {
   
   let h = '<div class="fi-body">';
   h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">';
-  h += '<div><b>' + esc(d.fileName) + '</b><br><span style="color:var(--muted);font-size:10px">' + esc(d.weekLabel) + ' · ' + d.year + (d.yearAssumed ? ' ⚠️' : ' 🟢') + '</span></div>';
-  h += '<button class="fi-go-btn" onclick="event.stopPropagation();goToFile(\'' + d.id + '\')">📂 Ir ao Banco de Dados →</button>';
+  h += '<div><b>' + esc(d.fileName) + '</b><br><span style="color:var(--muted);font-size:10px">' + esc(d.weekLabel) + ' · ' + d.year + (d.yearAssumed ? ' ' : ' ') + '</span></div>';
+  h += '<button class="fi-go-btn" onclick="event.stopPropagation();goToFile(\'' + d.id + '\')">Ir ao Banco de Dados →</button>';
   h += '</div>';
   
   d.units.forEach(u => {
@@ -7028,13 +7125,13 @@ function showOrigemUnidade() {
     });
     
     h += '<div class="origem-box">';
-    h += '<div style="font-weight:800;font-size:10px;color:#0369a1;margin-bottom:4px">📂 ' + esc(unitName) + ' — encontrada em ' + files.length + ' arquivo(s):</div>';
+    h += '<div style="font-weight:800;font-size:10px;color:#0369a1;margin-bottom:4px">' + esc(unitName) + ' — encontrada em ' + files.length + ' arquivo(s):</div>';
     
     if (!files.length) {
       h += '<div style="color:var(--muted)">Nenhum arquivo encontrado.</div>';
     } else {
       files.forEach(f => {
-        const yr = f.yearAssumed ? '⚠️' + f.year : '🟢' + f.year;
+        const yr = f.yearAssumed ? '' + f.year : '' + f.year;
         const rawDiff = f.rawNames.filter(r => r !== unitName);
         h += '<div class="origem-item">';
         h += '<span class="origem-fname" title="' + esc(f.fileName) + '">' + esc(f.fileName) + '</span>';
@@ -7070,13 +7167,13 @@ function showOrigemCategoria() {
     });
     
     h += '<div class="origem-box">';
-    h += '<div style="font-weight:800;font-size:10px;color:#0369a1;margin-bottom:4px">📂 Categoria "' + esc(catName) + '" — encontrada em ' + files.length + ' arquivo(s):</div>';
+    h += '<div style="font-weight:800;font-size:10px;color:#0369a1;margin-bottom:4px">Categoria "' + esc(catName) + '" — encontrada em ' + files.length + ' arquivo(s):</div>';
     
     if (!files.length) {
       h += '<div style="color:var(--muted)">Nenhum arquivo encontrado.</div>';
     } else {
       files.forEach(f => {
-        const yr = f.yearAssumed ? '⚠️' + f.year : '🟢' + f.year;
+        const yr = f.yearAssumed ? '' + f.year : '' + f.year;
         h += '<div class="origem-item">';
         h += '<span class="origem-fname" title="' + esc(f.fileName) + '">' + esc(f.fileName) + '</span>';
         h += '<span style="font-size:9px;color:#475569">' + f.units.map(u => esc(u)).join(', ') + '</span>';
@@ -7159,10 +7256,10 @@ function showUnitFiles(btnEl, unitName) {
   panel.className = 'unif-files-panel';
   panel.style.cssText = 'margin-top:8px;border-top:1px solid var(--border);padding-top:8px;max-height:280px;overflow-y:auto';
   
-  let h = '<div style="font-size:10px;font-weight:800;color:var(--muted);margin-bottom:6px">📂 ARQUIVOS QUE CONTÊM ESTA UNIDADE (' + files.length + ')</div>';
+  let h = '<div style="font-size:10px;font-weight:800;color:var(--muted);margin-bottom:6px">ARQUIVOS QUE CONTÊM ESTA UNIDADE (' + files.length + ')</div>';
   
   files.forEach(f => {
-    const yrIcon = f.yearAssumed ? '⚠️' : '🟢';
+    const yrIcon = f.yearAssumed ? '' : '';
     const cats = f.units.flatMap(u => u.categories);
     const rawName = f.units[0]?.rawUnit || '';
     const hasRawDiff = rawName && rawName !== unitName;
@@ -7279,8 +7376,8 @@ function doPrintBuracos() {
   const okCount = results.filter(r => r.missing.length === 0).length;
   
   body += '<table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:16px;border:1px solid #e2e8f0">';
-  body += '<tr><td style="padding:6px 10px;background:#f0fdf4;font-weight:700;border:1px solid #e2e8f0">✅ Completos</td><td style="padding:6px 10px;font-weight:800;border:1px solid #e2e8f0">' + okCount + '</td>';
-  body += '<td style="padding:6px 10px;background:#fef2f2;font-weight:700;border:1px solid #e2e8f0">🔴 Com Falhas</td><td style="padding:6px 10px;font-weight:800;border:1px solid #e2e8f0">' + (results.length - okCount) + '</td>';
+  body += '<tr><td style="padding:6px 10px;background:#f0fdf4;font-weight:700;border:1px solid #e2e8f0">Completos</td><td style="padding:6px 10px;font-weight:800;border:1px solid #e2e8f0">' + okCount + '</td>';
+  body += '<td style="padding:6px 10px;background:#fef2f2;font-weight:700;border:1px solid #e2e8f0">Com Falhas</td><td style="padding:6px 10px;font-weight:800;border:1px solid #e2e8f0">' + (results.length - okCount) + '</td>';
   body += '<td style="padding:6px 10px;background:#f8fafc;font-weight:700;border:1px solid #e2e8f0">Períodos Faltando</td><td style="padding:6px 10px;font-weight:800;border:1px solid #e2e8f0">' + totalMissing + '</td>';
   body += '<td style="padding:6px 10px;background:#fefce8;font-weight:700;border:1px solid #e2e8f0">Dias Descobertos</td><td style="padding:6px 10px;font-weight:800;border:1px solid #e2e8f0">' + totalMissingDays + '</td></tr>';
   body += '</table>';
@@ -7297,7 +7394,7 @@ function doPrintBuracos() {
     body += '<div><span style="font-size:14px">' + tipo.icon + '</span> <b style="font-size:13px">' + esc(r.unit) + '</b>';
     body += '<span style="font-size:10px;color:#475569;margin-left:8px">' + r.files.length + ' arquivo(s) · Cadência ~' + (r.cadenceDays||7) + ' dias</span></div>';
     body += '<span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px;' + (hasMissing ? 'background:#fee2e2;color:#991b1b' : 'background:#d1fae5;color:#065f46') + '">';
-    body += hasMissing ? '🔴 ' + r.missingDays + ' dias sem abastecimento' : '✅ Completo';
+    body += hasMissing ? '' + r.missingDays + ' dias sem abastecimento' : 'Completo';
     body += '</span></div>';
     
     // Timeline visual (compact for print)
@@ -7306,7 +7403,7 @@ function doPrintBuracos() {
       const bg = t.type === 'covered' ? '#d1fae5' : '#fee2e2';
       const border = t.type === 'covered' ? '#6ee7b7' : '#fca5a5';
       body += '<div style="background:' + bg + ';border:1px solid ' + border + ';border-radius:4px;padding:2px 6px;font-size:8px;font-weight:700">';
-      body += (t.type === 'covered' ? '✅ ' : '❌ ') + t.label + ' (' + t.days + 'd)';
+      body += (t.type === 'covered' ? '' : '') + t.label + ' (' + t.days + 'd)';
       body += '</div>';
     });
     body += '</div>';
@@ -7340,7 +7437,7 @@ function doPrintBuracos() {
       });
       body += '</table></div>';
     } else {
-      body += '<div style="padding:6px 12px;font-size:10px;color:#065f46">✅ Abastecimento contínuo em todo o período analisado.</div>';
+      body += '<div style="padding:6px 12px;font-size:10px;color:#065f46">Abastecimento contínuo em todo o período analisado.</div>';
     }
     
     body += '</div>';
@@ -7399,7 +7496,7 @@ function renderBuracos() {
   
   const unitNames = Object.keys(unitEntries).sort();
   if (!unitNames.length) {
-    el.innerHTML = '<div class="empty"><div class="ic">🕳️</div>Nenhum abrigo/Centro Pop nos dados' + (selYear ? ' de ' + selYear : '') + '.</div>';
+    el.innerHTML = '<div class="empty"><div class="ic"></div>Nenhum abrigo/Centro Pop nos dados' + (selYear ? ' de ' + selYear : '') + '.</div>';
     return;
   }
   
@@ -7427,14 +7524,14 @@ function renderBuracos() {
   const totalMissingDays = results.reduce((s,r) => s + r.missingDays, 0);
   
   let h = '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#0c4a6e">'
-    + '📅 <b>Data de hoje:</b> ' + fmtD(today)
+    + '<b>Data de hoje:</b> ' + fmtD(today)
     + ' · <b>Período analisado:</b> ' + fmtD(periodStart) + ' até ' + fmtD(periodEnd)
     + ' (' + Math.round((periodEnd - periodStart) / 86400000) + ' dias)'
     + (selYear ? ' · <b>Ano filtrado:</b> ' + selYear : ' · Todos os anos')
     + '</div>';
   h += '<div class="gap-summary">';
-  h += '<div class="gap-sum-card"><div class="gap-sum-val" style="color:#059669">' + ok + '</div><div class="gap-sum-lbl">✅ Completos</div></div>';
-  h += '<div class="gap-sum-card"><div class="gap-sum-val" style="color:#dc2626">' + withGaps.length + '</div><div class="gap-sum-lbl">🔴 Com Falhas</div></div>';
+  h += '<div class="gap-sum-card"><div class="gap-sum-val" style="color:#059669">' + ok + '</div><div class="gap-sum-lbl">Completos</div></div>';
+  h += '<div class="gap-sum-card"><div class="gap-sum-val" style="color:#dc2626">' + withGaps.length + '</div><div class="gap-sum-lbl">Com Falhas</div></div>';
   h += '<div class="gap-sum-card"><div class="gap-sum-val">' + totalMissing + '</div><div class="gap-sum-lbl">Períodos Faltando</div></div>';
   h += '<div class="gap-sum-card"><div class="gap-sum-val">' + totalMissingDays + '</div><div class="gap-sum-lbl">Dias Descobertos</div></div>';
   h += '<div class="gap-sum-card"><div class="gap-sum-val">' + unitNames.length + '</div><div class="gap-sum-lbl">Monitorados</div></div>';
@@ -7457,7 +7554,7 @@ function renderBuracos() {
     h += fmtD(r.periodStart) + ' até ' + fmtD(r.periodEnd) + ' (' + r.totalSpanDays + ' dias)';
     h += '</div></div>';
     h += '<span class="gap-badge ' + (hasMissing ? (r.missing.length > 3 ? 'gap-badge-danger' : 'gap-badge-warn') : 'gap-badge-ok') + '">' 
-      + (hasMissing ? '🔴 ' + r.missingDays + ' dias sem abastecimento' : '✅ Abastecimento contínuo') + '</span>';
+      + (hasMissing ? '' + r.missingDays + ' dias sem abastecimento' : 'Abastecimento contínuo') + '</span>';
     h += '</div>';
     
     // Body
@@ -7465,19 +7562,19 @@ function renderBuracos() {
     
     // ─── MAPA DE ARQUIVOS ────────────────────────
     h += '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:10px;margin-bottom:10px">';
-    h += '<div style="font-weight:800;font-size:11px;color:#0369a1;margin-bottom:6px">📂 Arquivos Carregados — Mapa Arquivo ↔ Período (' + r.files.length + ')</div>';
+    h += '<div style="font-weight:800;font-size:11px;color:#0369a1;margin-bottom:6px">Arquivos Carregados — Mapa Arquivo ↔ Período (' + r.files.length + ')</div>';
     h += '<div class="tbl-wrap"><table style="width:100%;font-size:11px;border-collapse:collapse">';
     h += '<tr style="font-size:9px;color:var(--muted);font-weight:700;background:#e0f2fe"><td style="padding:4px 6px">#</td><td style="padding:4px 6px">Nome do Arquivo</td><td style="padding:4px 6px">Data Início</td><td style="padding:4px 6px">Data Fim</td><td style="padding:4px 6px">Duração</td><td style="padding:4px 6px">Ano</td></tr>';
     r.files.forEach((f, i) => {
       const dur = f.ws && f.we ? Math.round((f.we - f.ws) / 86400000) + 1 : '?';
-      const discWarn = f.discrepancy ? '<br><span style="color:#d97706;font-size:9px">⚠️ Arquivo diz <b>'+esc(f.discrepancy.fileDate)+'</b> mas planilha diz <b>'+esc(f.discrepancy.contentDate)+'</b></span>' : '';
+      const discWarn = f.discrepancy ? '<br><span style="color:#d97706;font-size:9px">Arquivo diz <b>'+esc(f.discrepancy.fileDate)+'</b> mas planilha diz <b>'+esc(f.discrepancy.contentDate)+'</b></span>' : '';
       h += '<tr style="border-bottom:1px solid #e0f2fe;'+(f.discrepancy?'background:#fff7ed':'')+'">'
         + '<td style="padding:4px 6px;font-weight:800;color:var(--muted)">' + (i+1) + '</td>'
         + '<td style="padding:4px 6px;font-weight:600;max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + esc(f.fileName) + '">' + esc(f.fileName) + discWarn + '</td>'
         + '<td style="padding:4px 6px;font-weight:700">' + (f.ws ? fmtD(f.ws) : '—') + '</td>'
         + '<td style="padding:4px 6px">' + (f.we ? fmtD(f.we) : '—') + '</td>'
         + '<td style="padding:4px 6px;color:var(--accent);font-weight:700">' + dur + ' dias</td>'
-        + '<td style="padding:4px 6px">' + (f.yearAssumed ? '⚠️ ' + f.year + ' (assumido)' : '🟢 ' + f.year) + '</td>'
+        + '<td style="padding:4px 6px">' + (f.yearAssumed ? '' + f.year + ' (assumido)' : '' + f.year) + '</td>'
         + '</tr>';
     });
     h += '</table></div></div>';
@@ -7485,12 +7582,12 @@ function renderBuracos() {
     // ─── LINHA DO TEMPO VISUAL ────────────────────────
     if (r.timeline.length > 0) {
       h += '<div style="margin-bottom:10px">';
-      h += '<div style="font-weight:800;font-size:11px;margin-bottom:6px">📅 Linha do Tempo — Períodos Cobertos e Buracos</div>';
+      h += '<div style="font-weight:800;font-size:11px;margin-bottom:6px">Linha do Tempo — Períodos Cobertos e Buracos</div>';
       h += '<div class="gap-timeline-wrap">';
       r.timeline.forEach(t => {
         const bg = t.type === 'covered' ? '#d1fae5' : t.type === 'gap' ? '#fee2e2' : '#fef3c7';
         const border = t.type === 'covered' ? '#6ee7b7' : t.type === 'gap' ? '#fca5a5' : '#fcd34d';
-        const icon = t.type === 'covered' ? '✅' : t.type === 'gap' ? '❌' : '⚠️';
+        const icon = t.type === 'covered' ? '' : t.type === 'gap' ? '' : '';
         h += '<div class="gap-tl-block" style="background:' + bg + ';border:1px solid ' + border + '" title="' + esc(t.tooltip) + '">'
           + '<div style="font-weight:700">' + icon + ' ' + t.label + '</div>'
           + '<div style="color:var(--muted);font-size:9px">' + t.days + ' dias' + (t.file ? ' · ' + esc(t.file.length > 30 ? t.file.substring(0,28)+'...' : t.file) : '') + '</div>'
@@ -7502,7 +7599,7 @@ function renderBuracos() {
     // ─── PERÍODOS FALTANTES ────────────────────────
     if (r.missing.length > 0) {
       h += '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px;margin-bottom:8px">';
-      h += '<div style="font-weight:800;font-size:12px;color:#991b1b;margin-bottom:8px">🔴 Períodos Faltantes (' + r.missing.length + ') — Total: ' + r.missingDays + ' dias sem abastecimento</div>';
+      h += '<div style="font-weight:800;font-size:12px;color:#991b1b;margin-bottom:8px">Períodos Faltantes (' + r.missing.length + ') — Total: ' + r.missingDays + ' dias sem abastecimento</div>';
       h += '<div style="font-size:11px;color:#991b1b;margin-bottom:8px">Estas são as datas que <b>não possuem planilha</b> no banco de dados. A coordenadora precisa providenciar os arquivos correspondentes:</div>';
       h += '<div class="tbl-wrap"><table style="width:100%;font-size:11px;border-collapse:collapse">';
       h += '<tr style="font-size:9px;color:#991b1b;font-weight:700;background:#fee2e2"><td style="padding:4px 6px">#</td><td style="padding:4px 6px">De (início)</td><td style="padding:4px 6px">Até (fim)</td><td style="padding:4px 6px">Dias</td><td style="padding:4px 6px">Observação</td></tr>';
@@ -7517,11 +7614,11 @@ function renderBuracos() {
       });
       h += '</table></div></div>';
     } else {
-      h += '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px;font-size:12px;color:#166534">✅ <b>Abastecimento contínuo.</b> Todo o período de ' + fmtD(r.periodStart) + ' a ' + fmtD(r.periodEnd) + ' está coberto por planilhas no banco de dados.</div>';
+      h += '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px;font-size:12px;color:#166534"><b>Abastecimento contínuo.</b> Todo o período de ' + fmtD(r.periodStart) + ' a ' + fmtD(r.periodEnd) + ' está coberto por planilhas no banco de dados.</div>';
     }
     
     if (r.hasAssumedYear) {
-      h += '<div style="background:#fefce8;border:1px solid #fde047;border-radius:6px;padding:6px 10px;font-size:10px;color:#92400e;margin-top:6px">⚠️ Algum(ns) arquivo(s) com ano assumido. Corrija na aba Relatório → Banco de Dados.</div>';
+      h += '<div style="background:#fefce8;border:1px solid #fde047;border-radius:6px;padding:6px 10px;font-size:10px;color:#92400e;margin-top:6px">Algum(ns) arquivo(s) com ano assumido. Corrija na aba Relatório → Banco de Dados.</div>';
     }
     
     h += '</div></div>';
@@ -7665,7 +7762,7 @@ function renderUnificar() {
   });
   
   if (!allRawUnits.size) {
-    el.innerHTML = '<div class="empty"><div class="ic">🔗</div>Carregue planilhas na aba Relatório para ver as unidades.</div>';
+    el.innerHTML = '<div class="empty"><div class="ic"></div>Carregue planilhas na aba Relatório para ver as unidades.</div>';
     if (aliasEl) aliasEl.innerHTML = '';
     if (mergePanel) mergePanel.style.display = 'none';
     return;
@@ -7684,7 +7781,7 @@ function renderUnificar() {
     if (UNIF_SEL.length >= 2) {
       mergePanel.style.display = 'block';
       let mp = '<div class="unif-merge-panel">';
-      mp += '<div style="font-weight:800;font-size:14px;margin-bottom:8px">🔗 Unificar ' + UNIF_SEL.length + ' unidade(s)</div>';
+      mp += '<div style="font-weight:800;font-size:14px;margin-bottom:8px">Unificar ' + UNIF_SEL.length + ' unidade(s)</div>';
       mp += '<p style="font-size:11px;color:var(--muted);margin-bottom:10px">Todas serão renomeadas para o nome canônico abaixo em todo o banco de dados.</p>';
       mp += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px">';
       UNIF_SEL.forEach(u => {
@@ -7694,7 +7791,7 @@ function renderUnificar() {
       mp += '<label class="lbl">Nome canônico (como vai aparecer nos relatórios):</label>';
       mp += '<input class="input" id="unifTarget" value="' + esc(UNIF_SEL[0]) + '" style="margin-bottom:10px">';
       mp += '<div style="display:flex;gap:8px">';
-      mp += '<button class="btn btn-p" onclick="doUnifMerge()">✅ Unificar</button>';
+      mp += '<button class="btn btn-p" onclick="doUnifMerge()">Unificar</button>';
       mp += '<button class="btn btn-s" onclick="clearUnifSel()">Cancelar</button>';
       mp += '</div></div>';
       mergePanel.innerHTML = mp;
@@ -7718,7 +7815,7 @@ function renderUnificar() {
     
     if (rawList.length > 0) {
       h += '<div style="margin-top:6px;font-size:10px;color:#d97706;background:#fefce8;padding:4px 8px;border-radius:6px">';
-      h += '📝 Também aparece como: <b>' + rawList.map(r => esc(r)).join('</b>, <b>') + '</b>';
+      h += 'Também aparece como: <b>' + rawList.map(r => esc(r)).join('</b>, <b>') + '</b>';
       h += '</div>';
     }
     h += '</div>';
@@ -7737,7 +7834,7 @@ function renderUnificar() {
   if (aliasEl) {
     const rules = typeof HIST_ALIASES === 'object' && !Array.isArray(HIST_ALIASES) ? Object.entries(HIST_ALIASES) : [];
     if (rules.length) {
-      let ah = '<div style="font-weight:800;font-size:13px;margin-bottom:10px">📜 Regras de Unificação Ativas (' + rules.length + ')</div>';
+      let ah = '<div style="font-weight:800;font-size:13px;margin-bottom:10px">Regras de Unificação Ativas (' + rules.length + ')</div>';
       rules.forEach(([from, to]) => {
         ah += '<div class="unif-alias">';
         ah += '<span style="background:#fee2e2;color:#991b1b;padding:3px 10px;border-radius:8px;font-size:11px;font-weight:700">' + esc(from) + '</span>';
@@ -7747,7 +7844,7 @@ function renderUnificar() {
         ah += '<button class="btn btn-s btn-sm" style="color:var(--red);border-color:#fca5a5;font-size:10px" onclick="removeAlias(\'' + from.replace(/'/g, "\\'") + '\')">↩️ Desfazer</button>';
         ah += '</div>';
       });
-      ah += '<div style="margin-top:8px"><button class="btn btn-s btn-sm" style="font-size:10px;color:#dc2626" onclick="clearAllAliases()">🗑️ Desfazer todas as unificações</button></div>';
+      ah += '<div style="margin-top:8px"><button class="btn btn-s btn-sm" style="font-size:10px;color:#dc2626" onclick="clearAllAliases()">Desfazer todas as unificações</button></div>';
       aliasEl.innerHTML = ah;
     } else {
       aliasEl.innerHTML = '<div style="font-size:11px;color:var(--muted);text-align:center;padding:10px">Nenhuma regra de unificação ativa.</div>';
@@ -7802,7 +7899,7 @@ function buildReqStats(){
   if(!nReq && !nSep && !nPronto && !nEntregue) return null;
   
   let h='<div style="margin-bottom:20px">'
-    +'<h2 style="font-size:16px;font-weight:800;margin-bottom:12px">🔄 Fluxo de Requisições Hoje</h2>'
+    +'<h2 style="font-size:16px;font-weight:800;margin-bottom:12px">Fluxo de Requisições Hoje</h2>'
     +'<div class="pan-grid">'
     +kpi(nReq,'Na Fila','aguardando','','#6366f1')
     +kpi(nSep,'Separando','em andamento','','#f59e0b')
@@ -7812,317 +7909,9 @@ function buildReqStats(){
   return h;
 }
 
-function buildPainel(){
-  const el=document.getElementById('panContent');
-  if(HIST_DB.length > 50) el.innerHTML='<div style="text-align:center;padding:40px;color:var(--muted)"><div style="font-size:24px;margin-bottom:8px">⏳</div>Calculando painel com '+HIST_DB.length+' arquivo(s)...</div>';
-  
-  if (typeof getFeriadosISOSetCached === 'function') {
-    getFeriadosISOSetCached().then(set => {
-      FERIADOS_SET = set || new Set();
-      requestAnimationFrame(()=>{ _buildPainelImpl(); });
-    }).catch(err => {
-      console.error(err);
-      requestAnimationFrame(()=>{ _buildPainelImpl(); });
-    });
-  } else {
-    requestAnimationFrame(()=>{ _buildPainelImpl(); });
-  }
-}
 function _buildPainelImpl(){
-  if(window.__semcasHistDB && window.__semcasHistDB.length>0) HIST_DB=window.__semcasHistDB;
-  if(getSemcasHistDB() && getSemcasHistDB().length>0) HIST_DB=getSemcasHistDB();
-  HIST_DB_PARTIAL=!!window.__semcasHistDBPartial;
-  applyAliasesToHistDB();
-  const el=document.getElementById('panContent');
-  _panUnit = document.getElementById('panUnitSel')?.value || '';
-  
-  if(!HIST_DB.length){
-    document.getElementById('panFilters').style.display='none';
-    const reqStats = buildReqStats();
-    if(!reqStats) {
-      el.innerHTML='<div style="text-align:center;padding:60px 20px;color:#64748b"><div style="font-size:48px;margin-bottom:12px">📊</div>'
-        +'<b style="font-size:16px;color:#0f172a">Painel do Almoxarifado</b>'
-        +'<br><span style="font-size:13px">Carregue planilhas no <b>Banco de Dados</b> para gerar o painel.</span></div>';
-    } else {
-      el.innerHTML=reqStats;
-    }
-    return;
-  }
-
-  const allAggFull=getCachedAgg(HIST_DB,new Set(),new Set());
-  if(!allAggFull.length){
-    el.innerHTML='<div class="pan-empty"><div class="ic">⚠️</div>'
-      +'<b>Sem itens com quantidade no banco.</b>'
-      +'<br><span style="font-size:12px">'+HIST_DB.length+' arquivo(s) carregado(s), mas sem itens com qtd > 0.</span></div>';
-    return;
-  }
-
-  const allUnitsRaw=[...new Set(allAggFull.map(r=>r.unit))].sort();
-  const allYears=[...new Set(HIST_DB.map(e=>e.year).filter(Boolean))].sort();
-  
-  renderPanFilters(allUnitsRaw);
-  
-  let allAgg = allAggFull;
-  let allUnits = allUnitsRaw;
-  const filteredTipo = _panTipo ? UNIT_TYPES.find(t => t.id === _panTipo) : null;
-  
-  if (_panUnit) {
-    allAgg = allAggFull.filter(r => r.unit === _panUnit);
-    allUnits = [_panUnit];
-  } else if (_panTipo) {
-    const tipoUnits = new Set(allUnitsRaw.filter(u => classifyUnit(u).id === _panTipo));
-    allAgg = allAggFull.filter(r => tipoUnits.has(r.unit));
-    allUnits = [...tipoUnits].sort();
-  }
-  const totalWeeks=new Set(HIST_DB.map(e=>e.weekStart)).size;
-  const totalMonths=new Set(HIST_DB.map(e=>weekMonth(e))).size;
-  const totalDeliveries=allAgg.reduce((s,r)=>s+r.total,0);
-  const nAssumed=HIST_DB.filter(e=>e.yearAssumed).length;
-
-  let h='';
-
-  // ─── Alertas comuns ───
-  if(HIST_DB_PARTIAL){
-    h+='<div class="alert-card alert-blue"><div class="alert-icon">📉</div>'
-      +'<div class="alert-body"><b>Modo econômico ativo</b> '
-      +'<button class="btn btn-s btn-sm" style="margin-left:6px" onclick="loadAllHistDBAndRefresh()">Carregar tudo</button>'
-      +'</div></div>';
-  }
-  if(nAssumed>0){
-    h+='<div class="alert-card alert-yellow"><div class="alert-icon">⚠️</div>'
-      +'<div class="alert-body"><b>'+nAssumed+' arquivo(s) com ano não detectado</b></div></div>';
-  }
-
-  // ═══════════════════════════════════════════════════
-  // SUB-ABA: GERAL
-  // ═══════════════════════════════════════════════════
-  if (_panSub === 'geral') {
-    const reqStatsHtml = buildReqStats();
-    if(reqStatsHtml) h += reqStatsHtml;
-
-    const weeksSorted = [...new Set(HIST_DB.map(e => e.weekStart).filter(Boolean))].sort();
-    const firstWeek = weeksSorted[0] || '';
-    const lastWeek = weeksSorted[weeksSorted.length - 1] || '';
-    const headerTip = (firstWeek && lastWeek) ? ('Período do banco: ' + firstWeek + ' → ' + lastWeek) : '';
-
-    h += '<div class="pan-grid">'
-      + kpi(allUnits.length, 'Unidades ativas', 'com registro', '', '#059669')
-      + kpi(totalDeliveries.toLocaleString('pt-BR'), 'Itens entregues', 'total acumulado', headerTip, '#dc2626')
-      + kpi(totalMonths, 'Meses', 'com histórico', '', '#0891b2')
-      + kpi(totalWeeks, 'Semanas', 'com envio', '', '#0284c7')
-      + kpi(Math.round(totalDeliveries / Math.max(totalMonths, 1)).toLocaleString('pt-BR'), 'Média/mês', 'itens (geral)', '', '#2563eb')
-      + kpi(allYears.length, 'Anos', 'no banco', allYears.join(', '), '#6d28d9')
-      + '</div>';
-
-    h += panSection('📌 Destaques', 'O que mais consome e quem mais consome', buildDestaquesPainel(allAgg, allUnits));
-    h += panSection('🏷️ Consumo por tipo de unidade', 'Top item e unidade de maior consumo por tipo', buildResumoPorTipoDeUnidade(allAgg, allUnitsRaw));
-    h += panSection('🚨 Pontos de atenção', 'Alertas úteis e objetivos (sem poluir a tela)', buildAlertas(allAgg, totalWeeks, totalMonths));
-  }
-  // ═══════════════════════════════════════════════════
-  // SUB-ABA: ITENS
-  // ═══════════════════════════════════════════════════
-  else if (_panSub === 'itens') {
-    h += '<h2 style="font-size:16px;font-weight:800;margin-bottom:4px">🥫 Itens</h2>'
-      + '<p style="font-size:12px;color:var(--muted);margin-bottom:14px">Itens mais consumidos e quem mais consome cada item.</p>';
-    h += panSection('🥫 Itens mais consumidos', 'Top itens do período selecionado', buildTopItems(allAgg));
-    h += panSection('🏢 Maiores consumidores por item', 'Para os itens mais consumidos, quem puxa o consumo', buildMaioresConsumidoresPorItem(allAgg));
-  }
-  // ═══════════════════════════════════════════════════
-  // SUB-ABA: TIPOS
-  // ═══════════════════════════════════════════════════
-  else if (_panSub === 'tipos') {
-    h += '<h2 style="font-size:16px;font-weight:800;margin-bottom:4px">🏷️ Tipos de Unidade</h2>'
-      + '<p style="font-size:12px;color:var(--muted);margin-bottom:14px">Resumo de consumo por tipo e comparativos.</p>';
-    h += panSection('🏷️ Consumo por tipo de unidade', 'Top item e unidade de maior consumo por tipo', buildResumoPorTipoDeUnidade(allAgg, allUnitsRaw));
-    if (filteredTipo && !_panUnit && allUnits.length >= 2) {
-      h += panSection(filteredTipo.icon + ' Comparativo — ' + filteredTipo.label,
-        'Ranking entre as ' + allUnits.length + ' unidades do tipo',
-        buildComparativo(allAgg, allUnits, filteredTipo.label, filteredTipo.color));
-    }
-  }
-  // ═══════════════════════════════════════════════════
-  // SUB-ABA: ALERTAS
-  // ═══════════════════════════════════════════════════
-  else if (_panSub === 'alertas') {
-    h += '<h2 style="font-size:16px;font-weight:800;margin-bottom:4px">🚨 Alertas e Distribuição</h2>'
-      + '<p style="font-size:12px;color:var(--muted);margin-bottom:14px">Pontos de atenção, categorias e sazonalidade.</p>';
-    h += panSection('🚨 Pontos de atenção', 'Alertas úteis e objetivos (sem poluir a tela)', buildAlertas(allAgg, totalWeeks, totalMonths));
-    h += panSection('🗂️ Distribuição por categoria', 'Quanto cada categoria representa', buildCatDistrib(allAgg, totalDeliveries));
-    h += panSection('📅 Sazonalidade mensal', 'Meses com maior e menor demanda', buildSazonalidade());
-  }
-
-  // ═══════════════════════════════════════════════════
-  // SUB-ABA: ENTREGAS REALIZADAS
-  // ═══════════════════════════════════════════════════
-  else if (_panSub === 'entregas') {
-    h+='<h2 style="font-size:16px;font-weight:800;margin-bottom:4px">📦 Entregas Realizadas</h2>'
-      +'<p style="font-size:12px;color:var(--muted);margin-bottom:14px">Quantidade real entregue a cada unidade — dados do banco de planilhas.</p>';
-    
-    // Se filtrou por unidade, mostra detalhamento completo
-    if (_panUnit) {
-      h += buildUnitProfile(allAgg, _panUnit, allYears);
-    } else {
-      // Lista cada unidade com seus itens entregues
-      const sorted = [...allUnits].sort((a,b) => {
-        const ta = allAgg.filter(r=>r.unit===a).reduce((s,r)=>s+r.total,0);
-        const tb = allAgg.filter(r=>r.unit===b).reduce((s,r)=>s+r.total,0);
-        return tb - ta;
-      });
-      sorted.forEach(u => {
-        const rows = allAgg.filter(r => r.unit === u).sort((a,b) => b.total - a.total);
-        const tot = rows.reduce((s,r) => s + r.total, 0);
-        const tipo = classifyUnit(u);
-        h += '<div class="pan-section" style="margin-bottom:12px">'
-          +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;cursor:pointer" onclick="document.getElementById(\'panUnitSel\').value=\''+esc(u)+'\';buildPainel()">'
-          +'<h3 style="font-size:14px;font-weight:700;margin:0">'+tipo.icon+' '+esc(u)+'</h3>'
-          +'<span style="font-size:12px;color:#059669;font-weight:700">'+tot.toLocaleString('pt-BR')+' itens entregues</span>'
-          +'</div>'
-          +'<table class="pan-table"><thead><tr><th>Material</th><th>Categoria</th><th>Total Entregue</th><th>Envios</th></tr></thead><tbody>';
-        rows.slice(0, 10).forEach(r => {
-          h += '<tr><td style="font-weight:600">'+esc(normMat(r.item))+'</td><td style="font-size:11px;color:var(--muted)">'+esc(r.cat)+'</td>'
-            +'<td style="font-weight:700;color:#059669">'+r.total.toLocaleString('pt-BR')+'</td>'
-            +'<td style="font-size:11px;color:var(--muted)">'+r.count+'x</td></tr>';
-        });
-        if (rows.length > 10) h += '<tr><td colspan="4" style="font-size:11px;color:var(--muted);text-align:center">... e mais '+(rows.length-10)+' itens. Clique na unidade para ver tudo.</td></tr>';
-        h += '</tbody></table></div>';
-      });
-    }
-  }
-
-  // ═══════════════════════════════════════════════════
-  // SUB-ABA: MÉDIAS
-  // ═══════════════════════════════════════════════════
-  else if (_panSub === 'medias') {
-    h+='<h2 style="font-size:16px;font-weight:800;margin-bottom:4px">📊 Médias de Consumo</h2>'
-      +'<p style="font-size:12px;color:var(--muted);margin-bottom:14px">Médias semanal, mensal e anual — por categoria, tipo de unidade e unidade individual.</p>';
-    
-    const totalYears = allYears.length || 1;
-    
-    // ── Média por Unidade Individual (semanal/mensal/anual) ──
-    h += '<div class="pan-section"><h3>🏢 Média por Unidade</h3>'
-      +'<p class="sub">Consumo total e médias por período de cada unidade (baseado em dias úteis, seg-sex, excluindo feriados)</p>'
-      +'<table class="pan-table"><thead><tr><th>Unidade</th><th>Tipo</th><th>Total Entregue</th><th>Média/Semana</th><th>Média/Mês</th><th>Média/Ano</th></tr></thead><tbody>';
-    
-    const unitTotals = {};
-    allAgg.forEach(r => {
-      if (!unitTotals[r.unit]) unitTotals[r.unit] = 0;
-      unitTotals[r.unit] += r.total;
-    });
-    const unitSorted = Object.entries(unitTotals).sort((a,b) => b[1] - a[1]);
-    
-    unitSorted.forEach(([unit, total]) => {
-      const tipo = classifyUnit(unit);
-      const avgWeek = totalWeeks > 0 ? (total / totalWeeks).toFixed(1) : '—';
-      const avgMonth = totalMonths > 0 ? (total / totalMonths).toFixed(1) : '—';
-      const avgYear = totalYears > 0 ? (total / totalYears).toFixed(0) : '—';
-      h += '<tr><td style="font-weight:700;font-size:12px;cursor:pointer" onclick="document.getElementById(\'panUnitSel\').value=\''+esc(unit)+'\';buildPainel()">'+tipo.icon+' '+esc(unit)+'</td>'
-        +'<td style="font-size:11px;color:var(--muted)">'+tipo.label+'</td>'
-        +'<td style="font-weight:700">'+total.toLocaleString('pt-BR')+'</td>'
-        +'<td style="color:#0891b2;font-weight:700">'+avgWeek+'</td>'
-        +'<td style="color:#2563eb;font-weight:700">'+avgMonth+'</td>'
-        +'<td style="color:#7c3aed;font-weight:700">'+avgYear+'</td></tr>';
-    });
-    h += '</tbody></table></div>';
-    
-    // ── Média por Categoria ──
-    const catMap = {};
-    allAgg.forEach(r => {
-      const cat = getCanonicalCat(r.cat) || r.cat;
-      if (!catMap[cat]) catMap[cat] = { total: 0, items: new Set() };
-      catMap[cat].total += r.total;
-      catMap[cat].items.add(normMat(r.item || r.material));
-    });
-    const catSorted = Object.entries(catMap).sort((a,b) => b[1].total - a[1].total);
-    h += '<div class="pan-section"><h3>📁 Média por Categoria</h3>'
-      +'<table class="pan-table"><thead><tr><th>Categoria</th><th>Total</th><th>Média/Semana</th><th>Média/Mês</th><th>Média/Ano</th><th>Itens</th></tr></thead><tbody>';
-    catSorted.forEach(([cat, data]) => {
-      h += '<tr><td style="font-weight:600">'+esc(cat)+'</td>'
-        +'<td>'+data.total.toLocaleString('pt-BR')+'</td>'
-        +'<td style="color:#0891b2;font-weight:600">'+(totalWeeks>0?(data.total/totalWeeks).toFixed(1):'—')+'</td>'
-        +'<td style="color:#2563eb;font-weight:700">'+(totalMonths>0?(data.total/totalMonths).toFixed(1):'—')+'</td>'
-        +'<td style="color:#7c3aed;font-weight:600">'+(totalYears>0?(data.total/totalYears).toFixed(0):'—')+'</td>'
-        +'<td>'+data.items.size+'</td></tr>';
-    });
-    h += '</tbody></table></div>';
-    
-    // ── Média por Tipo de Unidade ──
-    const tipoMap = {};
-    allAgg.forEach(r => {
-      const tipo = classifyUnit(r.unit);
-      const key = tipo.label;
-      if (!tipoMap[key]) tipoMap[key] = { total: 0, units: new Set(), icon: tipo.icon };
-      tipoMap[key].total += r.total;
-      tipoMap[key].units.add(r.unit);
-    });
-    h += '<div class="pan-section"><h3>🏷️ Média por Tipo de Unidade</h3>'
-      +'<table class="pan-table"><thead><tr><th>Tipo</th><th>Unidades</th><th>Total</th><th>Média/Mês</th><th>Média/Mês por Unid.</th><th>Média/Ano</th></tr></thead><tbody>';
-    Object.entries(tipoMap).sort((a,b) => b[1].total - a[1].total).forEach(([tipo, data]) => {
-      const avg = totalMonths > 0 ? (data.total / totalMonths).toFixed(1) : '—';
-      const avgPerUnit = totalMonths > 0 && data.units.size > 0 ? (data.total / totalMonths / data.units.size).toFixed(1) : '—';
-      const avgYear = totalYears > 0 ? (data.total / totalYears).toFixed(0) : '—';
-      h += '<tr><td>'+data.icon+' '+esc(tipo)+'</td><td>'+data.units.size+'</td>'
-        +'<td>'+data.total.toLocaleString('pt-BR')+'</td>'
-        +'<td style="font-weight:700;color:#2563eb">'+avg+'</td>'
-        +'<td style="color:#059669;font-weight:600">'+avgPerUnit+'</td>'
-        +'<td style="color:#7c3aed;font-weight:600">'+avgYear+'</td></tr>';
-    });
-    h += '</tbody></table></div>';
-    
-    h += panSection('📊 Variabilidade', 'CV alto = consumo irregular — itens com maior oscilação de demanda', buildVariabilidade(allAgg));
-  }
-
-  // ═══════════════════════════════════════════════════
-  // SUB-ABA: RANKINGS
-  // ═══════════════════════════════════════════════════
-  else if (_panSub === 'rankings') {
-    h+='<h2 style="font-size:16px;font-weight:800;margin-bottom:4px">🏆 Rankings</h2>'
-      +'<p style="font-size:12px;color:var(--muted);margin-bottom:14px">Quem mais recebe cada material, quais itens são mais pedidos, e ranking geral.</p>';
-    
-    h+='<div class="two-col">'
-      +panSection('📦 Top 15 Itens mais Entregues','Total acumulado de todas as unidades',buildTopItems(allAgg))
-      +panSection('🏢 Ranking de Unidades','Quem mais recebeu materiais',buildUnitRanking(allAgg,allUnits))
-      +'</div>';
-    
-    // Ranking: para cada item popular, quais unidades mais recebem
-    const itemMap = {};
-    allAgg.forEach(r => {
-      const mat = normMat(r.item);
-      if (!itemMap[mat]) itemMap[mat] = { total: 0, units: {} };
-      itemMap[mat].total += r.total;
-      if (!itemMap[mat].units[r.unit]) itemMap[mat].units[r.unit] = 0;
-      itemMap[mat].units[r.unit] += r.total;
-    });
-    const topItems = Object.entries(itemMap).sort((a,b) => b[1].total - a[1].total).slice(0, 12);
-    
-    h += '<div class="pan-section"><h3 style="font-size:14px;font-weight:700;margin-bottom:10px">🔍 Quem mais recebe cada item</h3>';
-    topItems.forEach(([item, data]) => {
-      const unitsSorted = Object.entries(data.units).sort((a,b) => b[1] - a[1]).slice(0, 5);
-      const maxVal = unitsSorted[0]?.[1] || 1;
-      h += '<div style="margin-bottom:14px;padding:10px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0">'
-        +'<div style="font-weight:700;font-size:13px;margin-bottom:6px">'+esc(item)+' <span style="color:var(--muted);font-weight:400;font-size:11px">('+data.total.toLocaleString('pt-BR')+' total)</span></div>';
-      unitsSorted.forEach(([unit, qty], idx) => {
-        const pct = Math.round(qty / maxVal * 100);
-        const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '  ';
-        h += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;font-size:11px">'
-          +'<span style="width:18px;text-align:center">'+medal+'</span>'
-          +'<span style="width:140px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+esc(unit)+'">'+esc(unit)+'</span>'
-          +'<div style="flex:1;background:#e2e8f0;border-radius:4px;height:14px;overflow:hidden">'
-          +'<div style="width:'+pct+'%;background:#2563eb;height:100%;border-radius:4px;transition:.3s"></div></div>'
-          +'<span style="width:50px;text-align:right;font-weight:700;color:#0f172a">'+qty.toLocaleString('pt-BR')+'</span></div>';
-      });
-      h += '</div>';
-    });
-    h += '</div>';
-    
-    // Comparativo por tipo
-    if (filteredTipo && !_panUnit && allUnits.length >= 2) {
-      h += panSection(filteredTipo.icon + ' Comparativo — ' + filteredTipo.label, 
-        'Ranking entre as ' + allUnits.length + ' unidades do tipo',
-        buildComparativo(allAgg, allUnits, filteredTipo.label, filteredTipo.color));
-    }
-  }
-
-  el.innerHTML=h;
+  // Legado: o painel analitico agora vive em relatorio-painel.js
+  return buildPainelRelatorio();
 }
 
 function kpi(val,lbl,sub,tip,color){
@@ -8242,7 +8031,7 @@ function buildMaioresConsumidoresPorItem(allAgg) {
     unitsSorted.forEach(([u, v], idx) => {
       const pct = Math.round((v / maxV) * 100);
       const share = Math.round((v / Math.max(it.total, 1)) * 100);
-      const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : ' ';
+      const medal = idx === 0 ? '' : idx === 1 ? '' : idx === 2 ? '' : ' ';
       h += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:11px;cursor:pointer" onclick="document.getElementById(\'panUnitSel\').value=' + jsArg(u) + ';buildPainel()">'
         + '<span style="width:18px;text-align:center">' + medal + '</span>'
         + '<span style="width:170px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="' + esc(u) + '">' + esc(u) + '</span>'
@@ -8266,7 +8055,7 @@ function buildAlertas(allAgg,totalWeeks,totalMonths){
   const lowCoverage=Object.entries(unitWeeks).filter(([u,ws])=>ws.size<totalWeeks*0.5&&ws.size<totalWeeks-1);
   if(lowCoverage.length){
     const preview = lowCoverage.sort((a,b)=>a[1].size-b[1].size).slice(0,6);
-    alerts.push({type:'yellow',icon:'📁',
+    alerts.push({type:'yellow',icon:'',
       title:'Cobertura de dados: '+lowCoverage.length+' unidade(s) com histórico incompleto',
       body:'Unidades com menos de 50% dos envios. Principais: '
         +preview.map(([u,ws])=>'<b>'+esc(u)+'</b> ('+ws.size+' envios)').join(', ')
@@ -8285,7 +8074,7 @@ function buildAlertas(allAgg,totalWeeks,totalMonths){
     const top=highCV.sort((a,b)=>{
       const cvA=cvOf(a),cvB=cvOf(b);return cvB-cvA;
     }).slice(0,3);
-    alerts.push({type:'blue',icon:'📉',
+    alerts.push({type:'blue',icon:'',
       title:highCV.length+' item(s) com consumo muito irregular (CV > 50%)',
       body:'Consumo inconsistente pode indicar desperdício ou falta de planejamento: '
         +top.map(r=>'<b>'+esc(r.material)+'</b> em <b>'+esc(r.unit)+'</b>').join(', ')+'.'});
@@ -8299,7 +8088,7 @@ function buildAlertas(allAgg,totalWeeks,totalMonths){
     return first>0&&(last-first)/first>0.2;
   });
   if(trending.length){
-    alerts.push({type:'red',icon:'📈',
+    alerts.push({type:'red',icon:'',
       title:trending.length+' item(s) com demanda crescente',
       body:'Atenção ao estoque: '
         +trending.slice(0,4).map(r=>'<b>'+esc(r.material)+'</b> ('+esc(r.unit)+')').join(', ')
@@ -8309,14 +8098,14 @@ function buildAlertas(allAgg,totalWeeks,totalMonths){
   // Sugestão de estoque mínimo para itens de alta demanda
   const highDemand=allAgg.filter(r=>r.avgMonth>=10).sort((a,b)=>b.avgMonth-a.avgMonth).slice(0,5);
   if(highDemand.length){
-    alerts.push({type:'blue',icon:'📦',
+    alerts.push({type:'blue',icon:'',
       title:'Estoque mínimo sugerido — Top '+highDemand.length+' itens',
       body:'Com base no consumo médio mensal real: '
         +highDemand.map(r=>'<b>'+esc(r.material)+'</b> ('+esc(r.unit)+') → mín. <b>'+Math.ceil(r.avgMonth*1.3)+'</b>/mês').join(' · ')+'.'});
   }
 
   if(!alerts.length){
-    return'<div class="alert-card alert-green"><div class="alert-icon">✅</div>'
+    return'<div class="alert-card alert-green"><div class="alert-icon"></div>'
       +'<div class="alert-body"><b>Nenhum alerta crítico</b>Dados dentro dos padrões esperados.</div></div>';
   }
   return alerts.map(a=>'<div class="alert-card alert-'+a.type+'">'
@@ -8395,7 +8184,7 @@ function buildVariabilidade(allAgg){
     const minV=vals[0], maxV=vals[vals.length-1];
     const cvPct=Math.round(r.cv*100);
     const cvCls=r.cv<0.2?'cv-low':r.cv<0.5?'cv-med':'cv-hi';
-    const interp=r.cv<0.2?'✅ Estável':r.cv<0.5?'⚡ Moderado':'🔴 Irregular';
+    const interp=r.cv<0.2?'Estável':r.cv<0.5?'Moderado':'Irregular';
     h+='<tr>'
       +'<td style="font-weight:700">'+esc(r.material)+'</td>'
       +'<td class="unit-col"><span class="rel-badge rel-badge-unit">'+esc(r.unit)+'</span></td>'
@@ -8470,8 +8259,8 @@ function buildSazonalidade(){
   }
   h+='</div>';
   h+='<div style="display:flex;gap:12px;flex-wrap:wrap;font-size:11px">'
-    +'<span style="color:#10b981;font-weight:700">📈 Maior demanda: '+MONTH_NAMES[bestMonth.m-1]+' (méd. '+bestMonth.avg+'/mês ativo)</span>'
-    +'<span style="color:#ef4444;font-weight:700">📉 Menor demanda: '+MONTH_NAMES[worstMonth.m-1]+' (méd. '+worstMonth.avg+'/mês ativo)</span>'
+    +'<span style="color:#10b981;font-weight:700">Maior demanda: '+MONTH_NAMES[bestMonth.m-1]+' (méd. '+bestMonth.avg+'/mês ativo)</span>'
+    +'<span style="color:#ef4444;font-weight:700">Menor demanda: '+MONTH_NAMES[worstMonth.m-1]+' (méd. '+worstMonth.avg+'/mês ativo)</span>'
     +'</div>';
   return h;
 }
@@ -8539,7 +8328,7 @@ function buildUnitDetail(allAgg,allUnits){
 
 /*
  ═══════════════════════════════════════════════════════════════════
- 🔥 FIREBASE — Guia de Migração
+ FIREBASE — Guia de Migração
  ═══════════════════════════════════════════════════════════════════
  
  1. Adicione no <head> (4 scripts Firebase):
@@ -8587,8 +8376,8 @@ function buildUnitQuickPick(rawUnitName, maxSugs = 8) {
     POP: "#14b8a6", ABRIGO: "#ef4444", OUTROS: "#64748b",
   };
   const TYPE_ICON = {
-    SEDE: "🏛️", CT: "🏫", CRAS: "🏠", CREAS: "🏢",
-    POP: "🤝", ABRIGO: "🛏️", OUTROS: "📍",
+    SEDE: "", CT: "", CRAS: "", CREAS: "",
+    POP: "", ABRIGO: "", OUTROS: "",
   };
 
   const getInfo = (nome) => {
@@ -8597,7 +8386,7 @@ function buildUnitQuickPick(rawUnitName, maxSugs = 8) {
     );
     let tipo = String(u?.tipoUnidade || u?.tipo || "OUTROS").toUpperCase();
     if (tipo === "SEMCAS") tipo = "SEDE";
-    return { icon: TYPE_ICON[tipo] || "📍", color: TYPE_COLOR[tipo] || "#64748b" };
+    return { icon: TYPE_ICON[tipo] || "", color: TYPE_COLOR[tipo] || "#64748b" };
   };
 
   const chips = sugs.map((n) => {
@@ -8631,8 +8420,24 @@ function populateUnidadesSelect() {
   const sel = document.getElementById("rU");
   if (!sel) return;
   const TYPE_ICON = {
-    SEDE: "🏛️", CT: "🏫", CRAS: "🏠", CREAS: "🏢",
-    POP: "🤝", ABRIGO: "🛏️", OUTROS: "📍",
+    SEDE: "", CT: "", CRAS: "", CREAS: "",
+    POP: "", "CENTRO POP": "", ABRIGO: "", OUTROS: "",
+    CONSELHO: "", SISTEMA: "", "UNIDADE EXTERNA": "",
+  };
+  const GRUPO_ICON = {
+    "Gabinete da Secretária": "",
+    "SUP I — SGSUAS": "",
+    "SUP II — Proteção Social Básica": "",
+    "SUP III — PSE Média Complexidade": "",
+    "SUP IV — PSE Alta Complexidade": "",
+    "SUP V — SGBSTR": "",
+    "SUP VI — SAI": "",
+    "SUP VII — Administração": "",
+    "SUP VIII — SEOFC": "",
+    "Órgãos Vinculados": "",
+    "Sede — Lotações Operacionais": "",
+    "Unidades Externas": "",
+    Sistema: "",
   };
   const q = rmAcc(String(__rUFilterText || "")).toUpperCase().replace(/\s+/g, " ").trim();
   const unidades = (getUnidades() || [])
@@ -8641,7 +8446,8 @@ function populateUnidadesSelect() {
       if (!q) return true;
       const nome = String(u?.nome || u?.unidadeNome || "").trim();
       const sigla = String(u?.sigla || "").trim();
-      const hay = rmAcc(`${nome} ${sigla}`).toUpperCase().replace(/\s+/g, " ").trim();
+      const grupo = String(u?.grupoLotacao || "").trim();
+      const hay = rmAcc(`${nome} ${sigla} ${grupo}`).toUpperCase().replace(/\s+/g, " ").trim();
       return hay.includes(q);
     });
   const previous = sel.value || "";
@@ -8661,39 +8467,56 @@ function populateUnidadesSelect() {
     return;
   }
 
-  const groups = new Map();
   const nameTotals = new Map();
   for (const u of unidades) {
     const nome = String(u?.nome || u?.unidadeNome || "").trim();
     if (!nome) continue;
     nameTotals.set(nome, (nameTotals.get(nome) || 0) + 1);
   }
+
+  const hasGrupo = unidades.some((u) => String(u?.grupoLotacao || "").trim());
+  const groups = new Map();
+
   for (const u of unidades) {
     const nome = String(u?.nome || u?.unidadeNome || "").trim();
     if (!nome) continue;
     let tipo = String(u?.tipoUnidade || u?.tipo || "OUTROS").trim().toUpperCase();
     if (tipo === "SEMCAS") tipo = "SEDE";
-    if (!groups.has(tipo)) groups.set(tipo, []);
-    groups.get(tipo).push({
+    const grupo = String(u?.grupoLotacao || "").trim();
+    const groupKey = hasGrupo && grupo ? grupo : tipo;
+    if (!groups.has(groupKey)) groups.set(groupKey, []);
+    groups.get(groupKey).push({
       nome,
       sigla: String(u?.sigla || "").trim(),
       tipo,
+      grupo,
+      ordem: Number.isFinite(u?.ordemGrupo) ? u.ordemGrupo : 99,
       dup: (nameTotals.get(nome) || 0) > 1,
     });
   }
-  for (const arr of groups.values()) arr.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
-  const tiposOrdenados = [...groups.keys()].sort((a, b) => a.localeCompare(b, "pt-BR"));
 
-  for (const tipo of tiposOrdenados) {
-    const arr = groups.get(tipo);
-    const icon = TYPE_ICON[tipo] || "📍";
+  for (const arr of groups.values()) {
+    arr.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  }
+
+  const tiposOrdenados = [...groups.keys()].sort((a, b) => {
+    const oa = groups.get(a)?.[0]?.ordem ?? 99;
+    const ob = groups.get(b)?.[0]?.ordem ?? 99;
+    if (oa !== ob) return oa - ob;
+    return a.localeCompare(b, "pt-BR");
+  });
+
+  for (const groupKey of tiposOrdenados) {
+    const arr = groups.get(groupKey);
+    const icon = GRUPO_ICON[groupKey] || TYPE_ICON[groupKey] || TYPE_ICON[arr[0]?.tipo] || "";
     const og = document.createElement("optgroup");
-    og.label = `${icon} ${tipo} (${arr.length})`;
+    og.label = `${icon} ${groupKey} (${arr.length})`;
     for (const { nome, sigla, tipo, dup } of arr) {
       const opt = document.createElement("option");
       opt.value = dup ? `${nome}|${tipo}` : nome;
-      if (sigla) opt.textContent = dup ? `${nome} — ${tipo}  [${sigla}]` : `${nome}  [${sigla}]`;
-      else opt.textContent = dup ? `${nome} — ${tipo}` : nome;
+      const tipoHint = hasGrupo && tipo ? ` · ${tipo}` : "";
+      if (sigla) opt.textContent = dup ? `${nome} — ${tipo}  [${sigla}]` : `${nome}  [${sigla}]${tipoHint}`;
+      else opt.textContent = dup ? `${nome} — ${tipo}` : `${nome}${tipoHint}`;
       og.appendChild(opt);
     }
     sel.appendChild(og);
@@ -8789,7 +8612,7 @@ function refreshUnitAssistUI() {
 
   if (showMemo) {
     memo.style.display = "block";
-    memo.innerHTML = `🧠 Memorizar este nome da planilha como <b>${esc(canon)}</b> <button class="btn btn-s btn-sm" type="button" style="margin-left:6px;font-size:10px;padding:4px 10px;border:1px solid #a5f3fc;color:#155e75;background:#ecfeff;border-radius:6px" onclick="saveDetectedAlias()">Salvar vínculo</button>`;
+    memo.innerHTML = `Memorizar este nome da planilha como <b>${esc(canon)}</b> <button class="btn btn-s btn-sm" type="button" style="margin-left:6px;font-size:10px;padding:4px 10px;border:1px solid #a5f3fc;color:#155e75;background:#ecfeff;border-radius:6px" onclick="saveDetectedAlias()">Salvar vínculo</button>`;
   } else {
     memo.style.display = "none";
     memo.innerHTML = "";
@@ -8807,7 +8630,7 @@ function openAddUnidadeDialog() {
   const stats = document.getElementById("fichaStats");
   if (!modal || !body) { toast("Modal indisponível.", "red"); return; }
 
-  if (toolbar) toolbar.querySelector(".title").textContent = "➕ Nova Unidade";
+  if (toolbar) toolbar.querySelector(".title").textContent = "Nova Unidade";
   if (stats) stats.innerHTML = "";
   if (actions) actions.style.display = "none";
   if (legend) legend.style.display = "none";
@@ -8825,7 +8648,7 @@ function openAddUnidadeDialog() {
   body.innerHTML = `
     <div style="padding:22px 20px;max-width:520px;margin:0 auto">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
-        <div style="font-size:34px;line-height:1">🏢</div>
+        <div style="font-size:34px;line-height:1"></div>
         <div>
           <div style="font-size:16px;font-weight:900;margin:0">Adicionar Unidade</div>
           <div style="font-size:12px;color:#64748b">Cria uma unidade nova e já deixa disponível para seleção.</div>
@@ -8963,11 +8786,25 @@ export function initSeparacao() {
   ensureSeparacaoStyles();
   if (__separacaoBooted) return;
   __separacaoBooted = true;
+  try {
+    configureRelatorioPainel({
+      classifyUnit,
+      getCanonicalCat,
+      normalizeCat,
+      detectTipo,
+      resolveRegisteredUnit,
+      extractNum,
+      UNIT_TYPES,
+      esc,
+      refreshIcons,
+      toast,
+    });
+  } catch (e) { console.error(e); }
   try { populateUnidadesSelect(); } catch (e) { console.error(e); }
   try { applySeparacaoRoleUI(); } catch (e) { console.error(e); }
   try { setupDataPedidoAuto(); } catch (e) { console.error(e); }
   try {
-    const EXPORTS = { goTab, registrar, previewReq, showUnitConfirmDialog, pegarParaSeparar, entregarReq, abrirFicha, fecharFicha, marcarPronto, marcarProntoLista, voltarSeparacao, printReq, printFicha, cancelarReq, excluirHistoricoReq, renderBuracos, renderUnificar, buildPainel, gerarRelatorio, exportarCSV, handleFile, handleHistFiles, ck, okModal, closeModal, showModal, editEntryYear, editEntryPeriod, toggleDetail, removeHistEntry, openEditor, closeEditor, saveEditor, edRemoveItem, edAddItem, edAddCat, clearHistDB, clearMateriaisDB, removeDuplicatesAuto, recalcAllDates, exportBackup, importBackup, goToFile, goPage, onModeChange, clearFilters, clearPanFilters, clearYears, selAllYears, selAllUnits, selAllCats, clearAllAliases, doUnifMerge, toggleUnifSel, unifRemoveSel, clearUnifSel, removeAlias, openPrintBuracos, doPrintBuracos, showOrigemUnidade, showOrigemCategoria, renderRelatorio, renderCorrecaoItens, setFixView, fixGoPage, applyMatFix, applyMatFixBulk, removeMatFix, clearAllMatFixes, applyCatFix, removeCatFix, clearAllCatFixes, closePreRegDialog, skipPreRegDialog, confirmPreRegDialog, copyItemsList, diagnoseAliases, setPanTipo, loadAllHistDBAndRefresh, addFichaItem, removeFichaItem, editMaterial, switchMatView, switchPanSub, PAGE_STATE, debouncedRenderPS, debouncedRenderES, debouncedRenderPE, debouncedRenderHI, filterUnidadesSelect, openAddUnidadeDialog, pickSuggestedUnit, saveDetectedAlias };
+    const EXPORTS = { goTab, registrar, previewReq, showUnitConfirmDialog, pegarParaSeparar, entregarReq, abrirFicha, fecharFicha, marcarPronto, marcarProntoLista, voltarSeparacao, printReq, printFicha, cancelarReq, excluirHistoricoReq, renderBuracos, renderUnificar, buildPainel, gerarRelatorio, exportarCSV, exportarPainelCSV, imprimirPainelRelatorio, applyPanDatePreset, handleFile, handleHistFiles, ck, okModal, closeModal, showModal, editEntryYear, editEntryPeriod, toggleDetail, removeHistEntry, openEditor, closeEditor, saveEditor, edRemoveItem, edAddItem, edAddCat, clearHistDB, clearMateriaisDB, removeDuplicatesAuto, recalcAllDates, exportBackup, importBackup, goToFile, goPage, onModeChange, clearFilters, clearPanFilters, clearYears, selAllYears, selAllUnits, selAllCats, clearAllAliases, doUnifMerge, toggleUnifSel, unifRemoveSel, clearUnifSel, removeAlias, openPrintBuracos, doPrintBuracos, showOrigemUnidade, showOrigemCategoria, renderRelatorio, renderCorrecaoItens, setFixView, fixGoPage, applyMatFix, applyMatFixBulk, removeMatFix, clearAllMatFixes, applyCatFix, removeCatFix, clearAllCatFixes, closePreRegDialog, skipPreRegDialog, confirmPreRegDialog, copyItemsList, diagnoseAliases, setPanTipo, loadAllHistDBAndRefresh, addFichaItem, removeFichaItem, editMaterial, switchMatView, switchPanSub, PAGE_STATE, debouncedRenderPS, debouncedRenderES, debouncedRenderPE, debouncedRenderHI, filterUnidadesSelect, openAddUnidadeDialog, pickSuggestedUnit, saveDetectedAlias };
     Object.entries(EXPORTS).forEach(([k, v]) => { window[k] = v; });
   } catch (e) { console.error(e); }
   try { loadHistDB(); } catch (e) { console.error(e); }

@@ -27,3 +27,6 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+
+# Supabase migration staging
+scripts/supabase/out/

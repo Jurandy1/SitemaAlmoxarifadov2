@@ -425,7 +425,7 @@
     <!-- ESTOQUE — água e gás sempre visíveis -->
     <div class="stock-row">
       <div class="stock-mini water">
-        <div class="stock-mini-ic">💧</div>
+        <div class="stock-mini-ic"></div>
         <div class="stock-mini-body">
           <div class="stock-mini-num" id="waterNum">—</div>
           <div class="stock-mini-lbl">Galões de água</div>
@@ -433,7 +433,7 @@
         </div>
       </div>
       <div class="stock-mini gas">
-        <div class="stock-mini-ic">🔥</div>
+        <div class="stock-mini-ic"></div>
         <div class="stock-mini-body">
           <div class="stock-mini-num" id="gasNum">—</div>
           <div class="stock-mini-lbl">Botijões de gás</div>
@@ -444,11 +444,11 @@
 
     <!-- MINHA UNIDADE SALVA — aparece automaticamente se o usuário já salvou -->
     <div class="saved-unit-card" id="savedCard">
-      <div class="saved-unit-label">⭐ Minha unidade</div>
+      <div class="saved-unit-label">Minha unidade</div>
       <div class="saved-unit-name" id="savedUnitName">—</div>
       <div class="saved-unit-actions">
         <button class="btn-check" id="btnCheckSaved">
-          📦 Ver meu pedido
+          Ver meu pedido
         </button>
         <button class="btn-clear" id="btnClearSaved">Trocar</button>
       </div>
@@ -457,7 +457,7 @@
     <!-- PAINEL GERAL (OPCIONAL): somente unidades com pedido "agora" -->
     <div class="card" id="nowCard">
       <div class="card-head">
-        <div class="card-ic" style="background:#ecfdf5">🟢</div>
+        <div class="card-ic" style="background:#ecfdf5"></div>
         <span class="card-label">Pedidos agora (Pronto / Em preparação)</span>
         <div class="now-head-actions">
           <button class="btn-refresh" id="btnToggleNow" type="button">Mostrar</button>
@@ -474,7 +474,7 @@
     <!-- CARD DE BUSCA/SELEÇÃO -->
     <div class="card" id="searchCard">
       <div class="card-head">
-        <div class="card-ic" style="background:#eff6ff">📦</div>
+        <div class="card-ic" style="background:#eff6ff"></div>
         <span class="card-label">Verificar pedido da minha unidade</span>
       </div>
       <div class="card-body">
@@ -482,7 +482,7 @@
         <!-- Passo 1: Busca + grade de tipos -->
         <div id="step1">
           <div class="search-wrap">
-            <span class="search-icon">🔍</span>
+            <span class="search-icon"></span>
             <input
               class="search-input"
               id="searchInput"
@@ -505,27 +505,27 @@
             <p class="step-hint" style="margin-top:4px">Ou escolha pelo tipo:</p>
             <div class="type-grid">
               <button class="type-btn" data-type="cras">
-                <span class="type-btn-ic">🏘️</span>
+                <span class="type-btn-ic"></span>
                 <span class="type-btn-lbl">CRAS</span>
               </button>
               <button class="type-btn" data-type="creas">
-                <span class="type-btn-ic">👥</span>
+                <span class="type-btn-ic"></span>
                 <span class="type-btn-lbl">CREAS</span>
               </button>
               <button class="type-btn" data-type="pop">
-                <span class="type-btn-ic">🏠</span>
+                <span class="type-btn-ic"></span>
                 <span class="type-btn-lbl">Centro Pop</span>
               </button>
               <button class="type-btn" data-type="ct">
-                <span class="type-btn-ic">⚖️</span>
+                <span class="type-btn-ic"></span>
                 <span class="type-btn-lbl">Cons. Tutelar</span>
               </button>
               <button class="type-btn" data-type="abrigo">
-                <span class="type-btn-ic">🏡</span>
+                <span class="type-btn-ic"></span>
                 <span class="type-btn-lbl">Abrigos</span>
               </button>
               <button class="type-btn" data-type="sede">
-                <span class="type-btn-ic">🏛️</span>
+                <span class="type-btn-ic"></span>
                 <span class="type-btn-lbl">Sede / SEMCAS</span>
               </button>
             </div>
@@ -547,7 +547,7 @@
         <div id="step3" style="display:none">
           <button class="back-btn" id="backStep3">← Escolher outra unidade</button>
           <div id="resultBanner" class="result-banner nenhum">
-            <div class="result-banner-ic">⏳</div>
+            <div class="result-banner-ic"></div>
             <div class="result-banner-title">Verificando…</div>
             <div class="result-banner-sub"></div>
           </div>
@@ -776,14 +776,21 @@
       const aguaInicial  = estAgua.filter(e=>e.tipo==='inicial').reduce((s,e)=>s+(parseInt(e.quantidade,10)||0),0);
       const aguaEntradas = estAgua.filter(e=>e.tipo==='entrada').reduce((s,e)=>s+(parseInt(e.quantidade,10)||0),0);
       const agua = Math.max(0, aguaInicial + aguaEntradas - aguaSaidas);
-      const movGasSnap = await getDocs(query(C.gasMov, orderBy('registradoEm','desc'), limit(90)));
-      const movGas = movGasSnap.docs.map(d=>d.data()).filter(m=>!isHistoricoImportado(m));
       const tsOf = it => it.data?.toMillis?.() ?? (it.data?.seconds ? it.data.seconds*1000 : 0);
       const estGasC = estGas.filter(e=>tsOf(e)>=GAS_CUTOFF);
-      const movGasC = movGas.filter(m=>tsOf(m)>=GAS_CUTOFF);
       const gasInicial  = estGasC.filter(e=>e.tipo==='inicial').reduce((s,e)=>s+(parseInt(e.quantidade,10)||0),0);
       const gasEntradas = estGasC.filter(e=>e.tipo==='entrada').reduce((s,e)=>s+(parseInt(e.quantidade,10)||0),0);
-      const gasSaidas   = movGasC.reduce((s,m)=>s+(parseInt(m.quantidade,10)||0),0);
+      // Prioridade: doc resumo-gas (histórico completo pós-corte). Fallback: últimas 90 movs.
+      const resumoGas = estGas.find(e => e.tipo === '__resumo__');
+      let gasSaidas;
+      if (resumoGas && typeof resumoGas.totalSaidas === 'number') {
+        gasSaidas = resumoGas.totalSaidas;
+      } else {
+        const movGasSnap = await getDocs(query(C.gasMov, orderBy('registradoEm','desc'), limit(90)));
+        const movGas = movGasSnap.docs.map(d=>d.data()).filter(m=>!isHistoricoImportado(m));
+        const movGasC = movGas.filter(m=>tsOf(m)>=GAS_CUTOFF);
+        gasSaidas = movGasC.reduce((s,m)=>s+(parseInt(m.quantidade,10)||0),0);
+      }
       const gas = Math.max(0, gasInicial + gasEntradas - gasSaidas);
       const data = { agua, gas };
       cacheSet('semcas_stock_v2', data);
@@ -902,8 +909,8 @@
             <div class="now-item-name">${esc(r.unidade)}</div>
           </div>
           <div class="now-item-badges">
-            ${r.pronto > 0 ? `<span class="now-badge ok">✅ ${r.pronto}</span>` : ''}
-            ${r.separando > 0 ? `<span class="now-badge sep">⏳ ${r.separando}</span>` : ''}
+            ${r.pronto > 0 ? `<span class="now-badge ok">${r.pronto}</span>` : ''}
+            ${r.separando > 0 ? `<span class="now-badge sep">${r.separando}</span>` : ''}
           </div>
         </button>
       `).join('');
@@ -1028,12 +1035,12 @@
       showStep(3);
       const banner = document.getElementById('resultBanner');
       banner.className = 'result-banner nenhum';
-      banner.innerHTML = `<div class="result-banner-ic">⏳</div><div class="result-banner-title">Verificando…</div><div class="result-banner-sub"></div>`;
+      banner.innerHTML = `<div class="result-banner-ic"></div><div class="result-banner-title">Verificando…</div><div class="result-banner-sub"></div>`;
 
       let materiais;
       try { materiais = await fetchMaterialsForUnit(unitNome, forceRefresh); }
       catch (e) {
-        banner.innerHTML = `<div class="result-banner-ic">⚠️</div><div class="result-banner-title">Erro ao verificar</div><div class="result-banner-sub">Tente novamente em instantes.</div>`;
+        banner.innerHTML = `<div class="result-banner-ic"></div><div class="result-banner-title">Erro ao verificar</div><div class="result-banner-sub">Tente novamente em instantes.</div>`;
         return;
       }
 
@@ -1047,8 +1054,8 @@
       const separando = materiais.filter(m => normalize(m.status)==='separando');
 
       const jaSalva = getSaved() === unitNome;
-      const saveBtnHtml = jaSalva ? '' : `<button class="btn-save-unit" id="btnSaveUnit">⭐ Salvar como minha unidade</button>`;
-      const refreshHtml = `<button class="btn-refresh" id="btnRefresh">🔄 Atualizar resultado</button>`;
+      const saveBtnHtml = jaSalva ? '' : `<button class="btn-save-unit" id="btnSaveUnit">Salvar como minha unidade</button>`;
+      const refreshHtml = `<button class="btn-refresh" id="btnRefresh">Atualizar resultado</button>`;
 
       if (prontos.length > 0) {
         const item = prontos[0];
@@ -1056,12 +1063,12 @@
         const dtPronto = tsToDate(item.dtPronto || item.dataEntrega || item.registradoEm || null);
         banner.className = 'result-banner pronto';
         banner.innerHTML = `
-          <div class="result-banner-ic">✅</div>
+          <div class="result-banner-ic"></div>
           <div class="result-banner-title">PRONTO PARA RETIRADA</div>
           <div class="result-banner-sub">${prontos.length===1 ? 'Seu pedido está pronto — pode retirar no almoxarifado.' : prontos.length+' pedidos prontos para retirada.'}</div>
-          ${sep       ? `<div class="result-banner-detail">✂️ Separado por <strong>${esc(sep)}</strong></div>` : ''}
-          ${dtPronto  ? `<div class="result-banner-detail">🕐 Pronto ${esc(timeAgo(dtPronto))} · ${esc(fmtDateTime(dtPronto))}</div>` : ''}
-          <div class="result-banner-unit" style="margin-top:6px">📍 ${esc(unitNome)}</div>
+          ${sep       ? `<div class="result-banner-detail">Separado por <strong>${esc(sep)}</strong></div>` : ''}
+          ${dtPronto  ? `<div class="result-banner-detail">Pronto ${esc(timeAgo(dtPronto))} · ${esc(fmtDateTime(dtPronto))}</div>` : ''}
+          <div class="result-banner-unit" style="margin-top:6px">${esc(unitNome)}</div>
           ${saveBtnHtml}${refreshHtml}
         `;
       } else if (separando.length > 0) {
@@ -1070,21 +1077,21 @@
         const dtInicio  = tsToDate(item.registradoEm || item.dataRequisicao || null);
         banner.className = 'result-banner sep';
         banner.innerHTML = `
-          <div class="result-banner-ic">⏳</div>
+          <div class="result-banner-ic"></div>
           <div class="result-banner-title">EM PREPARAÇÃO</div>
           <div class="result-banner-sub">${separando.length===1 ? 'Seu pedido está sendo separado agora.' : separando.length+' pedido(s) em separação.'}</div>
-          ${separador ? `<div class="result-banner-detail">✂️ Separando: <strong>${esc(separador)}</strong></div>` : ''}
-          ${dtInicio  ? `<div class="result-banner-detail">🕐 Início ${esc(timeAgo(dtInicio))} · ${esc(fmtDateTime(dtInicio))}</div>` : ''}
-          <div class="result-banner-unit" style="margin-top:6px">📍 ${esc(unitNome)}</div>
+          ${separador ? `<div class="result-banner-detail">Separando: <strong>${esc(separador)}</strong></div>` : ''}
+          ${dtInicio  ? `<div class="result-banner-detail">Início ${esc(timeAgo(dtInicio))} · ${esc(fmtDateTime(dtInicio))}</div>` : ''}
+          <div class="result-banner-unit" style="margin-top:6px">${esc(unitNome)}</div>
           ${saveBtnHtml}${refreshHtml}
         `;
       } else {
         banner.className = 'result-banner nenhum';
         banner.innerHTML = `
-          <div class="result-banner-ic">📭</div>
+          <div class="result-banner-ic"></div>
           <div class="result-banner-title">Nenhum pedido ativo</div>
           <div class="result-banner-sub">Não há pedidos em separação ou aguardando retirada para esta unidade no momento.</div>
-          <div class="result-banner-unit">📍 ${esc(unitNome)}</div>
+          <div class="result-banner-unit">${esc(unitNome)}</div>
           ${saveBtnHtml}${refreshHtml}
         `;
       }
@@ -1094,7 +1101,7 @@
         setSaved(unitNome);
         renderSavedCard();
         const btn = document.getElementById('btnSaveUnit');
-        if (btn) { btn.innerHTML = '✅ Unidade salva!'; btn.disabled = true; btn.style.opacity = '.7'; }
+        if (btn) { btn.innerHTML = 'Unidade salva!'; btn.disabled = true; btn.style.opacity = '.7'; }
       });
       document.getElementById('btnRefresh')?.addEventListener('click', () => {
         onUnitSelected(unitNome, true);

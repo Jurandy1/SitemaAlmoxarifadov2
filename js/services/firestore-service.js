@@ -156,7 +156,7 @@ function initializeFirebaseServices() {
   const basePath       = `artifacts/${APP_ID}/public/data`;
   const legacyBasePath = `artifacts/default-app-id/public/data`;
 
-  console.log('[Firestore] Cache:', cacheOk ? '✅ Ativo (IndexedDB)' : '⚠️ Inativo');
+  console.log('[Firestore] Cache:', cacheOk ? 'Ativo (IndexedDB)' : 'Inativo');
   console.log('[Firestore] Caminho:', basePath);
 
   __collectionsPrimary = buildCollections(basePath);

@@ -29,6 +29,7 @@ import { initFeriadosListeners } from "./modules/feriados.js";
 import { getUserRole } from "./utils/cache.js";
 import { initTooltips } from "./utils/tooltip-manager.js";
 import { mountChatWidget } from "./chat-widget.js";
+import { initTrocarSenha } from "./modules/senha.js";
 
 function ensureDebugOverlay() {
     try {
@@ -207,6 +208,9 @@ function setupApp() {
     if (DOM_ELEMENTS.btnLogout) {
          DOM_ELEMENTS.btnLogout.addEventListener('click', signOutUser);
     }
+
+    // Troca de senha pelo próprio usuário (e obrigatória para quem ainda usa a senha padrão)
+    try { initTrocarSenha(); } catch (e) { console.error(e); }
 
     // 10. Alerta de débitos recorrente (usuários logados)
     setupDebitosPopupScheduler();
