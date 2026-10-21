@@ -552,14 +552,20 @@ export function onSnapshot(target, ...args) {
     timer = setTimeout(refresh, 250);
   };
 
+  const relevante = (row) => row && row.col === col && (!isDoc || row.id === target.id);
+
+  // O Realtime do Supabase não aplica filtro em DELETE: exclusões são ouvidas sem filtro
+  // e conferidas aqui (o registro antigo traz a chave col+id).
   const channel = supabase
     .channel(`fs-${++channelSeq}-${Date.now()}`)
-    .on("postgres_changes", { event: "*", schema: "public", table: "fs_docs", filter: `col=eq.${col}` }, (payload) => {
-      if (isDoc) {
-        const id = payload.new?.id ?? payload.old?.id;
-        if (id && id !== target.id) return;
-      }
-      schedule();
+    .on("postgres_changes", { event: "INSERT", schema: "public", table: "fs_docs", filter: `col=eq.${col}` }, (p) => {
+      if (relevante(p.new)) schedule();
+    })
+    .on("postgres_changes", { event: "UPDATE", schema: "public", table: "fs_docs", filter: `col=eq.${col}` }, (p) => {
+      if (relevante(p.new)) schedule();
+    })
+    .on("postgres_changes", { event: "DELETE", schema: "public", table: "fs_docs" }, (p) => {
+      if (relevante(p.old)) schedule();
     })
     .subscribe();
 
