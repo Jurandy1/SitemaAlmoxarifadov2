@@ -528,8 +528,15 @@ function vozPtBr() {
 let tvVozLiberada = false;
 let tvAvisoEl = null;
 
-function mostrarAvisoVoz() {
-    if (!document.body?.classList.contains('tv-mode') || tvVozLiberada) return;
+function audioTvParado() {
+    const audio = tvAudioEl;
+    if (!audio) return true;
+    return audio.paused || audio.ended;
+}
+
+function mostrarAvisoVoz(forcar) {
+    if (!document.body?.classList.contains('tv-mode')) return;
+    if (tvVozLiberada && !forcar) return;
     if (!tvAvisoEl) {
         const el = document.createElement('div');
         el.id = 'tv-voz-aviso';
@@ -572,6 +579,49 @@ function slugFala(texto) {
         .replace(/^-|-$/g, '');
 }
 
+function silencioLongo() {
+    if (window.__tvSilencioLongo) return window.__tvSilencioLongo;
+    const sampleRate = 8000;
+    const n = sampleRate * 2;
+    const dataSize = n * 2;
+    const buffer = new ArrayBuffer(44 + dataSize);
+    const view = new DataView(buffer);
+    const writeStr = (offset, texto) => {
+        for (let i = 0; i < texto.length; i++) view.setUint8(offset + i, texto.charCodeAt(i));
+    };
+    writeStr(0, 'RIFF');
+    view.setUint32(4, 36 + dataSize, true);
+    writeStr(8, 'WAVE');
+    writeStr(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 1, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    writeStr(36, 'data');
+    view.setUint32(40, dataSize, true);
+    let binary = '';
+    const bytes = new Uint8Array(buffer);
+    for (let i = 0; i < bytes.length; i += 8192) {
+        binary += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192));
+    }
+    window.__tvSilencioLongo = `data:audio/wav;base64,${btoa(binary)}`;
+    return window.__tvSilencioLongo;
+}
+
+function manterAudioTvVivo() {
+    if (!tvVozLiberada || tvNarracaoFalando || tvNarracaoFila.length) return;
+    const audio = garantirTvAudio();
+    audio.loop = true;
+    audio.volume = 0.01;
+    if (!audio.paused && audio.loop && String(audio.src || '').startsWith('data:')) return;
+    audio.src = silencioLongo();
+    const play = audio.play();
+    if (play && typeof play.catch === 'function') play.catch(() => {});
+}
+
 function tocarSrc(src) {
     return new Promise((resolve) => {
         const audio = garantirTvAudio();
@@ -580,24 +630,43 @@ function tocarSrc(src) {
             if (fechado) return;
             fechado = true;
             clearTimeout(limite);
+            clearTimeout(audio._tvChecar);
             audio.onended = null;
             audio.onerror = null;
             audio.onplaying = null;
             resolve(resultado);
         };
-        const limite = setTimeout(() => fechar('fail'), 20000);
+        const acompanhar = () => {
+            const checar = () => {
+                if (fechado) return;
+                const durou = Number(audio.duration) || 0;
+                const noFim = audio.ended || (durou > 0.2 && audio.currentTime >= durou - 0.25);
+                if (noFim) {
+                    fechar('ok');
+                    return;
+                }
+                audio._tvChecar = setTimeout(checar, 400);
+            };
+            clearTimeout(audio._tvChecar);
+            audio._tvChecar = setTimeout(checar, 400);
+        };
+        const limite = setTimeout(() => {
+            if ((audio.currentTime || 0) > 0.3) fechar('ok');
+            else fechar('fail');
+        }, 20000);
+        audio.loop = false;
         audio.onplaying = () => {
             tvVozLiberada = true;
             esconderAvisoVoz();
+            acompanhar();
         };
         audio.onended = () => fechar('ok');
         audio.onerror = () => fechar('fail');
-        try { audio.pause(); } catch (_) {}
         audio.volume = 1;
         audio.src = src;
         const play = audio.play();
         if (play && typeof play.then === 'function') {
-            play.catch((e) => {
+            play.then(() => acompanhar()).catch((e) => {
                 const msg = String(e?.name || e?.message || e || '');
                 if (/notallowed|not allowed|autoplay/i.test(msg)) fechar('blocked');
                 else fechar('fail');
@@ -654,7 +723,7 @@ function tocarMp3(texto) {
                 if (iniciou) fechar('ok');
                 else tentar();
             };
-            try { audio.pause(); } catch (_) {}
+            audio.loop = false;
             audio.volume = 1;
             audio.src = src;
             const play = audio.play();
@@ -705,19 +774,21 @@ function falarNativo(texto) {
 }
 
 async function bombearNarracaoTV() {
+    if (audioTvParado()) tvNarracaoFalando = false;
     if (tvNarracaoFalando || !tvNarracaoFila.length) return;
     const texto = tvNarracaoFila.shift();
     tvNarracaoFalando = true;
     const mp3 = await tocarFrase(texto);
+    tvNarracaoFalando = false;
     if (mp3 === 'blocked') {
         tvNarracaoFila.unshift(texto);
-        tvNarracaoFalando = false;
-        mostrarAvisoVoz();
+        tvVozLiberada = false;
+        mostrarAvisoVoz(true);
         return;
     }
     if (mp3 !== 'ok') await falarNativo(texto);
-    tvNarracaoFalando = false;
-    setTimeout(bombearNarracaoTV, 700);
+    if (tvNarracaoFila.length) setTimeout(bombearNarracaoTV, 700);
+    else setTimeout(manterAudioTvVivo, 300);
 }
 
 function enfileirarNarracaoTV(texto) {
@@ -752,7 +823,7 @@ function narrarMudancasStatusTV(materiais) {
     atuais.forEach((cur, id) => {
         const anterior = tvStatusAnterior.get(id);
         if (!podeFalar || anterior === cur.status) return;
-        if (cur.status === 'separacao') {
+        if (cur.status === 'separacao' || cur.status === 'separando') {
             enfileirarNarracaoTV(`${cur.nome}, em separação`);
         } else if (cur.status === 'retirada' || cur.status === 'pronto') {
             enfileirarNarracaoTV(`${cur.nome}, pronto para retirada`);
@@ -767,11 +838,11 @@ if (typeof window !== 'undefined') {
     let tvToqueEm = 0;
     const noToque = () => {
         if (!document.body?.classList.contains('tv-mode')) return;
-        if (tvVozLiberada && !tvNarracaoFila.length) return;
+        if (tvVozLiberada && !tvNarracaoFila.length && !audioTvParado()) return;
         const agora = Date.now();
         if (agora - tvToqueEm < 700) return;
         tvToqueEm = agora;
-        if (!tvVozLiberada) tvNarracaoFalando = false;
+        if (!tvVozLiberada || audioTvParado()) tvNarracaoFalando = false;
         if (!tvNarracaoFila.length) tvNarracaoFila.push('Voz da televisão ligada.');
         bombearNarracaoTV();
     };
