@@ -1106,7 +1106,8 @@ if (dz) {
 
 function handleFile(e){
   const file=e.target.files[0];if(!file)return;
-  document.getElementById('fname').textContent='✓ '+file.name;document.getElementById('fname').style.display='block';
+  // o nome do arquivo aparece no bloco da planilha (mostrarArquivoReq)
+  document.getElementById('fname').textContent=file.name;
   const reader=new FileReader();
   reader.onload=async (ev)=>{try{
     const a=new Uint8Array(ev.target.result);
@@ -1177,9 +1178,9 @@ function handleFile(e){
     const unitDisplayTag = matchedUnit
       ? `<b style="color:#166534">Sugestão: ${esc(matchedUnit)}</b> <span style="font-size:11px;color:var(--muted)">— confirme ou escolha abaixo</span>${srcTag}`
       : `<span style="color:#92400e">Na planilha: <b>${esc(rawFromSheet || '—')}</b>${srcTag} · <b>escolha a unidade correta abaixo</b></span>`;
-    el.innerHTML=unitDisplayTag+' '+fmtTag+multiTag+perTag
-      +'<br>'+tiposPills(tmpParsed.tipos)
-      +' <span style="font-size:11px;color:var(--muted)">('+totalItens+' itens)</span>';
+    el.innerHTML='<div class="rq-detect-l1"><span>'+unitDisplayTag+'</span><span class="rq-detect-tags">'+fmtTag+multiTag+'</span></div>'
+      +'<div class="rq-detect-l2"><span class="rq-detect-lbl">Tipo identificado:</span> '+tiposPills(tmpParsed.tipos)
+      +' <span class="rq-muted">('+totalItens+' itens)</span>'+perTag+'</div>';
     uSel.selectedIndex = 0;
     let found = false;
     if (matchedUnit) {
@@ -1227,6 +1228,8 @@ function handleFile(e){
       }
     } catch (_) {}
     try { refreshUnitAssistUI(); } catch (_) {}
+    mostrarArquivoReq(file);
+    iniciarEditorReq();
     ck();
   }catch(err){toast('Erro ao ler: '+err.message,'red')}};
   reader.readAsArrayBuffer(file);
@@ -1263,6 +1266,263 @@ function ck(){
     if (warnEl) { warnEl.style.display = 'none'; warnEl.innerHTML = ''; }
   }
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// REQUISIÇÃO: arquivo + tabela editável dos materiais (antes de registrar)
+// ═══════════════════════════════════════════════════════════════════
+const RQ = { filtro: 'todos', busca: '', pagina: 1, porPagina: 10, aberto: null };
+const RQ_COR_TIPO = { Expediente: 'rq-chip-exp', Limpeza: 'rq-chip-limp', Higiene: 'rq-chip-hig', 'Descartável': 'rq-chip-desc', 'Alimentício': 'rq-chip-ali' };
+
+function rqItens() {
+  if (!tmpParsed?.categories) return [];
+  const out = [];
+  tmpParsed.categories.forEach((c) => {
+    const tipoCat = detectTipo(c.name || 'Outros');
+    (c.items || []).forEach((it) => out.push({ it, cat: c, tipo: it.tipo || tipoCat }));
+  });
+  return out;
+}
+
+function rqSituacao(it) {
+  if (it.status === 'sem_estoque') return 'sem_estoque';
+  const raw = String(it.qtdAtendida ?? '').trim();
+  const sol = extractNum(it.qtdSolicitada), ate = extractNum(it.qtdAtendida);
+  if (!raw || ate === 0) return 'nao_atendido';
+  if (sol > 0 && ate > sol) return 'excedido';
+  if (sol > 0 && ate < sol) return 'parcial';
+  return 'atendido';
+}
+
+// "RESMA DE PAPEL A4" → "Resma de papel A4" (só na tela; o nome salvo não muda)
+function rqNomeMaterial(nome) {
+  const t = String(nome || '').trim();
+  if (!t || t !== t.toUpperCase()) return t;
+  const out = t.split(' ').map((w) => (/\d/.test(w) ? w : w.toLowerCase())).join(' ');
+  return out.charAt(0).toUpperCase() + out.slice(1);
+}
+
+function rqFaltante(it) {
+  return Math.max(0, extractNum(it.qtdSolicitada) - extractNum(it.qtdAtendida));
+}
+
+const RQ_SIT_CURTA = { nao_atendido: 'Não atend.', sem_estoque: 'S/ estoque', atendido: 'Atendido', parcial: 'Parcial', excedido: 'Excedido' };
+function rqBadge(st) {
+  // no celular a etiqueta fica abreviada para a tabela caber sem rolar para o lado
+  return '<span class="rq-badge rq-st-' + st + '"><span class="rq-desk">' + (SL[st] || st) + '</span><span class="rq-mob">' + (RQ_SIT_CURTA[st] || SL[st] || st) + '</span></span>';
+}
+
+function mostrarArquivoReq(file) {
+  const total = rqItens().length;
+  const agora = new Date();
+  const quando = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const nome = document.getElementById('rqFileName');
+  const meta = document.getElementById('rqFileMeta');
+  if (nome) nome.textContent = file?.name || tmpParsed?.fileName || 'Planilha';
+  if (meta) meta.textContent = 'Arquivo enviado em ' + quando + ' • ' + total + ' itens';
+  document.getElementById('rqFileEmpty')?.style.setProperty('display', 'none');
+  document.getElementById('rqFileOk')?.style.setProperty('display', 'flex');
+  refreshIcons();
+}
+
+function iniciarEditorReq() {
+  RQ.filtro = 'todos'; RQ.busca = ''; RQ.pagina = 1; RQ.aberto = null;
+  const busca = document.getElementById('rqBusca');
+  if (busca) busca.value = '';
+  // situação inicial de cada item conforme as quantidades da planilha
+  rqItens().forEach(({ it }) => { it.status = rqSituacao(it); });
+  const card = document.getElementById('rqItensCard');
+  if (card) card.style.display = '';
+  renderEditorReq();
+}
+
+function resetarRequisicaoUI() {
+  tmpParsed = null;
+  const fi = document.getElementById('fi'); if (fi) fi.value = '';
+  const fn = document.getElementById('fname'); if (fn) fn.style.display = 'none';
+  document.getElementById('rqFileEmpty')?.style.setProperty('display', 'flex');
+  document.getElementById('rqFileOk')?.style.setProperty('display', 'none');
+  const card = document.getElementById('rqItensCard'); if (card) card.style.display = 'none';
+  const info = document.getElementById('detectInfo');
+  if (info) info.innerHTML = '<span class="rq-muted">Anexe a planilha para identificar a unidade, os tipos e o formato.</span>';
+  const warn = document.getElementById('rUWarn'); if (warn) { warn.style.display = 'none'; warn.innerHTML = ''; }
+  ck();
+}
+
+async function removerArquivoReq() {
+  if (!tmpParsed) return resetarRequisicaoUI();
+  if (!(await confirmar('Remover a planilha anexada? As edições feitas nos materiais serão perdidas.', { ok: 'Remover', perigo: true }))) return;
+  resetarRequisicaoUI();
+}
+
+function limparUnidadeReq() {
+  const sel = document.getElementById('rU');
+  if (!sel) return;
+  sel.selectedIndex = 0;
+  sel.style.borderColor = ''; sel.style.boxShadow = '';
+  ck();
+}
+
+function aplicarBuscaReq() {
+  RQ.busca = (document.getElementById('rqBusca')?.value || '').trim();
+  RQ.pagina = 1;
+  renderEditorReq();
+}
+
+function filtrarTipoReq(tipo) {
+  RQ.filtro = tipo; RQ.pagina = 1;
+  renderEditorReq();
+}
+
+function paginaReq(n) {
+  RQ.pagina = n;
+  renderEditorReq();
+  document.getElementById('rqItensCard')?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+}
+
+function porPaginaReq(v) {
+  RQ.porPagina = parseInt(v, 10) || 10; RQ.pagina = 1;
+  renderEditorReq();
+}
+
+function verMaisReq() {
+  RQ.porPagina += 10;
+  renderEditorReq();
+}
+
+function abrirItemReq(id) {
+  RQ.aberto = String(RQ.aberto) === String(id) ? null : String(id);
+  renderEditorReq();
+}
+
+function editarItemReq(id, campo, valor) {
+  const alvo = rqItens().find((x) => String(x.it.id) === String(id));
+  if (!alvo) return;
+  const it = alvo.it;
+  if (campo === 'qtdAtendida') {
+    it.qtdAtendida = valor;
+    if (it.status === 'sem_estoque') it.status = '';
+    it.status = rqSituacao(it);
+    // atualiza só as células da linha (sem redesenhar, para não perder o cursor)
+    document.querySelectorAll('[data-rq-falta="' + id + '"]').forEach((el) => { el.textContent = rqFaltante(it); });
+    document.querySelectorAll('[data-rq-sit="' + id + '"]').forEach((el) => { el.innerHTML = rqBadge(it.status); });
+    document.querySelectorAll('[data-rq-ate="' + id + '"]').forEach((el) => { if (el !== document.activeElement) el.value = valor; });
+    document.querySelectorAll('[data-rq-ate-txt="' + id + '"]').forEach((el) => { el.textContent = valor === '' ? '—' : valor; });
+  } else if (campo === 'obs') {
+    it.obs = valor;
+    document.querySelectorAll('[data-rq-obs="' + id + '"]').forEach((el) => { if (el !== document.activeElement) el.value = valor; });
+  }
+}
+
+async function removerItemReq(id) {
+  const alvo = rqItens().find((x) => String(x.it.id) === String(id));
+  if (!alvo) return;
+  if (!(await confirmar('Remover "' + alvo.it.material + '" da requisição?', { ok: 'Remover', perigo: true }))) return;
+  alvo.cat.items = alvo.cat.items.filter((x) => x !== alvo.it);
+  if (String(RQ.aberto) === String(id)) RQ.aberto = null;
+  const meta = document.getElementById('rqFileMeta');
+  if (meta) meta.textContent = meta.textContent.replace(/\d+ itens$/, rqItens().length + ' itens');
+  renderEditorReq();
+}
+
+function salvarAlteracoesReq() {
+  if (!tmpParsed) return;
+  rqItens().forEach(({ it }) => { it.status = rqSituacao(it); });
+  toast('Alterações salvas. Clique em Registrar requisição para enviar.', 'green');
+}
+
+function renderEditorReq() {
+  const tabEl = document.getElementById('rqTabela');
+  if (!tabEl || !tmpParsed) return;
+  const todos = rqItens();
+
+  // filtros rápidos por tipo
+  const porTipo = {};
+  todos.forEach(({ tipo }) => { porTipo[tipo] = (porTipo[tipo] || 0) + 1; });
+  const tipos = Object.keys(porTipo).sort((a, b) => (a === 'Outros') - (b === 'Outros') || porTipo[b] - porTipo[a]);
+  const chip = (id, label, n, cls) =>
+    '<button type="button" class="rq-chip ' + (cls || '') + (RQ.filtro === id ? ' active' : '') + '" onclick="filtrarTipoReq(' + jsArg(id) + ')">' + esc(label) + ' (' + n + ')</button>';
+  const chipsEl = document.getElementById('rqChips');
+  if (chipsEl) chipsEl.innerHTML = chip('todos', 'Todos', todos.length, '') + tipos.map((t) => chip(t, t, porTipo[t], RQ_COR_TIPO[t] || '')).join('');
+  const totMob = document.getElementById('rqTotalMob');
+  if (totMob) totMob.textContent = todos.length;
+
+  const q = rmAcc(RQ.busca).toLowerCase();
+  const lista = todos
+    .map((x, i) => ({ ...x, n: i + 1 }))
+    .filter((x) => (RQ.filtro === 'todos' || x.tipo === RQ.filtro) && (!q || rmAcc(x.it.material).toLowerCase().includes(q)));
+
+  const total = lista.length;
+  const paginas = Math.max(1, Math.ceil(total / RQ.porPagina));
+  if (RQ.pagina > paginas) RQ.pagina = paginas;
+  const ini = (RQ.pagina - 1) * RQ.porPagina;
+  const pagina = lista.slice(ini, ini + RQ.porPagina);
+
+  if (!total) {
+    tabEl.innerHTML = '<div class="rq-empty">Nenhum material encontrado' + (q ? ' para "' + esc(RQ.busca) + '"' : '') + '.</div>';
+  } else {
+    const linhas = pagina.map(({ it, n }) => {
+      const id = it.id;
+      const st = rqSituacao(it);
+      it.status = st;
+      const ate = String(it.qtdAtendida ?? '');
+      const aberto = String(RQ.aberto) === String(id);
+      return (
+        '<tr class="rq-row' + (aberto ? ' open' : '') + '" onclick="if(window.matchMedia(\'(max-width: 768px)\').matches && !event.target.closest(\'input,button\'))abrirItemReq(' + jsArg(id) + ')">' +
+        '<td class="rq-c-n">' + n + '</td>' +
+        '<td class="rq-c-mat" title="' + esc(it.material) + '">' + esc(rqNomeMaterial(it.material)) + '</td>' +
+        '<td class="rq-c-un rq-hide-m">' + esc(it.unidade || '—') + '</td>' +
+        '<td class="rq-c-num">' + esc(String(it.qtdSolicitada ?? '—')) + '</td>' +
+        '<td class="rq-c-ate"><input class="rq-mini rq-hide-m" inputmode="numeric" data-rq-ate="' + id + '" value="' + esc(ate) + '" placeholder="0" oninput="editarItemReq(' + jsArg(id) + ',\'qtdAtendida\',this.value)"><span class="rq-show-m" data-rq-ate-txt="' + id + '">' + (ate === '' ? '0' : esc(ate)) + '</span></td>' +
+        '<td class="rq-c-num rq-hide-m" data-rq-falta="' + id + '">' + rqFaltante(it) + '</td>' +
+        '<td class="rq-c-sit" data-rq-sit="' + id + '">' + rqBadge(st) + '</td>' +
+        '<td class="rq-c-obs rq-hide-m"><input class="rq-mini rq-obs" data-rq-obs="' + id + '" value="' + esc(it.obs || '') + '" placeholder="Opcional" oninput="editarItemReq(' + jsArg(id) + ',\'obs\',this.value)"></td>' +
+        '<td class="rq-c-del rq-hide-m"><button type="button" class="rq-del" title="Remover item" onclick="removerItemReq(' + jsArg(id) + ')">' + lc('trash-2') + '</button></td>' +
+        '<td class="rq-c-chev rq-show-m">' + lc(aberto ? 'chevron-down' : 'chevron-right') + '</td>' +
+        '</tr>' +
+        (aberto
+          ? '<tr class="rq-detail rq-show-m"><td colspan="6"><div class="rq-detail-grid">' +
+            '<label>Atendido<input class="rq-input" inputmode="numeric" data-rq-ate="' + id + '" value="' + esc(ate) + '" placeholder="0" oninput="editarItemReq(' + jsArg(id) + ',\'qtdAtendida\',this.value)"></label>' +
+            '<label>Faltante<span data-rq-falta="' + id + '">' + rqFaltante(it) + '</span></label>' +
+            '<label class="rq-detail-obs">Observações<input class="rq-input" data-rq-obs="' + id + '" value="' + esc(it.obs || '') + '" placeholder="Opcional" oninput="editarItemReq(' + jsArg(id) + ',\'obs\',this.value)"></label>' +
+            '<button type="button" class="rq-btn rq-btn-danger" onclick="removerItemReq(' + jsArg(id) + ')">' + lc('trash-2') + ' Remover item</button>' +
+            '</div></td></tr>'
+          : '')
+      );
+    });
+    tabEl.innerHTML =
+      '<div class="rq-table-wrap"><table class="rq-table"><thead><tr>' +
+      '<th class="rq-c-n">#</th><th>Material</th><th class="rq-hide-m">Unid.</th><th class="rq-c-num"><span class="rq-desk">Solicitado</span><span class="rq-mob">Solic.</span></th>' +
+      '<th class="rq-c-ate"><span class="rq-desk">Atendido</span><span class="rq-mob">Atend.</span></th><th class="rq-c-num rq-hide-m">Faltante</th><th class="rq-c-sit">Situação</th>' +
+      '<th class="rq-hide-m">Observações</th><th class="rq-hide-m"></th><th class="rq-show-m rq-c-chev"></th>' +
+      '</tr></thead><tbody>' + linhas.join('') + '</tbody></table></div>';
+  }
+
+  // paginação (computador) e "ver mais" (celular)
+  const pagEl = document.getElementById('rqPaginacao');
+  if (pagEl) {
+    const fim = Math.min(ini + RQ.porPagina, total);
+    let nums = '';
+    const de = Math.max(1, Math.min(RQ.pagina - 2, paginas - 4));
+    const ate = Math.min(paginas, de + 4);
+    for (let i = de; i <= ate; i++) nums += '<button type="button" class="rq-pg' + (i === RQ.pagina ? ' active' : '') + '" onclick="paginaReq(' + i + ')">' + i + '</button>';
+    pagEl.innerHTML =
+      '<div class="rq-pag rq-hide-m">' +
+      '<span class="rq-muted">Mostrando ' + (total ? ini + 1 : 0) + ' a ' + fim + ' de ' + total + ' itens</span>' +
+      '<div class="rq-pag-r"><span class="rq-muted">Itens por página</span>' +
+      '<select class="rq-pp" onchange="porPaginaReq(this.value)">' + [10, 20, 50].map((v) => '<option' + (v === RQ.porPagina ? ' selected' : '') + '>' + v + '</option>').join('') + '</select>' +
+      '<button type="button" class="rq-pg" ' + (RQ.pagina <= 1 ? 'disabled' : '') + ' onclick="paginaReq(' + (RQ.pagina - 1) + ')">' + lc('chevron-left') + '</button>' +
+      nums +
+      '<button type="button" class="rq-pg" ' + (RQ.pagina >= paginas ? 'disabled' : '') + ' onclick="paginaReq(' + (RQ.pagina + 1) + ')">' + lc('chevron-right') + '</button>' +
+      '</div></div>' +
+      (fim < total ? '<button type="button" class="rq-vermais rq-show-m" onclick="verMaisReq()">Ver mais itens</button>' : '');
+  }
+  refreshIcons();
+}
+
+Object.assign(window, {
+  removerArquivoReq, limparUnidadeReq, aplicarBuscaReq, filtrarTipoReq, paginaReq, porPaginaReq,
+  verMaisReq, abrirItemReq, editarItemReq, removerItemReq, salvarAlteracoesReq,
+});
 
 function stripVolatileParsed(parsed) {
   if (!parsed || typeof parsed !== 'object') return null;
@@ -2280,10 +2540,8 @@ async function doRegistrar(finalUnit){
     return;
   }
 
-  tmpParsed=null;document.getElementById('fi').value='';document.getElementById('fname').style.display='none';
+  resetarRequisicaoUI();
   document.getElementById('rU').selectedIndex=0;document.getElementById('rO').value='';
-  document.getElementById('detectInfo').innerHTML='<span style="color:var(--muted);font-size:12px">Anexe a planilha...</span>';
-  document.getElementById('bR').disabled=true;
   setupDataPedidoAuto();
   toast('Requisição registrada! Os dados irão para o Relatório após a Entrega.', 'green');
   goTab('ps');
