@@ -88,6 +88,8 @@ function buildCollections(basePath) {
     semcasHistDB:   collection(db, `${basePath}/semcasHistDB`),
     semcasAliases:  collection(db, `${basePath}/semcasAliases`),
     pcaAjustes:     collection(db, `${basePath}/pcaAjustes`),
+    catalogoMateriais:  collection(db, `${basePath}/catalogoMateriais`),
+    catalogoCategorias: collection(db, `${basePath}/catalogoCategorias`),
   };
 }
 

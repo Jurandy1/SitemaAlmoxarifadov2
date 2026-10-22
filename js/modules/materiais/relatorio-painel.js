@@ -10,6 +10,7 @@ import {
 } from "../../utils/db-utils.js";
 import { getUnidades } from "../../utils/cache.js";
 import { getFeriadosISOSetCached } from "../feriados.js";
+import { carregarCatalogo, infoCatalogoDoItem } from "./catalogo.js";
 
 const DAY_NAMES = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
@@ -231,7 +232,9 @@ export function buildAnalyticRows(materiaisDocs, histDocs) {
       const sol = _deps.extractNum(it.qtdSolicitada);
       const ate = _deps.extractNum(it.qtdAtendida);
       const itemStatus = deriveItemStatus(sol, ate, it.status);
-      const cat = categoryFromItem(it, parsedCats);
+      // Com código no catálogo, nome e categoria vêm do catálogo (correções valem em todos os pedidos)
+      const doCatalogo = infoCatalogoDoItem(it);
+      const cat = doCatalogo?.categoria || categoryFromItem(it, parsedCats);
       const tipoItem = it.tipo || _deps.detectTipo(cat);
 
       let faltante = Math.max(0, sol - ate);
@@ -258,7 +261,9 @@ export function buildAnalyticRows(materiaisDocs, histDocs) {
         reqStatus: statusReq,
         cat,
         tipoItem,
-        material: String(it.material || "").trim(),
+        material: doCatalogo?.material || String(it.material || "").trim(),
+        materialId: doCatalogo?.materialId || null,
+        categoriaId: doCatalogo?.categoriaId || null,
         qtdSolicitada: sol,
         qtdAtendida: ate,
         faltante,
@@ -295,6 +300,7 @@ export function buildAnalyticRows(materiaisDocs, histDocs) {
         const cat = _deps.getCanonicalCat(_deps.normalizeCat(catRaw)) || catRaw;
         for (const it of c.items || []) {
           if (!it?.material) continue;
+          const doCatalogo = infoCatalogoDoItem(it);
           const hasSol = it.qtySolicitada != null || it.qtdSolicitada != null;
           const hasAte = it.qtyAtendida != null || it.qtdAtendida != null || it.qty != null;
           const sol = hasSol
@@ -328,9 +334,11 @@ export function buildAnalyticRows(materiaisDocs, histDocs) {
             month: date ? ym(date) : entry.month ? `${entry.year}-${String(entry.month).padStart(2, "0")}` : "",
             weekday: date ? date.getDay() : null,
             reqStatus: "historico",
-            cat,
-            tipoItem: it.tipoItem || _deps.detectTipo(cat),
-            material: String(it.material || "").trim(),
+            cat: doCatalogo?.categoria || cat,
+            tipoItem: it.tipoItem || _deps.detectTipo(doCatalogo?.categoria || cat),
+            material: doCatalogo?.material || String(it.material || "").trim(),
+            materialId: doCatalogo?.materialId || null,
+            categoriaId: doCatalogo?.categoriaId || null,
             qtdSolicitada: sol,
             qtdAtendida: ate || 0,
             faltante: hasSol ? Math.max(0, (sol || 0) - (ate || 0)) : null,
@@ -1612,6 +1620,7 @@ async function ensureDataLoaded(force = false) {
       fetchAllMateriaisForReport({ force }),
       fetchAllHistForReport({ force }),
       carregarFeriadosPainel(),
+      carregarCatalogo(force),
     ]);
     _state.rows = buildAnalyticRows(mats, hist);
     _state.loaded = true;

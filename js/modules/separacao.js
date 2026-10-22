@@ -20,6 +20,8 @@ import {
   invalidatePainelData,
 } from "./materiais/relatorio-painel.js";
 import { invalidateReportCaches } from "../utils/db-utils.js";
+import { garantirCodigos, configurarCatalogo } from "./materiais/catalogo.js";
+import { configurarCatalogoUi, renderItensComCodigo, renderCategoriasComCodigo } from "./materiais/catalogo-ui.js";
 
 let __stylesInjected = false;
 
@@ -301,6 +303,12 @@ const DataStore = {
     if (key === "hist_v4") {
       const entries = Array.isArray(value) ? value : [];
       try { console.info("[FM] saveHist bulk:", entries.length, "entries"); } catch (_) {}
+      // Código do catálogo (MAT-/CAT-) em cada item do histórico
+      for (const e of entries) {
+        for (const u of e?.units || []) {
+          for (const c of u?.categories || []) await garantirCodigos(c.items || [], () => c.catName || "");
+        }
+      }
       const db = COLLECTIONS.semcasHistDB.firestore;
       for (let i = 0; i < entries.length; i += 450) {
         const b = writeBatch(db);
@@ -343,6 +351,10 @@ const DataStore = {
         const dataRequisicao = r.dt ? Timestamp.fromDate(new Date(r.dt)) : serverTimestamp();
         const dataEntrega = r.dtEntrega ? Timestamp.fromDate(new Date(r.dtEntrega)) : null;
         const parsedData = deepCleanForFirestore(stripVolatileParsed(r.parsed));
+        // Código do catálogo (MAT-/CAT-) em cada item; material novo ganha código aqui
+        const secaoDoItem = new Map();
+        (r.parsed?.categories || []).forEach((c) => (c.items || []).forEach((it) => secaoDoItem.set(String(it.id), c.name || c.catName || "")));
+        await garantirCodigos(r.items || {}, (it) => secaoDoItem.get(String(it.id)) || "");
         const itemsMap = deepCleanForFirestore(r.items || {});
         const docData = omitUndefinedShallow({
           _version: 2,
@@ -6183,6 +6195,32 @@ function getCanonicalCat(cat) {
   return cat;
 }
 
+// ─── Catálogo com código (MAT-/CAT-) ─────────────────────────────
+// Chave usada pelas regras por nome (MAT_ALIASES) para uma forma escrita do material
+function chaveRegraMaterial(nome) {
+  let r = _origNormMat(cleanMaterialJunk(String(nome || '')));
+  for (const [re, repl] of MAT_SYNONYMS) {
+    if (re.test(r)) { r = r.replace(re, repl); break; }
+  }
+  return r;
+}
+
+// Corrigir pelo código também atualiza as regras por nome, para as telas que ainda
+// trabalham pelo nome (relatórios da Separação, banco de dados) mostrarem o mesmo resultado
+async function sincronizarRegrasComCatalogo(ev) {
+  if (ev?.tipo === 'material') {
+    (ev.variantes || []).forEach((v) => { const k = chaveRegraMaterial(v); if (k) MAT_ALIASES[k] = ev.nome; });
+  } else if (ev?.tipo === 'categoria') {
+    (ev.variantes || []).forEach((v) => {
+      CAT_ALIASES[normCatKey(v)] = ev.nome;
+      CAT_ALIASES[normCatKey(normalizeCat(v))] = ev.nome;
+    });
+  }
+  if (ev?.tipo === 'material' || ev?.tipo === 'categoria') await saveMatAliases();
+  invalidateAggCache();
+  try { invalidatePainelData(); } catch (_) {}
+}
+
 async function applyCatFix(fromKey, toName) {
   CAT_ALIASES[fromKey] = toName;
   const ok = await saveMatAliases();
@@ -6482,9 +6520,11 @@ function renderCorrecaoItens() {
     + '<button class="fix-tab' + (_fixView === 'todos' ? ' act' : '') + '" onclick="setFixView(\'todos\')">' + lc('list') + ' Itens (' + nTotal + ')</button>'
     + '<button class="fix-tab' + (_fixView === 'regras' ? ' act' : '') + '" onclick="setFixView(\'regras\')">' + lc('scroll-text') + ' Regras (' + nRules + ')</button>'
     + '<button class="fix-tab' + (_fixView === 'categorias' ? ' act' : '') + '" onclick="setFixView(\'categorias\')">' + lc('folder-tree') + ' Categorias (' + nCats + ')</button>'
+    + '<button class="fix-tab' + (_fixView === 'codigos' ? ' act' : '') + '" onclick="setFixView(\'codigos\')">' + lc('hash') + ' Itens com código</button>'
+    + '<button class="fix-tab' + (_fixView === 'codcat' ? ' act' : '') + '" onclick="setFixView(\'codcat\')">' + lc('hash') + ' Categorias com código</button>'
     + '</div>';
 
-  h += '<div style="margin-bottom:12px;display:flex;align-items:center;gap:6px"><span style="flex-shrink:0">' + lc('search') + '</span><input class="input" id="fixSearch" placeholder="Buscar item por nome..." value="' + esc(_fixSearchTerm) + '" '
+  h += '<div style="margin-bottom:12px;display:flex;align-items:center;gap:6px"><span style="flex-shrink:0">' + lc('search') + '</span><input class="input" id="fixSearch" placeholder="' + ((_fixView === 'codigos' || _fixView === 'codcat') ? 'Buscar por código (ex.: 4 ou MAT-0004) ou nome...' : 'Buscar item por nome...') + '" value="' + esc(_fixSearchTerm) + '" '
     + 'oninput="_fixSearchTerm=this.value;renderCorrecaoItens()" style="max-width:400px;font-size:13px"></div>';
 
   const searchLo = rmAcc(_fixSearchTerm || '').toLowerCase();
@@ -6495,6 +6535,10 @@ function renderCorrecaoItens() {
     h += renderFixTodos(items, searchLo);
   } else if (_fixView === 'categorias') {
     h += renderFixCategorias(allCats, searchLo);
+  } else if (_fixView === 'codigos') {
+    h += renderItensComCodigo(_fixSearchTerm);
+  } else if (_fixView === 'codcat') {
+    h += renderCategoriasComCodigo(_fixSearchTerm);
   } else {
     h += renderFixRegras(searchLo);
   }
@@ -9090,6 +9134,15 @@ export function initSeparacao() {
       esc,
       refreshIcons,
       toast,
+    });
+  } catch (e) { console.error(e); }
+  try {
+    configurarCatalogo({ aoAlterar: sincronizarRegrasComCatalogo });
+    configurarCatalogoUi({
+      esc,
+      toast,
+      rerender: () => renderCorrecaoItens(),
+      isAdmin: () => getUserRole() === 'admin',
     });
   } catch (e) { console.error(e); }
   try { populateUnidadesSelect(); } catch (e) { console.error(e); }
