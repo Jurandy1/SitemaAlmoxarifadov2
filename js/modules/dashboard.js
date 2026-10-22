@@ -546,59 +546,127 @@ function esconderAvisoVoz() {
     if (tvAvisoEl) tvAvisoEl.style.display = 'none';
 }
 
-function bombearNarracaoTV() {
+let tvAudioEl = null;
+
+function garantirTvAudio() {
+    if (!tvAudioEl) {
+        tvAudioEl = new Audio();
+        tvAudioEl.preload = 'auto';
+        tvAudioEl.volume = 1;
+        try {
+            tvAudioEl.setAttribute('playsinline', 'true');
+            tvAudioEl.setAttribute('webkit-playsinline', 'true');
+        } catch (_) {}
+    }
+    return tvAudioEl;
+}
+
+function urlsDaFala(texto) {
+    const q = encodeURIComponent(texto);
+    return [
+        `https://translate.google.com/translate_tts?ie=UTF-8&tl=pt-BR&client=tw-ob&q=${q}`,
+        `https://translate.google.com/translate_tts?ie=UTF-8&tl=pt-BR&client=gtx&q=${q}`,
+    ];
+}
+
+function tocarMp3(texto) {
+    return new Promise((resolve) => {
+        const audio = garantirTvAudio();
+        const urls = urlsDaFala(texto);
+        let indice = 0;
+        let fechado = false;
+        const fechar = (resultado) => {
+            if (fechado) return;
+            fechado = true;
+            clearTimeout(limite);
+            audio.onended = null;
+            audio.onerror = null;
+            audio.onplaying = null;
+            resolve(resultado);
+        };
+        const limite = setTimeout(() => fechar('fail'), 20000);
+        const tentar = () => {
+            if (fechado) return;
+            if (indice >= urls.length) {
+                fechar('fail');
+                return;
+            }
+            const src = urls[indice++];
+            let iniciou = false;
+            audio.onplaying = () => {
+                iniciou = true;
+                tvVozLiberada = true;
+                esconderAvisoVoz();
+            };
+            audio.onended = () => fechar('ok');
+            audio.onerror = () => {
+                if (iniciou) fechar('ok');
+                else tentar();
+            };
+            try { audio.pause(); } catch (_) {}
+            audio.volume = 1;
+            audio.src = src;
+            const play = audio.play();
+            if (play && typeof play.then === 'function') {
+                play.then(() => { iniciou = true; }).catch((e) => {
+                    const msg = String(e?.name || e?.message || e || '');
+                    if (/notallowed|not allowed|autoplay/i.test(msg)) fechar('blocked');
+                    else if (!iniciou) tentar();
+                });
+            }
+        };
+        tentar();
+    });
+}
+
+function falarNativo(texto) {
+    return new Promise((resolve) => {
+        if (typeof window.speechSynthesis === 'undefined') {
+            resolve(false);
+            return;
+        }
+        const frase = new SpeechSynthesisUtterance(texto);
+        frase.lang = 'pt-BR';
+        frase.rate = 0.92;
+        frase.volume = 1;
+        const voz = vozPtBr();
+        if (voz) frase.voice = voz;
+        let ok = false;
+        const fim = (resultado) => {
+            clearTimeout(limite);
+            resolve(resultado);
+        };
+        const limite = setTimeout(() => fim(ok), 12000);
+        frase.onstart = () => {
+            ok = true;
+            tvVozLiberada = true;
+            esconderAvisoVoz();
+        };
+        frase.onend = () => fim(ok);
+        frase.onerror = () => fim(false);
+        try {
+            window.speechSynthesis.resume();
+            window.speechSynthesis.speak(frase);
+        } catch (_) {
+            fim(false);
+        }
+    });
+}
+
+async function bombearNarracaoTV() {
     if (tvNarracaoFalando || !tvNarracaoFila.length) return;
-    if (typeof window.speechSynthesis === 'undefined') {
-        mostrarAvisoVoz('Esta TV não tem voz neste navegador');
+    const texto = tvNarracaoFila.shift();
+    tvNarracaoFalando = true;
+    const mp3 = await tocarMp3(texto);
+    if (mp3 === 'blocked') {
+        tvNarracaoFila.unshift(texto);
+        tvNarracaoFalando = false;
+        mostrarAvisoVoz('Toque na tela para a TV falar');
         return;
     }
-    const texto = tvNarracaoFila.shift();
-    const frase = new SpeechSynthesisUtterance(texto);
-    frase.lang = 'pt-BR';
-    frase.rate = 0.92;
-    frase.pitch = 1;
-    frase.volume = 1;
-    const voz = vozPtBr();
-    if (voz) frase.voice = voz;
-    tvNarracaoFalando = true;
-    let comecou = false;
-    let tratado = false;
-    let vigia = 0;
-    const seguir = (bloquear) => {
-        if (tratado) return;
-        tratado = true;
-        clearTimeout(vigia);
-        tvNarracaoFalando = false;
-        if (bloquear) {
-            tvNarracaoFila.unshift(texto);
-            mostrarAvisoVoz('Toque na tela para a TV falar');
-            return;
-        }
-        setTimeout(bombearNarracaoTV, 700);
-    };
-    frase.onstart = () => {
-        comecou = true;
-        tvVozLiberada = true;
-        esconderAvisoVoz();
-    };
-    frase.onend = () => seguir(false);
-    frase.onerror = (ev) => seguir(ev?.error === 'not-allowed');
-    const checar = () => {
-        if (comecou || tratado) return;
-        const sintese = window.speechSynthesis;
-        if (sintese?.speaking || sintese?.pending) {
-            vigia = setTimeout(checar, 2500);
-            return;
-        }
-        seguir(true);
-    };
-    vigia = setTimeout(checar, 2500);
-    try {
-        window.speechSynthesis.resume();
-        window.speechSynthesis.speak(frase);
-    } catch (_) {
-        seguir(true);
-    }
+    if (mp3 !== 'ok') await falarNativo(texto);
+    tvNarracaoFalando = false;
+    setTimeout(bombearNarracaoTV, 700);
 }
 
 function enfileirarNarracaoTV(texto) {
@@ -609,7 +677,7 @@ function enfileirarNarracaoTV(texto) {
 }
 
 function narrarMudancasStatusTV(materiais) {
-    if (typeof window === 'undefined' || typeof window.speechSynthesis === 'undefined') return;
+    if (typeof window === 'undefined') return;
     const atuais = new Map();
     (materiais || []).forEach((m) => {
         const id = String(m?.id || m?.v2Id || '');
@@ -644,7 +712,6 @@ if (typeof window !== 'undefined') {
     let tvToqueEm = 0;
     const noToque = () => {
         if (!document.body?.classList.contains('tv-mode')) return;
-        if (typeof window.speechSynthesis === 'undefined') return;
         if (tvVozLiberada && !tvNarracaoFila.length) return;
         const agora = Date.now();
         if (agora - tvToqueEm < 700) return;
@@ -660,9 +727,7 @@ if (typeof window !== 'undefined') {
     window.addEventListener('pointerdown', noToque);
     window.addEventListener('touchstart', noToque);
     window.addEventListener('keydown', noToque);
-    if (typeof window.speechSynthesis === 'undefined') {
-        mostrarAvisoVoz('Esta TV não tem voz neste navegador');
-    } else if (document.body?.classList.contains('tv-mode')) {
+    if (document.body?.classList.contains('tv-mode')) {
         mostrarAvisoVoz('Toque na tela para a TV falar');
     }
 }
