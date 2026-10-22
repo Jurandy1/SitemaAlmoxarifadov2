@@ -2290,7 +2290,7 @@ async function doRegistrar(finalUnit){
 }
 
 async function cancelarReq(id){
-  if(!confirm('Deseja cancelar e remover esta requisição?')) return;
+  if(!(await confirmar('Deseja excluir este pedido? Ele será removido do sistema.', { ok: 'Excluir', perigo: true }))) return;
   const key = String(id);
   try {
     await deleteDoc(doc(COLLECTIONS.materiais, key));
@@ -2308,7 +2308,7 @@ async function cancelarReq(id){
 
 async function excluirHistoricoReq(id){
   if (getUserRole() !== 'admin') { toast('Permissão negada: apenas Admin.', 'red'); return; }
-  if(!confirm('Deseja excluir esta entrega do Histórico? (remove do banco também)')) return;
+  if(!(await confirmar('Deseja excluir esta entrega do Histórico? Ela também sai do banco de dados.', { ok: 'Excluir', perigo: true }))) return;
   const key = String(id);
   const r = findReq(key);
   try {
@@ -2846,7 +2846,7 @@ function renderVinculos(){
   el.querySelectorAll('button[data-vdel]').forEach(btn => {
     btn.addEventListener('click', async () => {
       const k = btn.getAttribute('data-vdel');
-      if(!confirm('Remover este vínculo?')) return;
+      if(!(await confirmar('Remover este vínculo?', { ok: 'Remover', perigo: true }))) return;
       const ok = await removeUnitAlias(k);
       if (ok) renderVinculos();
     });
@@ -3042,10 +3042,10 @@ function addFichaItem(catIdxStr){
   persistReq(r);
   toast('Item adicionado. Edite o nome e a quantidade.','green');
 }
-function removeFichaItem(id){
+async function removeFichaItem(id){
   const r=findReq(curId);if(!r)return;
   if(!r.items[id])return;
-  if(!confirm('Remover "'+r.items[id].material+'" da lista?'))return;
+  if(!(await confirmar('Remover "'+r.items[id].material+'" da lista?', { ok: 'Remover', perigo: true })))return;
   delete r.items[id];
   if(r.parsed&&r.parsed.categories){
     r.parsed.categories.forEach(c=>{
@@ -3082,11 +3082,11 @@ function updateStats(){
   document.getElementById('fichaStats').innerHTML=`<span class="fstat fs-t">Total: <b>${v.length}</b></span><span class="fstat fs-ok">✓ ${v.filter(i=>i.status==='atendido').length}</span><span class="fstat fs-pa">◐ ${v.filter(i=>i.status==='parcial').length}</span><span class="fstat fs-se">✗ ${v.filter(i=>i.status==='sem_estoque').length}</span><span class="fstat fs-na">⊘ ${v.filter(i=>i.status==='nao_atendido').length}</span><span class="fstat" style="background:#451a03;color:#fcd34d">↑ ${v.filter(i=>i.status==='excedido').length}</span>`;
 }
 
-function marcarPronto(e){
+async function marcarPronto(e){
   if(e && e.preventDefault) e.preventDefault();
   if(e && e.stopPropagation) e.stopPropagation();
   const r=findReq(curId);if(!r)return;
-  if(!confirm('Tem certeza que deseja marcar como Pronto?')) return;
+  if(!(await confirmar('Tem certeza que deseja marcar como Pronto?', { ok: 'Marcar Pronto' }))) return;
   Object.keys(r.items).forEach(id=>autoDetect(id));
   Object.values(r.items).forEach(i=>{
     if(i.status==='nao_atendido'&&!String(i.qtdAtendida||'').trim())i.status='nao_atendido';
@@ -3100,11 +3100,11 @@ function marcarPronto(e){
   toast(displayUnit(r.unidade)+' → Pronto!','green');
   goTab('pe');
 }
-function marcarProntoLista(id, e){
+async function marcarProntoLista(id, e){
   if(e && e.preventDefault) e.preventDefault();
   if(e && e.stopPropagation) e.stopPropagation();
   const r=findReq(id);if(!r)return;
-  if(!confirm('Tem certeza que deseja marcar como Pronto?')) return;
+  if(!(await confirmar('Tem certeza que deseja marcar como Pronto?', { ok: 'Marcar Pronto' }))) return;
   r.status='pronto';r.dtPronto=new Date();markDirty(r);persistReq(r);toast(displayUnit(r.unidade)+' → Pronto!','green');renderAll();
 }
 function voltarSeparacao(id){const r=findReq(id);if(!r)return;r.status='separando';markDirty(r);persistReq(r);toast(displayUnit(r.unidade)+' ↩️ Voltou para Separação','green');goTab('es')}
@@ -3214,6 +3214,36 @@ function printReq(id){
 
 function showModal(t,d,dv,cb){_mcb=cb;document.getElementById('mT').textContent=t;document.getElementById('mD').textContent=d;const i=document.getElementById('mI');i.value=dv||'';i.placeholder=t;document.getElementById('modal').classList.add('open');setTimeout(()=>i.focus(),100);i.onkeydown=e=>{if(e.key==='Enter')okModal()}}
 function okModal(){const v=document.getElementById('mI').value.trim();if(!v)return;document.getElementById('modal').classList.remove('open');const cb=_mcb;_mcb=null;if(cb)cb(v)}
+// Confirmação com janela do sistema: o confirm() nativo é bloqueado em alguns navegadores
+// (ex.: navegador embutido), que respondem "Cancelar" sozinhos e o botão parece não fazer nada
+function confirmar(msg, { ok = 'Confirmar', perigo = false } = {}) {
+  return new Promise((resolve) => {
+    // a janela fica fora da área de separação, então os botões levam estilo próprio
+    const estiloBtn = 'height:34px;padding:0 16px;border-radius:8px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;';
+    const fundo = document.createElement('div');
+    fundo.style.cssText = 'position:fixed;inset:0;z-index:100001;background:rgba(15,23,42,.5);display:flex;align-items:center;justify-content:center;padding:16px';
+    fundo.innerHTML =
+      '<div role="dialog" aria-modal="true" style="background:#fff;border-radius:12px;max-width:420px;width:100%;padding:20px;box-shadow:0 20px 50px rgba(0,0,0,.25)">' +
+      '<p style="margin:0 0 18px;font-size:14px;line-height:1.45;color:#0f172a;white-space:pre-line">' + esc(msg) + '</p>' +
+      '<div style="display:flex;justify-content:flex-end;gap:8px">' +
+      '<button type="button" data-r="0" style="' + estiloBtn + 'background:#fff;color:#0f172a;border:1px solid #cbd5e1">Cancelar</button>' +
+      '<button type="button" data-r="1" style="' + estiloBtn + 'color:#fff;border:1px solid transparent;background:' + (perigo ? '#dc2626' : '#1d4ed8') + '">' + esc(ok) + '</button>' +
+      '</div></div>';
+    const fim = (v) => { document.removeEventListener('keydown', tecla, true); fundo.remove(); resolve(v); };
+    const tecla = (e) => {
+      if (e.key === 'Escape') { e.stopPropagation(); fim(false); }
+      else if (e.key === 'Enter') { e.preventDefault(); fim(true); }
+    };
+    fundo.addEventListener('click', (e) => {
+      if (e.target === fundo) return fim(false);
+      const b = e.target.closest('[data-r]');
+      if (b) fim(b.dataset.r === '1');
+    });
+    document.addEventListener('keydown', tecla, true);
+    document.body.appendChild(fundo);
+    fundo.querySelector('[data-r="1"]').focus();
+  });
+}
 function closeModal(){document.getElementById('modal').classList.remove('open');_mcb=null}
 function toast(msg,c){const t=document.createElement('div');t.textContent=msg;Object.assign(t.style,{position:'fixed',bottom:'20px',left:'50%',transform:'translateX(-50%)',background:c==='green'?'#059669':'#dc2626',color:'#fff',padding:'10px 24px',borderRadius:'10px',fontSize:'13px',fontWeight:'700',zIndex:'100000',boxShadow:'0 8px 24px rgba(0,0,0,.2)'});document.body.appendChild(t);setTimeout(()=>t.remove(),2500)}
 
