@@ -39,6 +39,9 @@ let _state = {
     coverage: "all", // all | full | delivery_only
   },
   sub: "geral",
+  preset: "mes", // atalho de período ativo (30d | mes | trimestre | ano | personalizado)
+  verTodosPedidos: false,
+  loadedAt: null,
   lastExportRows: [],
 };
 
@@ -356,6 +359,7 @@ export function computeMetrics(rows) {
 
   let sol = 0;
   let ate = 0;
+  let ateFull = 0; // atendido só nas linhas completas (comparável ao solicitado)
   let falt = 0;
   const byStatus = {
     atendido: 0,
@@ -386,6 +390,7 @@ export function computeMetrics(rows) {
     if (r.coverage === "full") {
       sol += r.qtdSolicitada || 0;
       falt += r.faltante || 0;
+      ateFull += ateVal;
     }
 
     byStatus[r.itemStatus] = (byStatus[r.itemStatus] || 0) + 1;
@@ -401,6 +406,7 @@ export function computeMetrics(rows) {
         days: new Set(),
         sol: 0,
         ate: 0,
+        ateFull: 0,
         falt: 0,
         fullLines: 0,
         deliveryLines: 0,
@@ -414,6 +420,7 @@ export function computeMetrics(rows) {
     u.distinctItems.add(normKey(r.material));
     if (r.coverage === "full") {
       u.sol += r.qtdSolicitada || 0;
+      u.ateFull += ateVal;
       u.falt += r.faltante || 0;
       u.fullLines += 1;
     } else {
@@ -427,6 +434,7 @@ export function computeMetrics(rows) {
         cat: r.cat,
         sol: 0,
         ate: 0,
+        ateFull: 0,
         falt: 0,
         lines: 0,
         full: false,
@@ -439,6 +447,7 @@ export function computeMetrics(rows) {
     m.units.add(r.unitName);
     if (r.coverage === "full") {
       m.sol += r.qtdSolicitada || 0;
+      m.ateFull += ateVal;
       m.falt += r.faltante || 0;
       m.full = true;
     }
@@ -468,7 +477,7 @@ export function computeMetrics(rows) {
   const nDays = days.size;
   const nWeeks = Math.max(weeks.size, 1);
   const taxa =
-    sol > 0 ? Math.round((Math.min(ate, sol) / sol) * 1000) / 10 : null;
+    sol > 0 ? Math.round((Math.min(ateFull, sol) / sol) * 1000) / 10 : null;
 
   const unitStats = [...byUnit.values()]
     .map((u) => ({
@@ -479,7 +488,8 @@ export function computeMetrics(rows) {
       sol: u.sol,
       ate: u.ate,
       falt: u.falt,
-      taxa: u.sol > 0 ? Math.round((Math.min(u.ate, u.sol) / u.sol) * 1000) / 10 : null,
+      ateFull: u.ateFull,
+      taxa: u.sol > 0 ? Math.round((Math.min(u.ateFull, u.sol) / u.sol) * 1000) / 10 : null,
       distinctItems: u.distinctItems.size,
       fullLines: u.fullLines,
       deliveryLines: u.deliveryLines,
@@ -497,7 +507,8 @@ export function computeMetrics(rows) {
       lines: m.lines,
       nUnits: m.units.size,
       full: m.full,
-      taxa: m.sol > 0 ? Math.round((Math.min(m.ate, m.sol) / m.sol) * 1000) / 10 : null,
+      ateFull: m.ateFull,
+      taxa: m.sol > 0 ? Math.round((Math.min(m.ateFull, m.sol) / m.sol) * 1000) / 10 : null,
     }))
     .sort((a, b) => b.ate - a.ate);
 
@@ -517,6 +528,7 @@ export function computeMetrics(rows) {
     nLines: rows.length,
     sol,
     ate,
+    ateFull,
     falt,
     taxa,
     nFull: full.length,
@@ -533,7 +545,13 @@ export function computeMetrics(rows) {
 
 function defaultDateRange() {
   const now = new Date();
-  return { from: isoDay(new Date(now.getFullYear(), now.getMonth() - 2, 1)), to: isoDay(now) };
+  return { from: isoDay(new Date(now.getFullYear(), now.getMonth(), 1)), to: isoDay(now) };
+}
+
+function marcarPresetAtivo() {
+  document.querySelectorAll("#panFilters .pa-chip[data-preset]").forEach((b) => {
+    b.classList.toggle("active", b.dataset.preset === _state.preset);
+  });
 }
 
 function readFiltersFromDom() {
@@ -574,6 +592,8 @@ function setDatePreset(preset) {
   if (elTo) elTo.value = to;
   _state.filters.dateFrom = from;
   _state.filters.dateTo = to;
+  _state.preset = preset;
+  marcarPresetAtivo();
 }
 
 function kpi(val, label, sub, tip, color) {
@@ -621,87 +641,177 @@ function renderTable(headers, bodyRows, emptyMsg) {
   );
 }
 
-function buildGeralHtml(m, filters) {
-  let h = coverageBanner(m);
-  const scope =
-    filters.unit ||
-    (filters.tipo
-      ? _deps.UNIT_TYPES.find((t) => t.id === filters.tipo)?.label || filters.tipo
-      : "Todas as unidades");
+// ─── Formatação para exibição (o dado salvo não muda) ─────────────
+const SIGLAS_UNIDADE = /^(cras|creas|ct|caps|sede|semcas|mse|pcdif|cmdca|cmas|cmdi|ilpi|aepeti|saps|procad)$/i;
 
-  h += `<h2 style="font-size:16px;font-weight:800;margin:0 0 4px">Visão geral — ${_deps.esc(scope)}</h2>`;
-  h += `<p style="font-size:12px;color:#64748b;margin:0 0 12px">Pedidos, consumo e atendimento no período filtrado.</p>`;
+// "Cras Cidade OperáRia" → "CRAS Cidade Operária"
+const MINUSCULAS = /^(de|do|da|dos|das|e|em|no|na|nos|nas)$/i;
+
+function nomeUnidade(nome) {
+  let n = String(nome || "")
+    .replace(/([à-öø-ÿ])([A-ZÀ-ÖØ-Þ])/g, (_, a, b) => a + b.toLowerCase())
+    .split(" ")
+    .map((w, i) => (SIGLAS_UNIDADE.test(w) ? w.toUpperCase() : i > 0 && MINUSCULAS.test(w) ? w.toLowerCase() : w))
+    .join(" ");
+  // Conselhos Tutelares aparecem com o prefixo CT (ex.: "CT Coroadinho/João Paulo")
+  if (_deps.classifyUnit(nome)?.id === "ct" && !/^CT\b/.test(n)) n = "CT " + n;
+  return n;
+}
+
+// "RESMA DE PAPEL A4" → "Resma de papel A4" (mantém códigos como A4, 100L, 8/0)
+function nomeMaterial(nome) {
+  const s = String(nome || "").trim();
+  if (!s || s !== s.toUpperCase()) return s;
+  const out = s
+    .split(" ")
+    .map((w) => (/\d/.test(w) ? w : w.toLowerCase()))
+    .join(" ");
+  return out.charAt(0).toUpperCase() + out.slice(1);
+}
+
+// "Material de Expediente" → "Expediente"
+function nomeCategoria(cat) {
+  return String(cat || "").replace(/^material\s+de\s+/i, "").replace(/^material\s+/i, "") || "—";
+}
+
+// Texto seguro dentro de atributo HTML (inclusive aspas)
+const attrEsc = (v) =>
+  String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmtN = (v) => Number(v || 0).toLocaleString("pt-BR");
+const fmtTaxa = (t) => (t == null ? "—" : t.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + "%");
+const taxaDe = (ate, sol) => (sol > 0 ? Math.round((Math.min(ate, sol) / sol) * 1000) / 10 : null);
+const dataBR = (iso) => (iso ? iso.split("-").reverse().join("/") : "—");
+
+const SITUACAO_LABEL = {
+  atendido: "Atendido",
+  parcial: "Parcial",
+  excedido: "Excedido",
+  nao_atendido: "Não atendido",
+  sem_estoque: "Sem estoque",
+  entrega_registrada: "Entregue",
+};
+
+function paTabela(headers, linhas, vazio) {
+  if (!linhas.length) return `<div class="pa-empty">${_deps.esc(vazio || "Sem dados no filtro.")}</div>`;
+  return (
+    `<div class="pa-table-wrap"><table class="pa-table"><thead><tr>` +
+    headers.map(([t, cls]) => `<th class="${cls || ""}">${t}</th>`).join("") +
+    `</tr></thead><tbody>${linhas.join("")}</tbody></table></div>`
+  );
+}
+
+function paBloco(titulo, linkTexto, linkAcao, corpo, sub) {
+  return (
+    `<div class="pa-card pa-block">` +
+    `<div class="pa-block-head"><h3>${titulo}</h3>` +
+    (linkTexto ? `<button type="button" class="pa-link" onclick="${linkAcao}">${linkTexto}</button>` : "") +
+    `</div>` +
+    (sub ? `<p class="pa-sub">${sub}</p>` : "") +
+    corpo +
+    `</div>`
+  );
+}
+
+function buildGeralHtml(m, filters, filteredRows = []) {
+  // Atendido/Faltante/Taxa comparam com o solicitado: usam só linhas completas (sistema novo).
+  // Sem nenhuma linha completa no filtro (só histórico antigo), mostra o total entregue.
+  const temSol = m.sol > 0;
+  const atendido = temSol ? m.ateFull : m.ate;
+
+  let h =
+    `<div class="pa-kpis">` +
+    `<div class="pa-card pa-kpi"><div class="pa-kpi-label">Pedidos</div><div class="pa-kpi-val">${fmtN(m.nPedidos)}</div></div>` +
+    `<div class="pa-card pa-kpi"><div class="pa-kpi-label">Unidades</div><div class="pa-kpi-val">${fmtN(m.nUnits)}</div></div>` +
+    `<div class="pa-card pa-kpi"><div class="pa-kpi-label">Solicitado</div><div class="pa-kpi-val">${temSol ? fmtN(m.sol) : "—"}</div></div>` +
+    `<div class="pa-card pa-kpi"><div class="pa-kpi-label">Atendido</div><div class="pa-kpi-val pa-green">${fmtN(atendido)}</div></div>` +
+    `<div class="pa-card pa-kpi"><div class="pa-kpi-label">Faltante</div><div class="pa-kpi-val pa-red">${temSol ? fmtN(m.falt) : "—"}</div></div>` +
+    `<div class="pa-card pa-kpi"><div class="pa-kpi-label">Taxa de atendimento</div><div class="pa-kpi-val pa-green">${fmtTaxa(m.taxa)}</div></div>` +
+    `</div>`;
+
+  // Materiais mais solicitados (sem solicitado no filtro: ordena pelo atendido)
+  const mats = m.topMaterials
+    .slice()
+    .sort((a, b) => b.sol - a.sol || b.ate - a.ate)
+    .slice(0, 10)
+    .map(
+      (it, i) =>
+        `<tr><td class="c">${i + 1}</td><td class="nm" title="${_deps.esc(nomeMaterial(it.material))}">${_deps.esc(nomeMaterial(it.material))}</td>` +
+        `<td class="n">${it.full ? fmtN(it.sol) : "—"}</td>` +
+        `<td class="n">${fmtN(it.full ? it.ateFull : it.ate)}</td>` +
+        `<td class="n">${it.full ? fmtN(it.falt) : "—"}</td>` +
+        `<td class="n">${fmtTaxa(it.taxa)}</td></tr>`
+    );
+
+  const unids = m.unitStats
+    .slice()
+    .sort((a, b) => b.nPedidos - a.nPedidos || b.sol - a.sol)
+    .slice(0, 10)
+    .map(
+      (u, i) =>
+        `<tr class="pa-click" title="Ver só esta unidade" data-unidade="${attrEsc(u.unit)}" onclick="filtrarPainelPorUnidade(this.dataset.unidade)">` +
+        `<td class="c">${i + 1}</td><td class="nm" title="${_deps.esc(nomeUnidade(u.unit))}">${_deps.esc(nomeUnidade(u.unit))}</td>` +
+        `<td class="n">${fmtN(u.nPedidos)}</td>` +
+        `<td class="n">${u.sol > 0 ? fmtN(u.sol) : "—"}</td>` +
+        `<td class="n">${fmtN(u.sol > 0 ? u.ateFull : u.ate)}</td>` +
+        `<td class="n">${u.sol > 0 ? fmtN(u.falt) : "—"}</td>` +
+        `<td class="n">${fmtTaxa(u.taxa)}</td></tr>`
+    );
 
   h +=
-    `<div class="pan-grid">` +
-    kpi(m.nPedidos.toLocaleString("pt-BR"), "Pedidos", "requisições / planilhas", "", "#6366f1") +
-    kpi(m.nDays.toLocaleString("pt-BR"), "Dias com pedido", "dias distintos", "", "#0891b2") +
-    kpi(
-      m.nWeeks ? (Math.round((m.nPedidos / Math.max(m.nWeeks, 1)) * 100) / 100).toLocaleString("pt-BR") : "—",
-      "Média pedidos/semana",
-      m.nWeeks + " semanas no filtro",
-      "",
-      "#0284c7"
+    `<div class="pa-two">` +
+    paBloco(
+      "Materiais mais solicitados",
+      "Ver todos",
+      "switchPanSub('itens')",
+      paTabela(
+        [["#", "c"], ["Material"], ["Solicitado", "n"], ["Atendido", "n"], ["Faltante", "n"], ["Taxa", "n"]],
+        mats,
+        "Nenhum material no filtro."
+      )
     ) +
-    kpi(m.nUnits.toLocaleString("pt-BR"), "Unidades", "com movimento", "", "#059669") +
-    kpi(m.nMaterials.toLocaleString("pt-BR"), "Materiais distintos", "itens únicos", "", "#7c3aed") +
-    kpi(m.ate.toLocaleString("pt-BR"), "Qtd. atendida", "unidades físicas", "", "#dc2626") +
-    kpi(
-      m.sol > 0 ? m.sol.toLocaleString("pt-BR") : "—",
-      "Qtd. solicitada",
-      m.sol > 0 ? "só linhas completas" : "sem dados de pedido",
-      "",
-      "#1d4ed8"
-    ) +
-    kpi(
-      m.taxa != null ? m.taxa + "%" : "—",
-      "Taxa de atendimento",
-      m.taxa != null ? "atendido ÷ solicitado" : "indisponível nos antigos",
-      "",
-      "#16a34a"
+    paBloco(
+      "Unidades com mais pedidos",
+      "Ver todas",
+      "switchPanSub('frequencia')",
+      paTabela(
+        [["#", "c"], ["Unidade"], ["Pedidos", "n"], ["Solicitado", "n"], ["Atendido", "n"], ["Faltante", "n"], ["Taxa", "n"]],
+        unids,
+        "Nenhuma unidade no filtro."
+      )
     ) +
     `</div>`;
 
-  if (m.unitStats.length) {
-    const rows = m.unitStats.slice(0, 25).map((u) => {
-      const tip = u.tipo || _deps.classifyUnit(u.unit);
-      return (
-        `<tr style="cursor:pointer" onclick="document.getElementById('panUnitSel').value='${_deps.esc(u.unit)}';buildPainel()">` +
-        `<td style="font-weight:700">${tip?.icon || ""} ${_deps.esc(u.unit)}</td>` +
-        `<td>${u.nPedidos}</td>` +
-        `<td>${u.nDays}</td>` +
-        `<td>${u.avgPedidosSemana}</td>` +
-        `<td>${u.ate.toLocaleString("pt-BR")}</td>` +
-        `<td>${u.sol > 0 ? u.sol.toLocaleString("pt-BR") : "—"}</td>` +
-        `<td>${u.taxa != null ? u.taxa + "%" : "—"}</td>` +
-        `<td>${u.distinctItems}</td>` +
-        `</tr>`
-      );
-    });
-    h += panSection(
-      "Unidades no filtro",
-      "Clique numa unidade para detalhar",
-      renderTable(
-        ["Unidade", "Pedidos", "Dias", "Méd/sem", "Atendido", "Solicitado", "Taxa", "Itens"],
-        rows
-      )
+  // Últimos pedidos: linhas de item mais recentes (só itens pedidos ou entregues)
+  const limite = _state.verTodosPedidos ? 200 : 5;
+  const ultimos = filteredRows
+    .filter((r) => (r.qtdSolicitada || 0) > 0 || (r.qtdAtendida || 0) > 0)
+    .sort(
+      (a, b) =>
+        String(b.dateIso || "").localeCompare(String(a.dateIso || "")) ||
+        String(a.unitName).localeCompare(String(b.unitName), "pt-BR")
+    )
+    .slice(0, limite)
+    .map(
+      (r) =>
+        `<tr><td>${dataBR(r.dateIso)}</td><td class="nm" title="${_deps.esc(nomeUnidade(r.unitName))}">${_deps.esc(nomeUnidade(r.unitName))}</td>` +
+        `<td class="nm" title="${_deps.esc(nomeMaterial(r.material))}">${_deps.esc(nomeMaterial(r.material))}</td><td>${_deps.esc(nomeCategoria(r.cat))}</td>` +
+        `<td class="n">${fmtQtd(r.qtdSolicitada)}</td><td class="n">${fmtQtd(r.qtdAtendida)}</td>` +
+        `<td class="n">${fmtQtd(r.faltante)}</td>` +
+        `<td><span class="pa-badge ${_deps.esc(r.itemStatus)}">${_deps.esc(SITUACAO_LABEL[r.itemStatus] || r.itemStatus)}</span></td>` +
+        `<td>${r.coverage === "full" ? "Completa" : "Só entrega"}</td></tr>`
     );
-  }
 
-  if (m.topCats.length) {
-    const rows = m.topCats.slice(0, 12).map(
-      (c) =>
-        `<tr><td style="font-weight:600">${_deps.esc(c.cat)}</td>` +
-        `<td>${c.ate.toLocaleString("pt-BR")}</td>` +
-        `<td>${c.sol > 0 ? c.sol.toLocaleString("pt-BR") : "—"}</td>` +
-        `<td>${c.lines}</td></tr>`
-    );
-    h += panSection(
-      "Consumo por categoria",
-      "Inclui Material de Expediente e demais",
-      renderTable(["Categoria", "Atendido", "Solicitado", "Linhas"], rows)
-    );
-  }
+  h += paBloco(
+    "Últimos pedidos",
+    _state.verTodosPedidos ? "Ver menos" : "Ver todos",
+    "verTodosPedidosPainel()",
+    paTabela(
+      [["Data"], ["Unidade"], ["Material"], ["Categoria"], ["Solicitado", "n"], ["Atendido", "n"], ["Faltante", "n"], ["Situação"], ["Cobertura"]],
+      ultimos,
+      "Nenhum pedido no filtro."
+    ),
+    _state.verTodosPedidos ? "Mostrando até 200 linhas mais recentes do filtro." : ""
+  );
 
   return h;
 }
@@ -1031,38 +1141,25 @@ function buildDetailTable(filteredRows) {
   );
 }
 
-function populateFilterOptions(allRows) {
-  const units = [...new Set(allRows.map((r) => r.unitName).filter(Boolean))].sort((a, b) =>
-    a.localeCompare(b, "pt-BR")
-  );
-  const cats = [...new Set(allRows.map((r) => r.cat).filter(Boolean))].sort((a, b) =>
-    a.localeCompare(b, "pt-BR")
-  );
-
+function preencherUnidades() {
   const unitSel = document.getElementById("panUnitSel");
-  if (unitSel) {
-    const prev = _state.filters.unit || unitSel.value || "";
-    const tipo = _state.filters.tipo;
-    const filteredUnits = tipo
-      ? units.filter((u) => _deps.classifyUnit(u)?.id === tipo)
-      : units;
-    unitSel.innerHTML =
-      `<option value="">— Todas` +
-      (tipo ? ` do tipo` : "") +
-      ` —</option>` +
-      filteredUnits.map((u) => `<option value="${_deps.esc(u)}">${_deps.esc(u)}</option>`).join("");
-    if (prev && [...unitSel.options].some((o) => o.value === prev)) unitSel.value = prev;
-    else unitSel.value = "";
-  }
+  if (!unitSel) return;
+  const tipo = document.getElementById("panTipoSel")?.value || "";
+  const prev = unitSel.value || _state.filters.unit || "";
+  const units = [...new Set((_state.rows || []).map((r) => r.unitName).filter(Boolean))]
+    .filter((u) => !tipo || _deps.classifyUnit(u)?.id === tipo)
+    .sort((a, b) => nomeUnidade(a).localeCompare(nomeUnidade(b), "pt-BR"));
+  unitSel.innerHTML =
+    `<option value="">Todas</option>` +
+    units.map((u) => `<option value="${_deps.esc(u)}">${_deps.esc(nomeUnidade(u))}</option>`).join("");
+  unitSel.value = units.includes(prev) ? prev : "";
+}
 
-  const catSel = document.getElementById("panCatSel");
-  if (catSel) {
-    const prev = _state.filters.cat || catSel.value || "";
-    catSel.innerHTML =
-      `<option value="">— Todas —</option>` +
-      cats.map((c) => `<option value="${_deps.esc(c)}">${_deps.esc(c)}</option>`).join("");
-    if (prev && [...catSel.options].some((o) => o.value === prev)) catSel.value = prev;
-  }
+function populateFilterOptions(allRows) {
+  const units = [...new Set(allRows.map((r) => r.unitName).filter(Boolean))];
+  const cats = [...new Set(allRows.map((r) => r.cat).filter(Boolean))].sort((a, b) =>
+    nomeCategoria(a).localeCompare(nomeCategoria(b), "pt-BR")
+  );
 
   const typeCounts = {};
   units.forEach((u) => {
@@ -1073,7 +1170,7 @@ function populateFilterOptions(allRows) {
   const tipoSel = document.getElementById("panTipoSel");
   if (tipoSel) {
     tipoSel.innerHTML =
-      `<option value="">— Todos —</option>` +
+      `<option value="">Todos</option>` +
       (_deps.UNIT_TYPES || [])
         .filter((t) => typeCounts[t.id])
         .map((t) => `<option value="${_deps.esc(t.id)}">${_deps.esc(t.label)} (${typeCounts[t.id]})</option>`)
@@ -1081,24 +1178,18 @@ function populateFilterOptions(allRows) {
     tipoSel.value = _state.filters.tipo || "";
   }
 
-  // Chips de tipo
-  const chipsEl = document.getElementById("panTipoChips");
-  if (chipsEl) {
-    chipsEl.innerHTML =
-      `<span class="tipo-chip${!_state.filters.tipo ? " active" : ""}" onclick="clearPanFilters()">Geral</span>` +
-      (_deps.UNIT_TYPES || [])
-        .filter((t) => typeCounts[t.id])
-        .map(
-          (t) =>
-            `<span class="tipo-chip${_state.filters.tipo === t.id ? " active" : ""}" onclick="setPanTipo('${t.id}')" style="${
-              _state.filters.tipo === t.id ? "background:" + t.color + ";border-color:" + t.color : ""
-            }">${t.icon} ${t.label} <span class="cnt">(${typeCounts[t.id] || 0})</span></span>`
-        )
-        .join("");
+  preencherUnidades();
+
+  const catSel = document.getElementById("panCatSel");
+  if (catSel) {
+    const prev = _state.filters.cat || catSel.value || "";
+    catSel.innerHTML =
+      `<option value="">Todas</option>` +
+      cats.map((c) => `<option value="${_deps.esc(c)}">${_deps.esc(nomeCategoria(c))}</option>`).join("");
+    if (prev && [...catSel.options].some((o) => o.value === prev)) catSel.value = prev;
   }
 
-  const filtersEl = document.getElementById("panFilters");
-  if (filtersEl) filtersEl.style.display = "block";
+  marcarPresetAtivo();
 }
 
 function ensureDefaultDates() {
@@ -1121,6 +1212,7 @@ async function ensureDataLoaded(force = false) {
     ]);
     _state.rows = buildAnalyticRows(mats, hist);
     _state.loaded = true;
+    _state.loadedAt = new Date();
     return _state.rows;
   } finally {
     _state.loading = false;
@@ -1129,10 +1221,19 @@ async function ensureDataLoaded(force = false) {
 
 function renderSubTabsActive() {
   document.querySelectorAll(".pan-sub-tab").forEach((btn) => {
-    const active = btn.getAttribute("data-pansub") === _state.sub;
-    btn.style.background = active ? "#2563eb" : "transparent";
-    btn.style.color = active ? "#fff" : "#64748b";
+    btn.classList.toggle("active", btn.getAttribute("data-pansub") === _state.sub);
   });
+}
+
+function mostrarAtualizacao() {
+  const el = document.getElementById("panUpdatedAt");
+  if (!el || !_state.loadedAt) return;
+  const d = _state.loadedAt;
+  el.textContent =
+    "Última atualização: " +
+    d.toLocaleDateString("pt-BR") +
+    " " +
+    d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 }
 
 export async function buildPainelRelatorio(opts = {}) {
@@ -1142,9 +1243,9 @@ export async function buildPainelRelatorio(opts = {}) {
   ensureDefaultDates();
   if (opts.preset) setDatePreset(opts.preset);
 
-  el.innerHTML =
-    `<div style="text-align:center;padding:40px;color:#64748b">` +
-    `<div style="font-size:24px;margin-bottom:8px"></div>Carregando dados completos para o relatório...</div>`;
+  renderSubTabsActive();
+  marcarPresetAtivo();
+  el.innerHTML = `<div class="pa-card pa-empty">Carregando os pedidos de materiais...</div>`;
 
   try {
     const allRows = await ensureDataLoaded(!!opts.force);
@@ -1156,36 +1257,37 @@ export async function buildPainelRelatorio(opts = {}) {
         if (painel && !painel.classList.contains("hidden")) buildPainelRelatorio({ ...opts, _tentativa: tentativa + 1 });
       }, 2000);
     }
-    populateFilterOptions(allRows);
+    // Lê o que está escolhido na tela antes de recriar as listas (senão a escolha se perde)
     const filters = readFiltersFromDom();
+    populateFilterOptions(allRows);
     const filtered = filterAnalyticRows(allRows, filters);
     const metrics = computeMetrics(filtered);
     _state.lastExportRows = filtered;
 
     renderSubTabsActive();
 
+    mostrarAtualizacao();
+
     let html = "";
     if (_state.sub === "itens") html = buildItensHtml(metrics, filtered, filters);
     else if (_state.sub === "atendimento") html = buildAtendimentoHtml(metrics, filtered);
     else if (_state.sub === "frequencia") html = buildFrequenciaHtml(metrics, filtered);
-    else html = buildGeralHtml(metrics, filters);
+    else html = buildGeralHtml(metrics, filters, filtered);
 
-    html += buildDetailTable(filtered);
-
-    html +=
-      `<div style="display:flex;gap:8px;flex-wrap:wrap;margin:16px 0 8px">` +
-      `<button class="btn btn-p btn-sm" type="button" onclick="exportarPainelCSV()" style="display:inline-flex;align-items:center;gap:4px">⬇ Exportar CSV</button>` +
-      `<button class="btn btn-s btn-sm" type="button" onclick="imprimirPainelRelatorio()" style="display:inline-flex;align-items:center;gap:4px">Imprimir / PDF</button>` +
-      `<button class="btn btn-s btn-sm" type="button" onclick="buildPainel({force:true})" style="display:inline-flex;align-items:center;gap:4px">↻ Atualizar dados</button>` +
-      `</div>`;
+    // Visão geral segue o modelo; nas demais abas ficam a tabela detalhada e a exportação
+    if (_state.sub !== "geral") {
+      html += buildDetailTable(filtered);
+      html +=
+        `<div style="display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 8px">` +
+        `<button class="pa-btn pa-btn-primary" type="button" onclick="exportarPainelCSV()">Exportar planilha</button>` +
+        `<button class="pa-btn" type="button" onclick="imprimirPainelRelatorio()">Imprimir / PDF</button>` +
+        `</div>`;
+    }
 
     if (!filtered.length) {
       html =
-        coverageBanner(metrics) +
-        `<div style="text-align:center;padding:48px 20px;color:#64748b">` +
-        `<b style="font-size:15px;color:#0f172a">Nenhum dado no filtro</b>` +
-        `<br><span style="font-size:13px">Ajuste período, unidade, tipo ou categoria.</span></div>` +
-        html;
+        `<div class="pa-card pa-empty"><b style="color:#0f172a">Nenhum dado no filtro.</b> ` +
+        `Ajuste o período, a unidade, o tipo ou a categoria e clique em Aplicar filtros.</div>` + html;
     }
 
     el.innerHTML = html;
@@ -1226,13 +1328,16 @@ export function clearPanFiltersRelatorio() {
     itemQ: "",
     coverage: "all",
   };
-  const ids = ["panDateFrom", "panDateTo", "panTipoSel", "panUnitSel", "panCatSel", "panItemQ", "panCoverage"];
+  const ids = ["panDateFrom", "panDateTo", "panTipoSel", "panUnitSel", "panCatSel", "panItemQ"];
   ids.forEach((id) => {
     const el = document.getElementById(id);
     if (!el) return;
     if (el.tagName === "SELECT" || el.tagName === "INPUT") el.value = "";
   });
-  ensureDefaultDates();
+  const cob = document.getElementById("panCoverage");
+  if (cob) cob.value = "all";
+  _state.verTodosPedidos = false;
+  setDatePreset("mes");
   return buildPainelRelatorio();
 }
 
@@ -1388,3 +1493,33 @@ export function listUnidadesCadastroMateriais() {
     }))
     .filter((u) => u.nome);
 }
+
+// ─── Ações dos botões do painel (chamadas pelo HTML) ──────────────
+function atualizarUnidadesDoTipo() {
+  preencherUnidades();
+}
+
+function marcarPeriodoPersonalizado() {
+  _state.preset = "personalizado";
+  marcarPresetAtivo();
+}
+
+function verTodosPedidosPainel() {
+  _state.verTodosPedidos = !_state.verTodosPedidos;
+  buildPainelRelatorio();
+}
+
+function filtrarPainelPorUnidade(unidade) {
+  const sel = document.getElementById("panUnitSel");
+  if (sel) {
+    if (![...sel.options].some((o) => o.value === unidade)) {
+      const tipoSel = document.getElementById("panTipoSel");
+      if (tipoSel) tipoSel.value = "";
+      preencherUnidades();
+    }
+    sel.value = unidade;
+  }
+  buildPainelRelatorio();
+}
+
+Object.assign(window, { atualizarUnidadesDoTipo, marcarPeriodoPersonalizado, verTodosPedidosPainel, filtrarPainelPorUnidade });

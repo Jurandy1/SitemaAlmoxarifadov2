@@ -1771,68 +1771,69 @@
             <!-- ========================================================== -->
             <div id="content-painel" class="fade-in hidden">
                 <!-- ═══ BLOCO 2: PAINEL DO ALMOXARIFADO (relatórios analíticos) ═══ -->
-                <div id="matViewPainel">
-                    <div style="max-width:1200px;margin:0 auto">
-                        <div style="display:flex;gap:0;background:#fff;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,.04)">
-                            <button class="pan-sub-tab active" data-pansub="geral" onclick="switchPanSub('geral')" style="flex:1;padding:11px 10px;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;background:#2563eb;color:#fff;transition:.2s;display:flex;align-items:center;justify-content:center;gap:6px"><i data-lucide="layout-dashboard"></i> Visão geral</button>
-                            <button class="pan-sub-tab" data-pansub="itens" onclick="switchPanSub('itens')" style="flex:1;padding:11px 10px;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;background:transparent;color:#64748b;transition:.2s;display:flex;align-items:center;justify-content:center;gap:6px"><i data-lucide="package"></i> Itens consumidos</button>
-                            <button class="pan-sub-tab" data-pansub="atendimento" onclick="switchPanSub('atendimento')" style="flex:1;padding:11px 10px;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;background:transparent;color:#64748b;transition:.2s;display:flex;align-items:center;justify-content:center;gap:6px"><i data-lucide="check-circle"></i> Atendimento</button>
-                            <button class="pan-sub-tab" data-pansub="frequencia" onclick="switchPanSub('frequencia')" style="flex:1;padding:11px 10px;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;background:transparent;color:#64748b;transition:.2s;display:flex;align-items:center;justify-content:center;gap:6px"><i data-lucide="calendar-days"></i> Frequência</button>
+                <div id="matViewPainel" class="pa">
+                    <div class="pa-head">
+                        <div>
+                            <div class="pa-crumb">Almoxarifado <i data-lucide="chevron-right"></i> Painel do almoxarifado</div>
+                            <h1 class="pa-title">Painel do almoxarifado</h1>
+                            <p class="pa-subtitle">Análise dos pedidos de materiais</p>
                         </div>
-                        <div id="panFilters" style="display:none;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,.04)">
-                            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:8px">
-                                <span style="font-size:12px;font-weight:800;color:#475569;display:flex;align-items:center;gap:6px"><i data-lucide="filter"></i> Filtros do relatório</span>
-                                <div style="display:flex;gap:6px;flex-wrap:wrap">
-                                    <button class="btn btn-s btn-sm" type="button" onclick="applyPanDatePreset('30d')" style="font-size:10px">30 dias</button>
-                                    <button class="btn btn-s btn-sm" type="button" onclick="applyPanDatePreset('mes')" style="font-size:10px">Mês atual</button>
-                                    <button class="btn btn-s btn-sm" type="button" onclick="applyPanDatePreset('trimestre')" style="font-size:10px">Trimestre</button>
-                                    <button class="btn btn-s btn-sm" type="button" onclick="applyPanDatePreset('ano')" style="font-size:10px">Ano</button>
-                                    <button class="btn btn-s btn-sm" type="button" onclick="clearPanFilters()" style="font-size:10px;display:inline-flex;align-items:center;gap:4px"><i data-lucide="x"></i> Limpar</button>
-                                </div>
+                        <div class="pa-head-actions">
+                            <span class="pa-updated" id="panUpdatedAt"></span>
+                            <button type="button" class="pa-btn" onclick="buildPainel({force:true})"><i data-lucide="refresh-cw"></i> Atualizar dados</button>
+                        </div>
+                    </div>
+
+                    <div class="pa-tabs">
+                        <button type="button" class="pan-sub-tab pa-tab active" data-pansub="geral" onclick="switchPanSub('geral')">Visão geral</button>
+                        <button type="button" class="pan-sub-tab pa-tab" data-pansub="itens" onclick="switchPanSub('itens')">Itens consumidos</button>
+                        <button type="button" class="pan-sub-tab pa-tab" data-pansub="atendimento" onclick="switchPanSub('atendimento')">Atendimento</button>
+                        <button type="button" class="pan-sub-tab pa-tab" data-pansub="frequencia" onclick="switchPanSub('frequencia')">Frequência</button>
+                    </div>
+
+                    <div id="panFilters" class="pa-card pa-filters">
+                        <div class="pa-filters-row">
+                            <span class="pa-label-inline">Período</span>
+                            <label class="pa-date"><i data-lucide="calendar"></i><input type="date" id="panDateFrom" oninput="marcarPeriodoPersonalizado()"></label>
+                            <span class="pa-ate">até</span>
+                            <label class="pa-date"><input type="date" id="panDateTo" oninput="marcarPeriodoPersonalizado()"></label>
+                            <div class="pa-presets">
+                                <button type="button" class="pa-chip" data-preset="30d" onclick="applyPanDatePreset('30d')">30 dias</button>
+                                <button type="button" class="pa-chip" data-preset="mes" onclick="applyPanDatePreset('mes')">Mês atual</button>
+                                <button type="button" class="pa-chip" data-preset="trimestre" onclick="applyPanDatePreset('trimestre')">Trimestre</button>
+                                <button type="button" class="pa-chip" data-preset="ano" onclick="applyPanDatePreset('ano')">Ano</button>
+                                <button type="button" class="pa-chip" data-preset="personalizado" onclick="document.getElementById('panDateFrom').focus();marcarPeriodoPersonalizado()">Personalizado</button>
                             </div>
-                            <div id="panTipoChips" class="tipo-chips" style="margin-bottom:10px"></div>
-                            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;align-items:end">
-                                <div>
-                                    <label style="font-size:10px;font-weight:700;color:#64748b;display:block;margin-bottom:3px">De</label>
-                                    <input type="date" class="input" id="panDateFrom" style="font-size:12px;padding:6px 8px" onchange="buildPainel()">
-                                </div>
-                                <div>
-                                    <label style="font-size:10px;font-weight:700;color:#64748b;display:block;margin-bottom:3px">Até</label>
-                                    <input type="date" class="input" id="panDateTo" style="font-size:12px;padding:6px 8px" onchange="buildPainel()">
-                                </div>
-                                <div>
-                                    <label style="font-size:10px;font-weight:700;color:#64748b;display:block;margin-bottom:3px">Tipo de unidade</label>
-                                    <select class="sel" id="panTipoSel" onchange="setPanTipo(this.value, true)" style="font-size:12px"><option value="">— Todos —</option></select>
-                                </div>
-                                <div>
-                                    <label style="font-size:10px;font-weight:700;color:#64748b;display:block;margin-bottom:3px">Unidade</label>
-                                    <select class="sel" id="panUnitSel" onchange="buildPainel()" style="font-size:12px"><option value="">— Todas —</option></select>
-                                </div>
-                                <div>
-                                    <label style="font-size:10px;font-weight:700;color:#64748b;display:block;margin-bottom:3px">Categoria</label>
-                                    <select class="sel" id="panCatSel" onchange="buildPainel()" style="font-size:12px"><option value="">— Todas —</option></select>
-                                </div>
-                                <div>
-                                    <label style="font-size:10px;font-weight:700;color:#64748b;display:block;margin-bottom:3px">Material (busca)</label>
-                                    <input class="input" id="panItemQ" placeholder="ex: papel A4" style="font-size:12px;padding:6px 8px" onchange="buildPainel()" onkeydown="if(event.key==='Enter'){event.preventDefault();buildPainel()}">
-                                </div>
-                                <div>
-                                    <label style="font-size:10px;font-weight:700;color:#64748b;display:block;margin-bottom:3px">Cobertura</label>
-                                    <select class="sel" id="panCoverage" onchange="buildPainel()" style="font-size:12px">
-                                        <option value="all">Todas as linhas</option>
-                                        <option value="full">Só com solicitado+atendido</option>
-                                        <option value="delivery_only">Só entrega registrada (antigos)</option>
-                                    </select>
-                                </div>
+                            <div class="pa-filter-actions">
+                                <button type="button" class="pa-btn pa-btn-primary" onclick="buildPainel()">Aplicar filtros</button>
+                                <button type="button" class="pa-btn" onclick="clearPanFilters()">Limpar</button>
                             </div>
                         </div>
-                        <div id="panContent">
-                            <div style="text-align:center;padding:60px 20px;color:#64748b">
-                                <div style="font-size:48px;margin-bottom:12px"></div>
-                                <b style="font-size:16px;color:#0f172a">Painel do Almoxarifado</b>
-                                <br><span style="font-size:13px">Abra esta aba para carregar o relatório completo por unidade, tipo e período.</span>
-                            </div>
+                        <div class="pa-filters-grid">
+                            <label class="pa-field"><span>Tipo de unidade</span>
+                                <select id="panTipoSel" onchange="atualizarUnidadesDoTipo()"><option value="">Todos</option></select>
+                            </label>
+                            <label class="pa-field"><span>Unidade</span>
+                                <select id="panUnitSel"><option value="">Todas</option></select>
+                            </label>
+                            <label class="pa-field"><span>Categoria</span>
+                                <select id="panCatSel"><option value="">Todas</option></select>
+                            </label>
+                            <label class="pa-field"><span>Material</span>
+                                <input id="panItemQ" placeholder="Digite o nome do material" onkeydown="if(event.key==='Enter'){event.preventDefault();buildPainel()}">
+                            </label>
+                            <label class="pa-field"><span>Cobertura</span>
+                                <select id="panCoverage">
+                                    <option value="all">Todas as linhas</option>
+                                    <option value="full">Só completas (solicitado e atendido)</option>
+                                    <option value="delivery_only">Só entrega registrada (antigos)</option>
+                                </select>
+                            </label>
                         </div>
+                    </div>
+
+                    <div id="panContent">
+                        <div class="pa-card pa-empty">Abra esta aba para carregar o relatório completo por unidade, tipo e período.</div>
                     </div>
                 </div><!-- /matViewPainel -->
             </div>
