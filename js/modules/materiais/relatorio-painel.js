@@ -1039,6 +1039,438 @@ function buildItensHtml(m, filteredRows = [], filters = {}) {
   return h;
 }
 
+// ─── Relatório PCA: solicitado x atendido, por categorias escolhidas ─
+// Solicitado = tudo que as unidades pediram (mesmo não atendido, inclusive pedidos na fila).
+// Atendido = só o que foi de fato separado/entregue.
+const SETOR_PCA = "Coordenação de Almoxarifado e Patrimônio";
+
+function diasEntre(a, b) {
+  return Math.round((new Date(b + "T12:00:00") - new Date(a + "T12:00:00")) / 86400000) + 1;
+}
+
+// A média mensal divide só pelos meses que têm registro (meses sem registro, como antes do
+// sistema começar a ser usado, puxariam a média para baixo). O mês do início/fim conta pela parte coberta.
+function periodoPca(rows, f) {
+  const datas = rows.map((r) => r.dateIso).filter(Boolean).sort();
+  const from = f.dateFrom || datas[0] || "";
+  const to = f.dateTo || datas[datas.length - 1] || "";
+  const dias = from && to ? Math.max(1, diasEntre(from, to)) : 0;
+  const mesesComDados = [...new Set(rows.map((r) => r.month).filter(Boolean))].filter(
+    (m) => (!from || m >= from.slice(0, 7)) && (!to || m <= to.slice(0, 7))
+  );
+  let meses = 0;
+  for (const m of mesesComDados) {
+    const [y, mo] = m.split("-").map(Number);
+    const ultimo = new Date(y, mo, 0).getDate();
+    const ini = from && from.slice(0, 7) === m ? Number(from.slice(8, 10)) : 1;
+    const fim = to && to.slice(0, 7) === m ? Number(to.slice(8, 10)) : ultimo;
+    meses += Math.max(0, fim - ini + 1) / ultimo;
+  }
+  if (!meses && dias) meses = dias / 30.4375;
+  return { from, to, dias, meses, nMesesComDados: mesesComDados.length };
+}
+
+const contaPca = (r) => ({ sol: (r.qtdSolicitada || 0) > 0, ate: !r.pendente && (r.qtdAtendida || 0) > 0 });
+const novoAcum = () => ({ sol: 0, ate: 0, ateComSol: 0, pedidos: new Set(), unidades: new Set() });
+
+function somarPca(acc, r, c) {
+  if (c.sol) acc.sol += r.qtdSolicitada || 0;
+  if (c.ate) acc.ate += r.qtdAtendida || 0;
+  if (c.sol && c.ate) acc.ateComSol += r.qtdAtendida || 0;
+  acc.pedidos.add(r.reqId || r.histEntryId);
+  acc.unidades.add(r.unitName);
+}
+
+function fecharPca(acc, meses) {
+  const mediaSol = meses > 0 ? acc.sol / meses : 0;
+  const mediaAte = meses > 0 ? acc.ate / meses : 0;
+  return {
+    sol: acc.sol,
+    ate: acc.ate,
+    pedidos: acc.pedidos.size,
+    unidades: acc.unidades.size,
+    taxa: taxaDe(acc.ateComSol, acc.sol),
+    mediaSol,
+    mediaAte,
+    estSol: Math.ceil(mediaSol * 12),
+    estAte: Math.ceil(mediaAte * 12),
+  };
+}
+
+export function montarRelatorioPca(rows, filters = _state.filters) {
+  const validas = rows.filter((r) => {
+    const c = contaPca(r);
+    return c.sol || c.ate;
+  });
+  // Agrupa pelo nome exibido: "Material de Expediente" e "Expediente" viram uma categoria só
+  const catDe = (r) => nomeCategoria(r.cat || "Outros");
+  const cats = [...new Set(validas.map(catDe))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const escolhidas = _state.pcaCats ? cats.filter((c) => _state.pcaCats.has(c)) : cats;
+  const sel = new Set(escolhidas);
+  const linhas = validas.filter((r) => sel.has(catDe(r)));
+  const periodo = periodoPca(validas, filters);
+  const fechar = (acc) => fecharPca(acc, periodo.meses);
+
+  const total = novoAcum();
+  const porCat = new Map();
+  const porTipo = new Map();
+  const porUnidade = new Map();
+  const unidadeMaterial = new Map();
+  const porMes = new Map();
+
+  for (const r of linhas) {
+    const c = contaPca(r);
+    const ck = catDe(r);
+    const mk = normKey(r.material);
+    const tipo = _deps.classifyUnit(r.unitName) || { id: "outros", label: "Outros" };
+    // As unidades da sede entram juntas, numa linha só
+    const ehSede = tipo.id === "sede";
+    const chaveUn = ehSede ? "__sede__" : r.unitName;
+    const nomeUn = ehSede ? "SEDE (todas as unidades da sede)" : nomeUnidade(r.unitName);
+
+    somarPca(total, r, c);
+
+    if (!porCat.has(ck)) porCat.set(ck, { acc: novoAcum(), mats: new Map() });
+    const g = porCat.get(ck);
+    somarPca(g.acc, r, c);
+    if (!g.mats.has(mk)) g.mats.set(mk, { material: r.material, acc: novoAcum() });
+    somarPca(g.mats.get(mk).acc, r, c);
+
+    if (!porTipo.has(tipo.id)) porTipo.set(tipo.id, { tipo: tipo.label, acc: novoAcum() });
+    somarPca(porTipo.get(tipo.id).acc, r, c);
+
+    if (!porUnidade.has(chaveUn)) porUnidade.set(chaveUn, { unidade: nomeUn, tipo: tipo.label, acc: novoAcum() });
+    somarPca(porUnidade.get(chaveUn).acc, r, c);
+
+    const chaveUM = chaveUn + "|" + ck + "|" + mk;
+    if (!unidadeMaterial.has(chaveUM)) {
+      unidadeMaterial.set(chaveUM, { unidade: nomeUn, tipo: tipo.label, cat: ck, material: r.material, acc: novoAcum() });
+    }
+    somarPca(unidadeMaterial.get(chaveUM).acc, r, c);
+
+    if (r.month) {
+      if (!porMes.has(r.month)) porMes.set(r.month, novoAcum());
+      somarPca(porMes.get(r.month), r, c);
+    }
+  }
+
+  const porNecessidade = (a, b) => b.estSol - a.estSol || b.ate - a.ate;
+  const grupos = [...porCat.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0], "pt-BR"))
+    .map(([cat, g]) => ({
+      cat,
+      ...fechar(g.acc),
+      itens: [...g.mats.values()].map((m) => ({ material: m.material, ...fechar(m.acc) })).sort(porNecessidade),
+    }));
+  const tipos = [...porTipo.values()].map((t) => ({ tipo: t.tipo, ...fechar(t.acc) })).sort(porNecessidade);
+  const unidades = [...porUnidade.values()].map((u) => ({ unidade: u.unidade, tipo: u.tipo, ...fechar(u.acc) })).sort(porNecessidade);
+  const unidadesMateriais = [...unidadeMaterial.values()]
+    .map((x) => ({ unidade: x.unidade, tipo: x.tipo, cat: x.cat, material: x.material, ...fechar(x.acc) }))
+    .sort((a, b) => a.unidade.localeCompare(b.unidade, "pt-BR") || a.cat.localeCompare(b.cat, "pt-BR") || porNecessidade(a, b));
+  let acumSol = 0;
+  let acumAte = 0;
+  const meses = [...porMes.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([mes, acc]) => ({ mes, sol: acc.sol, ate: acc.ate, acumSol: (acumSol += acc.sol), acumAte: (acumAte += acc.ate) }));
+
+  return {
+    cats,
+    escolhidas,
+    periodo,
+    filtros: { tipo: filters.tipo || "", unit: filters.unit || "", itemQ: filters.itemQ || "" },
+    total: fechar(total),
+    grupos,
+    tipos,
+    unidades,
+    unidadesMateriais,
+    meses,
+    nItens: grupos.reduce((s, g) => s + g.itens.length, 0),
+  };
+}
+
+const fmtMedia = (v) => Number(v || 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const nomeMes = (m) => `${MESES[Number(m.slice(5, 7)) - 1]}/${m.slice(0, 4)}`;
+
+// Colunas de quantidade, iguais em todas as tabelas (tela, Excel, PDF e Word).
+// v = valor puro (planilha), s = texto formatado (tela e documentos)
+const COLS_QTD = [
+  { t: "Solicitado", get: (x) => x.sol, fmt: fmtN },
+  { t: "Atendido", get: (x) => x.ate, fmt: fmtN },
+  { t: "Taxa de atendimento", get: (x) => x.taxa, fmt: fmtTaxa, xls: (v) => (v == null ? "" : v / 100), pct: true },
+  { t: "Média/mês solicitada", get: (x) => x.mediaSol, fmt: fmtMedia, xls: (v) => Math.round(v * 10) / 10 },
+  { t: "Média/mês atendida", get: (x) => x.mediaAte, fmt: fmtMedia, xls: (v) => Math.round(v * 10) / 10 },
+  { t: "Necessidade anual (pelo solicitado)", get: (x) => x.estSol, fmt: fmtN, destaque: true },
+  { t: "Estimativa anual (pelo atendido)", get: (x) => x.estAte, fmt: fmtN },
+];
+
+const celTexto = (s) => ({ v: s, s: String(s ?? "") });
+const celNum = (v, fmt = fmtN) => ({ v, s: fmt(v), num: true });
+const celsQtd = (x) => COLS_QTD.map((c) => ({ v: c.xls ? c.xls(c.get(x)) : c.get(x), s: c.fmt(c.get(x)), num: true, destaque: c.destaque }));
+const cabQtd = () => COLS_QTD.map((c) => ({ t: c.t, num: true, pct: c.pct }));
+
+// Seções do relatório: a mesma estrutura alimenta a tela, o PDF e o Word
+export function secoesPca(rel) {
+  const s = [];
+  s.push({
+    id: "categorias",
+    titulo: "Resumo por categoria",
+    cols: [{ t: "Categoria" }, { t: "Itens", num: true }, ...cabQtd()],
+    linhas: [
+      ...rel.grupos.map((g) => ({ cels: [celTexto(g.cat), celNum(g.itens.length), ...celsQtd(g)] })),
+      { total: true, cels: [celTexto("Total geral"), celNum(rel.nItens), ...celsQtd(rel.total)] },
+    ],
+  });
+  s.push({
+    id: "tipos",
+    titulo: "Consumo por tipo de unidade",
+    cols: [{ t: "Tipo" }, { t: "Unidades", num: true }, { t: "Pedidos", num: true }, ...cabQtd()],
+    linhas: rel.tipos.map((t) => ({ cels: [celTexto(t.tipo), celNum(t.unidades), celNum(t.pedidos), ...celsQtd(t)] })),
+  });
+  s.push({
+    id: "unidades",
+    titulo: "Consumo por unidade",
+    sub: "As unidades da sede aparecem juntas, numa linha só.",
+    cols: [{ t: "Unidade" }, { t: "Tipo" }, { t: "Pedidos", num: true }, ...cabQtd()],
+    linhas: rel.unidades.map((u) => ({ cels: [celTexto(u.unidade), celTexto(u.tipo), celNum(u.pedidos), ...celsQtd(u)] })),
+  });
+  s.push({
+    id: "meses",
+    titulo: "Mês a mês e acumulado",
+    cols: [{ t: "Mês" }, { t: "Solicitado", num: true }, { t: "Atendido", num: true }, { t: "Solicitado acumulado", num: true }, { t: "Atendido acumulado", num: true }],
+    linhas: rel.meses.map((m) => ({ cels: [celTexto(nomeMes(m.mes)), celNum(m.sol), celNum(m.ate), celNum(m.acumSol), celNum(m.acumAte)] })),
+  });
+  for (const g of rel.grupos) {
+    s.push({
+      id: "cat",
+      titulo: g.cat,
+      sub: `${g.itens.length} ite${g.itens.length > 1 ? "ns" : "m"} · ordenado pela necessidade anual`,
+      cols: [{ t: "#", num: true }, { t: "Material" }, { t: "Pedidos", num: true }, { t: "Unidades", num: true }, ...cabQtd()],
+      linhas: [
+        ...g.itens.map((it, i) => ({
+          cels: [celNum(i + 1), celTexto(nomeMaterial(it.material)), celNum(it.pedidos), celNum(it.unidades), ...celsQtd(it)],
+        })),
+        { total: true, cels: [celTexto(""), celTexto("Total da categoria"), celTexto(""), celTexto(""), ...celsQtd(g)] },
+      ],
+    });
+  }
+  return s;
+}
+
+// Texto do período e dos filtros, usado na tela e no cabeçalho dos documentos
+export function descricaoPca(rel) {
+  const p = rel.periodo;
+  const base =
+    p.meses >= 1
+      ? `média calculada sobre ${fmtMedia(p.meses).replace(/,0$/, "")} ${p.meses >= 1.95 ? "meses" : "mês"} com registros`
+      : `${p.dias} dia${p.dias > 1 ? "s" : ""}`;
+  const filtros = [];
+  if (rel.filtros.tipo) filtros.push("Tipo: " + ((_deps.UNIT_TYPES || []).find((t) => t.id === rel.filtros.tipo)?.label || rel.filtros.tipo));
+  if (rel.filtros.unit) filtros.push("Unidade: " + nomeUnidade(rel.filtros.unit));
+  if (rel.filtros.itemQ) filtros.push(`Material contém: "${rel.filtros.itemQ}"`);
+  return {
+    periodo: `${p.from ? dataBR(p.from) : "—"} até ${p.to ? dataBR(p.to) : "—"}`,
+    base,
+    categorias: rel.escolhidas.length === rel.cats.length ? "Todas" : rel.escolhidas.join(", "),
+    filtros: filtros.join(" · "),
+  };
+}
+
+function tabelaSecaoHtml(sec, limite) {
+  const linhas = (limite ? sec.linhas.slice(0, limite) : sec.linhas).map(
+    (l) =>
+      `<tr${l.total ? ' class="pa-total"' : ""}>` +
+      l.cels
+        .map((c, i) => {
+          const cls = c.num ? "n" : sec.cols[i]?.t === "Material" || sec.cols[i]?.t === "Unidade" ? "nm" : "";
+          const txt = _deps.esc(c.s);
+          return `<td class="${cls}"${cls === "nm" ? ` title="${attrEsc(c.s)}"` : ""}>${c.destaque && !l.total ? `<b>${txt}</b>` : txt}</td>`;
+        })
+        .join("") +
+      `</tr>`
+  );
+  return paTabela(
+    sec.cols.map((c) => [c.t, c.num ? "n" : ""]),
+    linhas
+  );
+}
+
+function buildPcaHtml(rel) {
+  _state.pcaCatList = rel.cats;
+  const sel = new Set(rel.escolhidas);
+  const chips = rel.cats
+    .map((c, i) => `<button type="button" class="pa-chip${sel.has(c) ? " active" : ""}" onclick="alternarCatPca(${i})">${_deps.esc(c)}</button>`)
+    .join("");
+  const d = descricaoPca(rel);
+
+  let h =
+    `<div class="pa-card pa-block">` +
+    `<div class="pa-block-head"><h3>Relatório para o PCA — solicitado x atendido por categoria</h3>` +
+    `<div class="pa-pca-acoes">` +
+    `<button type="button" class="pa-btn" onclick="exportarPcaDocumento('pdf')"><i data-lucide="file-text"></i> Baixar PDF</button>` +
+    `<button type="button" class="pa-btn" onclick="exportarPcaDocumento('word')"><i data-lucide="file-type"></i> Baixar Word</button>` +
+    `<button type="button" class="pa-btn" onclick="exportarPcaExcel()"><i data-lucide="file-spreadsheet"></i> Baixar Excel</button>` +
+    `</div></div>` +
+    `<p class="pa-sub"><b>Solicitado</b> é tudo o que as unidades pediram, mesmo o que não foi atendido. <b>Atendido</b> é só o que foi entregue. ` +
+    `A <b>necessidade anual</b> é a média mensal do solicitado × 12: a quantidade que atenderia as unidades pelo que elas pedem. ` +
+    `O filtro "Categoria" de cima não vale nesta aba; escolha aqui embaixo.</p>` +
+    `<div class="pa-pca-cats"><span class="pa-label-inline">Categorias</span>${chips || '<span class="pa-sub">Nenhuma categoria com pedido no período.</span>'}` +
+    (rel.cats.length
+      ? `<button type="button" class="pa-link" onclick="marcarCatsPca(true)">Marcar todas</button><button type="button" class="pa-link" onclick="marcarCatsPca(false)">Desmarcar todas</button>`
+      : "") +
+    `</div>` +
+    `<p class="pa-pca-resumo">Período: <b>${d.periodo}</b> (${d.base})${d.filtros ? ` · ${_deps.esc(d.filtros)}` : ""} · ` +
+    `<b>${fmtN(rel.escolhidas.length)}</b> de ${fmtN(rel.cats.length)} categorias · <b>${fmtN(rel.nItens)}</b> itens</p>` +
+    `</div>`;
+
+  if (!rel.grupos.length) {
+    return h + `<div class="pa-card pa-empty">Nenhum pedido nas categorias escolhidas neste período.</div>`;
+  }
+
+  const t = rel.total;
+  h +=
+    `<div class="pa-kpis">` +
+    `<div class="pa-card pa-kpi"><div class="pa-kpi-label">Solicitado no período</div><div class="pa-kpi-val">${fmtN(t.sol)}</div></div>` +
+    `<div class="pa-card pa-kpi"><div class="pa-kpi-label">Atendido no período</div><div class="pa-kpi-val pa-green">${fmtN(t.ate)}</div></div>` +
+    `<div class="pa-card pa-kpi"><div class="pa-kpi-label">Taxa de atendimento</div><div class="pa-kpi-val">${fmtTaxa(t.taxa)}</div></div>` +
+    `<div class="pa-card pa-kpi"><div class="pa-kpi-label">Média/mês solicitada</div><div class="pa-kpi-val">${fmtMedia(t.mediaSol)}</div></div>` +
+    `<div class="pa-card pa-kpi"><div class="pa-kpi-label">Necessidade anual (solicitado)</div><div class="pa-kpi-val pa-blue">${fmtN(t.estSol)}</div></div>` +
+    `<div class="pa-card pa-kpi"><div class="pa-kpi-label">Estimativa anual (atendido)</div><div class="pa-kpi-val">${fmtN(t.estAte)}</div></div>` +
+    `</div>`;
+
+  const secoes = secoesPca(rel);
+  for (const sec of secoes) {
+    if (sec.id === "unidades") {
+      const lim = _state.verTodasUnidadesPca ? 0 : 15;
+      const mais = sec.linhas.length > 15;
+      h += paBloco(
+        sec.titulo,
+        mais ? (_state.verTodasUnidadesPca ? "Ver menos" : `Ver todas (${sec.linhas.length})`) : "",
+        "alternarVerTodosPainel('verTodasUnidadesPca')",
+        tabelaSecaoHtml(sec, lim),
+        sec.sub + " No Excel sai também o detalhe de cada material por unidade."
+      );
+    } else if (sec.id === "cat") {
+      h += paBloco(`${_deps.esc(sec.titulo)} <span class="pa-sub-inline">${_deps.esc(sec.sub)}</span>`, "", "", tabelaSecaoHtml(sec));
+    } else {
+      h += paBloco(sec.titulo, "", "", tabelaSecaoHtml(sec), sec.sub);
+    }
+  }
+  return h;
+}
+
+function exportarPcaExcel() {
+  const rel = _state.lastPca;
+  if (!rel?.grupos?.length) {
+    _deps.toast?.("Nenhum item para exportar. Escolha categorias ou mude o período.", "red");
+    return;
+  }
+  if (typeof XLSX === "undefined") {
+    _deps.toast?.("Não foi possível carregar o Excel. Recarregue a página e tente de novo.", "red");
+    return;
+  }
+  const d = descricaoPca(rel);
+  const qtdObj = (x) => Object.fromEntries(COLS_QTD.map((c) => [c.t, c.xls ? c.xls(c.get(x)) : c.get(x)]));
+  const larg = (n) => [...Array(n)].map(() => ({ wch: 16 }));
+  const wb = XLSX.utils.book_new();
+  const aba = (nome, linhas, cols) => {
+    const ws = XLSX.utils.json_to_sheet(linhas);
+    ws["!cols"] = cols;
+    XLSX.utils.book_append_sheet(wb, ws, nome);
+    return ws;
+  };
+
+  const itens = [];
+  for (const g of rel.grupos) {
+    for (const it of g.itens) {
+      itens.push({ Categoria: g.cat, Material: nomeMaterial(it.material), Pedidos: it.pedidos, Unidades: it.unidades, ...qtdObj(it) });
+    }
+  }
+  aba("Itens", itens, [{ wch: 18 }, { wch: 42 }, { wch: 9 }, { wch: 9 }, ...larg(COLS_QTD.length)]);
+
+  const resumo = aba(
+    "Resumo por categoria",
+    [...rel.grupos.map((g) => ({ Categoria: g.cat, Itens: g.itens.length, ...qtdObj(g) })), { Categoria: "Total geral", Itens: rel.nItens, ...qtdObj(rel.total) }],
+    [{ wch: 20 }, { wch: 8 }, ...larg(COLS_QTD.length)]
+  );
+  XLSX.utils.sheet_add_aoa(
+    resumo,
+    [
+      [],
+      [`${SETOR_PCA} — Relatório para o PCA`],
+      [`Período: ${d.periodo} (${d.base})${d.filtros ? " · " + d.filtros : ""}`],
+      ["Solicitado = tudo o que as unidades pediram; Atendido = o que foi entregue; Necessidade anual = média mensal do solicitado × 12"],
+    ],
+    { origin: -1 }
+  );
+
+  aba("Por tipo", rel.tipos.map((t) => ({ Tipo: t.tipo, Unidades: t.unidades, Pedidos: t.pedidos, ...qtdObj(t) })), [{ wch: 22 }, { wch: 10 }, { wch: 9 }, ...larg(COLS_QTD.length)]);
+  aba("Por unidade", rel.unidades.map((u) => ({ Unidade: u.unidade, Tipo: u.tipo, Pedidos: u.pedidos, ...qtdObj(u) })), [{ wch: 42 }, { wch: 18 }, { wch: 9 }, ...larg(COLS_QTD.length)]);
+  aba(
+    "Unidade x material",
+    rel.unidadesMateriais.map((x) => ({ Unidade: x.unidade, Tipo: x.tipo, Categoria: x.cat, Material: nomeMaterial(x.material), Pedidos: x.pedidos, ...qtdObj(x) })),
+    [{ wch: 42 }, { wch: 18 }, { wch: 18 }, { wch: 42 }, { wch: 9 }, ...larg(COLS_QTD.length)]
+  );
+  aba(
+    "Mês a mês",
+    rel.meses.map((m) => ({ Mês: nomeMes(m.mes), Solicitado: m.sol, Atendido: m.ate, "Solicitado acumulado": m.acumSol, "Atendido acumulado": m.acumAte })),
+    [{ wch: 16 }, { wch: 12 }, { wch: 12 }, { wch: 20 }, { wch: 18 }]
+  );
+
+  // Taxa como porcentagem nas abas que têm a coluna
+  for (const nome of wb.SheetNames) {
+    const ws = wb.Sheets[nome];
+    const ref = ws["!ref"];
+    if (!ref) continue;
+    const range = XLSX.utils.decode_range(ref);
+    for (let c = range.s.c; c <= range.e.c; c++) {
+      const cab = ws[XLSX.utils.encode_cell({ r: 0, c })];
+      if (cab?.v !== "Taxa de atendimento") continue;
+      for (let r = 1; r <= range.e.r; r++) {
+        const cel = ws[XLSX.utils.encode_cell({ r, c })];
+        if (cel && typeof cel.v === "number") cel.z = "0.0%";
+      }
+    }
+  }
+
+  const p = rel.periodo;
+  XLSX.writeFile(wb, `Relatorio_PCA_${p.from || "inicio"}_a_${p.to || "hoje"}.xlsx`);
+  _deps.toast?.(`Excel gerado: ${itens.length} itens.`, "green");
+}
+
+// PDF e Word ficam num módulo à parte, carregado só quando a pessoa pede o documento
+async function exportarPcaDocumento(formato) {
+  const rel = _state.lastPca;
+  if (!rel?.grupos?.length) {
+    _deps.toast?.("Nenhum item para exportar. Escolha categorias ou mude o período.", "red");
+    return;
+  }
+  try {
+    _deps.toast?.(`Gerando ${formato === "pdf" ? "PDF" : "Word"}...`, "green");
+    const mod = await import("./pca-documento.js");
+    const info = {
+      setor: SETOR_PCA,
+      anoPca: new Date().getFullYear() + 1,
+      ...descricaoPca(rel),
+      geradoEm: new Date().toLocaleString("pt-BR"),
+      kpis: [
+        ["Solicitado no período", fmtN(rel.total.sol)],
+        ["Atendido no período", fmtN(rel.total.ate)],
+        ["Taxa de atendimento", fmtTaxa(rel.total.taxa)],
+        ["Necessidade anual (solicitado)", fmtN(rel.total.estSol)],
+        ["Estimativa anual (atendido)", fmtN(rel.total.estAte)],
+      ],
+      nomeArquivo: `Relatorio_PCA_${rel.periodo.from || "inicio"}_a_${rel.periodo.to || "hoje"}`,
+    };
+    const secoes = secoesPca(rel);
+    if (formato === "pdf") await mod.gerarPdfPca(info, secoes);
+    else await mod.gerarWordPca(info, secoes);
+  } catch (e) {
+    console.error(e);
+    _deps.toast?.("Não foi possível gerar o documento: " + (e?.message || e), "red");
+  }
+}
+
+
 function preencherUnidades() {
   const unitSel = document.getElementById("panUnitSel");
   if (!unitSel) return;
@@ -1127,6 +1559,9 @@ function renderSubTabsActive() {
   document.querySelectorAll(".pan-sub-tab").forEach((btn) => {
     btn.classList.toggle("active", btn.getAttribute("data-pansub") === _state.sub);
   });
+  // Na aba PCA as categorias são escolhidas na própria aba
+  const campoCat = document.getElementById("panCatSel")?.closest(".pa-field");
+  if (campoCat) campoCat.style.display = _state.sub === "pca" ? "none" : "";
 }
 
 function mostrarAtualizacao() {
@@ -1178,15 +1613,21 @@ export async function buildPainelRelatorio(opts = {}) {
     mostrarAtualizacao();
 
     let html = "";
-    if (_state.sub === "itens") html = buildItensHtml(metrics, filtered, filters);
+    if (_state.sub === "pca") {
+      // Categoria vem das escolhas da própria aba, não do filtro de cima
+      const semCat = filterAnalyticRows(allRows, { ...filters, cat: "" });
+      _state.lastPca = montarRelatorioPca(semCat, filters);
+      html = buildPcaHtml(_state.lastPca);
+    } else if (_state.sub === "itens") html = buildItensHtml(metrics, filtered, filters);
     else html = buildGeralHtml(metrics, filters, filtered);
 
-    if (!filtered.length) {
+    if (!filtered.length && _state.sub !== "pca") {
       html =
         `<div class="pa-card pa-empty"><b style="color:#0f172a">Nenhum dado no filtro.</b> ` +
         `Ajuste o período, a unidade, o tipo ou a categoria.</div>` + html;
     }
-    if (nPendentes) {
+    // Na aba PCA os pedidos na fila entram no solicitado, então o aviso não se aplica
+    if (nPendentes && _state.sub !== "pca") {
       html =
         `<div class="pa-card pa-note">${nPendentes} pedido${nPendentes > 1 ? "s" : ""} do período ainda ` +
         `aguarda${nPendentes > 1 ? "m" : ""} atendimento e não entra${nPendentes > 1 ? "m" : ""} nas contas até ser separado.</div>` +
@@ -1205,7 +1646,7 @@ export async function buildPainelRelatorio(opts = {}) {
 }
 
 export function switchPanSubRelatorio(sub) {
-  const allowed = new Set(["geral", "itens"]);
+  const allowed = new Set(["geral", "itens", "pca"]);
   _state.sub = allowed.has(sub) ? sub : "geral";
   return buildPainelRelatorio();
 }
@@ -1433,6 +1874,23 @@ function alternarVerTodosPainel(chave) {
   buildPainelRelatorio();
 }
 
+// Categorias do Relatório PCA (null = todas)
+function alternarCatPca(i) {
+  const lista = _state.pcaCatList || [];
+  const cat = lista[i];
+  if (cat == null) return;
+  const sel = _state.pcaCats ? new Set(_state.pcaCats) : new Set(lista);
+  if (sel.has(cat)) sel.delete(cat);
+  else sel.add(cat);
+  _state.pcaCats = sel.size === lista.length ? null : sel;
+  buildPainelRelatorio();
+}
+
+function marcarCatsPca(todas) {
+  _state.pcaCats = todas ? null : new Set();
+  buildPainelRelatorio();
+}
+
 // Filtros aplicam sozinhos ao mudar; a busca por material espera a pessoa parar de digitar
 let __filtroTimer = null;
 function aplicarFiltrosPainel(atraso = 0) {
@@ -1566,6 +2024,10 @@ Object.assign(window, {
   filtrarPainelPorUnidade,
   alternarVerTodosPainel,
   aplicarFiltrosPainel,
+  alternarCatPca,
+  marcarCatsPca,
+  exportarPcaExcel,
+  exportarPcaDocumento,
   abrirCalendarioPainel,
   fecharCalendarioPainel,
   navMesPainel,

@@ -2658,6 +2658,13 @@ button.pa-date:hover { background: var(--pa-soft); }
 .pa-cal-leg i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; background: #16a34a; }
 .pa-cal-leg i.pend { background: #f59e0b; }
 .pa-cal-rodape { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--pa-line); font-size: 11.5px; color: var(--pa-muted); }
+.pa-pca-acoes { display: flex; gap: 8px; flex-wrap: wrap; }
+.pa-pca-cats { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 4px 0 10px; }
+.pa-pca-cats .pa-link { margin-left: 8px; }
+.pa-pca-resumo { font-size: 12.5px; color: #334155; margin: 0; padding-top: 10px; border-top: 1px solid var(--pa-line); }
+.pa-sub-inline { font-size: 11.5px; font-weight: 500; color: var(--pa-muted); margin-left: 6px; }
+.pa-kpi-val.pa-blue { color: var(--pa-blue); }
+.pa-table tr.pa-total td { background: #f8fafc; font-weight: 700; }
 .pa-note { padding: 10px 14px; margin-bottom: 14px; font-size: 12.5px; color: #92400e; background: #fffbeb; border-color: #fde68a; }
 .pa-presets { display: flex; gap: 6px; flex-wrap: wrap; margin-left: 10px; }
 .pa-chip { height: 30px; padding: 0 16px; border: 1px solid #cbd5e1; border-radius: 4px; background: #f8fafc; color: var(--pa-text); font: inherit; font-size: 11.5px; cursor: pointer; }
