@@ -2649,6 +2649,10 @@ button.pa-date:hover { background: var(--pa-soft); }
 .pa-cal-dia.tem, .pa-cal-dia.pend { font-weight: 700; }
 .pa-cal-dia.tem::after, .pa-cal-dia.pend::after { content: ""; position: absolute; left: 50%; bottom: 4px; width: 6px; height: 6px; margin-left: -3px; border-radius: 50%; background: #16a34a; }
 .pa-cal-dia.pend::after { background: #f59e0b; }
+.pa-cal-dia.folga { color: #b6c0cc; background: repeating-linear-gradient(135deg, #f8fafc 0 4px, #eef2f6 4px 8px); }
+.pa-cal-dia.folga:hover { background: #e2e8f0; }
+.pa-cal-dia.meio.folga { background: repeating-linear-gradient(135deg, #dbeafe 0 4px, #eaf2fe 4px 8px); }
+.pa-cal-leg i.folga { border-radius: 2px; background: repeating-linear-gradient(135deg, #e2e8f0 0 2px, #f8fafc 2px 4px); border: 1px solid #cbd5e1; }
 .pa-cal-dia.hoje { box-shadow: inset 0 0 0 1px var(--pa-blue-2); }
 .pa-cal-dia.meio { background: #dbeafe; border-radius: 0; }
 .pa-cal-dia.ini, .pa-cal-dia.fim { background: var(--pa-blue-2); color: #fff; }
@@ -2681,9 +2685,10 @@ button.pa-date:hover { background: var(--pa-soft); }
 .pa-field input::placeholder { color: #94a3b8; }
 
 .pa-kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 14px; }
-.pa-kpi { padding: 16px 16px 14px; }
+.pa-kpi { padding: 16px 16px 14px; container-type: inline-size; }
 .pa-kpi-label { font-size: 13px; color: #334155; }
-.pa-kpi-val { font-size: 30px; font-weight: 700; line-height: 1.25; margin-top: 2px; }
+/* O número encolhe com o cartão para não vazar (ex.: "22.493,3" em tela estreita) */
+.pa-kpi-val { font-size: clamp(17px, 15cqi, 30px); font-weight: 700; line-height: 1.25; margin-top: 2px; white-space: nowrap; }
 .pa-green { color: #15803d; }
 .pa-red { color: #dc2626; }
 

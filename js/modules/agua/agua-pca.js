@@ -7,7 +7,7 @@
 import { getDocs, query, orderBy, doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { COLLECTIONS } from "../../services/firestore-service.js";
 import { getUnidades } from "../../utils/cache.js";
-import { periodoPca, nomeUnidade, unidadesCadastroAtivas } from "../materiais/relatorio-painel.js";
+import { periodoPca, nomeUnidade, unidadesCadastroAtivas, carregarFeriadosPainel } from "../materiais/relatorio-painel.js";
 
 const SETOR = "Coordenação de Almoxarifado e Patrimônio";
 const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
@@ -199,7 +199,7 @@ function secoes(rel) {
 
 function descricao(rel) {
   const p = rel.periodo;
-  const base = p.meses >= 1 ? `média calculada sobre ${fmtMedia(p.meses).replace(/,0$/, "")} ${p.meses >= 1.95 ? "meses" : "mês"} com entregas` : `${p.dias} dia${p.dias > 1 ? "s" : ""}`;
+  const base = p.meses >= 1 ? `média calculada sobre ${fmtMedia(p.meses).replace(/,0$/, "")} ${p.meses >= 1.95 ? "meses" : "mês"} com entregas; meses incompletos contados em dias úteis` : `${p.dias} dia${p.dias > 1 ? "s" : ""}`;
   return { periodo: `${dataBR(p.from)} até ${dataBR(p.to)}`, base };
 }
 
@@ -290,7 +290,7 @@ export async function renderPcaAgua(opts = {}) {
   if (!document.getElementById("aguaPcaDe")?.value) aplicarPresetPcaAgua("12m", false);
   if (!_ultimo || opts.force) el.innerHTML = `<div class="pa-card pa-empty">Carregando as entregas de água...</div>`;
   try {
-    const [movs] = await Promise.all([carregarMovs(!!opts.force), carregarAjustes()]);
+    const [movs] = await Promise.all([carregarMovs(!!opts.force), carregarAjustes(), carregarFeriadosPainel()]);
     _ultimo = montar(movs, periodoDaTela());
     render(_ultimo);
   } catch (e) {

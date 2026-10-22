@@ -9,6 +9,7 @@ import {
   invalidateReportCaches,
 } from "../../utils/db-utils.js";
 import { getUnidades } from "../../utils/cache.js";
+import { getFeriadosISOSetCached } from "../feriados.js";
 
 const DAY_NAMES = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
@@ -1073,8 +1074,32 @@ function diasEntre(a, b) {
   return Math.round((new Date(b + "T12:00:00") - new Date(a + "T12:00:00")) / 86400000) + 1;
 }
 
+// Dias úteis do almoxarifado: segunda a sexta, fora os feriados cadastrados (menu Feriados).
+// Abrigos funcionam no fim de semana, mas as entregas só saem em dia útil.
+let _feriados = new Set();
+export async function carregarFeriadosPainel() {
+  try {
+    _feriados = (await getFeriadosISOSetCached()) || new Set();
+  } catch (e) {
+    console.warn("[Painel] feriados não carregados", e);
+  }
+  return _feriados;
+}
+
+const pad2 = (n) => String(n).padStart(2, "0");
+const ehFimDeSemana = (iso) => [0, 6].includes(new Date(iso + "T12:00:00").getDay());
+const ehFeriado = (iso) => _feriados.has(iso);
+const ehDiaUtil = (iso) => !ehFimDeSemana(iso) && !ehFeriado(iso);
+
+function diasUteisNoMes(y, mo, ini, fim) {
+  let n = 0;
+  for (let d = ini; d <= fim; d++) if (ehDiaUtil(`${y}-${pad2(mo)}-${pad2(d)}`)) n++;
+  return n;
+}
+
 // A média mensal divide só pelos meses que têm registro (meses sem registro, como antes do
-// sistema começar a ser usado, puxariam a média para baixo). O mês do início/fim conta pela parte coberta.
+// sistema começar a ser usado, puxariam a média para baixo). O mês do início/fim conta pela parte
+// coberta, medida em dias úteis do almoxarifado (ex.: 1 a 22/10 = 16 de 22 dias úteis de outubro).
 export function periodoPca(rows, f) {
   const datas = rows.map((r) => r.dateIso).filter(Boolean).sort();
   const from = f.dateFrom || datas[0] || "";
@@ -1089,7 +1114,8 @@ export function periodoPca(rows, f) {
     const ultimo = new Date(y, mo, 0).getDate();
     const ini = from && from.slice(0, 7) === m ? Number(from.slice(8, 10)) : 1;
     const fim = to && to.slice(0, 7) === m ? Number(to.slice(8, 10)) : ultimo;
-    meses += Math.max(0, fim - ini + 1) / ultimo;
+    const uteisMes = diasUteisNoMes(y, mo, 1, ultimo);
+    meses += uteisMes ? diasUteisNoMes(y, mo, ini, fim) / uteisMes : Math.max(0, fim - ini + 1) / ultimo;
   }
   if (!meses && dias) meses = dias / 30.4375;
   return { from, to, dias, meses, nMesesComDados: mesesComDados.length };
@@ -1301,7 +1327,7 @@ export function descricaoPca(rel) {
   const p = rel.periodo;
   const base =
     p.meses >= 1
-      ? `média calculada sobre ${fmtMedia(p.meses).replace(/,0$/, "")} ${p.meses >= 1.95 ? "meses" : "mês"} com registros`
+      ? `média calculada sobre ${fmtMedia(p.meses).replace(/,0$/, "")} ${p.meses >= 1.95 ? "meses" : "mês"} com registros; meses incompletos contados em dias úteis`
       : `${p.dias} dia${p.dias > 1 ? "s" : ""}`;
   const filtros = [];
   if (rel.filtros.tipo) filtros.push("Tipo: " + ((_deps.UNIT_TYPES || []).find((t) => t.id === rel.filtros.tipo)?.label || rel.filtros.tipo));
@@ -1585,6 +1611,7 @@ async function ensureDataLoaded(force = false) {
     const [mats, hist] = await Promise.all([
       fetchAllMateriaisForReport({ force }),
       fetchAllHistForReport({ force }),
+      carregarFeriadosPainel(),
     ]);
     _state.rows = buildAnalyticRows(mats, hist);
     _state.loaded = true;
@@ -1986,6 +2013,13 @@ function renderCalendarioPainel() {
     const info = dias.get(iso);
     const cls = ["pa-cal-dia"];
     let titulo = "Sem pedido";
+    if (ehFeriado(iso)) {
+      cls.push("folga");
+      titulo = "Feriado — sem expediente";
+    } else if (ehFimDeSemana(iso)) {
+      cls.push("folga");
+      titulo = "Fim de semana — sem expediente";
+    }
     if (info) {
       const tot = info.pedidos.size;
       const pend = info.pendentes.size;
@@ -2009,7 +2043,8 @@ function renderCalendarioPainel() {
     `<button type="button" onclick="navMesPainel(1)" aria-label="Próximo mês">›</button></div>` +
     `<div class="pa-cal-grid">${["D", "S", "T", "Q", "Q", "S", "S"].map((d) => `<span class="pa-cal-sem">${d}</span>`).join("")}${cels}</div>` +
     `<p class="pa-cal-dica">${_cal.inicio ? "Agora clique no último dia do período." : "Clique no primeiro dia e depois no último. Para um dia só, clique duas vezes nele."}</p>` +
-    `<div class="pa-cal-leg"><span><i class="tem"></i>Dia com pedido atendido</span><span><i class="pend"></i>Aguardando atendimento</span></div>` +
+    `<div class="pa-cal-leg"><span><i class="tem"></i>Dia com pedido atendido</span><span><i class="pend"></i>Aguardando atendimento</span>` +
+    `<span><i class="folga"></i>Fim de semana / feriado</span></div>` +
     `<div class="pa-cal-rodape"><span>${pedidosMes} pedido${pedidosMes === 1 ? "" : "s"} no mês</span>` +
     `<button type="button" class="pa-link" onclick="fecharCalendarioPainel()">Fechar</button></div>`;
 }
@@ -2023,6 +2058,10 @@ function abrirCalendarioPainel() {
   const base = ref ? new Date(ref + "T12:00:00") : new Date();
   _cal = { mes: new Date(base.getFullYear(), base.getMonth(), 1), inicio: null };
   el.classList.add("open");
+  // Feriados podem ter mudado no menu Feriados: atualiza as marcações quando chegarem
+  carregarFeriadosPainel().then(() => {
+    if (el.classList.contains("open")) renderCalendarioPainel();
+  });
   renderCalendarioPainel();
   setTimeout(() => document.addEventListener("mousedown", fecharCalendarioAoClicarFora), 0);
 }
