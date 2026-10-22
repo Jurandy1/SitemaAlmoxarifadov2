@@ -27,7 +27,8 @@
 <body class="v2-app semcas-shell">
 
     <!-- Modal de Autenticação - Mostra primeiro se não houver login -->
-    <div id="auth-modal" class="modal auth-modal" style="display: flex;">
+    <!-- Começa escondido: só aparece se, depois de verificar a sessão salva, não houver ninguém logado -->
+    <div id="auth-modal" class="modal auth-modal" style="display: none;">
         <div class="modal-content auth-modal-content">
             <!-- Cabeçalho Azul Institucional -->
             <div class="auth-modal-header">

@@ -762,6 +762,8 @@ async function initAuthAndListeners(renderDash, renderControls, renderModules) {
             transitioning = true;
             isAuthReady   = true;
             userId        = user.uid;
+            // Esconde o login já: a busca do papel abaixo é pela rede e deixava a tela piscando
+            if (DOM_ELEMENTS.authModal) DOM_ELEMENTS.authModal.style.display = 'none';
 
             let role = 'anon';
             try {
