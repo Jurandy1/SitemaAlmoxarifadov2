@@ -33,9 +33,9 @@ import { initTrocarSenha } from "./modules/senha.js";
 
 function ensureDebugOverlay() {
     try {
-        const hostname = window.location?.hostname || '';
-        const isLocal = hostname === 'localhost' || hostname === '127.0.0.1';
-        if (!isLocal) return null;
+        // Só com ?debug=1 no endereço: a caixa ficava por cima da tela de login
+        const debug = new URLSearchParams(window.location?.search || '').get('debug') === '1';
+        if (!debug) return null;
         let el = document.getElementById('__debug-overlay');
         if (el) return el;
         el = document.createElement('div');
