@@ -2725,3 +2725,45 @@ body:has(#content-painel:not(.hidden)) .content .max-w-7xl { max-width: none; }
   .pa-presets { margin-left: 0; }
   .pa-tab { padding: 12px 18px; }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   RESPONSIVIDADE (ajustes gerais)
+   ═══════════════════════════════════════════════════════════════ */
+/* A área principal é item flex: sem min-width:0 ela crescia até o conteúdo mais largo
+   (ex.: as abas da Separação) e a página inteira passava da tela */
+body.semcas-shell .main,
+body.semcas-shell .content { min-width: 0; }
+body.semcas-shell .main { max-width: 100%; }
+
+/* Menu lateral: o rodapé do usuário (e-mail + trocar senha + sair) cabe na largura do menu */
+body.semcas-shell .sidebar { overflow-x: hidden; }
+body.semcas-shell .sidebar-footer { gap: 8px; padding: 14px 12px; }
+body.semcas-shell .sidebar-footer > div:not(.user-avatar) { flex: 1 1 auto; min-width: 0; }
+body.semcas-shell .sidebar-footer .user-name { max-width: 100%; }
+body.semcas-shell .sidebar-footer .logout-btn { margin-left: 0; flex-shrink: 0; }
+
+/* Barra do topo: uma linha só; o que não couber some em vez de quebrar */
+body.semcas-shell .topbar { white-space: nowrap; overflow: hidden; }
+body.semcas-shell .topbar > * { flex-shrink: 0; }
+body.semcas-shell .topbar-slogan { flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 1100px) {
+  body.semcas-shell .topbar-slogan,
+  body.semcas-shell .topbar-sep:has(+ .topbar-slogan) { display: none; }
+}
+@media (max-width: 640px) {
+  body.semcas-shell .topbar { padding: 0 10px; gap: 8px; }
+  body.semcas-shell .topbar > span:not([class]),
+  body.semcas-shell .topbar-sep,
+  body.semcas-shell .topbar-date { display: none; }
+  body.semcas-shell .topbar-logo { flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  body.semcas-shell .tv-btn span,
+  body.semcas-shell .topbar-status .status-text { display: none; }
+  body.semcas-shell .tv-btn { padding: 5px 8px; }
+  body.semcas-shell .topbar-right { gap: 10px; }
+}
+
+/* Separação de Materiais: as abas rolam dentro do próprio espaço em telas menores */
+.separacao-module .tabs { max-width: 100%; }
+@media (max-width: 1280px) {
+  .separacao-module .tabs { flex-wrap: wrap; overflow-x: visible; row-gap: 4px; }
+}

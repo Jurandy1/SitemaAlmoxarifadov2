@@ -474,6 +474,22 @@ function switchTab(tabName) {
     const label = activeBtn?.querySelector('span')?.textContent?.trim();
     if (pageTitleEl && label) pageTitleEl.textContent = label;
 
+    // Subtítulo de cada menu (antes ficava "Painel principal do sistema" em todos)
+    const pageDescEl = document.getElementById('page-desc');
+    const DESCRICOES = {
+        inicio: 'Painel principal do sistema',
+        agua: 'Entregas, retornos e estoque de galões de água',
+        gas: 'Entregas, retornos e estoque de botijões de gás',
+        materiais: 'Pedidos de materiais: registrar, separar e entregar',
+        painel: 'Análise dos pedidos de materiais',
+        social: 'Cestas básicas, enxoval e importação de dados',
+        gestao: 'Cadastro e configuração das unidades',
+        usuarios: 'Contas de acesso e permissões',
+        feriados: 'Calendário de feriados e pontos facultativos',
+        relatorio: 'Relatórios para impressão',
+    };
+    if (pageDescEl && DESCRICOES[tabName]) pageDescEl.textContent = DESCRICOES[tabName];
+
     if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') {
         setTimeout(() => lucide.createIcons(), 50);
     }
