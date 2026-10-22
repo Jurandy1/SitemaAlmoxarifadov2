@@ -2945,7 +2945,7 @@ function renderES(){
   const pg=paginate(all, PAGE_STATE.es);
   const canCancel = getUserRole() === 'admin';
   let h='<div class="tbl-wrap"><table class="qt"><thead><tr><th>Unidade</th><th>Tipos</th><th>Separador</th><th>Resumo</th><th>Ações</th></tr></thead><tbody>';
-  pg.items.forEach(r=>{const v=Object.values(r.items);h+=`<tr><td style="font-weight:700">${esc(displayUnit(r.unidade))}</td><td>${tiposPills(r.tipos)}</td><td>${esc(r.separador)}</td><td>${sumHTML(v)}</td><td style="display:flex;gap:6px">${actBtn(`abrirFicha(${jsArg(r.id)})`, 'pencil', 'Editar', 'btn btn-p btn-sm')}${actBtn(`printReq(${jsArg(r.id)})`, 'printer', '', 'btn btn-s btn-sm', 'Imprimir')}${actBtn(`marcarProntoLista(${jsArg(r.id)}, event)`, 'check-circle', '', 'btn btn-g btn-sm', 'Marcar Pronto')}${canCancel?actBtn(`cancelarReq(${jsArg(r.id)})`, 'trash-2', 'Excluir', 'btn btn-s btn-sm', 'Excluir pedido', 'color:var(--red);border-color:#fca5a5') : ''}</td></tr>`});
+  pg.items.forEach(r=>{const v=Object.values(r.items);h+=`<tr><td style="font-weight:700">${esc(displayUnit(r.unidade))}</td><td>${tiposPills(r.tipos)}</td><td>${esc(r.separador)}</td><td>${sumHTML(v)}</td><td style="display:flex;gap:6px">${actBtn(`abrirFicha(${jsArg(r.id)})`, 'pencil', 'Editar', 'btn btn-p btn-sm')}${actBtn(`printReq(${jsArg(r.id)})`, 'printer', '', 'btn btn-s btn-sm', 'Imprimir')}${actBtn(`marcarProntoLista(${jsArg(r.id)}, event)`, 'check-circle', '', 'btn btn-g btn-sm', 'Marcar Pronto')}${actBtn(`devolverParaSeparar(${jsArg(r.id)})`, 'undo-2', 'Devolver', 'btn btn-s btn-sm', 'Devolver para Para Separar')}${canCancel?actBtn(`cancelarReq(${jsArg(r.id)})`, 'trash-2', 'Excluir', 'btn btn-s btn-sm', 'Excluir pedido', 'color:var(--red);border-color:#fca5a5') : ''}</td></tr>`});
   h+='</tbody></table></div>';
   h+=paginationHTML('es', pg.page, pg.total, pg.count);
   el.innerHTML=h;
@@ -3365,6 +3365,16 @@ async function marcarProntoLista(id, e){
   if(!(await confirmar('Tem certeza que deseja marcar como Pronto?', { ok: 'Marcar Pronto' }))) return;
   r.status='pronto';r.dtPronto=new Date();markDirty(r);persistReq(r);toast(displayUnit(r.unidade)+' → Pronto!','green');renderAll();
 }
+// Em Separação → Para Separar (tira o separador; o pedido volta para a fila)
+async function devolverParaSeparar(id){
+  const r=findReq(id);if(!r)return;
+  if(!(await confirmar('Devolver o pedido de '+displayUnit(r.unidade)+' para "Para Separar"? O separador será retirado.', { ok: 'Devolver' })))return;
+  r.status='requisitado';r.separador=null;markDirty(r);
+  const ok=await persistReq(r);
+  if(ok)toast(displayUnit(r.unidade)+' voltou para Para Separar','green');
+  goTab('ps');
+}
+window.devolverParaSeparar=devolverParaSeparar;
 function voltarSeparacao(id){const r=findReq(id);if(!r)return;r.status='separando';markDirty(r);persistReq(r);toast(displayUnit(r.unidade)+' ↩️ Voltou para Separação','green');goTab('es')}
 
 function entregarReq(id){
