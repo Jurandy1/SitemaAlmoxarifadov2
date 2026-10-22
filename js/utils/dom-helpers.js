@@ -631,6 +631,9 @@ async function openConfirmDeleteModal(id, type, details = null, alertElementId =
 /**
  * Aplica as permissões de UI com base no role do usuário.
  */
+// Menus só de administrador
+const ADMIN_ONLY_TABS = new Set(['gestao', 'usuarios', 'feriados', 'relatorio', 'painel']);
+
 function renderPermissionsUI() {
     if (!domReady) return;
     const role = getUserRole();
@@ -651,7 +654,8 @@ function renderPermissionsUI() {
         if (isAnon && !allowedAnonTabs.has(tab)) {
             isVisible = false;
         }
-        if ((isAnon || isEditor) && (tab === 'gestao' || tab === 'usuarios' || tab === 'feriados')) {
+        // Menus só de admin: editores não veem Gestão, Usuários, Feriados, Relatórios nem o Painel do Almoxarifado
+        if (!isAdmin && ADMIN_ONLY_TABS.has(tab)) {
             isVisible = false;
         }
         btn.classList.toggle('hidden', !isVisible);
@@ -663,7 +667,7 @@ function renderPermissionsUI() {
         if (isAnon && !allowedAnonTabs.has(tabName)) {
              isDisabled = true;
         }
-        if (!isAdmin && (tabName === 'gestao' || tabName === 'usuarios' || tabName === 'feriados')) {
+        if (!isAdmin && ADMIN_ONLY_TABS.has(tabName)) {
              isDisabled = true;
         }
          pane.classList.toggle('disabled-by-role', isDisabled);
@@ -785,7 +789,7 @@ function renderPermissionsUI() {
             const allowedAnonTabs = new Set(['inicio', 'agua', 'gas', 'dashboard']);
             if (!allowedAnonTabs.has(currentTab)) shouldRedirect = true;
         }
-        if (!isAdmin && (currentTab === 'gestao' || currentTab === 'usuarios' || currentTab === 'feriados')) shouldRedirect = true;
+        if (!isAdmin && ADMIN_ONLY_TABS.has(currentTab)) shouldRedirect = true;
 
         if (shouldRedirect) {
             switchTab('inicio');

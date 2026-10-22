@@ -2612,25 +2612,10 @@ function goTab(t){
 
 let _panSub = 'geral';
 
+// Separação de Materiais e Painel do Almoxarifado agora são menus próprios na barra lateral
 function switchMatView(view) {
-  const vEntrega = document.getElementById('matViewEntrega');
-  const vPainel = document.getElementById('matViewPainel');
-  const bEntrega = document.getElementById('matTabEntrega');
-  const bPainel = document.getElementById('matTabPainel');
-  if (!vEntrega || !vPainel) return;
-  if (view === 'painel') {
-    vEntrega.style.display = 'none';
-    vPainel.style.display = 'block';
-    if (bEntrega) { bEntrega.style.background = 'transparent'; bEntrega.style.color = '#94a3b8'; }
-    if (bPainel) { bPainel.style.background = '#1e40af'; bPainel.style.color = '#fff'; }
-    buildPainel();
-  } else {
-    vEntrega.style.display = 'block';
-    vPainel.style.display = 'none';
-    if (bEntrega) { bEntrega.style.background = '#1e40af'; bEntrega.style.color = '#fff'; }
-    if (bPainel) { bPainel.style.background = 'transparent'; bPainel.style.color = '#94a3b8'; }
-  }
-  refreshIcons();
+  const tab = view === 'painel' ? 'painel' : 'materiais';
+  document.querySelector(`.nav-btn[data-tab="${tab}"]`)?.click();
 }
 
 function switchPanSub(sub) {
@@ -3268,7 +3253,8 @@ async function loadAllHistDBAndRefresh(){
 function exportarCSV() {
   // Se o Painel estiver aberto e já tiver linhas filtradas, prioriza export enriquecido.
   try {
-    const painelVisivel = document.getElementById('matViewPainel')?.style?.display !== 'none';
+    const painelEl = document.getElementById('content-painel');
+    const painelVisivel = !!painelEl && !painelEl.classList.contains('hidden');
     if (painelVisivel) {
       exportarPainelCSV();
       return;

@@ -140,8 +140,12 @@
                     <span>Controle de Gás</span>
                 </button>
                 <button class="nav-btn nav-item" data-tab="materiais">
-                    <i data-lucide="truck"></i>
-                    <span>Entrega Materiais</span>
+                    <i data-lucide="package-check"></i>
+                    <span>Separação de Materiais</span>
+                </button>
+                <button class="nav-btn nav-item" data-tab="painel">
+                    <i data-lucide="bar-chart-3"></i>
+                    <span>Painel do Almoxarifado</span>
                 </button>
                 <button class="nav-btn nav-item" data-tab="social">
                     <i data-lucide="handshake"></i>
@@ -1503,12 +1507,6 @@
             <!-- PAINEL ENTREGA DE MATERIAIS (ID: content-materiais)      -->
             <!-- ========================================================== -->
             <div id="content-materiais" class="fade-in hidden">
-                <!-- ═══ SUB-MENU PRINCIPAL DO ALMOXARIFADO ═══ -->
-                <div style="display:flex;align-items:center;gap:0;background:#0f172a;border-radius:12px;overflow:hidden;margin-bottom:12px;box-shadow:0 4px 12px rgba(0,0,0,.15)">
-                    <button class="mat-main-tab active" id="matTabEntrega" onclick="switchMatView('entrega')" style="flex:1;padding:14px 20px;border:none;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;transition:.2s;background:#1e40af;color:#fff"><i data-lucide="truck"></i> Entrega de Materiais</button>
-                    <button class="mat-main-tab" id="matTabPainel" onclick="switchMatView('painel')" style="flex:1;padding:14px 20px;border:none;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;transition:.2s;background:transparent;color:#94a3b8"><i data-lucide="bar-chart-3"></i> Painel do Almoxarifado</button>
-                </div>
-
                 <!-- ═══ BLOCO 1: ENTREGA DE MATERIAIS ═══ -->
                 <div id="matViewEntrega">
                 <div class="separacao-module">
@@ -1766,9 +1764,14 @@
                     </div>
                 </div>
                 </div><!-- /matViewEntrega -->
+            </div>
 
+            <!-- ========================================================== -->
+            <!-- PAINEL DO ALMOXARIFADO (ID: content-painel) — só admin      -->
+            <!-- ========================================================== -->
+            <div id="content-painel" class="fade-in hidden">
                 <!-- ═══ BLOCO 2: PAINEL DO ALMOXARIFADO (relatórios analíticos) ═══ -->
-                <div id="matViewPainel" style="display:none">
+                <div id="matViewPainel">
                     <div style="max-width:1200px;margin:0 auto">
                         <div style="display:flex;gap:0;background:#fff;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,.04)">
                             <button class="pan-sub-tab active" data-pansub="geral" onclick="switchPanSub('geral')" style="flex:1;padding:11px 10px;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;background:#2563eb;color:#fff;transition:.2s;display:flex;align-items:center;justify-content:center;gap:6px"><i data-lucide="layout-dashboard"></i> Visão geral</button>

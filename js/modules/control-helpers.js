@@ -244,6 +244,10 @@ function initAllListeners() {
             case "materiais":
                 onMateriaisTabChange();
                 break;
+            case "painel":
+                // Painel do Almoxarifado (só admin): monta o relatório ao abrir o menu
+                if (typeof window.buildPainel === "function") window.buildPainel();
+                break;
             case "social": 
                 onSocialTabChange();
                 break;

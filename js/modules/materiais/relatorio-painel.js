@@ -1148,6 +1148,14 @@ export async function buildPainelRelatorio(opts = {}) {
 
   try {
     const allRows = await ensureDataLoaded(!!opts.force);
+    // Aberto logo após entrar, a consulta pode voltar vazia (login/coleção ainda carregando): tenta de novo sozinho
+    const tentativa = opts._tentativa || 0;
+    if (!allRows.length && tentativa < 5) {
+      setTimeout(() => {
+        const painel = document.getElementById("content-painel");
+        if (painel && !painel.classList.contains("hidden")) buildPainelRelatorio({ ...opts, _tentativa: tentativa + 1 });
+      }, 2000);
+    }
     populateFilterOptions(allRows);
     const filters = readFiltersFromDom();
     const filtered = filterAnalyticRows(allRows, filters);

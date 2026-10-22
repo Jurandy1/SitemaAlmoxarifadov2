@@ -56,7 +56,8 @@ export async function fetchAllMateriaisForReport(opts = {}) {
     if (snap.docs.length < 450) break;
     last = snap.docs[snap.docs.length - 1];
   }
-  __reportMateriaisCache = { at: now, docs: all };
+  // Resultado vazio não vai para o cache: costuma ser consulta feita antes do login/coleção ficarem prontos
+  if (all.length) __reportMateriaisCache = { at: now, docs: all };
   return all;
 }
 
@@ -82,7 +83,8 @@ export async function fetchAllHistForReport(opts = {}) {
     if (snap.docs.length < 450) break;
     last = snap.docs[snap.docs.length - 1];
   }
-  __reportHistCache = { at: now, docs: all };
+  // Resultado vazio não vai para o cache: costuma ser consulta feita antes do login/coleção ficarem prontos
+  if (all.length) __reportHistCache = { at: now, docs: all };
   return all;
 }
 
