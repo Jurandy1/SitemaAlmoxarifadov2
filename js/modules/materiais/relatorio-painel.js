@@ -453,23 +453,32 @@ export function computeMetrics(rows) {
     }
 
     const ck = r.cat || "Outros";
-    if (!byCat.has(ck)) byCat.set(ck, { cat: ck, ate: 0, sol: 0, lines: 0 });
+    if (!byCat.has(ck)) byCat.set(ck, { cat: ck, ate: 0, ateFull: 0, sol: 0, falt: 0, lines: 0 });
     const c = byCat.get(ck);
     c.ate += ateVal;
     c.lines += 1;
-    if (r.coverage === "full") c.sol += r.qtdSolicitada || 0;
+    if (r.coverage === "full") {
+      c.sol += r.qtdSolicitada || 0;
+      c.ateFull += ateVal;
+      c.falt += r.faltante || 0;
+    }
 
     const isExp =
       /expediente/i.test(r.cat || "") ||
       /expediente/i.test(r.tipoItem || "");
     if (isExp) {
       if (!byExpediente.has(mk)) {
-        byExpediente.set(mk, { material: r.material, ate: 0, sol: 0, lines: 0 });
+        byExpediente.set(mk, { material: r.material, ate: 0, ateFull: 0, sol: 0, falt: 0, lines: 0, full: false });
       }
       const e = byExpediente.get(mk);
       e.ate += ateVal;
       e.lines += 1;
-      if (r.coverage === "full") e.sol += r.qtdSolicitada || 0;
+      if (r.coverage === "full") {
+        e.sol += r.qtdSolicitada || 0;
+        e.ateFull += ateVal;
+        e.falt += r.faltante || 0;
+        e.full = true;
+      }
     }
   }
 
@@ -512,8 +521,9 @@ export function computeMetrics(rows) {
     }))
     .sort((a, b) => b.ate - a.ate);
 
-  const topCats = [...byCat.values()].sort((a, b) => b.ate - a.ate);
-  const topExpediente = [...byExpediente.values()].sort((a, b) => b.ate - a.ate);
+  const comTaxa = (x) => ({ ...x, taxa: x.sol > 0 ? Math.round((Math.min(x.ateFull, x.sol) / x.sol) * 1000) / 10 : null });
+  const topCats = [...byCat.values()].map(comTaxa).sort((a, b) => b.ate - a.ate);
+  const topExpediente = [...byExpediente.values()].map(comTaxa).sort((a, b) => b.ate - a.ate);
 
   const monthSeries = [...byMonth.entries()]
     .sort((a, b) => a[0].localeCompare(b[0]))
@@ -919,49 +929,120 @@ function buildPedidosPorDiaHtml(filteredRows, unitName) {
   );
 }
 
+// Quantidade "consumida" comparável ao solicitado: só linhas completas quando houver solicitado
+const consumo = (x) => (x.sol > 0 ? x.ateFull : x.ate);
+
+function linhaQtd(x) {
+  return (
+    `<td class="n">${x.sol > 0 ? fmtN(x.sol) : "—"}</td>` +
+    `<td class="n">${fmtN(consumo(x))}</td>` +
+    `<td class="n">${x.sol > 0 ? fmtN(x.falt) : "—"}</td>` +
+    `<td class="n">${fmtTaxa(x.taxa)}</td>`
+  );
+}
+
+function graficoCategorias(cats) {
+  if (!cats.length) return `<div class="pa-empty">Sem categorias no filtro.</div>`;
+  const max = Math.max(...cats.map((c) => Math.max(c.sol, consumo(c))), 1);
+  const pct = (v) => Math.max(0.6, (v / max) * 100).toFixed(1) + "%";
+  const linhas = cats
+    .map(
+      (c) =>
+        `<div class="pa-bar-row">` +
+        `<span class="pa-bar-label" title="${attrEsc(nomeCategoria(c.cat))}">${_deps.esc(nomeCategoria(c.cat))}</span>` +
+        `<div class="pa-bars">` +
+        (c.sol > 0
+          ? `<div class="pa-bar-line"><div class="pa-bar sol" style="width:${pct(c.sol)}"></div><span>${fmtN(c.sol)}</span></div>`
+          : "") +
+        `<div class="pa-bar-line"><div class="pa-bar ate" style="width:${pct(consumo(c))}"></div><span>${fmtN(consumo(c))}</span></div>` +
+        `</div></div>`
+    )
+    .join("");
+  return (
+    `<div class="pa-chart">` +
+    `<div class="pa-chart-head"><b>Solicitado x Atendido por categoria</b>` +
+    `<span class="pa-legend"><i class="sol"></i>Solicitado<i class="ate"></i>Atendido</span></div>` +
+    linhas +
+    `</div>`
+  );
+}
+
 function buildItensHtml(m, filteredRows = [], filters = {}) {
-  let h = `<h2 style="font-size:16px;font-weight:800;margin:0 0 4px">Itens consumidos</h2>`;
+  const nMat = _state.verTodosMateriais ? 100 : 10;
+  const nExp = _state.verTodosExpediente ? 100 : 10;
 
-  if (filters.unit) {
-    h += `<p style="font-size:12px;color:#64748b;margin:0 0 12px">Tudo o que <b>${_deps.esc(filters.unit)}</b> pediu, dia a dia, e o total do período no final.</p>`;
-    h += buildPedidosPorDiaHtml(filteredRows, filters.unit);
-  } else {
-    h += `<p style="font-size:12px;color:#64748b;margin:0 0 12px">Ranking do que mais saiu do almoxarifado no período.</p>`;
-    h +=
-      `<div class="alert-card alert-blue" style="margin-bottom:12px"><div class="alert-icon"></div>` +
-      `<div class="alert-body">Escolha o <b>tipo de unidade</b> e a <b>unidade</b> nos filtros para ver os itens pedidos <b>dia a dia</b>.</div></div>`;
-  }
-
-  const top = m.topMaterials.slice(0, 40).map(
-    (it, i) =>
-      `<tr><td style="color:#94a3b8">${i + 1}</td>` +
-      `<td style="font-weight:700">${_deps.esc(it.material)}</td>` +
-      `<td style="font-size:11px;color:#64748b">${_deps.esc(it.cat)}</td>` +
-      `<td>${it.ate.toLocaleString("pt-BR")}</td>` +
-      `<td>${it.full ? it.sol.toLocaleString("pt-BR") : "—"}</td>` +
-      `<td>${it.full && it.taxa != null ? it.taxa + "%" : "—"}</td>` +
-      `<td>${it.nUnits}</td></tr>`
-  );
-  h += panSection(
-    filters.unit ? "Total do período por item" : "Top materiais",
-    "Quantidade física atendida · “—” = só entrega antiga sem solicitado",
-    renderTable(["#", "Material", "Categoria", "Atendido", "Solicitado", "Taxa", "Unids."], top, "Nenhum item no filtro.")
-  );
-
-  if (m.topExpediente.length) {
-    const exp = m.topExpediente.slice(0, 25).map(
+  const materiais = m.topMaterials
+    .slice()
+    .sort((a, b) => consumo(b) - consumo(a) || b.sol - a.sol)
+    .slice(0, nMat)
+    .map(
       (it, i) =>
-        `<tr><td>${i + 1}</td><td style="font-weight:700">${_deps.esc(it.material)}</td>` +
-        `<td>${it.ate.toLocaleString("pt-BR")}</td>` +
-        `<td>${it.sol > 0 ? it.sol.toLocaleString("pt-BR") : "—"}</td>` +
-        `<td>${it.lines}</td></tr>`
+        `<tr><td class="c">${i + 1}</td>` +
+        `<td class="nm" title="${attrEsc(nomeMaterial(it.material))}">${_deps.esc(nomeMaterial(it.material))}</td>` +
+        `<td class="ct" title="${attrEsc(nomeCategoria(it.cat))}">${_deps.esc(nomeCategoria(it.cat))}</td>` +
+        linhaQtd(it) +
+        `</tr>`
     );
-    h += panSection(
-      "Material de Expediente — mais consumidos",
-      "Filtrado por categoria/tipo Expediente",
-      renderTable(["#", "Material", "Atendido", "Solicitado", "Linhas"], exp)
+
+  const expediente = m.topExpediente
+    .slice()
+    .sort((a, b) => consumo(b) - consumo(a) || b.sol - a.sol)
+    .slice(0, nExp)
+    .map(
+      (it, i) =>
+        `<tr><td class="c">${i + 1}</td>` +
+        `<td class="nm" title="${attrEsc(nomeMaterial(it.material))}">${_deps.esc(nomeMaterial(it.material))}</td>` +
+        linhaQtd(it) +
+        `</tr>`
     );
-  }
+
+  let h =
+    `<div class="pa-two">` +
+    paBloco(
+      "Materiais mais consumidos no período",
+      _state.verTodosMateriais ? "Ver menos" : "Ver todos",
+      "alternarVerTodosPainel('verTodosMateriais')",
+      paTabela(
+        [["#", "c"], ["Material"], ["Categoria"], ["Solicitado", "n"], ["Atendido", "n"], ["Faltante", "n"], ["Taxa", "n"]],
+        materiais,
+        "Nenhum material no filtro."
+      )
+    ) +
+    paBloco(
+      "Materiais de expediente (mais consumidos)",
+      _state.verTodosExpediente ? "Ver menos" : "Ver todos",
+      "alternarVerTodosPainel('verTodosExpediente')",
+      paTabela(
+        [["#", "c"], ["Material"], ["Solicitado", "n"], ["Atendido", "n"], ["Faltante", "n"], ["Taxa", "n"]],
+        expediente,
+        "Nenhum material de expediente no filtro."
+      )
+    ) +
+    `</div>`;
+
+  const cats = m.topCats
+    .slice()
+    .sort((a, b) => b.sol - a.sol || consumo(b) - consumo(a))
+    .slice(0, 10);
+  const linhasCat = cats.map(
+    (c, i) =>
+      `<tr><td class="c">${i + 1}</td><td>${_deps.esc(nomeCategoria(c.cat))}</td>` + linhaQtd(c) + `</tr>`
+  );
+
+  h +=
+    `<div class="pa-card pa-block">` +
+    `<div class="pa-block-head"><h3>Consumo por categoria</h3></div>` +
+    `<div class="pa-cat-grid">` +
+    paTabela(
+      [["#", "c"], ["Categoria"], ["Solicitado", "n"], ["Atendido", "n"], ["Faltante", "n"], ["Taxa", "n"]],
+      linhasCat,
+      "Sem categorias no filtro."
+    ) +
+    graficoCategorias(cats) +
+    `</div></div>`;
+
+  // Com uma unidade escolhida, mostra também o que ela pediu dia a dia
+  if (filters.unit) h += buildPedidosPorDiaHtml(filteredRows, filters.unit);
 
   return h;
 }
@@ -1275,7 +1356,7 @@ export async function buildPainelRelatorio(opts = {}) {
     else html = buildGeralHtml(metrics, filters, filtered);
 
     // Visão geral segue o modelo; nas demais abas ficam a tabela detalhada e a exportação
-    if (_state.sub !== "geral") {
+    if (_state.sub !== "geral" && _state.sub !== "itens") {
       html += buildDetailTable(filtered);
       html +=
         `<div style="display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 8px">` +
@@ -1337,6 +1418,8 @@ export function clearPanFiltersRelatorio() {
   const cob = document.getElementById("panCoverage");
   if (cob) cob.value = "all";
   _state.verTodosPedidos = false;
+  _state.verTodosMateriais = false;
+  _state.verTodosExpediente = false;
   setDatePreset("mes");
   return buildPainelRelatorio();
 }
@@ -1522,4 +1605,15 @@ function filtrarPainelPorUnidade(unidade) {
   buildPainelRelatorio();
 }
 
-Object.assign(window, { atualizarUnidadesDoTipo, marcarPeriodoPersonalizado, verTodosPedidosPainel, filtrarPainelPorUnidade });
+function alternarVerTodosPainel(chave) {
+  _state[chave] = !_state[chave];
+  buildPainelRelatorio();
+}
+
+Object.assign(window, {
+  atualizarUnidadesDoTipo,
+  marcarPeriodoPersonalizado,
+  verTodosPedidosPainel,
+  filtrarPainelPorUnidade,
+  alternarVerTodosPainel,
+});
