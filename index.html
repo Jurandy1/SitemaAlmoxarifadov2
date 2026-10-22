@@ -1823,15 +1823,21 @@
                     <div id="panFilters" class="pa-card pa-filters">
                         <div class="pa-filters-row">
                             <span class="pa-label-inline">Período</span>
-                            <label class="pa-date"><i data-lucide="calendar"></i><input type="date" id="panDateFrom" oninput="marcarPeriodoPersonalizado()"></label>
-                            <span class="pa-ate">até</span>
-                            <label class="pa-date"><input type="date" id="panDateTo" oninput="marcarPeriodoPersonalizado()"></label>
+                            <input type="hidden" id="panDateFrom">
+                            <input type="hidden" id="panDateTo">
+                            <div class="pa-cal-wrap">
+                                <button type="button" class="pa-date" onclick="abrirCalendarioPainel()"><i data-lucide="calendar"></i><span id="panCalLabel">Escolher período</span></button>
+                                <div id="panCal" class="pa-cal"></div>
+                            </div>
                             <div class="pa-presets">
+                                <button type="button" class="pa-chip" data-preset="hoje" onclick="applyPanDatePreset('hoje')">Hoje</button>
+                                <button type="button" class="pa-chip" data-preset="ontem" onclick="applyPanDatePreset('ontem')">Ontem</button>
+                                <button type="button" class="pa-chip" data-preset="7d" onclick="applyPanDatePreset('7d')">7 dias</button>
                                 <button type="button" class="pa-chip" data-preset="30d" onclick="applyPanDatePreset('30d')">30 dias</button>
                                 <button type="button" class="pa-chip" data-preset="mes" onclick="applyPanDatePreset('mes')">Mês atual</button>
                                 <button type="button" class="pa-chip" data-preset="trimestre" onclick="applyPanDatePreset('trimestre')">Trimestre</button>
                                 <button type="button" class="pa-chip" data-preset="ano" onclick="applyPanDatePreset('ano')">Ano</button>
-                                <button type="button" class="pa-chip" data-preset="personalizado" onclick="document.getElementById('panDateFrom').focus();marcarPeriodoPersonalizado()">Personalizado</button>
+                                <button type="button" class="pa-chip" data-preset="personalizado" onclick="abrirCalendarioPainel()">Personalizado</button>
                             </div>
                             <div class="pa-filter-actions">
                                 <button type="button" class="pa-btn pa-btn-primary" onclick="buildPainel()">Aplicar filtros</button>
@@ -1840,19 +1846,19 @@
                         </div>
                         <div class="pa-filters-grid">
                             <label class="pa-field"><span>Tipo de unidade</span>
-                                <select id="panTipoSel" onchange="atualizarUnidadesDoTipo()"><option value="">Todos</option></select>
+                                <select id="panTipoSel" onchange="atualizarUnidadesDoTipo();aplicarFiltrosPainel()"><option value="">Todos</option></select>
                             </label>
                             <label class="pa-field"><span>Unidade</span>
-                                <select id="panUnitSel"><option value="">Todas</option></select>
+                                <select id="panUnitSel" onchange="aplicarFiltrosPainel()"><option value="">Todas</option></select>
                             </label>
                             <label class="pa-field"><span>Categoria</span>
-                                <select id="panCatSel"><option value="">Todas</option></select>
+                                <select id="panCatSel" onchange="aplicarFiltrosPainel()"><option value="">Todas</option></select>
                             </label>
                             <label class="pa-field"><span>Material (busca)</span>
-                                <input id="panItemQ" placeholder="Digite o nome do material" onkeydown="if(event.key==='Enter'){event.preventDefault();buildPainel()}">
+                                <input id="panItemQ" placeholder="Digite o nome do material" oninput="aplicarFiltrosPainel(500)" onkeydown="if(event.key==='Enter'){event.preventDefault();buildPainel()}">
                             </label>
                             <label class="pa-field"><span>Cobertura</span>
-                                <select id="panCoverage">
+                                <select id="panCoverage" onchange="aplicarFiltrosPainel()">
                                     <option value="all">Todas as linhas</option>
                                     <option value="full">Só completas (solicitado e atendido)</option>
                                     <option value="delivery_only">Só entrega registrada (antigos)</option>

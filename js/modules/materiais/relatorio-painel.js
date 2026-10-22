@@ -238,6 +238,9 @@ export function buildAnalyticRows(materiaisDocs, histDocs) {
         qtdAtendida: ate,
         faltante,
         itemStatus,
+        // Ainda não atendido (na fila ou em separação): fica fora das contas, só aparece no calendário
+        pendente: statusReq === "requisitado" || statusReq === "separacao",
+        dataEntregaIso: isoDay(toDate(doc.dataEntrega) || toDate(doc.dataRetirada)),
         fileName: doc.fileName || "",
       });
     }
@@ -320,6 +323,8 @@ export function buildAnalyticRows(materiaisDocs, histDocs) {
 function dentroDoPeriodo(r, from, to) {
   const dia = r.dateIso || "";
   const mes = r.month || dia.slice(0, 7);
+  // Linha sem data não pertence a nenhum período (antes entrava em todos)
+  if ((from || to) && !dia && !mes) return false;
   if (from) {
     if (from.length === 7 ? mes && mes < from : dia ? dia < from : mes && mes < from.slice(0, 7)) return false;
   }
@@ -581,7 +586,17 @@ function setDatePreset(preset) {
   const now = new Date();
   let from;
   let to = isoDay(now);
-  if (preset === "30d") {
+  if (preset === "hoje") {
+    from = to;
+  } else if (preset === "ontem") {
+    const d = new Date(now);
+    d.setDate(d.getDate() - 1);
+    from = to = isoDay(d);
+  } else if (preset === "7d") {
+    const d = new Date(now);
+    d.setDate(d.getDate() - 6);
+    from = isoDay(d);
+  } else if (preset === "30d") {
     const d = new Date(now);
     d.setDate(d.getDate() - 30);
     from = isoDay(d);
@@ -604,6 +619,7 @@ function setDatePreset(preset) {
   _state.filters.dateTo = to;
   _state.preset = preset;
   marcarPresetAtivo();
+  atualizarRotuloPeriodo();
 }
 
 function panSection(title, sub, body) {
@@ -1082,10 +1098,16 @@ function ensureDefaultDates() {
     elFrom.value = d.from;
     if (elTo && !elTo.value) elTo.value = d.to;
   }
+  atualizarRotuloPeriodo();
 }
 
+// Dados com mais de 2 minutos são buscados de novo, para pedidos novos/atendidos aparecerem sem "Atualizar dados"
+const DADOS_VALIDOS_MS = 2 * 60 * 1000;
+
 async function ensureDataLoaded(force = false) {
-  if (_state.loaded && !force && _state.rows.length) return _state.rows;
+  const velhos = !_state.loadedAt || Date.now() - _state.loadedAt.getTime() > DADOS_VALIDOS_MS;
+  if (_state.loaded && !force && !velhos && _state.rows.length) return _state.rows;
+  if (velhos) force = true;
   _state.loading = true;
   try {
     const [mats, hist] = await Promise.all([
@@ -1142,8 +1164,13 @@ export async function buildPainelRelatorio(opts = {}) {
     // Lê o que está escolhido na tela antes de recriar as listas (senão a escolha se perde)
     const filters = readFiltersFromDom();
     populateFilterOptions(allRows);
-    const filtered = filterAnalyticRows(allRows, filters);
+    const noPeriodo = filterAnalyticRows(allRows, filters);
+    // Pedidos ainda não atendidos não entram nas contas (senão viram "não atendido" e inflam o faltante)
+    const filtered = noPeriodo.filter((r) => !r.pendente);
+    const nPendentes = new Set(noPeriodo.filter((r) => r.pendente).map((r) => r.reqId)).size;
     const metrics = computeMetrics(filtered);
+    atualizarRotuloPeriodo();
+    if (document.getElementById("panCal")?.classList.contains("open")) renderCalendarioPainel();
     _state.lastExportRows = filtered;
 
     renderSubTabsActive();
@@ -1157,7 +1184,13 @@ export async function buildPainelRelatorio(opts = {}) {
     if (!filtered.length) {
       html =
         `<div class="pa-card pa-empty"><b style="color:#0f172a">Nenhum dado no filtro.</b> ` +
-        `Ajuste o período, a unidade, o tipo ou a categoria e clique em Aplicar filtros.</div>` + html;
+        `Ajuste o período, a unidade, o tipo ou a categoria.</div>` + html;
+    }
+    if (nPendentes) {
+      html =
+        `<div class="pa-card pa-note">${nPendentes} pedido${nPendentes > 1 ? "s" : ""} do período ainda ` +
+        `aguarda${nPendentes > 1 ? "m" : ""} atendimento e não entra${nPendentes > 1 ? "m" : ""} nas contas até ser separado.</div>` +
+        html;
     }
 
     el.innerHTML = html;
@@ -1400,10 +1433,141 @@ function alternarVerTodosPainel(chave) {
   buildPainelRelatorio();
 }
 
+// Filtros aplicam sozinhos ao mudar; a busca por material espera a pessoa parar de digitar
+let __filtroTimer = null;
+function aplicarFiltrosPainel(atraso = 0) {
+  clearTimeout(__filtroTimer);
+  __filtroTimer = setTimeout(() => buildPainelRelatorio(), atraso);
+}
+
+// ─── Calendário do período (marca os dias que tiveram pedido) ─────
+const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+let _cal = { mes: null, inicio: null };
+
+function atualizarRotuloPeriodo() {
+  const el = document.getElementById("panCalLabel");
+  if (!el) return;
+  const from = document.getElementById("panDateFrom")?.value || "";
+  const to = document.getElementById("panDateTo")?.value || "";
+  if (!from && !to) el.textContent = "Todo o período";
+  else if (from === to) el.textContent = dataBR(from);
+  else el.textContent = `${from ? dataBR(from) : "início"} até ${to ? dataBR(to) : "hoje"}`;
+}
+
+// Dia → pedidos (respeita unidade/tipo/categoria escolhidos, ignora o período)
+function pedidosPorDia() {
+  const base = filterAnalyticRows(_state.rows, { ..._state.filters, dateFrom: "", dateTo: "" });
+  const dias = new Map();
+  for (const r of base) {
+    if (!r.dateIso) continue;
+    if (!dias.has(r.dateIso)) dias.set(r.dateIso, { pedidos: new Set(), pendentes: new Set() });
+    const d = dias.get(r.dateIso);
+    const chave = r.reqId || r.histEntryId;
+    d.pedidos.add(chave);
+    if (r.pendente) d.pendentes.add(chave);
+  }
+  return dias;
+}
+
+function renderCalendarioPainel() {
+  const el = document.getElementById("panCal");
+  if (!el) return;
+  const mes = _cal.mes;
+  const from = document.getElementById("panDateFrom")?.value || "";
+  const to = document.getElementById("panDateTo")?.value || "";
+  const hoje = isoDay(new Date());
+  const dias = pedidosPorDia();
+
+  const primeiro = new Date(mes.getFullYear(), mes.getMonth(), 1);
+  const nDias = new Date(mes.getFullYear(), mes.getMonth() + 1, 0).getDate();
+  let cels = "";
+  for (let i = 0; i < primeiro.getDay(); i++) cels += `<span></span>`;
+  let pedidosMes = 0;
+  for (let n = 1; n <= nDias; n++) {
+    const iso = isoDay(new Date(mes.getFullYear(), mes.getMonth(), n));
+    const info = dias.get(iso);
+    const cls = ["pa-cal-dia"];
+    let titulo = "Sem pedido";
+    if (info) {
+      const tot = info.pedidos.size;
+      const pend = info.pendentes.size;
+      pedidosMes += tot;
+      cls.push(pend ? "pend" : "tem");
+      titulo = `${tot} pedido${tot > 1 ? "s" : ""}` + (pend ? ` · ${pend} aguardando atendimento` : ` · atendido${tot > 1 ? "s" : ""}`);
+    }
+    if (iso === hoje) cls.push("hoje");
+    const inicio = _cal.inicio || from;
+    const fim = _cal.inicio ? "" : to;
+    if (inicio && iso === inicio) cls.push("ini");
+    if (fim && iso === fim) cls.push("fim");
+    if (inicio && fim && iso > inicio && iso < fim) cls.push("meio");
+    cels += `<button type="button" class="${cls.join(" ")}" title="${titulo}" onclick="escolherDiaPainel('${iso}')">${n}</button>`;
+  }
+
+  el.innerHTML =
+    `<div class="pa-cal-head">` +
+    `<button type="button" onclick="navMesPainel(-1)" aria-label="Mês anterior">‹</button>` +
+    `<b>${MESES[mes.getMonth()]} ${mes.getFullYear()}</b>` +
+    `<button type="button" onclick="navMesPainel(1)" aria-label="Próximo mês">›</button></div>` +
+    `<div class="pa-cal-grid">${["D", "S", "T", "Q", "Q", "S", "S"].map((d) => `<span class="pa-cal-sem">${d}</span>`).join("")}${cels}</div>` +
+    `<p class="pa-cal-dica">${_cal.inicio ? "Agora clique no último dia do período." : "Clique no primeiro dia e depois no último. Para um dia só, clique duas vezes nele."}</p>` +
+    `<div class="pa-cal-leg"><span><i class="tem"></i>Dia com pedido atendido</span><span><i class="pend"></i>Aguardando atendimento</span></div>` +
+    `<div class="pa-cal-rodape"><span>${pedidosMes} pedido${pedidosMes === 1 ? "" : "s"} no mês</span>` +
+    `<button type="button" class="pa-link" onclick="fecharCalendarioPainel()">Fechar</button></div>`;
+}
+
+function abrirCalendarioPainel() {
+  const el = document.getElementById("panCal");
+  if (!el) return;
+  if (el.classList.contains("open")) return fecharCalendarioPainel();
+  readFiltersFromDom();
+  const ref = document.getElementById("panDateTo")?.value || document.getElementById("panDateFrom")?.value;
+  const base = ref ? new Date(ref + "T12:00:00") : new Date();
+  _cal = { mes: new Date(base.getFullYear(), base.getMonth(), 1), inicio: null };
+  el.classList.add("open");
+  renderCalendarioPainel();
+  setTimeout(() => document.addEventListener("mousedown", fecharCalendarioAoClicarFora), 0);
+}
+
+function fecharCalendarioPainel() {
+  document.getElementById("panCal")?.classList.remove("open");
+  document.removeEventListener("mousedown", fecharCalendarioAoClicarFora);
+  _cal.inicio = null;
+}
+
+function fecharCalendarioAoClicarFora(e) {
+  if (!e.target.closest?.(".pa-cal-wrap")) fecharCalendarioPainel();
+}
+
+function navMesPainel(delta) {
+  _cal.mes = new Date(_cal.mes.getFullYear(), _cal.mes.getMonth() + delta, 1);
+  renderCalendarioPainel();
+}
+
+function escolherDiaPainel(iso) {
+  if (!_cal.inicio) {
+    _cal.inicio = iso;
+    renderCalendarioPainel();
+    return;
+  }
+  const [from, to] = iso < _cal.inicio ? [iso, _cal.inicio] : [_cal.inicio, iso];
+  document.getElementById("panDateFrom").value = from;
+  document.getElementById("panDateTo").value = to;
+  _state.preset = "personalizado";
+  marcarPresetAtivo();
+  fecharCalendarioPainel();
+  buildPainelRelatorio();
+}
+
 Object.assign(window, {
   atualizarUnidadesDoTipo,
   marcarPeriodoPersonalizado,
   verTodosPedidosPainel,
   filtrarPainelPorUnidade,
   alternarVerTodosPainel,
+  aplicarFiltrosPainel,
+  abrirCalendarioPainel,
+  fecharCalendarioPainel,
+  navMesPainel,
+  escolherDiaPainel,
 });

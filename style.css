@@ -2634,6 +2634,31 @@ body:has(#content-painel:not(.hidden)) .content .max-w-7xl { max-width: none; }
 .pa-date { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 10px; border: 1px solid #cbd5e1; border-radius: 4px; background: #fff; }
 .pa-date input { border: 0; outline: 0; font: inherit; font-size: 12.5px; color: var(--pa-text); background: transparent; width: 112px; }
 .pa-ate { color: var(--pa-muted); font-size: 12px; }
+button.pa-date { font: inherit; font-size: 12.5px; color: var(--pa-text); cursor: pointer; min-width: 220px; }
+button.pa-date:hover { background: var(--pa-soft); }
+.pa-cal-wrap { position: relative; }
+.pa-cal { display: none; position: absolute; top: 40px; left: 0; z-index: 60; width: 292px; max-width: calc(100vw - 32px); padding: 12px;
+  background: #fff; border: 1px solid var(--pa-line); border-radius: 8px; box-shadow: 0 10px 30px rgba(15, 23, 42, .15); }
+.pa-cal.open { display: block; }
+.pa-cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-size: 13px; }
+.pa-cal-head button { width: 30px; height: 30px; border: 1px solid var(--pa-line); border-radius: 4px; background: #fff; font-size: 16px; cursor: pointer; }
+.pa-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.pa-cal-sem { text-align: center; font-size: 10.5px; font-weight: 700; color: var(--pa-muted); padding: 4px 0; }
+.pa-cal-dia { position: relative; height: 34px; border: 0; border-radius: 4px; background: none; font: inherit; font-size: 12.5px; color: var(--pa-text); cursor: pointer; }
+.pa-cal-dia:hover { background: #eef2f7; }
+.pa-cal-dia.tem, .pa-cal-dia.pend { font-weight: 700; }
+.pa-cal-dia.tem::after, .pa-cal-dia.pend::after { content: ""; position: absolute; left: 50%; bottom: 4px; width: 6px; height: 6px; margin-left: -3px; border-radius: 50%; background: #16a34a; }
+.pa-cal-dia.pend::after { background: #f59e0b; }
+.pa-cal-dia.hoje { box-shadow: inset 0 0 0 1px var(--pa-blue-2); }
+.pa-cal-dia.meio { background: #dbeafe; border-radius: 0; }
+.pa-cal-dia.ini, .pa-cal-dia.fim { background: var(--pa-blue-2); color: #fff; }
+.pa-cal-dia.ini::after, .pa-cal-dia.fim::after { background: #fff; }
+.pa-cal-dica { font-size: 11px; color: var(--pa-muted); margin: 8px 0 6px; }
+.pa-cal-leg { display: flex; flex-wrap: wrap; gap: 12px; font-size: 11px; color: #334155; }
+.pa-cal-leg i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; background: #16a34a; }
+.pa-cal-leg i.pend { background: #f59e0b; }
+.pa-cal-rodape { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--pa-line); font-size: 11.5px; color: var(--pa-muted); }
+.pa-note { padding: 10px 14px; margin-bottom: 14px; font-size: 12.5px; color: #92400e; background: #fffbeb; border-color: #fde68a; }
 .pa-presets { display: flex; gap: 6px; flex-wrap: wrap; margin-left: 10px; }
 .pa-chip { height: 30px; padding: 0 16px; border: 1px solid #cbd5e1; border-radius: 4px; background: #f8fafc; color: var(--pa-text); font: inherit; font-size: 11.5px; cursor: pointer; }
 .pa-chip:hover { background: #eef2f7; }
