@@ -528,18 +528,22 @@ function vozPtBr() {
 let tvVozLiberada = false;
 let tvAvisoEl = null;
 
-function mostrarAvisoVoz(texto) {
-    if (!document.body?.classList.contains('tv-mode')) return;
+const TV_SOM_SILENCIO = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
+
+function mostrarAvisoVoz() {
+    if (!document.body?.classList.contains('tv-mode') || tvVozLiberada) return;
     if (!tvAvisoEl) {
-        const el = document.createElement('button');
-        el.type = 'button';
+        const el = document.createElement('div');
         el.id = 'tv-voz-aviso';
-        el.style.cssText = 'position:fixed;left:24px;right:24px;bottom:28px;z-index:100000;padding:22px 28px;border:0;border-radius:16px;background:#0f172a;color:#fff;font:700 34px/1.15 Barlow Condensed,sans-serif;letter-spacing:.02em;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.35);cursor:pointer;';
+        el.tabIndex = 0;
+        el.setAttribute('role', 'button');
+        el.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;color:#fff;text-align:center;padding:32px;outline:none;';
+        el.innerHTML = '<div><div style="font-size:96px;line-height:1">🔊</div><div style="font:800 64px/1.1 Barlow Condensed,sans-serif;margin:18px 0 12px">Ativar Som do Painel</div><div style="font:600 32px/1.35 DM Sans,sans-serif;opacity:.92">Pressione OK no controle uma vez para liberar a narração.</div><div style="margin-top:28px;display:inline-block;background:#dc2626;color:#fff;padding:18px 36px;border-radius:16px;font:800 36px/1 Barlow Condensed,sans-serif;letter-spacing:.04em">ATIVAR SOM AGORA</div></div>';
         document.body.appendChild(el);
         tvAvisoEl = el;
+        setTimeout(() => { try { el.focus(); } catch (_) {} }, 400);
     }
-    tvAvisoEl.textContent = texto;
-    tvAvisoEl.style.display = 'block';
+    tvAvisoEl.style.display = 'flex';
 }
 
 function esconderAvisoVoz() {
@@ -661,7 +665,7 @@ async function bombearNarracaoTV() {
     if (mp3 === 'blocked') {
         tvNarracaoFila.unshift(texto);
         tvNarracaoFalando = false;
-        mostrarAvisoVoz('Toque na tela para a TV falar');
+        mostrarAvisoVoz();
         return;
     }
     if (mp3 !== 'ok') await falarNativo(texto);
@@ -673,6 +677,10 @@ function enfileirarNarracaoTV(texto) {
     if (!texto) return;
     if (tvNarracaoFila[tvNarracaoFila.length - 1] === texto) return;
     tvNarracaoFila.push(texto);
+    if (!tvVozLiberada) {
+        mostrarAvisoVoz();
+        return;
+    }
     bombearNarracaoTV();
 }
 
@@ -716,9 +724,21 @@ if (typeof window !== 'undefined') {
         const agora = Date.now();
         if (agora - tvToqueEm < 700) return;
         tvToqueEm = agora;
-        if (!tvVozLiberada) tvNarracaoFalando = false;
-        if (!tvNarracaoFila.length) tvNarracaoFila.push('Voz da televisão ligada.');
-        bombearNarracaoTV();
+        const audio = garantirTvAudio();
+        audio.volume = 0.01;
+        audio.src = TV_SOM_SILENCIO;
+        const liberar = () => {
+            try { audio.pause(); } catch (_) {}
+            audio.volume = 1;
+            tvVozLiberada = true;
+            esconderAvisoVoz();
+            tvNarracaoFalando = false;
+            if (!tvNarracaoFila.length) tvNarracaoFila.push('Voz da televisão ligada.');
+            bombearNarracaoTV();
+        };
+        const play = audio.play();
+        if (play && typeof play.then === 'function') play.then(liberar).catch(liberar);
+        else liberar();
     };
     window.speechSynthesis?.addEventListener?.('voiceschanged', () => {
         try { window.speechSynthesis.getVoices(); } catch (_) {}
@@ -727,9 +747,7 @@ if (typeof window !== 'undefined') {
     window.addEventListener('pointerdown', noToque);
     window.addEventListener('touchstart', noToque);
     window.addEventListener('keydown', noToque);
-    if (document.body?.classList.contains('tv-mode')) {
-        mostrarAvisoVoz('Toque na tela para a TV falar');
-    }
+    if (document.body?.classList.contains('tv-mode')) mostrarAvisoVoz();
 }
 
 // FUNÇÃO ESPECÍFICA PARA O NOVO PAINEL TV
