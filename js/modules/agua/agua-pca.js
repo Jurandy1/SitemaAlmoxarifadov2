@@ -7,7 +7,7 @@
 import { getDocs, query, orderBy, doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { COLLECTIONS } from "../../services/firestore-service.js";
 import { getUnidades } from "../../utils/cache.js";
-import { periodoPca, nomeUnidade } from "../materiais/relatorio-painel.js";
+import { periodoPca, nomeUnidade, unidadesCadastroAtivas } from "../materiais/relatorio-painel.js";
 
 const SETOR = "Coordenação de Almoxarifado e Patrimônio";
 const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
@@ -134,6 +134,16 @@ function montar(movs, f) {
     u.ent += m.qtd;
     u.meses.set(m.month, (u.meses.get(m.month) || 0) + m.qtd);
     porMes.set(m.month, (porMes.get(m.month) || 0) + m.qtd);
+  }
+
+  // Unidades do cadastro que atendem água e não receberam no período também entram (com zero),
+  // para todas terem a linha de "Quantidade para o PCA"
+  for (const cad of unidadesCadastroAtivas("atendeAgua")) {
+    const un = unidadeDe({ unidadeId: cad.id, unidadeNome: cad.nome, tipoUnidade: cad.tipo });
+    if (un.ajuste) continue;
+    if (!porTipo.has(un.tipo)) porTipo.set(un.tipo, { tipo: un.tipo, unidades: new Set(), ent: 0 });
+    porTipo.get(un.tipo).unidades.add(un.nomeReal);
+    if (!porUn.has(un.chave)) porUn.set(un.chave, { chave: un.chave, unidade: un.nome, tipo: un.tipo, ent: 0, meses: new Map() });
   }
 
   const comMedia = (x) => ({ ...x, media: mensal(x.ent), estimativa: Math.ceil(mensal(x.ent) * 12) });

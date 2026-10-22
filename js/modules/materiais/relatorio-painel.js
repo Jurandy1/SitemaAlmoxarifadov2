@@ -141,13 +141,37 @@ function unidadeCadastroPorId(id) {
   return u || null;
 }
 
+// Nome do cadastro para um nome escrito de outro jeito (acento/maiúscula): "CRAS SÃO RAIMUNDO" → "Cras Sao Raimundo".
+// Sem isso, a mesma unidade aparecia duas vezes nos relatórios.
+let __mapaCad = { lista: null, mapa: new Map() };
+function nomeCanonico(nome) {
+  const lista = getUnidades() || [];
+  if (__mapaCad.lista !== lista) {
+    const mapa = new Map();
+    for (const u of lista) {
+      const k = normKey(u?.nome || u?.unidadeNome || "");
+      if (!k) continue;
+      const raiz = unidadeCadastroPorId(u.id);
+      const nomeRaiz = String(raiz?.nome || raiz?.unidadeNome || "").trim();
+      if (nomeRaiz && (!mapa.has(k) || !u.duplicataDe)) mapa.set(k, nomeRaiz);
+    }
+    __mapaCad = { lista, mapa };
+  }
+  return __mapaCad.mapa.get(normKey(nome)) || nome;
+}
+
+// Unidades do cadastro que atendem materiais (sem as unificadas em outra)
+export function unidadesCadastroAtivas(campo = "atendeMateriais") {
+  return (getUnidades() || []).filter((u) => u && !u.duplicataDe && u[campo] !== false && String(u.nome || u.unidadeNome || "").trim());
+}
+
 function unitNameFromDoc(doc) {
   const cad = unidadeCadastroPorId(doc.unidadeId);
   const nomeCad = String(cad?.nome || cad?.unidadeNome || "").trim();
   if (nomeCad) return nomeCad;
   const raw = doc.unidadeNome || doc.unidade || "";
   const resolved = _deps.resolveRegisteredUnit(raw) || raw;
-  return String(resolved || "").trim() || "Desconhecida";
+  return nomeCanonico(String(resolved || "").trim()) || "Desconhecida";
 }
 
 function categoryFromItem(it, parsedCats) {
@@ -257,11 +281,12 @@ export function buildAnalyticRows(materiaisDocs, histDocs) {
     const date = ws || we;
 
     for (const u of entry.units || []) {
-      const unitName =
+      const unitName = nomeCanonico(
         _deps.resolveRegisteredUnit(u.unitName || u.rawUnit) ||
         u.unitName ||
         u.rawUnit ||
-        "Desconhecida";
+        "Desconhecida"
+      );
       const tipoUnidade = u.tipoUnidade || _deps.classifyUnit(unitName)?.id || "outros";
 
       for (const c of u.categories || []) {
@@ -1151,6 +1176,21 @@ export function montarRelatorioPca(rows, filters = _state.filters) {
     if (r.month) {
       if (!porMes.has(r.month)) porMes.set(r.month, novoAcum());
       somarPca(porMes.get(r.month), r, c);
+    }
+  }
+
+  // Unidades do cadastro sem pedido no período também entram (com zero), para o PCA ter todas
+  for (const u of unidadesCadastroAtivas()) {
+    const nome = String(u.nome || u.unidadeNome).trim();
+    if (filters.unit && normKey(filters.unit) !== normKey(nome)) continue;
+    const tipo = _deps.classifyUnit(nome) || { id: "outros", label: "Outros" };
+    if (filters.tipo && tipo.id !== filters.tipo) continue;
+    const ehSede = tipo.id === "sede";
+    const chaveUn = ehSede ? "__sede__" : nome;
+    if (!porTipo.has(tipo.id)) porTipo.set(tipo.id, { tipo: tipo.label, acc: novoAcum() });
+    porTipo.get(tipo.id).acc.unidades.add(nome);
+    if (!porUnidade.has(chaveUn)) {
+      porUnidade.set(chaveUn, { unidade: ehSede ? "SEDE (todas as unidades da sede)" : nomeUnidade(nome), tipo: tipo.label, acc: novoAcum() });
     }
   }
 
