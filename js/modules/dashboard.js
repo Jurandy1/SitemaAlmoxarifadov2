@@ -528,8 +528,6 @@ function vozPtBr() {
 let tvVozLiberada = false;
 let tvAvisoEl = null;
 
-const TV_SOM_SILENCIO = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
-
 function mostrarAvisoVoz() {
     if (!document.body?.classList.contains('tv-mode') || tvVozLiberada) return;
     if (!tvAvisoEl) {
@@ -563,6 +561,55 @@ function garantirTvAudio() {
         } catch (_) {}
     }
     return tvAudioEl;
+}
+
+function slugFala(texto) {
+    return String(texto || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '');
+}
+
+function tocarSrc(src) {
+    return new Promise((resolve) => {
+        const audio = garantirTvAudio();
+        let fechado = false;
+        const fechar = (resultado) => {
+            if (fechado) return;
+            fechado = true;
+            clearTimeout(limite);
+            audio.onended = null;
+            audio.onerror = null;
+            audio.onplaying = null;
+            resolve(resultado);
+        };
+        const limite = setTimeout(() => fechar('fail'), 20000);
+        audio.onplaying = () => {
+            tvVozLiberada = true;
+            esconderAvisoVoz();
+        };
+        audio.onended = () => fechar('ok');
+        audio.onerror = () => fechar('fail');
+        try { audio.pause(); } catch (_) {}
+        audio.volume = 1;
+        audio.src = src;
+        const play = audio.play();
+        if (play && typeof play.then === 'function') {
+            play.catch((e) => {
+                const msg = String(e?.name || e?.message || e || '');
+                if (/notallowed|not allowed|autoplay/i.test(msg)) fechar('blocked');
+                else fechar('fail');
+            });
+        }
+    });
+}
+
+async function tocarFrase(texto) {
+    const local = await tocarSrc(`./tv-voz/${slugFala(texto)}.wav`);
+    if (local === 'ok' || local === 'blocked') return local;
+    return tocarMp3(texto);
 }
 
 function urlsDaFala(texto) {
@@ -661,7 +708,7 @@ async function bombearNarracaoTV() {
     if (tvNarracaoFalando || !tvNarracaoFila.length) return;
     const texto = tvNarracaoFila.shift();
     tvNarracaoFalando = true;
-    const mp3 = await tocarMp3(texto);
+    const mp3 = await tocarFrase(texto);
     if (mp3 === 'blocked') {
         tvNarracaoFila.unshift(texto);
         tvNarracaoFalando = false;
@@ -724,21 +771,9 @@ if (typeof window !== 'undefined') {
         const agora = Date.now();
         if (agora - tvToqueEm < 700) return;
         tvToqueEm = agora;
-        const audio = garantirTvAudio();
-        audio.volume = 0.01;
-        audio.src = TV_SOM_SILENCIO;
-        const liberar = () => {
-            try { audio.pause(); } catch (_) {}
-            audio.volume = 1;
-            tvVozLiberada = true;
-            esconderAvisoVoz();
-            tvNarracaoFalando = false;
-            if (!tvNarracaoFila.length) tvNarracaoFila.push('Voz da televisão ligada.');
-            bombearNarracaoTV();
-        };
-        const play = audio.play();
-        if (play && typeof play.then === 'function') play.then(liberar).catch(liberar);
-        else liberar();
+        if (!tvVozLiberada) tvNarracaoFalando = false;
+        if (!tvNarracaoFila.length) tvNarracaoFila.push('Voz da televisão ligada.');
+        bombearNarracaoTV();
     };
     window.speechSynthesis?.addEventListener?.('voiceschanged', () => {
         try { window.speechSynthesis.getVoices(); } catch (_) {}
