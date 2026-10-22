@@ -525,28 +525,79 @@ function vozPtBr() {
     }
 }
 
+let tvVozLiberada = false;
+let tvAvisoEl = null;
+
+function mostrarAvisoVoz(texto) {
+    if (!document.body?.classList.contains('tv-mode')) return;
+    if (!tvAvisoEl) {
+        const el = document.createElement('button');
+        el.type = 'button';
+        el.id = 'tv-voz-aviso';
+        el.style.cssText = 'position:fixed;left:24px;right:24px;bottom:28px;z-index:100000;padding:22px 28px;border:0;border-radius:16px;background:#0f172a;color:#fff;font:700 34px/1.15 Barlow Condensed,sans-serif;letter-spacing:.02em;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.35);cursor:pointer;';
+        document.body.appendChild(el);
+        tvAvisoEl = el;
+    }
+    tvAvisoEl.textContent = texto;
+    tvAvisoEl.style.display = 'block';
+}
+
+function esconderAvisoVoz() {
+    if (tvAvisoEl) tvAvisoEl.style.display = 'none';
+}
+
 function bombearNarracaoTV() {
     if (tvNarracaoFalando || !tvNarracaoFila.length) return;
-    if (typeof window.speechSynthesis === 'undefined') return;
+    if (typeof window.speechSynthesis === 'undefined') {
+        mostrarAvisoVoz('Esta TV não tem voz neste navegador');
+        return;
+    }
     const texto = tvNarracaoFila.shift();
     const frase = new SpeechSynthesisUtterance(texto);
     frase.lang = 'pt-BR';
     frase.rate = 0.92;
     frase.pitch = 1;
+    frase.volume = 1;
     const voz = vozPtBr();
     if (voz) frase.voice = voz;
     tvNarracaoFalando = true;
-    const seguir = () => {
+    let comecou = false;
+    let tratado = false;
+    let vigia = 0;
+    const seguir = (bloquear) => {
+        if (tratado) return;
+        tratado = true;
+        clearTimeout(vigia);
         tvNarracaoFalando = false;
+        if (bloquear) {
+            tvNarracaoFila.unshift(texto);
+            mostrarAvisoVoz('Toque na tela para a TV falar');
+            return;
+        }
         setTimeout(bombearNarracaoTV, 700);
     };
-    frase.onend = seguir;
-    frase.onerror = seguir;
+    frase.onstart = () => {
+        comecou = true;
+        tvVozLiberada = true;
+        esconderAvisoVoz();
+    };
+    frase.onend = () => seguir(false);
+    frase.onerror = (ev) => seguir(ev?.error === 'not-allowed');
+    const checar = () => {
+        if (comecou || tratado) return;
+        const sintese = window.speechSynthesis;
+        if (sintese?.speaking || sintese?.pending) {
+            vigia = setTimeout(checar, 2500);
+            return;
+        }
+        seguir(true);
+    };
+    vigia = setTimeout(checar, 2500);
     try {
         window.speechSynthesis.resume();
         window.speechSynthesis.speak(frase);
     } catch (_) {
-        seguir();
+        seguir(true);
     }
 }
 
@@ -590,12 +641,30 @@ function narrarMudancasStatusTV(materiais) {
 }
 
 if (typeof window !== 'undefined') {
-    window.speechSynthesis?.addEventListener?.('voiceschanged', () => {});
-    const liberarVoz = () => {
-        try { window.speechSynthesis?.resume?.(); } catch (_) {}
+    let tvToqueEm = 0;
+    const noToque = () => {
+        if (!document.body?.classList.contains('tv-mode')) return;
+        if (typeof window.speechSynthesis === 'undefined') return;
+        if (tvVozLiberada && !tvNarracaoFila.length) return;
+        const agora = Date.now();
+        if (agora - tvToqueEm < 700) return;
+        tvToqueEm = agora;
+        if (!tvVozLiberada) tvNarracaoFalando = false;
+        if (!tvNarracaoFila.length) tvNarracaoFila.push('Voz da televisão ligada.');
+        bombearNarracaoTV();
     };
-    window.addEventListener('pointerdown', liberarVoz, { once: true });
-    window.addEventListener('keydown', liberarVoz, { once: true });
+    window.speechSynthesis?.addEventListener?.('voiceschanged', () => {
+        try { window.speechSynthesis.getVoices(); } catch (_) {}
+    });
+    try { window.speechSynthesis?.getVoices?.(); } catch (_) {}
+    window.addEventListener('pointerdown', noToque);
+    window.addEventListener('touchstart', noToque);
+    window.addEventListener('keydown', noToque);
+    if (typeof window.speechSynthesis === 'undefined') {
+        mostrarAvisoVoz('Esta TV não tem voz neste navegador');
+    } else if (document.body?.classList.contains('tv-mode')) {
+        mostrarAvisoVoz('Toque na tela para a TV falar');
+    }
 }
 
 // FUNÇÃO ESPECÍFICA PARA O NOVO PAINEL TV

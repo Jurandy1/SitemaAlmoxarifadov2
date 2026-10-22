@@ -36,17 +36,4 @@ Object.defineProperty(navigator, 'webdriver', {
   get: () => false,
 });
 
-// 6. AGUARDA MAIS TEMPO ANTES DE CARREGAR
-// Recarrega UMA vez por aba (TVs lentas); sem a marca, recarregava a cada 8 s para sempre.
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
-    console.log('TV Dashboard: DOM carregado');
-    let jaRecarregou = false;
-    try { jaRecarregou = sessionStorage.getItem('tvReloadOnce') === '1'; } catch (_) {}
-    if (jaRecarregou) return;
-    setTimeout(() => {
-      try { sessionStorage.setItem('tvReloadOnce', '1'); } catch (_) {}
-      window.location.reload();
-    }, 8000);
-  });
-}
+// A TV não recarrega sozinha aos 8 s: isso cortava a voz no meio.
