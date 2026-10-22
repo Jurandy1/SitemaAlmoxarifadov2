@@ -500,10 +500,109 @@ export function renderDashboardMateriaisProntos(filterStatus = null) {
     }
 }
 
+// Narração da TV: fala só a mudança de status, uma frase por vez.
+const tvNarracaoFila = [];
+let tvNarracaoFalando = false;
+let tvNarracaoBasePronta = false;
+let tvPrimeiroDadoEm = 0;
+const tvStatusAnterior = new Map();
+
+function nomeParaFala(nome) {
+    return String(nome || 'Unidade')
+        .replace(/[\/|–—-]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function vozPtBr() {
+    try {
+        const voices = window.speechSynthesis?.getVoices?.() || [];
+        return voices.find(v => /pt-BR/i.test(v.lang))
+            || voices.find(v => /^pt/i.test(v.lang))
+            || null;
+    } catch (_) {
+        return null;
+    }
+}
+
+function bombearNarracaoTV() {
+    if (tvNarracaoFalando || !tvNarracaoFila.length) return;
+    if (typeof window.speechSynthesis === 'undefined') return;
+    const texto = tvNarracaoFila.shift();
+    const frase = new SpeechSynthesisUtterance(texto);
+    frase.lang = 'pt-BR';
+    frase.rate = 0.92;
+    frase.pitch = 1;
+    const voz = vozPtBr();
+    if (voz) frase.voice = voz;
+    tvNarracaoFalando = true;
+    const seguir = () => {
+        tvNarracaoFalando = false;
+        setTimeout(bombearNarracaoTV, 700);
+    };
+    frase.onend = seguir;
+    frase.onerror = seguir;
+    try {
+        window.speechSynthesis.resume();
+        window.speechSynthesis.speak(frase);
+    } catch (_) {
+        seguir();
+    }
+}
+
+function enfileirarNarracaoTV(texto) {
+    if (!texto) return;
+    if (tvNarracaoFila[tvNarracaoFila.length - 1] === texto) return;
+    tvNarracaoFila.push(texto);
+    bombearNarracaoTV();
+}
+
+function narrarMudancasStatusTV(materiais) {
+    if (typeof window === 'undefined' || typeof window.speechSynthesis === 'undefined') return;
+    const atuais = new Map();
+    (materiais || []).forEach((m) => {
+        const id = String(m?.id || m?.v2Id || '');
+        if (!id) return;
+        atuais.set(id, {
+            status: String(m.status || '').toLowerCase(),
+            nome: nomeParaFala(m.unidadeNome || m.unidade || 'Unidade'),
+        });
+    });
+
+    if (!tvPrimeiroDadoEm && atuais.size) tvPrimeiroDadoEm = Date.now();
+    if (!tvNarracaoBasePronta && tvPrimeiroDadoEm && Date.now() - tvPrimeiroDadoEm > 6000) {
+        tvNarracaoBasePronta = true;
+    }
+    const podeFalar = tvNarracaoBasePronta;
+
+    atuais.forEach((cur, id) => {
+        const anterior = tvStatusAnterior.get(id);
+        if (!podeFalar || anterior === cur.status) return;
+        if (cur.status === 'separacao') {
+            enfileirarNarracaoTV(`${cur.nome}, em separação`);
+        } else if (cur.status === 'retirada' || cur.status === 'pronto') {
+            enfileirarNarracaoTV(`${cur.nome}, pronto para retirada`);
+        }
+    });
+
+    tvStatusAnterior.clear();
+    atuais.forEach((cur, id) => tvStatusAnterior.set(id, cur.status));
+}
+
+if (typeof window !== 'undefined') {
+    window.speechSynthesis?.addEventListener?.('voiceschanged', () => {});
+    const liberarVoz = () => {
+        try { window.speechSynthesis?.resume?.(); } catch (_) {}
+    };
+    window.addEventListener('pointerdown', liberarVoz, { once: true });
+    window.addEventListener('keydown', liberarVoz, { once: true });
+}
+
 // FUNÇÃO ESPECÍFICA PARA O NOVO PAINEL TV
 function renderTVDashboard(containerSeparacao, containerPronto) {
     try {
         const materiais = getActiveV2Materiais();
+        narrarMudancasStatusTV(materiais);
 
         const emSeparacao = materiais
             .filter(m => m.status === 'requisitado' || m.status === 'separacao')
