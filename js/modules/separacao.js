@@ -1,4 +1,4 @@
-import { addDoc, setDoc, deleteDoc, doc, writeBatch, getDocs, query, orderBy, limit, startAfter, serverTimestamp, Timestamp, documentId } from "firebase/firestore";
+import { addDoc, setDoc, updateDoc, deleteDoc, doc, writeBatch, getDocs, query, orderBy, limit, startAfter, serverTimestamp, Timestamp, documentId } from "firebase/firestore";
 import { auth, COLLECTIONS } from "../services/firestore-service.js";
 import { getMateriais, getUnidades, getUserRole, getSemcasHistDB, getSemcasAliases } from "../utils/cache.js";
 import { showAlert } from "../utils/dom-helpers.js";
@@ -373,11 +373,11 @@ const DataStore = {
           registradoEm: serverTimestamp()
         });
         try { console.info("[FM] saveReq doc:", id, "status:", status, "histEntryId:", docData.histEntryId||null); } catch (_) {}
-        await setDoc(
-          doc(COLLECTIONS.materiais, id),
-          docData,
-          { merge: true }
-        );
+        const ref = doc(COLLECTIONS.materiais, id);
+        await setDoc(ref, docData, { merge: true });
+        // O merge acima só acrescenta/atualiza itens: grava a lista inteira de novo para
+        // que itens removidos na ficha saiam do banco (senão voltavam na próxima atualização)
+        await updateDoc(ref, { itemsMap: itemsMap || {} });
         try { console.info("[FM] saveReq ok:", id); } catch (_) {}
       }
     }
@@ -457,6 +457,8 @@ const CSS_RAW = "@import url('https://fonts.googleapis.com/css2?family=DM+Sans:o
 // STATE
 // ═══════════════════════════════════════════════════════════════════
 let REQS=[],nextId=1,curId=null,tmpParsed=null,_mcb=null;
+// Pedidos excluídos nesta sessão: a sincronização não pode trazê-los de volta da memória local
+const REQS_EXCLUIDOS = new Set();
 
 // ═══════════════════════════════════════════════════════════════════
 // PERFORMANCE ENGINE — Debounce, Paginação, Cache
@@ -2250,6 +2252,7 @@ async function doRegistrar(finalUnit){
     periodStart: fin?.ws || '',
     periodEnd: fin?.we || '',
     status:'requisitado',separador:null,entreguePor:null,retiradoPor:null,histEntryId:null,dbAdded:false};
+  REQS_EXCLUIDOS.delete(String(req.id)); // número pode ser reaproveitado de um pedido excluído
   REQS.push(req);
 
   const ok = await (async () => {
@@ -2297,6 +2300,7 @@ async function cancelarReq(id){
     toast('Erro ao remover no Firestore. '+(code?code+': ':'')+msg,'red');
     return;
   }
+  REQS_EXCLUIDOS.add(key);
   REQS = REQS.filter(r => String(r.id) !== key);
   toast('Requisição removida.', 'red');
   renderAll();
@@ -2325,6 +2329,7 @@ async function excluirHistoricoReq(id){
     toast('Erro ao remover no Firestore. '+(code?code+': ':'')+msg,'red');
     return;
   }
+  REQS_EXCLUIDOS.add(key);
   REQS = REQS.filter(rq => String(rq.id) !== key);
   toast('Entrega removida.', 'red');
   renderAll();
@@ -2548,6 +2553,7 @@ function syncReqsFromCache() {
   };
   mapped.forEach((mr) => {
     const k = String(mr.id);
+    if (REQS_EXCLUIDOS.has(k)) return;
     seen.add(k);
     const ex = existingById.get(k);
     if (ex && ex.__dirty) {
@@ -2560,7 +2566,7 @@ function syncReqsFromCache() {
     merged.push(mr);
   });
   existingById.forEach((ex, k) => {
-    if (!seen.has(k)) merged.push(ex);
+    if (!seen.has(k) && !REQS_EXCLUIDOS.has(k)) merged.push(ex);
   });
   REQS = merged;
   const numericIds = REQS.map(r => Number(r?.v2Id ?? r?.id)).filter(n => Number.isFinite(n));
@@ -3033,6 +3039,7 @@ function addFichaItem(catIdxStr){
   r.items[newId]={id:newId,material:'Novo Item',unidade:'',qtdSolicitada:'1',qtdAtendida:'',status:'nao_atendido',tipo:detectTipo(catName),obs:''};
   markDirty(r);
   abrirFicha(curId, false);
+  persistReq(r);
   toast('Item adicionado. Edite o nome e a quantidade.','green');
 }
 function removeFichaItem(id){
@@ -3047,7 +3054,8 @@ function removeFichaItem(id){
   }
   markDirty(r);
   abrirFicha(curId, false);
-  toast('Item removido.','red');
+  // Grava na hora (antes só gravava junto com a próxima edição da ficha)
+  persistReq(r).then(ok => { if (ok) toast('Item removido.','red'); });
 }
 function isEmpty(v){
   const s=String(v||'').trim();
