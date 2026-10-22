@@ -710,16 +710,22 @@ function tocarSrc(src) {
         };
         audio.onended = () => fechar('ok');
         audio.onerror = () => fechar('fail');
+        try { audio.pause(); } catch (_) {}
         audio.volume = 1;
         audio.src = src;
-        const play = audio.play();
-        if (play && typeof play.then === 'function') {
-            play.then(() => acompanhar()).catch((e) => {
-                const msg = String(e?.name || e?.message || e || '');
-                if (/notallowed|not allowed|autoplay/i.test(msg)) fechar('blocked');
-                else fechar('fail');
-            });
-        }
+        try { audio.load(); } catch (_) {}
+        const iniciar = () => {
+            if (fechado) return;
+            const play = audio.play();
+            if (play && typeof play.then === 'function') {
+                play.then(() => acompanhar()).catch((e) => {
+                    const msg = String(e?.name || e?.message || e || '');
+                    if (/notallowed|not allowed|autoplay/i.test(msg)) fechar('blocked');
+                    else fechar('fail');
+                });
+            }
+        };
+        setTimeout(iniciar, 80);
     });
 }
 
@@ -727,12 +733,6 @@ async function tocarFrase(texto) {
     mostrarLegendaTv(texto);
     await carregarIndiceVoz();
     const arquivo = `./tv-voz/${melhorSlugVoz(texto)}.wav`;
-    const peloCtx = await tocarPeloContexto(arquivo);
-    if (peloCtx === 'ok') {
-        tvVozLiberada = true;
-        esconderAvisoVoz();
-        return 'ok';
-    }
     const local = await tocarSrc(arquivo);
     if (local === 'ok' || local === 'blocked') return local;
     return tocarMp3(texto);
@@ -780,17 +780,22 @@ function tocarMp3(texto) {
                 if (iniciou) fechar('ok');
                 else tentar();
             };
+            try { audio.pause(); } catch (_) {}
             audio.loop = false;
             audio.volume = 1;
             audio.src = src;
-            const play = audio.play();
-            if (play && typeof play.then === 'function') {
-                play.then(() => { iniciou = true; }).catch((e) => {
-                    const msg = String(e?.name || e?.message || e || '');
-                    if (/notallowed|not allowed|autoplay/i.test(msg)) fechar('blocked');
-                    else if (!iniciou) tentar();
-                });
-            }
+            try { audio.load(); } catch (_) {}
+            setTimeout(() => {
+                if (fechado) return;
+                const play = audio.play();
+                if (play && typeof play.then === 'function') {
+                    play.then(() => { iniciou = true; }).catch((e) => {
+                        const msg = String(e?.name || e?.message || e || '');
+                        if (/notallowed|not allowed|autoplay/i.test(msg)) fechar('blocked');
+                        else if (!iniciou) tentar();
+                    });
+                }
+            }, 80);
         };
         tentar();
     });
