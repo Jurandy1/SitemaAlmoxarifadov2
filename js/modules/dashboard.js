@@ -677,6 +677,8 @@ function tocarSrc(src) {
     return new Promise((resolve) => {
         const audio = garantirTvAudio();
         let fechado = false;
+        let iniciou = false;
+        let pediuPlay = false;
         const fechar = (resultado) => {
             if (fechado) return;
             fechado = true;
@@ -685,13 +687,14 @@ function tocarSrc(src) {
             audio.onended = null;
             audio.onerror = null;
             audio.onplaying = null;
+            audio.oncanplay = null;
             resolve(resultado);
         };
         const acompanhar = () => {
             const checar = () => {
-                if (fechado) return;
+                if (fechado || !iniciou) return;
                 const durou = Number(audio.duration) || 0;
-                const noFim = audio.ended || (durou > 0.2 && audio.currentTime >= durou - 0.25);
+                const noFim = audio.ended || (durou > 0.4 && audio.currentTime >= durou - 0.25);
                 if (noFim) {
                     fechar('ok');
                     return;
@@ -701,40 +704,77 @@ function tocarSrc(src) {
             clearTimeout(audio._tvChecar);
             audio._tvChecar = setTimeout(checar, 400);
         };
-        const limite = setTimeout(() => fechar('fail'), 15000);
+        const limite = setTimeout(() => fechar(iniciou ? 'ok' : 'fail'), 15000);
+        try {
+            audio.onended = null;
+            audio.onerror = null;
+            audio.onplaying = null;
+            audio.oncanplay = null;
+            audio.pause();
+        } catch (_) {}
         audio.loop = false;
+        audio.volume = 1;
         audio.onplaying = () => {
+            iniciou = true;
             tvVozLiberada = true;
             esconderAvisoVoz();
             acompanhar();
         };
-        audio.onended = () => fechar('ok');
-        audio.onerror = () => fechar('fail');
-        try { audio.pause(); } catch (_) {}
-        audio.volume = 1;
+        audio.onended = () => {
+            if (iniciou) fechar('ok');
+        };
+        audio.onerror = () => {
+            const codigo = audio.error && audio.error.code;
+            if (!pediuPlay || codigo === 1 || iniciou) return;
+            fechar('fail');
+        };
         audio.src = src;
-        try { audio.load(); } catch (_) {}
         const iniciar = () => {
-            if (fechado) return;
-            const play = audio.play();
+            if (fechado || pediuPlay) return;
+            pediuPlay = true;
+            let play;
+            try { play = audio.play(); } catch (e) {
+                const msg = String(e?.name || e?.message || e || '');
+                if (/notallowed|not allowed|autoplay/i.test(msg)) fechar('blocked');
+                else fechar('fail');
+                return;
+            }
             if (play && typeof play.then === 'function') {
                 play.then(() => acompanhar()).catch((e) => {
                     const msg = String(e?.name || e?.message || e || '');
+                    if (iniciou) return;
                     if (/notallowed|not allowed|autoplay/i.test(msg)) fechar('blocked');
-                    else fechar('fail');
+                    else if (/abort/i.test(msg)) {
+                        pediuPlay = false;
+                        setTimeout(iniciar, 200);
+                    } else fechar('fail');
                 });
             }
         };
-        setTimeout(iniciar, 80);
+        audio.oncanplay = () => iniciar();
+        setTimeout(iniciar, 120);
     });
+}
+
+async function arquivoDeVoz(texto) {
+    await carregarIndiceVoz();
+    const arquivo = new URL(`tv-voz/${melhorSlugVoz(texto)}.wav`, document.baseURI).href;
+    try {
+        const res = await fetch(arquivo, { method: 'HEAD' });
+        if (res.status !== 404) return arquivo;
+    } catch (_) {
+        return arquivo;
+    }
+    return '';
 }
 
 async function tocarFrase(texto) {
     mostrarLegendaTv(texto);
-    await carregarIndiceVoz();
-    const arquivo = `./tv-voz/${melhorSlugVoz(texto)}.wav`;
-    const local = await tocarSrc(arquivo);
-    if (local === 'ok' || local === 'blocked') return local;
+    const arquivo = await arquivoDeVoz(texto);
+    if (arquivo) {
+        const local = await tocarSrc(arquivo);
+        if (local === 'ok' || local === 'blocked') return local;
+    }
     return tocarMp3(texto);
 }
 
@@ -770,13 +810,18 @@ function tocarMp3(texto) {
             }
             const src = urls[indice++];
             let iniciou = false;
+            let pediuPlay = false;
             audio.onplaying = () => {
                 iniciou = true;
                 tvVozLiberada = true;
                 esconderAvisoVoz();
             };
-            audio.onended = () => fechar('ok');
+            audio.onended = () => {
+                if (iniciou) fechar('ok');
+            };
             audio.onerror = () => {
+                const codigo = audio.error && audio.error.code;
+                if (!pediuPlay || codigo === 1) return;
                 if (iniciou) fechar('ok');
                 else tentar();
             };
@@ -784,18 +829,23 @@ function tocarMp3(texto) {
             audio.loop = false;
             audio.volume = 1;
             audio.src = src;
-            try { audio.load(); } catch (_) {}
             setTimeout(() => {
                 if (fechado) return;
-                const play = audio.play();
+                pediuPlay = true;
+                let play;
+                try { play = audio.play(); } catch (_) {
+                    if (!iniciou) tentar();
+                    return;
+                }
                 if (play && typeof play.then === 'function') {
                     play.then(() => { iniciou = true; }).catch((e) => {
                         const msg = String(e?.name || e?.message || e || '');
+                        if (iniciou) return;
                         if (/notallowed|not allowed|autoplay/i.test(msg)) fechar('blocked');
-                        else if (!iniciou) tentar();
+                        else tentar();
                     });
                 }
-            }, 80);
+            }, 120);
         };
         tentar();
     });
@@ -903,11 +953,6 @@ if (typeof window !== 'undefined') {
         const agora = Date.now();
         if (agora - tvToqueEm < 700) return;
         tvToqueEm = agora;
-        const ctx = garantirCtxTv();
-        if (ctx && ctx.state === 'suspended') {
-            const retomada = ctx.resume();
-            if (retomada && typeof retomada.catch === 'function') retomada.catch(() => {});
-        }
         if (!tvVozLiberada || audioTvParado()) tvNarracaoFalando = false;
         if (!tvNarracaoFila.length) tvNarracaoFila.push('Voz da televisão ligada.');
         bombearNarracaoTV();
