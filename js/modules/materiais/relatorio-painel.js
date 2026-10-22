@@ -606,16 +606,6 @@ function setDatePreset(preset) {
   marcarPresetAtivo();
 }
 
-function kpi(val, label, sub, tip, color) {
-  return (
-    `<div class="pan-kpi" title="${_deps.esc(tip || "")}" style="border-top:3px solid ${color || "#2563eb"}">` +
-    `<div class="pan-kpi-val" style="color:${color || "#0f172a"}">${val}</div>` +
-    `<div class="pan-kpi-label">${_deps.esc(label)}</div>` +
-    (sub ? `<div class="pan-kpi-sub">${_deps.esc(sub)}</div>` : "") +
-    `</div>`
-  );
-}
-
 function panSection(title, sub, body) {
   return (
     `<div class="pan-section" style="margin-bottom:16px">` +
@@ -623,20 +613,6 @@ function panSection(title, sub, body) {
     `<p style="font-size:11px;color:#64748b;margin:0 0 10px">${sub}</p>` +
     body +
     `</div>`
-  );
-}
-
-function coverageBanner(m) {
-  const total = m.nFull + m.nDeliveryOnly;
-  if (!total) return "";
-  const pct = Math.round((m.nFull / total) * 100);
-  return (
-    `<div class="alert-card alert-blue" style="margin-bottom:12px">` +
-    `<div class="alert-icon"></div>` +
-    `<div class="alert-body"><b>Cobertura dos dados:</b> ${m.nFull.toLocaleString("pt-BR")} linhas completas ` +
-    `(solicitado + atendido) · ${m.nDeliveryOnly.toLocaleString("pt-BR")} só com entrega registrada. ` +
-    `Taxa de atendimento usa apenas linhas completas (${pct}%). ` +
-    `Dados antigos sem pedido/atendido aparecem como “somente entrega registrada”.</div></div>`
   );
 }
 
@@ -755,7 +731,7 @@ function buildGeralHtml(m, filters, filteredRows = []) {
   const unids = m.unitStats
     .slice()
     .sort((a, b) => b.nPedidos - a.nPedidos || b.sol - a.sol)
-    .slice(0, 10)
+    .slice(0, _state.verTodasUnidades ? 100 : 10)
     .map(
       (u, i) =>
         `<tr class="pa-click" title="Ver só esta unidade" data-unidade="${attrEsc(u.unit)}" onclick="filtrarPainelPorUnidade(this.dataset.unidade)">` +
@@ -781,8 +757,8 @@ function buildGeralHtml(m, filters, filteredRows = []) {
     ) +
     paBloco(
       "Unidades com mais pedidos",
-      "Ver todas",
-      "switchPanSub('frequencia')",
+      _state.verTodasUnidades ? "Ver menos" : "Ver todas",
+      "alternarVerTodosPainel('verTodasUnidades')",
       paTabela(
         [["#", "c"], ["Unidade"], ["Pedidos", "n"], ["Solicitado", "n"], ["Atendido", "n"], ["Faltante", "n"], ["Taxa", "n"]],
         unids,
@@ -1047,181 +1023,6 @@ function buildItensHtml(m, filteredRows = [], filters = {}) {
   return h;
 }
 
-function buildAtendimentoHtml(m, filteredRows) {
-  let h = coverageBanner(m);
-  h += `<h2 style="font-size:16px;font-weight:800;margin:0 0 4px">Atendimento</h2>`;
-  h += `<p style="font-size:12px;color:#64748b;margin:0 0 12px">Atendidos, parciais, não atendidos e sem estoque (linhas completas).</p>`;
-
-  h +=
-    `<div class="pan-grid">` +
-    kpi(m.byStatus.atendido || 0, "Atendidos", "linhas", "", "#059669") +
-    kpi(m.byStatus.parcial || 0, "Parciais", "linhas", "", "#d97706") +
-    kpi(m.byStatus.nao_atendido || 0, "Não atendidos", "linhas", "", "#7c3aed") +
-    kpi(m.byStatus.sem_estoque || 0, "Sem estoque", "linhas", "", "#dc2626") +
-    kpi(m.byStatus.excedido || 0, "Excedidos", "linhas", "", "#b45309") +
-    kpi(m.byStatus.entrega_registrada || 0, "Só entrega", "históricos antigos", "", "#64748b") +
-    kpi(m.falt > 0 ? m.falt.toLocaleString("pt-BR") : "—", "Faltante (qtd)", "solicitado − atendido", "", "#ef4444") +
-    kpi(m.taxa != null ? m.taxa + "%" : "—", "Taxa geral", "", "", "#16a34a") +
-    `</div>`;
-
-  const detailStatuses = new Set(["nao_atendido", "parcial", "sem_estoque", "excedido"]);
-  const problemRows = filteredRows
-    .filter((r) => r.coverage === "full" && detailStatuses.has(r.itemStatus))
-    .sort((a, b) => (b.faltante || 0) - (a.faltante || 0))
-    .slice(0, 80);
-
-  const body = problemRows.map(
-    (r) =>
-      `<tr>` +
-      `<td style="font-weight:600">${_deps.esc(r.unitName)}</td>` +
-      `<td style="font-size:11px">${_deps.esc(r.dateIso || "—")}</td>` +
-      `<td>${_deps.esc(r.material)}</td>` +
-      `<td style="font-size:11px;color:#64748b">${_deps.esc(r.cat)}</td>` +
-      `<td>${r.qtdSolicitada ?? "—"}</td>` +
-      `<td>${r.qtdAtendida ?? "—"}</td>` +
-      `<td>${r.faltante ?? "—"}</td>` +
-      `<td><span class="badge-status badge-${_deps.esc(r.itemStatus)}">${_deps.esc(r.itemStatus)}</span></td>` +
-      `</tr>`
-  );
-
-  h += panSection(
-    "Itens com gap de atendimento",
-    "Somente linhas com solicitado/atendido conhecidos",
-    renderTable(
-      ["Unidade", "Data", "Material", "Cat.", "Sol.", "Ate.", "Falta", "Status"],
-      body,
-      "Nenhum gap no filtro (ou só há entregas antigas sem solicitado)."
-    )
-  );
-
-  return h;
-}
-
-function buildFrequenciaHtml(m, filteredRows) {
-  let h = `<h2 style="font-size:16px;font-weight:800;margin:0 0 4px">Frequência de pedidos</h2>`;
-  h += `<p style="font-size:12px;color:#64748b;margin:0 0 12px">Em quais dias e com que regularidade as unidades pedem.</p>`;
-
-  const maxWd = Math.max(...m.byWeekday, 1);
-  const wdBars = m.byWeekday
-    .map((n, i) => {
-      const pct = Math.round((n / maxWd) * 100);
-      return (
-        `<div style="flex:1;text-align:center">` +
-        `<div style="height:90px;display:flex;align-items:flex-end;justify-content:center">` +
-        `<div style="width:70%;height:${Math.max(4, pct)}%;background:#2563eb;border-radius:6px 6px 0 0" title="${n} linhas"></div>` +
-        `</div>` +
-        `<div style="font-size:11px;font-weight:700;margin-top:4px">${DAY_NAMES[i]}</div>` +
-        `<div style="font-size:10px;color:#64748b">${n}</div></div>`
-      );
-    })
-    .join("");
-
-  h += panSection(
-    "Distribuição por dia da semana",
-    "Contagem de linhas de item por dia do pedido",
-    `<div style="display:flex;gap:6px;align-items:flex-end;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:12px">${wdBars}</div>`
-  );
-
-  if (m.monthSeries.length) {
-    const rows = m.monthSeries.map(
-      (x) =>
-        `<tr><td style="font-weight:600">${_deps.esc(x.month)}</td><td>${x.qty.toLocaleString("pt-BR")}</td></tr>`
-    );
-    h += panSection(
-      "Volume mensal (qtd. atendida)",
-      "Série do período filtrado",
-      renderTable(["Mês", "Qtd. atendida"], rows)
-    );
-  }
-
-  const freqUnits = m.unitStats.slice(0, 30).map((u) => {
-    return (
-      `<tr>` +
-      `<td style="font-weight:700">${_deps.esc(u.unit)}</td>` +
-      `<td>${u.nPedidos}</td>` +
-      `<td>${u.nDays}</td>` +
-      `<td>${u.avgPedidosSemana}</td>` +
-      `<td>${u.nDays && u.nPedidos ? (Math.round((u.nPedidos / Math.max(u.nDays, 1)) * 100) / 100) : "—"}</td>` +
-      `</tr>`
-    );
-  });
-
-  h += panSection(
-    "Frequência por unidade",
-    "Pedidos, dias ativos e média semanal no período",
-    renderTable(["Unidade", "Pedidos", "Dias", "Méd/semana", "Pedidos/dia ativo"], freqUnits)
-  );
-
-  // Pedidos distintos por unidade/semana (amostra)
-  const weekMap = new Map();
-  for (const r of filteredRows) {
-    const key = (r.weekStart || r.dateIso || "") + "\0" + r.unitName;
-    if (!weekMap.has(key)) weekMap.set(key, { week: r.weekStart || r.dateIso, unit: r.unitName, lines: 0, ate: 0 });
-    const e = weekMap.get(key);
-    e.lines += 1;
-    e.ate += r.qtdAtendida || 0;
-  }
-  const weekRows = [...weekMap.values()]
-    .sort((a, b) => String(b.week).localeCompare(String(a.week)))
-    .slice(0, 40)
-    .map(
-      (w) =>
-        `<tr><td>${_deps.esc(w.week || "—")}</td><td style="font-weight:600">${_deps.esc(w.unit)}</td>` +
-        `<td>${w.lines}</td><td>${w.ate.toLocaleString("pt-BR")}</td></tr>`
-    );
-  h += panSection(
-    "Últimos envios por semana/unidade",
-    "Amostra recente do filtro",
-    renderTable(["Semana", "Unidade", "Linhas", "Qtd."], weekRows)
-  );
-
-  return h;
-}
-
-function buildDetailTable(filteredRows) {
-  const q = normKey(document.getElementById("panDetailSearch")?.value || "");
-  let rows = filteredRows;
-  if (q) {
-    rows = rows.filter(
-      (r) =>
-        normKey(r.unitName).includes(q) ||
-        normKey(r.material).includes(q) ||
-        normKey(r.cat).includes(q) ||
-        normKey(r.itemStatus).includes(q)
-    );
-  }
-  rows = rows
-    .slice()
-    .sort((a, b) => String(b.dateIso || "").localeCompare(String(a.dateIso || "")))
-    .slice(0, 200);
-
-  const body = rows.map(
-    (r) =>
-      `<tr>` +
-      `<td style="font-weight:600">${_deps.esc(r.unitName)}</td>` +
-      `<td style="font-size:11px">${_deps.esc(r.dateIso || "—")}</td>` +
-      `<td style="font-size:11px;color:#64748b">${_deps.esc(r.cat)}</td>` +
-      `<td>${_deps.esc(r.material)}</td>` +
-      `<td>${r.qtdSolicitada != null ? r.qtdSolicitada : "—"}</td>` +
-      `<td>${r.qtdAtendida != null ? r.qtdAtendida : "—"}</td>` +
-      `<td>${r.faltante != null ? r.faltante : "—"}</td>` +
-      `<td style="font-size:11px">${_deps.esc(r.itemStatus)}</td>` +
-      `<td style="font-size:10px;color:#64748b">${_deps.esc(r.coverageLabel)}</td>` +
-      `</tr>`
-  );
-
-  return panSection(
-    "Tabela detalhada",
-    "Até 200 linhas · use a busca abaixo · exportação CSV usa o filtro completo",
-    `<div style="margin-bottom:8px"><input class="input" id="panDetailSearch" placeholder="Buscar na tabela..." style="font-size:12px;padding:6px 10px;max-width:320px" oninput="buildPainel()"></div>` +
-      renderTable(
-        ["Unidade", "Data", "Categoria", "Material", "Sol.", "Ate.", "Falta", "Status", "Cobertura"],
-        body,
-        "Nenhuma linha no filtro."
-      )
-  );
-}
-
 function preencherUnidades() {
   const unitSel = document.getElementById("panUnitSel");
   if (!unitSel) return;
@@ -1351,19 +1152,7 @@ export async function buildPainelRelatorio(opts = {}) {
 
     let html = "";
     if (_state.sub === "itens") html = buildItensHtml(metrics, filtered, filters);
-    else if (_state.sub === "atendimento") html = buildAtendimentoHtml(metrics, filtered);
-    else if (_state.sub === "frequencia") html = buildFrequenciaHtml(metrics, filtered);
     else html = buildGeralHtml(metrics, filters, filtered);
-
-    // Visão geral segue o modelo; nas demais abas ficam a tabela detalhada e a exportação
-    if (_state.sub !== "geral" && _state.sub !== "itens") {
-      html += buildDetailTable(filtered);
-      html +=
-        `<div style="display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 8px">` +
-        `<button class="pa-btn pa-btn-primary" type="button" onclick="exportarPainelCSV()">Exportar planilha</button>` +
-        `<button class="pa-btn" type="button" onclick="imprimirPainelRelatorio()">Imprimir / PDF</button>` +
-        `</div>`;
-    }
 
     if (!filtered.length) {
       html =
@@ -1383,7 +1172,7 @@ export async function buildPainelRelatorio(opts = {}) {
 }
 
 export function switchPanSubRelatorio(sub) {
-  const allowed = new Set(["geral", "itens", "atendimento", "frequencia"]);
+  const allowed = new Set(["geral", "itens"]);
   _state.sub = allowed.has(sub) ? sub : "geral";
   return buildPainelRelatorio();
 }
@@ -1420,6 +1209,7 @@ export function clearPanFiltersRelatorio() {
   _state.verTodosPedidos = false;
   _state.verTodosMateriais = false;
   _state.verTodosExpediente = false;
+  _state.verTodasUnidades = false;
   setDatePreset("mes");
   return buildPainelRelatorio();
 }
