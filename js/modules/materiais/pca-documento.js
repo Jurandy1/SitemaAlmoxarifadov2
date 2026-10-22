@@ -92,7 +92,7 @@ export async function gerarPdfPca(info, secoes) {
   doc.setFont("helvetica", "bold").setFontSize(12).text(PREFEITURA, xt, 15);
   doc.setFont("helvetica", "normal").setFontSize(9).text(SECRETARIA, xt, 21);
   doc.setFont("helvetica", "bold").setFontSize(10).setTextColor(...AZUL).text(info.setor, xt, 27);
-  doc.setTextColor(15, 23, 42).setFontSize(13).text("Relatório de Consumo de Materiais", W - M, 15, { align: "right" });
+  doc.setTextColor(15, 23, 42).setFontSize(13).text(info.titulo || "Relatório de Consumo de Materiais", W - M, 15, { align: "right" });
   doc.setFont("helvetica", "normal").setFontSize(10).text(`Subsídio para o PCA ${info.anoPca}`, W - M, 21, { align: "right" });
   doc.setDrawColor(...AZUL).setLineWidth(0.6).line(M, 35, W - M, 35);
 
@@ -115,11 +115,11 @@ export async function gerarPdfPca(info, secoes) {
     const x = M + i * (wK + gap);
     doc.setDrawColor(203, 213, 225).setFillColor(248, 250, 252).roundedRect(x, y, wK, 15, 1.5, 1.5, "FD");
     doc.setFont("helvetica", "normal").setFontSize(8).setTextColor(100, 116, 139).text(rot, x + 3, y + 5);
-    doc.setFont("helvetica", "bold").setFontSize(13).setTextColor(...(i === 3 ? AZUL : [15, 23, 42])).text(val, x + 3, y + 12);
+    doc.setFont("helvetica", "bold").setFontSize(13).setTextColor(...(i === (info.kpiDestaque ?? 3) ? AZUL : [15, 23, 42])).text(val, x + 3, y + 12);
   });
   y += 20;
   doc.setFont("helvetica", "italic").setFontSize(7.5).setTextColor(71, 85, 105);
-  const leg = doc.splitTextToSize(LEGENDA, W - M * 2);
+  const leg = doc.splitTextToSize(info.legenda || LEGENDA, W - M * 2);
   doc.text(leg, M, y);
   y += 3.5 * leg.length + 3;
 
@@ -130,7 +130,7 @@ export async function gerarPdfPca(info, secoes) {
     }
     doc.setFont("helvetica", "bold").setFontSize(11).setTextColor(15, 23, 42).text(sec.titulo, M, y);
     if (sec.sub) doc.setFont("helvetica", "normal").setFontSize(8).setTextColor(100, 116, 139).text(sec.sub, M + doc.getTextWidth(sec.titulo) * (11 / 8) + 4, y);
-    const colNecessidade = sec.cols.findIndex((c) => /^Necessidade/.test(c.t));
+    const colNecessidade = sec.cols.findIndex((c) => c.destaque || /^Necessidade/.test(c.t));
     autoTable(doc, {
       startY: y + 2,
       margin: { left: M, right: M, top: 14, bottom: 14 },
@@ -198,7 +198,7 @@ function celula(t, o = {}) {
 }
 
 function tabelaSecao(sec) {
-  const colNecessidade = sec.cols.findIndex((c) => /^Necessidade/.test(c.t));
+  const colNecessidade = sec.cols.findIndex((c) => c.destaque || /^Necessidade/.test(c.t));
   const cab = new TableRow({
     tableHeader: true,
     children: sec.cols.map((c) => celula(c.t, { bold: true, fill: "F1F5F9", align: c.num ? AlignmentType.RIGHT : AlignmentType.LEFT })),
@@ -243,7 +243,7 @@ export async function gerarWordPca(info, secoes) {
           ),
           celula(
             [
-              par("Relatório de Consumo de Materiais", { bold: true, size: 26, align: AlignmentType.RIGHT, after: 20 }),
+              par(info.titulo || "Relatório de Consumo de Materiais", { bold: true, size: 26, align: AlignmentType.RIGHT, after: 20 }),
               par(`Subsídio para o PCA ${info.anoPca}`, { size: 20, align: AlignmentType.RIGHT, after: 0 }),
             ],
             { borders: SEM_BORDA, width: { size: 37, type: WidthType.PERCENTAGE } }
@@ -260,7 +260,7 @@ export async function gerarWordPca(info, secoes) {
     rows: [
       new TableRow({
         children: info.kpis.map(([rot, val], i) =>
-          celula([par(rot, { size: 15, color: "64748B", after: 20 }), par(val, { size: 26, bold: true, color: i === 3 ? AZUL_HEX : "0F172A", after: 0 })], {
+          celula([par(rot, { size: 15, color: "64748B", after: 20 }), par(val, { size: 26, bold: true, color: i === (info.kpiDestaque ?? 3) ? AZUL_HEX : "0F172A", after: 0 })], {
             fill: "F8FAFC",
           })
         ),
@@ -278,7 +278,7 @@ export async function gerarWordPca(info, secoes) {
 
   const doc = new Document({
     creator: info.setor,
-    title: `Relatório de Consumo de Materiais - PCA ${info.anoPca}`,
+    title: `${info.titulo || "Relatório de Consumo de Materiais"} - PCA ${info.anoPca}`,
     sections: [
       {
         properties: {
@@ -308,7 +308,7 @@ export async function gerarWordPca(info, secoes) {
           ...info1,
           new Paragraph({ spacing: { after: 60 }, children: [] }),
           kpis,
-          par(LEGENDA, { italics: true, size: 15, color: "475569", before: 100, after: 60 }),
+          par(info.legenda || LEGENDA, { italics: true, size: 15, color: "475569", before: 100, after: 60 }),
           ...corpo,
         ],
       },

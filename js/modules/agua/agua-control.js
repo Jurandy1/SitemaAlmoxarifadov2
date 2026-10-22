@@ -22,6 +22,7 @@ import { isReady, getUserId } from "../auth.js";
 import { COLLECTIONS } from "../../services/firestore-service.js";
 import { executeFinalMovimentacao } from "../movimentacao-modal-handler.js";
 import { BaseControl, getCachedAguaResumo } from "../base-control.js";
+import { renderPcaAgua } from "./agua-pca.js";
 
 // VARIÁVEIS DE ESTADO LOCAL
 let debitoAguaMode = 'devendo';
@@ -1170,6 +1171,7 @@ export function initAguaListeners() {
         document.getElementById('sub-nav-agua').addEventListener('click', (e) => {
             const btn = e.target.closest('.sub-nav-btn');
             if (btn && btn.dataset.subview) switchSubTabView('agua', btn.dataset.subview);
+            if (btn?.dataset.subview === 'relatorio-pca-agua') renderPcaAgua();
         });
     }
 
@@ -1225,7 +1227,8 @@ export function onAguaTabChange() {
     const currentSubView = document.querySelector('#sub-nav-agua .sub-nav-btn.active')?.dataset.subview || 'movimentacao-agua';
     
     switchSubTabView('agua', currentSubView);
-    
+    if (currentSubView === 'relatorio-pca-agua') renderPcaAgua();
+
     toggleAguaFormInputs(); 
     checkUnidadeSaldoAlertAgua();
     renderEstoqueAgua();

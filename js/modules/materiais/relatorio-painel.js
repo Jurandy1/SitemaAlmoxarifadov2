@@ -649,7 +649,7 @@ const SIGLAS_UNIDADE = /^(cras|creas|ct|caps|sede|semcas|mse|pcdif|cmdca|cmas|cm
 // "Cras Cidade OperáRia" → "CRAS Cidade Operária"
 const MINUSCULAS = /^(de|do|da|dos|das|e|em|no|na|nos|nas)$/i;
 
-function nomeUnidade(nome) {
+export function nomeUnidade(nome) {
   let n = String(nome || "")
     .replace(/([à-öø-ÿ])([A-ZÀ-ÖØ-Þ])/g, (_, a, b) => a + b.toLowerCase())
     .split(" ")
@@ -1050,7 +1050,7 @@ function diasEntre(a, b) {
 
 // A média mensal divide só pelos meses que têm registro (meses sem registro, como antes do
 // sistema começar a ser usado, puxariam a média para baixo). O mês do início/fim conta pela parte coberta.
-function periodoPca(rows, f) {
+export function periodoPca(rows, f) {
   const datas = rows.map((r) => r.dateIso).filter(Boolean).sort();
   const from = f.dateFrom || datas[0] || "";
   const to = f.dateTo || datas[datas.length - 1] || "";
