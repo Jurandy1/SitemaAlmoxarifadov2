@@ -573,20 +573,6 @@ function slugFala(texto) {
         .replace(/^-|-$/g, '');
 }
 
-function mostrarLegendaTv(texto) {
-    let el = document.getElementById('tv-voz-legenda');
-    if (!el) {
-        el = document.createElement('div');
-        el.id = 'tv-voz-legenda';
-        el.style.cssText = 'position:fixed;left:24px;right:24px;top:24px;z-index:99999;background:#0f172a;color:#fff;text-align:center;padding:18px 24px;border-radius:16px;font:800 42px/1.2 Barlow Condensed,sans-serif;letter-spacing:.02em;';
-        document.body.appendChild(el);
-    }
-    el.textContent = texto;
-    el.style.display = 'block';
-    clearTimeout(el._tvTimer);
-    el._tvTimer = setTimeout(() => { el.style.display = 'none'; }, 8000);
-}
-
 let tvVozIndex = null;
 async function carregarIndiceVoz() {
     if (tvVozIndex) return tvVozIndex;
@@ -727,7 +713,6 @@ async function processarFilaVoz() {
         while (tvNarracaoFila.length && tvVozLiberada) {
             const texto = tvNarracaoFila.shift();
             tvFraseAtual = texto;
-            mostrarLegendaTv(texto);
             const r = await falarFrase(texto);
             if (r === 'bloqueado') {
                 // A TV desligou o motor: devolve a frase e pede o OK de novo
