@@ -508,8 +508,19 @@ function carregarEstadoVozPersistido() {
             tvVozLiberada = true;
             esconderAvisoVoz();
             logVoz('voz liberada restaurada do storage');
+            religarMotorSozinho();
         }
     } catch (_) {}
+}
+
+// Depois do refresh não há toque, mas a escolha já foi feita: tenta ligar o motor sozinho.
+// Se o navegador ainda segurar o som, ele liga no primeiro toque/tecla, sem mostrar o aviso de novo.
+function religarMotorSozinho() {
+    if (!ligarMotorNoGesto() || !tvCtx) return;
+    Promise.resolve(tvCtx.resume()).catch(() => {}).then(() => {
+        logVoz('religar sozinho: ' + tvCtx.state);
+        if (tvCtx.state === 'running') processarFilaVoz();
+    });
 }
 
 function salvarEstadoVozPersistido() {
@@ -625,7 +636,13 @@ function ligarMotorNoGesto() {
         return false;
     }
     try {
-        if (!tvCtx || tvCtx.state === 'closed') tvCtx = new Ctor();
+        if (!tvCtx || tvCtx.state === 'closed') {
+            tvCtx = new Ctor();
+            tvCtx.onstatechange = () => {
+                logVoz('motor: ' + tvCtx.state);
+                if (tvCtx.state === 'running') processarFilaVoz();
+            };
+        }
         if (tvCtx.state !== 'running') tvCtx.resume();
         const buf = tvCtx.createBuffer(1, 1, 22050);
         const src = tvCtx.createBufferSource();
@@ -722,10 +739,8 @@ async function processarFilaVoz() {
             tvFraseAtual = texto;
             const r = await falarFrase(texto);
             if (r === 'bloqueado') {
+                // Mantém a escolha salva: a frase volta pra fila e toca quando o motor religar.
                 tvNarracaoFila.unshift(texto);
-                tvVozLiberada = false;
-                salvarEstadoVozPersistido();
-                mostrarAvisoVoz(true);
                 break;
             }
             await new Promise((ok) => setTimeout(ok, 500));
@@ -741,10 +756,11 @@ function soltarNarracaoNoGesto() {
         if (!tvAudioReserva) tvAudioReserva = new Audio();
         try { tvAudioReserva.play().catch(() => {}); } catch (_) {}
     }
+    const primeiraVez = !tvVozLiberada;
     tvVozLiberada = true;
     salvarEstadoVozPersistido();
     esconderAvisoVoz();
-    if (!tvNarracaoFila.length && !tvTocando) tvNarracaoFila.push('Voz da televisão ligada.');
+    if (primeiraVez && !tvNarracaoFila.length && !tvTocando) tvNarracaoFila.push('Voz da televisão ligada.');
     processarFilaVoz();
 }
 
@@ -813,11 +829,7 @@ if (typeof window !== 'undefined') {
         if (!tvVozLiberada || !tvCtx || tvCtx.state === 'running') return;
         logVoz('motor parado (' + tvCtx.state + '), religando');
         Promise.resolve(tvCtx.resume()).catch(() => {}).then(() => {
-            if (tvCtx.state !== 'running') {
-                tvVozLiberada = false;
-                salvarEstadoVozPersistido();
-                mostrarAvisoVoz(true);
-            } else processarFilaVoz();
+            if (tvCtx.state === 'running') processarFilaVoz();
         });
     }, 15000);
     if (document.body?.classList.contains('tv-mode')) {
