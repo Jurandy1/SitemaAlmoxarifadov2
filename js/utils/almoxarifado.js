@@ -4,22 +4,31 @@
 // ainda referencia "../utils/almoxarifado.js".
 
 import {
+  getAguaMovimentacoes,
+  getGasMovimentacoes,
   getEstoqueAgua,
   getEstoqueGas,
   getMateriais,
   getUnidades,
-  getMovimentacoes,
   getEntregas
 } from "./cache.js";
 
 export {
+  getAguaMovimentacoes,
+  getGasMovimentacoes,
   getEstoqueAgua,
   getEstoqueGas,
   getMateriais,
   getUnidades,
-  getMovimentacoes,
   getEntregas
 };
+
+export function getMovimentacoes() {
+  return [
+    ...(Array.isArray(getAguaMovimentacoes?.()) ? getAguaMovimentacoes() : []),
+    ...(Array.isArray(getGasMovimentacoes?.()) ? getGasMovimentacoes() : [])
+  ];
+}
 
 export function getAlmoxarifadoResumo() {
   return {
@@ -27,7 +36,7 @@ export function getAlmoxarifadoResumo() {
     estoqueGas: getEstoqueGas?.() || [],
     materiais: getMateriais?.() || [],
     unidades: getUnidades?.() || [],
-    movimentacoes: getMovimentacoes?.() || [],
+    movimentacoes: getMovimentacoes(),
     entregas: getEntregas?.() || []
   };
 }
@@ -37,17 +46,19 @@ export function getMateriaisEmEstoque() {
 }
 
 export function getHistoricoMovimentacoes() {
-  return getMovimentacoes?.() || [];
+  return getMovimentacoes();
 }
 
 export default {
   getAlmoxarifadoResumo,
   getMateriaisEmEstoque,
   getHistoricoMovimentacoes,
+  getMovimentacoes,
+  getAguaMovimentacoes,
+  getGasMovimentacoes,
   getEstoqueAgua,
   getEstoqueGas,
   getMateriais,
   getUnidades,
-  getMovimentacoes,
   getEntregas
 };
