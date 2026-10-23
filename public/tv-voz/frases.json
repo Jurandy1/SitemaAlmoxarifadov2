@@ -1,0 +1,1762 @@
+[
+  {
+    "texto": "Voz da televisão ligada.",
+    "slug": "voz-da-televisao-ligada"
+  },
+  {
+    "texto": "Unidade, em separação",
+    "slug": "unidade-em-separacao"
+  },
+  {
+    "texto": "Unidade, pronto para retirada",
+    "slug": "unidade-pronto-para-retirada"
+  },
+  {
+    "texto": "Assessoria de Comunicação, em separação",
+    "slug": "assessoria-de-comunicacao-em-separacao"
+  },
+  {
+    "texto": "Assessoria de Comunicação, pronto para retirada",
+    "slug": "assessoria-de-comunicacao-pronto-para-retirada"
+  },
+  {
+    "texto": "Comunicação, em separação",
+    "slug": "comunicacao-em-separacao"
+  },
+  {
+    "texto": "Comunicação, pronto para retirada",
+    "slug": "comunicacao-pronto-para-retirada"
+  },
+  {
+    "texto": "Assessoria Jurídica, em separação",
+    "slug": "assessoria-juridica-em-separacao"
+  },
+  {
+    "texto": "Assessoria Jurídica, pronto para retirada",
+    "slug": "assessoria-juridica-pronto-para-retirada"
+  },
+  {
+    "texto": "Assessoria Técnica (ASTEC), em separação",
+    "slug": "assessoria-tecnica-astec-em-separacao"
+  },
+  {
+    "texto": "Assessoria Técnica (ASTEC), pronto para retirada",
+    "slug": "assessoria-tecnica-astec-pronto-para-retirada"
+  },
+  {
+    "texto": "Astec, em separação",
+    "slug": "astec-em-separacao"
+  },
+  {
+    "texto": "Astec, pronto para retirada",
+    "slug": "astec-pronto-para-retirada"
+  },
+  {
+    "texto": "Gabinete, em separação",
+    "slug": "gabinete-em-separacao"
+  },
+  {
+    "texto": "Gabinete, pronto para retirada",
+    "slug": "gabinete-pronto-para-retirada"
+  },
+  {
+    "texto": "Secretaria Adjunta de Gestão, em separação",
+    "slug": "secretaria-adjunta-de-gestao-em-separacao"
+  },
+  {
+    "texto": "Secretaria Adjunta de Gestão, pronto para retirada",
+    "slug": "secretaria-adjunta-de-gestao-pronto-para-retirada"
+  },
+  {
+    "texto": "Secretário Adjunto De Gestão, em separação",
+    "slug": "secretario-adjunto-de-gestao-em-separacao"
+  },
+  {
+    "texto": "Secretário Adjunto De Gestão, pronto para retirada",
+    "slug": "secretario-adjunto-de-gestao-pronto-para-retirada"
+  },
+  {
+    "texto": "Secretaria Adjunta de Proteção Social (SAPS), em separação",
+    "slug": "secretaria-adjunta-de-protecao-social-saps-em-separacao"
+  },
+  {
+    "texto": "Secretaria Adjunta de Proteção Social (SAPS), pronto para retirada",
+    "slug": "secretaria-adjunta-de-protecao-social-saps-pronto-para-retirada"
+  },
+  {
+    "texto": "Secretaria Adjunta De Proteção Social [SAPS], em separação",
+    "slug": "secretaria-adjunta-de-protecao-social-saps-em-separacao"
+  },
+  {
+    "texto": "Secretaria Adjunta De Proteção Social [SAPS], pronto para retirada",
+    "slug": "secretaria-adjunta-de-protecao-social-saps-pronto-para-retirada"
+  },
+  {
+    "texto": "Coordenação de Gestão do Trabalho e Educação Permanente (COGETEP), em separação",
+    "slug": "coordenacao-de-gestao-do-trabalho-e-educacao-permanente-cogetep-em-separacao"
+  },
+  {
+    "texto": "Coordenação de Gestão do Trabalho e Educação Permanente (COGETEP), pronto para retirada",
+    "slug": "coordenacao-de-gestao-do-trabalho-e-educacao-permanente-cogetep-pronto-para-retirada"
+  },
+  {
+    "texto": "Cogetep, em separação",
+    "slug": "cogetep-em-separacao"
+  },
+  {
+    "texto": "Cogetep, pronto para retirada",
+    "slug": "cogetep-pronto-para-retirada"
+  },
+  {
+    "texto": "Coordenação De Gestão E Educação Permanente (SGSUAS), em separação",
+    "slug": "coordenacao-de-gestao-e-educacao-permanente-sgsuas-em-separacao"
+  },
+  {
+    "texto": "Coordenação De Gestão E Educação Permanente (SGSUAS), pronto para retirada",
+    "slug": "coordenacao-de-gestao-e-educacao-permanente-sgsuas-pronto-para-retirada"
+  },
+  {
+    "texto": "Coordenação de Planejamento e Vigilância Socioassistencial, em separação",
+    "slug": "coordenacao-de-planejamento-e-vigilancia-socioassistencial-em-separacao"
+  },
+  {
+    "texto": "Coordenação de Planejamento e Vigilância Socioassistencial, pronto para retirada",
+    "slug": "coordenacao-de-planejamento-e-vigilancia-socioassistencial-pronto-para-retirada"
+  },
+  {
+    "texto": "Coordenação De Planejamento E Vigilância Socioassistencial (SGSUAS), em separação",
+    "slug": "coordenacao-de-planejamento-e-vigilancia-socioassistencial-sgsuas-em-separacao"
+  },
+  {
+    "texto": "Coordenação De Planejamento E Vigilância Socioassistencial (SGSUAS), pronto para retirada",
+    "slug": "coordenacao-de-planejamento-e-vigilancia-socioassistencial-sgsuas-pronto-para-retirada"
+  },
+  {
+    "texto": "Superintendência de Gestão do SUAS (SGSUAS), em separação",
+    "slug": "superintendencia-de-gestao-do-suas-sgsuas-em-separacao"
+  },
+  {
+    "texto": "Superintendência de Gestão do SUAS (SGSUAS), pronto para retirada",
+    "slug": "superintendencia-de-gestao-do-suas-sgsuas-pronto-para-retirada"
+  },
+  {
+    "texto": "SGSUAS, em separação",
+    "slug": "sgsuas-em-separacao"
+  },
+  {
+    "texto": "SGSUAS, pronto para retirada",
+    "slug": "sgsuas-pronto-para-retirada"
+  },
+  {
+    "texto": "Superintendência De Gestão SUAS [SGSUAS], em separação",
+    "slug": "superintendencia-de-gestao-suas-sgsuas-em-separacao"
+  },
+  {
+    "texto": "Superintendência De Gestão SUAS [SGSUAS], pronto para retirada",
+    "slug": "superintendencia-de-gestao-suas-sgsuas-pronto-para-retirada"
+  },
+  {
+    "texto": "Coordenação do SCFV, em separação",
+    "slug": "coordenacao-do-scfv-em-separacao"
+  },
+  {
+    "texto": "Coordenação do SCFV, pronto para retirada",
+    "slug": "coordenacao-do-scfv-pronto-para-retirada"
+  },
+  {
+    "texto": "Scfv, em separação",
+    "slug": "scfv-em-separacao"
+  },
+  {
+    "texto": "Scfv, pronto para retirada",
+    "slug": "scfv-pronto-para-retirada"
+  },
+  {
+    "texto": "Coordenação do Serviço de Proteção Social Básica no Domicílio (PCF), em separação",
+    "slug": "coordenacao-do-servico-de-protecao-social-basica-no-domicilio-pcf-em-separacao"
+  },
+  {
+    "texto": "Coordenação do Serviço de Proteção Social Básica no Domicílio (PCF), pronto para retirada",
+    "slug": "coordenacao-do-servico-de-protecao-social-basica-no-domicilio-pcf-pronto-para-retirada"
+  },
+  {
+    "texto": "Coordenação Do Serviço De Proteção Social Básica No Domicílio [PCF], em separação",
+    "slug": "coordenacao-do-servico-de-protecao-social-basica-no-domicilio-pcf-em-separacao"
+  },
+  {
+    "texto": "Coordenação Do Serviço De Proteção Social Básica No Domicílio [PCF], pronto para retirada",
+    "slug": "coordenacao-do-servico-de-protecao-social-basica-no-domicilio-pcf-pronto-para-retirada"
+  },
+  {
+    "texto": "Coordenação do Serviço PAIF, em separação",
+    "slug": "coordenacao-do-servico-paif-em-separacao"
+  },
+  {
+    "texto": "Coordenação do Serviço PAIF, pronto para retirada",
+    "slug": "coordenacao-do-servico-paif-pronto-para-retirada"
+  },
+  {
+    "texto": "Paif, em separação",
+    "slug": "paif-em-separacao"
+  },
+  {
+    "texto": "Paif, pronto para retirada",
+    "slug": "paif-pronto-para-retirada"
+  },
+  {
+    "texto": "CRAS Anil, em separação",
+    "slug": "cras-anil-em-separacao"
+  },
+  {
+    "texto": "CRAS Anil, pronto para retirada",
+    "slug": "cras-anil-pronto-para-retirada"
+  },
+  {
+    "texto": "Cras Anil, em separação",
+    "slug": "cras-anil-em-separacao"
+  },
+  {
+    "texto": "Cras Anil, pronto para retirada",
+    "slug": "cras-anil-pronto-para-retirada"
+  },
+  {
+    "texto": "CRAS Anjo da Guarda, em separação",
+    "slug": "cras-anjo-da-guarda-em-separacao"
+  },
+  {
+    "texto": "CRAS Anjo da Guarda, pronto para retirada",
+    "slug": "cras-anjo-da-guarda-pronto-para-retirada"
+  },
+  {
+    "texto": "Cras Anjo Da Guarda, em separação",
+    "slug": "cras-anjo-da-guarda-em-separacao"
+  },
+  {
+    "texto": "Cras Anjo Da Guarda, pronto para retirada",
+    "slug": "cras-anjo-da-guarda-pronto-para-retirada"
+  },
+  {
+    "texto": "CRAS Bairro de Fátima, em separação",
+    "slug": "cras-bairro-de-fatima-em-separacao"
+  },
+  {
+    "texto": "CRAS Bairro de Fátima, pronto para retirada",
+    "slug": "cras-bairro-de-fatima-pronto-para-retirada"
+  },
+  {
+    "texto": "Cras Bairro De Fatima, em separação",
+    "slug": "cras-bairro-de-fatima-em-separacao"
+  },
+  {
+    "texto": "Cras Bairro De Fatima, pronto para retirada",
+    "slug": "cras-bairro-de-fatima-pronto-para-retirada"
+  },
+  {
+    "texto": "CRAS Bequimão, em separação",
+    "slug": "cras-bequimao-em-separacao"
+  },
+  {
+    "texto": "CRAS Bequimão, pronto para retirada",
+    "slug": "cras-bequimao-pronto-para-retirada"
+  },
+  {
+    "texto": "Cras Bequimão, em separação",
+    "slug": "cras-bequimao-em-separacao"
+  },
+  {
+    "texto": "Cras Bequimão, pronto para retirada",
+    "slug": "cras-bequimao-pronto-para-retirada"
+  },
+  {
+    "texto": "CRAS Centro, em separação",
+    "slug": "cras-centro-em-separacao"
+  },
+  {
+    "texto": "CRAS Centro, pronto para retirada",
+    "slug": "cras-centro-pronto-para-retirada"
+  },
+  {
+    "texto": "Cras Centro, em separação",
+    "slug": "cras-centro-em-separacao"
+  },
+  {
+    "texto": "Cras Centro, pronto para retirada",
+    "slug": "cras-centro-pronto-para-retirada"
+  },
+  {
+    "texto": "CRAS Cidade Olímpica, em separação",
+    "slug": "cras-cidade-olimpica-em-separacao"
+  },
+  {
+    "texto": "CRAS Cidade Olímpica, pronto para retirada",
+    "slug": "cras-cidade-olimpica-pronto-para-retirada"
+  },
+  {
+    "texto": "Cras Cidade Olimpica, em separação",
+    "slug": "cras-cidade-olimpica-em-separacao"
+  },
+  {
+    "texto": "Cras Cidade Olimpica, pronto para retirada",
+    "slug": "cras-cidade-olimpica-pronto-para-retirada"
+  },
+  {
+    "texto": "CRAS Cidade Operária, em separação",
+    "slug": "cras-cidade-operaria-em-separacao"
+  },
+  {
+    "texto": "CRAS Cidade Operária, pronto para retirada",
+    "slug": "cras-cidade-operaria-pronto-para-retirada"
+  },
+  {
+    "texto": "Cras Cidade Operária, em separação",
+    "slug": "cras-cidade-operaria-em-separacao"
+  },
+  {
+    "texto": "Cras Cidade Operária, pronto para retirada",
+    "slug": "cras-cidade-operaria-pronto-para-retirada"
+  },
+  {
+    "texto": "CRAS Cohab, em separação",
+    "slug": "cras-cohab-em-separacao"
+  },
+  {
+    "texto": "CRAS Cohab, pronto para retirada",
+    "slug": "cras-cohab-pronto-para-retirada"
+  },
+  {
+    "texto": "Cras Cohab, em separação",
+    "slug": "cras-cohab-em-separacao"
+  },
+  {
+    "texto": "Cras Cohab, pronto para retirada",
+    "slug": "cras-cohab-pronto-para-retirada"
+  },
+  {
+    "texto": "CRAS Coroadinho, em separação",
+    "slug": "cras-coroadinho-em-separacao"
+  },
+  {
+    "texto": "CRAS Coroadinho, pronto para retirada",
+    "slug": "cras-coroadinho-pronto-para-retirada"
+  },
+  {
+    "texto": "Cras Coroadinho, em separação",
+    "slug": "cras-coroadinho-em-separacao"
+  },
+  {
+    "texto": "Cras Coroadinho, pronto para retirada",
+    "slug": "cras-coroadinho-pronto-para-retirada"
+  },
+  {
+    "texto": "CRAS Estiva, em separação",
+    "slug": "cras-estiva-em-separacao"
+  },
+  {
+    "texto": "CRAS Estiva, pronto para retirada",
+    "slug": "cras-estiva-pronto-para-retirada"
+  },
+  {
+    "texto": "Cras Estiva, em separação",
+    "slug": "cras-estiva-em-separacao"
+  },
+  {
+    "texto": "Cras Estiva, pronto para retirada",
+    "slug": "cras-estiva-pronto-para-retirada"
+  },
+  {
+    "texto": "CRAS Estiva Subprefeitura, em separação",
+    "slug": "cras-estiva-subprefeitura-em-separacao"
+  },
+  {
+    "texto": "CRAS Estiva Subprefeitura, pronto para retirada",
+    "slug": "cras-estiva-subprefeitura-pronto-para-retirada"
+  },
+  {
+    "texto": "Cras Estiva (Sub Prefeitura), em separação",
+    "slug": "cras-estiva-sub-prefeitura-em-separacao"
+  },
+  {
+    "texto": "Cras Estiva (Sub Prefeitura), pronto para retirada",
+    "slug": "cras-estiva-sub-prefeitura-pronto-para-retirada"
+  },
+  {
+    "texto": "SUBPREFEITURA [ESTIVA], em separação",
+    "slug": "subprefeitura-estiva-em-separacao"
+  },
+  {
+    "texto": "SUBPREFEITURA [ESTIVA], pronto para retirada",
+    "slug": "subprefeitura-estiva-pronto-para-retirada"
+  },
+  {
+    "texto": "CRAS Janaína, em separação",
+    "slug": "cras-janaina-em-separacao"
+  },
+  {
+    "texto": "CRAS Janaína, pronto para retirada",
+    "slug": "cras-janaina-pronto-para-retirada"
+  },
+  {
+    "texto": "Cras Janaina, em separação",
+    "slug": "cras-janaina-em-separacao"
+  },
+  {
+    "texto": "Cras Janaina, pronto para retirada",
+    "slug": "cras-janaina-pronto-para-retirada"
+  },
+  {
+    "texto": "CRAS João de Deus, em separação",
+    "slug": "cras-joao-de-deus-em-separacao"
+  },
+  {
+    "texto": "CRAS João de Deus, pronto para retirada",
+    "slug": "cras-joao-de-deus-pronto-para-retirada"
+  },
+  {
+    "texto": "Cras João De Deus, em separação",
+    "slug": "cras-joao-de-deus-em-separacao"
+  },
+  {
+    "texto": "Cras João De Deus, pronto para retirada",
+    "slug": "cras-joao-de-deus-pronto-para-retirada"
+  },
+  {
+    "texto": "CRAS Liberdade, em separação",
+    "slug": "cras-liberdade-em-separacao"
+  },
+  {
+    "texto": "CRAS Liberdade, pronto para retirada",
+    "slug": "cras-liberdade-pronto-para-retirada"
+  },
+  {
+    "texto": "Cras Liberdade, em separação",
+    "slug": "cras-liberdade-em-separacao"
+  },
+  {
+    "texto": "Cras Liberdade, pronto para retirada",
+    "slug": "cras-liberdade-pronto-para-retirada"
+  },
+  {
+    "texto": "CRAS Maracanã, em separação",
+    "slug": "cras-maracana-em-separacao"
+  },
+  {
+    "texto": "CRAS Maracanã, pronto para retirada",
+    "slug": "cras-maracana-pronto-para-retirada"
+  },
+  {
+    "texto": "Cras Maracanã, em separação",
+    "slug": "cras-maracana-em-separacao"
+  },
+  {
+    "texto": "Cras Maracanã, pronto para retirada",
+    "slug": "cras-maracana-pronto-para-retirada"
+  },
+  {
+    "texto": "CRAS São Francisco, em separação",
+    "slug": "cras-sao-francisco-em-separacao"
+  },
+  {
+    "texto": "CRAS São Francisco, pronto para retirada",
+    "slug": "cras-sao-francisco-pronto-para-retirada"
+  },
+  {
+    "texto": "Cras Sao Francisco, em separação",
+    "slug": "cras-sao-francisco-em-separacao"
+  },
+  {
+    "texto": "Cras Sao Francisco, pronto para retirada",
+    "slug": "cras-sao-francisco-pronto-para-retirada"
+  },
+  {
+    "texto": "CRAS São Raimundo, em separação",
+    "slug": "cras-sao-raimundo-em-separacao"
+  },
+  {
+    "texto": "CRAS São Raimundo, pronto para retirada",
+    "slug": "cras-sao-raimundo-pronto-para-retirada"
+  },
+  {
+    "texto": "Cras Sao Raimundo, em separação",
+    "slug": "cras-sao-raimundo-em-separacao"
+  },
+  {
+    "texto": "Cras Sao Raimundo, pronto para retirada",
+    "slug": "cras-sao-raimundo-pronto-para-retirada"
+  },
+  {
+    "texto": "CRAS Turu, em separação",
+    "slug": "cras-turu-em-separacao"
+  },
+  {
+    "texto": "CRAS Turu, pronto para retirada",
+    "slug": "cras-turu-pronto-para-retirada"
+  },
+  {
+    "texto": "Cras Turu, em separação",
+    "slug": "cras-turu-em-separacao"
+  },
+  {
+    "texto": "Cras Turu, pronto para retirada",
+    "slug": "cras-turu-pronto-para-retirada"
+  },
+  {
+    "texto": "CRAS Vila Bacanga, em separação",
+    "slug": "cras-vila-bacanga-em-separacao"
+  },
+  {
+    "texto": "CRAS Vila Bacanga, pronto para retirada",
+    "slug": "cras-vila-bacanga-pronto-para-retirada"
+  },
+  {
+    "texto": "Cras Bacanga, em separação",
+    "slug": "cras-bacanga-em-separacao"
+  },
+  {
+    "texto": "Cras Bacanga, pronto para retirada",
+    "slug": "cras-bacanga-pronto-para-retirada"
+  },
+  {
+    "texto": "CRAS Vila Nova, em separação",
+    "slug": "cras-vila-nova-em-separacao"
+  },
+  {
+    "texto": "CRAS Vila Nova, pronto para retirada",
+    "slug": "cras-vila-nova-pronto-para-retirada"
+  },
+  {
+    "texto": "Cras Vila Nova, em separação",
+    "slug": "cras-vila-nova-em-separacao"
+  },
+  {
+    "texto": "Cras Vila Nova, pronto para retirada",
+    "slug": "cras-vila-nova-pronto-para-retirada"
+  },
+  {
+    "texto": "CRAS Vinhais, em separação",
+    "slug": "cras-vinhais-em-separacao"
+  },
+  {
+    "texto": "CRAS Vinhais, pronto para retirada",
+    "slug": "cras-vinhais-pronto-para-retirada"
+  },
+  {
+    "texto": "Cras Vinhas, em separação",
+    "slug": "cras-vinhas-em-separacao"
+  },
+  {
+    "texto": "Cras Vinhas, pronto para retirada",
+    "slug": "cras-vinhas-pronto-para-retirada"
+  },
+  {
+    "texto": "Superintendência de Proteção Social Básica, em separação",
+    "slug": "superintendencia-de-protecao-social-basica-em-separacao"
+  },
+  {
+    "texto": "Superintendência de Proteção Social Básica, pronto para retirada",
+    "slug": "superintendencia-de-protecao-social-basica-pronto-para-retirada"
+  },
+  {
+    "texto": "Superintendência De Proteção Social Básica, em separação",
+    "slug": "superintendencia-de-protecao-social-basica-em-separacao"
+  },
+  {
+    "texto": "Superintendência De Proteção Social Básica, pronto para retirada",
+    "slug": "superintendencia-de-protecao-social-basica-pronto-para-retirada"
+  },
+  {
+    "texto": "Centro POP Centro, em separação",
+    "slug": "centro-pop-centro-em-separacao"
+  },
+  {
+    "texto": "Centro POP Centro, pronto para retirada",
+    "slug": "centro-pop-centro-pronto-para-retirada"
+  },
+  {
+    "texto": "Centro Pop Centro, em separação",
+    "slug": "centro-pop-centro-em-separacao"
+  },
+  {
+    "texto": "Centro Pop Centro, pronto para retirada",
+    "slug": "centro-pop-centro-pronto-para-retirada"
+  },
+  {
+    "texto": "Centro POP Cohab Anil, em separação",
+    "slug": "centro-pop-cohab-anil-em-separacao"
+  },
+  {
+    "texto": "Centro POP Cohab Anil, pronto para retirada",
+    "slug": "centro-pop-cohab-anil-pronto-para-retirada"
+  },
+  {
+    "texto": "Centro Pop Cohab Anil, em separação",
+    "slug": "centro-pop-cohab-anil-em-separacao"
+  },
+  {
+    "texto": "Centro Pop Cohab Anil, pronto para retirada",
+    "slug": "centro-pop-cohab-anil-pronto-para-retirada"
+  },
+  {
+    "texto": "Coordenação de Gestão do Programa AEPETI, em separação",
+    "slug": "coordenacao-de-gestao-do-programa-aepeti-em-separacao"
+  },
+  {
+    "texto": "Coordenação de Gestão do Programa AEPETI, pronto para retirada",
+    "slug": "coordenacao-de-gestao-do-programa-aepeti-pronto-para-retirada"
+  },
+  {
+    "texto": "Coordenação Aepeti, em separação",
+    "slug": "coordenacao-aepeti-em-separacao"
+  },
+  {
+    "texto": "Coordenação Aepeti, pronto para retirada",
+    "slug": "coordenacao-aepeti-pronto-para-retirada"
+  },
+  {
+    "texto": "Coordenação do Serviço de Medidas Socioeducativas (LA e PSC), em separação",
+    "slug": "coordenacao-do-servico-de-medidas-socioeducativas-la-e-psc-em-separacao"
+  },
+  {
+    "texto": "Coordenação do Serviço de Medidas Socioeducativas (LA e PSC), pronto para retirada",
+    "slug": "coordenacao-do-servico-de-medidas-socioeducativas-la-e-psc-pronto-para-retirada"
+  },
+  {
+    "texto": "Serviço De Proteção A Adolescentes (LA PSC), em separação",
+    "slug": "servico-de-protecao-a-adolescentes-la-psc-em-separacao"
+  },
+  {
+    "texto": "Serviço De Proteção A Adolescentes (LA PSC), pronto para retirada",
+    "slug": "servico-de-protecao-a-adolescentes-la-psc-pronto-para-retirada"
+  },
+  {
+    "texto": "Coordenação do Serviço Especializado em Abordagem Social (SEAS), em separação",
+    "slug": "coordenacao-do-servico-especializado-em-abordagem-social-seas-em-separacao"
+  },
+  {
+    "texto": "Coordenação do Serviço Especializado em Abordagem Social (SEAS), pronto para retirada",
+    "slug": "coordenacao-do-servico-especializado-em-abordagem-social-seas-pronto-para-retirada"
+  },
+  {
+    "texto": "Coordenação Do Serviço Especializado Em Abordagem Social, em separação",
+    "slug": "coordenacao-do-servico-especializado-em-abordagem-social-em-separacao"
+  },
+  {
+    "texto": "Coordenação Do Serviço Especializado Em Abordagem Social, pronto para retirada",
+    "slug": "coordenacao-do-servico-especializado-em-abordagem-social-pronto-para-retirada"
+  },
+  {
+    "texto": "Coordenação do Serviço Especializado para Pessoas em Situação de Rua, em separação",
+    "slug": "coordenacao-do-servico-especializado-para-pessoas-em-situacao-de-rua-em-separacao"
+  },
+  {
+    "texto": "Coordenação do Serviço Especializado para Pessoas em Situação de Rua, pronto para retirada",
+    "slug": "coordenacao-do-servico-especializado-para-pessoas-em-situacao-de-rua-pronto-para-retirada"
+  },
+  {
+    "texto": "Coordenação Pop Rua, em separação",
+    "slug": "coordenacao-pop-rua-em-separacao"
+  },
+  {
+    "texto": "Coordenação Pop Rua, pronto para retirada",
+    "slug": "coordenacao-pop-rua-pronto-para-retirada"
+  },
+  {
+    "texto": "Coordenação do Serviço PAEFI, em separação",
+    "slug": "coordenacao-do-servico-paefi-em-separacao"
+  },
+  {
+    "texto": "Coordenação do Serviço PAEFI, pronto para retirada",
+    "slug": "coordenacao-do-servico-paefi-pronto-para-retirada"
+  },
+  {
+    "texto": "Coordenação Paefi, em separação",
+    "slug": "coordenacao-paefi-em-separacao"
+  },
+  {
+    "texto": "Coordenação Paefi, pronto para retirada",
+    "slug": "coordenacao-paefi-pronto-para-retirada"
+  },
+  {
+    "texto": "Coordenação do Serviço PSE Média Compl. p Pessoas com Deficiência e Idosas (PCDIF), em separação",
+    "slug": "coordenacao-do-servico-pse-media-compl-p-pessoas-com-deficiencia-e-idosas-pcdif-em-separacao"
+  },
+  {
+    "texto": "Coordenação do Serviço PSE Média Compl. p Pessoas com Deficiência e Idosas (PCDIF), pronto para retirada",
+    "slug": "coordenacao-do-servico-pse-media-compl-p-pessoas-com-deficiencia-e-idosas-pcdif-pronto-para-retirada"
+  },
+  {
+    "texto": "Pcdif, em separação",
+    "slug": "pcdif-em-separacao"
+  },
+  {
+    "texto": "Pcdif, pronto para retirada",
+    "slug": "pcdif-pronto-para-retirada"
+  },
+  {
+    "texto": "Coordenação Do Serviço PSE Média PCD Idosos, em separação",
+    "slug": "coordenacao-do-servico-pse-media-pcd-idosos-em-separacao"
+  },
+  {
+    "texto": "Coordenação Do Serviço PSE Média PCD Idosos, pronto para retirada",
+    "slug": "coordenacao-do-servico-pse-media-pcd-idosos-pronto-para-retirada"
+  },
+  {
+    "texto": "CREAS Centro, em separação",
+    "slug": "creas-centro-em-separacao"
+  },
+  {
+    "texto": "CREAS Centro, pronto para retirada",
+    "slug": "creas-centro-pronto-para-retirada"
+  },
+  {
+    "texto": "Creas Centro, em separação",
+    "slug": "creas-centro-em-separacao"
+  },
+  {
+    "texto": "Creas Centro, pronto para retirada",
+    "slug": "creas-centro-pronto-para-retirada"
+  },
+  {
+    "texto": "CREAS Cidade Operária, em separação",
+    "slug": "creas-cidade-operaria-em-separacao"
+  },
+  {
+    "texto": "CREAS Cidade Operária, pronto para retirada",
+    "slug": "creas-cidade-operaria-pronto-para-retirada"
+  },
+  {
+    "texto": "Creas Cidade Operaria, em separação",
+    "slug": "creas-cidade-operaria-em-separacao"
+  },
+  {
+    "texto": "Creas Cidade Operaria, pronto para retirada",
+    "slug": "creas-cidade-operaria-pronto-para-retirada"
+  },
+  {
+    "texto": "CREAS Coroadinho, em separação",
+    "slug": "creas-coroadinho-em-separacao"
+  },
+  {
+    "texto": "CREAS Coroadinho, pronto para retirada",
+    "slug": "creas-coroadinho-pronto-para-retirada"
+  },
+  {
+    "texto": "Creas Coroadinho, em separação",
+    "slug": "creas-coroadinho-em-separacao"
+  },
+  {
+    "texto": "Creas Coroadinho, pronto para retirada",
+    "slug": "creas-coroadinho-pronto-para-retirada"
+  },
+  {
+    "texto": "CREAS Coroadinho equipe lotada na Sede, em separação",
+    "slug": "creas-coroadinho-equipe-lotada-na-sede-em-separacao"
+  },
+  {
+    "texto": "CREAS Coroadinho equipe lotada na Sede, pronto para retirada",
+    "slug": "creas-coroadinho-equipe-lotada-na-sede-pronto-para-retirada"
+  },
+  {
+    "texto": "Creas Coroadinho (cadastrado como SEDE), em separação",
+    "slug": "creas-coroadinho-cadastrado-como-sede-em-separacao"
+  },
+  {
+    "texto": "Creas Coroadinho (cadastrado como SEDE), pronto para retirada",
+    "slug": "creas-coroadinho-cadastrado-como-sede-pronto-para-retirada"
+  },
+  {
+    "texto": "CREAS Itaqui Bacanga, em separação",
+    "slug": "creas-itaqui-bacanga-em-separacao"
+  },
+  {
+    "texto": "CREAS Itaqui Bacanga, pronto para retirada",
+    "slug": "creas-itaqui-bacanga-pronto-para-retirada"
+  },
+  {
+    "texto": "Creas Bacanga, em separação",
+    "slug": "creas-bacanga-em-separacao"
+  },
+  {
+    "texto": "Creas Bacanga, pronto para retirada",
+    "slug": "creas-bacanga-pronto-para-retirada"
+  },
+  {
+    "texto": "CREAS Sol e Mar, em separação",
+    "slug": "creas-sol-e-mar-em-separacao"
+  },
+  {
+    "texto": "CREAS Sol e Mar, pronto para retirada",
+    "slug": "creas-sol-e-mar-pronto-para-retirada"
+  },
+  {
+    "texto": "Creas Sol E Mar, em separação",
+    "slug": "creas-sol-e-mar-em-separacao"
+  },
+  {
+    "texto": "Creas Sol E Mar, pronto para retirada",
+    "slug": "creas-sol-e-mar-pronto-para-retirada"
+  },
+  {
+    "texto": "Diretoria Técnica de Medidas Socioeducativas, em separação",
+    "slug": "diretoria-tecnica-de-medidas-socioeducativas-em-separacao"
+  },
+  {
+    "texto": "Diretoria Técnica de Medidas Socioeducativas, pronto para retirada",
+    "slug": "diretoria-tecnica-de-medidas-socioeducativas-pronto-para-retirada"
+  },
+  {
+    "texto": "Medidas Socio Educativas, em separação",
+    "slug": "medidas-socio-educativas-em-separacao"
+  },
+  {
+    "texto": "Medidas Socio Educativas, pronto para retirada",
+    "slug": "medidas-socio-educativas-pronto-para-retirada"
+  },
+  {
+    "texto": "Medidas Socioeducativas, em separação",
+    "slug": "medidas-socioeducativas-em-separacao"
+  },
+  {
+    "texto": "Medidas Socioeducativas, pronto para retirada",
+    "slug": "medidas-socioeducativas-pronto-para-retirada"
+  },
+  {
+    "texto": "Núcleo Intersetorial de Medidas em Meio Aberto (MSE), em separação",
+    "slug": "nucleo-intersetorial-de-medidas-em-meio-aberto-mse-em-separacao"
+  },
+  {
+    "texto": "Núcleo Intersetorial de Medidas em Meio Aberto (MSE), pronto para retirada",
+    "slug": "nucleo-intersetorial-de-medidas-em-meio-aberto-mse-pronto-para-retirada"
+  },
+  {
+    "texto": "MSE [SEDE], em separação",
+    "slug": "mse-sede-em-separacao"
+  },
+  {
+    "texto": "MSE [SEDE], pronto para retirada",
+    "slug": "mse-sede-pronto-para-retirada"
+  },
+  {
+    "texto": "Superintendência de PSE de Média Complexidade, em separação",
+    "slug": "superintendencia-de-pse-de-media-complexidade-em-separacao"
+  },
+  {
+    "texto": "Superintendência de PSE de Média Complexidade, pronto para retirada",
+    "slug": "superintendencia-de-pse-de-media-complexidade-pronto-para-retirada"
+  },
+  {
+    "texto": "Superintendência PSE Média Complexidade, em separação",
+    "slug": "superintendencia-pse-media-complexidade-em-separacao"
+  },
+  {
+    "texto": "Superintendência PSE Média Complexidade, pronto para retirada",
+    "slug": "superintendencia-pse-media-complexidade-pronto-para-retirada"
+  },
+  {
+    "texto": "Abrigo Casa de Acolhida Temporária (CAT), em separação",
+    "slug": "abrigo-casa-de-acolhida-temporaria-cat-em-separacao"
+  },
+  {
+    "texto": "Abrigo Casa de Acolhida Temporária (CAT), pronto para retirada",
+    "slug": "abrigo-casa-de-acolhida-temporaria-cat-pronto-para-retirada"
+  },
+  {
+    "texto": "Cat, em separação",
+    "slug": "cat-em-separacao"
+  },
+  {
+    "texto": "Cat, pronto para retirada",
+    "slug": "cat-pronto-para-retirada"
+  },
+  {
+    "texto": "Abrigo Institucional Pessoas em Situação de Rua (Pop Rua), em separação",
+    "slug": "abrigo-institucional-pessoas-em-situacao-de-rua-pop-rua-em-separacao"
+  },
+  {
+    "texto": "Abrigo Institucional Pessoas em Situação de Rua (Pop Rua), pronto para retirada",
+    "slug": "abrigo-institucional-pessoas-em-situacao-de-rua-pop-rua-pronto-para-retirada"
+  },
+  {
+    "texto": "Pop Rua, em separação",
+    "slug": "pop-rua-em-separacao"
+  },
+  {
+    "texto": "Pop Rua, pronto para retirada",
+    "slug": "pop-rua-pronto-para-retirada"
+  },
+  {
+    "texto": "Abrigo Residência Inclusiva (R.I), em separação",
+    "slug": "abrigo-residencia-inclusiva-r-i-em-separacao"
+  },
+  {
+    "texto": "Abrigo Residência Inclusiva (R.I), pronto para retirada",
+    "slug": "abrigo-residencia-inclusiva-r-i-pronto-para-retirada"
+  },
+  {
+    "texto": "Residência Inclusiva [R.I], em separação",
+    "slug": "residencia-inclusiva-r-i-em-separacao"
+  },
+  {
+    "texto": "Residência Inclusiva [R.I], pronto para retirada",
+    "slug": "residencia-inclusiva-r-i-pronto-para-retirada"
+  },
+  {
+    "texto": "Casa Acolher e Amar, em separação",
+    "slug": "casa-acolher-e-amar-em-separacao"
+  },
+  {
+    "texto": "Casa Acolher e Amar, pronto para retirada",
+    "slug": "casa-acolher-e-amar-pronto-para-retirada"
+  },
+  {
+    "texto": "Acolher E Amar, em separação",
+    "slug": "acolher-e-amar-em-separacao"
+  },
+  {
+    "texto": "Acolher E Amar, pronto para retirada",
+    "slug": "acolher-e-amar-pronto-para-retirada"
+  },
+  {
+    "texto": "Diretoria Técnica da Central de Acolhimento Acolhimento Institucional Família Acolhedora, em separação",
+    "slug": "diretoria-tecnica-da-central-de-acolhimento-acolhimento-institucional-familia-acolhedora-em-separacao"
+  },
+  {
+    "texto": "Diretoria Técnica da Central de Acolhimento Acolhimento Institucional Família Acolhedora, pronto para retirada",
+    "slug": "diretoria-tecnica-da-central-de-acolhimento-acolhimento-institucional-familia-acolhedora-pronto-para-retirada"
+  },
+  {
+    "texto": "Diretoria Técnica De Acolhimento Institucional Central Família Acolhedora, em separação",
+    "slug": "diretoria-tecnica-de-acolhimento-institucional-central-familia-acolhedora-em-separacao"
+  },
+  {
+    "texto": "Diretoria Técnica De Acolhimento Institucional Central Família Acolhedora, pronto para retirada",
+    "slug": "diretoria-tecnica-de-acolhimento-institucional-central-familia-acolhedora-pronto-para-retirada"
+  },
+  {
+    "texto": "ILPI Lar Calabriano, em separação",
+    "slug": "ilpi-lar-calabriano-em-separacao"
+  },
+  {
+    "texto": "ILPI Lar Calabriano, pronto para retirada",
+    "slug": "ilpi-lar-calabriano-pronto-para-retirada"
+  },
+  {
+    "texto": "Ilpi, em separação",
+    "slug": "ilpi-em-separacao"
+  },
+  {
+    "texto": "Ilpi, pronto para retirada",
+    "slug": "ilpi-pronto-para-retirada"
+  },
+  {
+    "texto": "República Jovem, em separação",
+    "slug": "republica-jovem-em-separacao"
+  },
+  {
+    "texto": "República Jovem, pronto para retirada",
+    "slug": "republica-jovem-pronto-para-retirada"
+  },
+  {
+    "texto": "Superintendência de PSE de Alta Complexidade, em separação",
+    "slug": "superintendencia-de-pse-de-alta-complexidade-em-separacao"
+  },
+  {
+    "texto": "Superintendência de PSE de Alta Complexidade, pronto para retirada",
+    "slug": "superintendencia-de-pse-de-alta-complexidade-pronto-para-retirada"
+  },
+  {
+    "texto": "Superintendência PSE Alta Complexidade, em separação",
+    "slug": "superintendencia-pse-alta-complexidade-em-separacao"
+  },
+  {
+    "texto": "Superintendência PSE Alta Complexidade, pronto para retirada",
+    "slug": "superintendencia-pse-alta-complexidade-pronto-para-retirada"
+  },
+  {
+    "texto": "Coordenação de Benefícios Socioassistenciais, em separação",
+    "slug": "coordenacao-de-beneficios-socioassistenciais-em-separacao"
+  },
+  {
+    "texto": "Coordenação de Benefícios Socioassistenciais, pronto para retirada",
+    "slug": "coordenacao-de-beneficios-socioassistenciais-pronto-para-retirada"
+  },
+  {
+    "texto": "Coordenação De Benefícios Socioassistenciais, em separação",
+    "slug": "coordenacao-de-beneficios-socioassistenciais-em-separacao"
+  },
+  {
+    "texto": "Coordenação De Benefícios Socioassistenciais, pronto para retirada",
+    "slug": "coordenacao-de-beneficios-socioassistenciais-pronto-para-retirada"
+  },
+  {
+    "texto": "Diretoria Técnica de Cadastro Único e Transferência de Renda, em separação",
+    "slug": "diretoria-tecnica-de-cadastro-unico-e-transferencia-de-renda-em-separacao"
+  },
+  {
+    "texto": "Diretoria Técnica de Cadastro Único e Transferência de Renda, pronto para retirada",
+    "slug": "diretoria-tecnica-de-cadastro-unico-e-transferencia-de-renda-pronto-para-retirada"
+  },
+  {
+    "texto": "Diretoria Técnica De Cadastro Único E Transferência De Renda, em separação",
+    "slug": "diretoria-tecnica-de-cadastro-unico-e-transferencia-de-renda-em-separacao"
+  },
+  {
+    "texto": "Diretoria Técnica De Cadastro Único E Transferência De Renda, pronto para retirada",
+    "slug": "diretoria-tecnica-de-cadastro-unico-e-transferencia-de-renda-pronto-para-retirada"
+  },
+  {
+    "texto": "Superintendência de Gestão de Benefícios Socioassistenciais e Transferência de Renda (SGBSTR), em separação",
+    "slug": "superintendencia-de-gestao-de-beneficios-socioassistenciais-e-transferencia-de-renda-sgbstr-em-separacao"
+  },
+  {
+    "texto": "Superintendência de Gestão de Benefícios Socioassistenciais e Transferência de Renda (SGBSTR), pronto para retirada",
+    "slug": "superintendencia-de-gestao-de-beneficios-socioassistenciais-e-transferencia-de-renda-sgbstr-pronto-para-retirada"
+  },
+  {
+    "texto": "Superintendência De Gestão De Benefícios E Transferência De Renda, em separação",
+    "slug": "superintendencia-de-gestao-de-beneficios-e-transferencia-de-renda-em-separacao"
+  },
+  {
+    "texto": "Superintendência De Gestão De Benefícios E Transferência De Renda, pronto para retirada",
+    "slug": "superintendencia-de-gestao-de-beneficios-e-transferencia-de-renda-pronto-para-retirada"
+  },
+  {
+    "texto": "Superintendência de Articulação Institucional (SAI), em separação",
+    "slug": "superintendencia-de-articulacao-institucional-sai-em-separacao"
+  },
+  {
+    "texto": "Superintendência de Articulação Institucional (SAI), pronto para retirada",
+    "slug": "superintendencia-de-articulacao-institucional-sai-pronto-para-retirada"
+  },
+  {
+    "texto": "Superintendência De Articulação Institucional [SAI], em separação",
+    "slug": "superintendencia-de-articulacao-institucional-sai-em-separacao"
+  },
+  {
+    "texto": "Superintendência De Articulação Institucional [SAI], pronto para retirada",
+    "slug": "superintendencia-de-articulacao-institucional-sai-pronto-para-retirada"
+  },
+  {
+    "texto": "Coordenação de Administração e Patrimônio, em separação",
+    "slug": "coordenacao-de-administracao-e-patrimonio-em-separacao"
+  },
+  {
+    "texto": "Coordenação de Administração e Patrimônio, pronto para retirada",
+    "slug": "coordenacao-de-administracao-e-patrimonio-pronto-para-retirada"
+  },
+  {
+    "texto": "Coordenação De Administração E Patrimônio, em separação",
+    "slug": "coordenacao-de-administracao-e-patrimonio-em-separacao"
+  },
+  {
+    "texto": "Coordenação De Administração E Patrimônio, pronto para retirada",
+    "slug": "coordenacao-de-administracao-e-patrimonio-pronto-para-retirada"
+  },
+  {
+    "texto": "Coordenação de Contratos, em separação",
+    "slug": "coordenacao-de-contratos-em-separacao"
+  },
+  {
+    "texto": "Coordenação de Contratos, pronto para retirada",
+    "slug": "coordenacao-de-contratos-pronto-para-retirada"
+  },
+  {
+    "texto": "Coordenação De Contratos, em separação",
+    "slug": "coordenacao-de-contratos-em-separacao"
+  },
+  {
+    "texto": "Coordenação De Contratos, pronto para retirada",
+    "slug": "coordenacao-de-contratos-pronto-para-retirada"
+  },
+  {
+    "texto": "Coordenação de Recursos Humanos (RH Folha), em separação",
+    "slug": "coordenacao-de-recursos-humanos-rh-folha-em-separacao"
+  },
+  {
+    "texto": "Coordenação de Recursos Humanos (RH Folha), pronto para retirada",
+    "slug": "coordenacao-de-recursos-humanos-rh-folha-pronto-para-retirada"
+  },
+  {
+    "texto": "Coordenação De RH Folha [RH], em separação",
+    "slug": "coordenacao-de-rh-folha-rh-em-separacao"
+  },
+  {
+    "texto": "Coordenação De RH Folha [RH], pronto para retirada",
+    "slug": "coordenacao-de-rh-folha-rh-pronto-para-retirada"
+  },
+  {
+    "texto": "Diretoria Técnica de Almoxarifado e Patrimônio, em separação",
+    "slug": "diretoria-tecnica-de-almoxarifado-e-patrimonio-em-separacao"
+  },
+  {
+    "texto": "Diretoria Técnica de Almoxarifado e Patrimônio, pronto para retirada",
+    "slug": "diretoria-tecnica-de-almoxarifado-e-patrimonio-pronto-para-retirada"
+  },
+  {
+    "texto": "Diretoria Técnica De Almoxarifado E Patrimônio, em separação",
+    "slug": "diretoria-tecnica-de-almoxarifado-e-patrimonio-em-separacao"
+  },
+  {
+    "texto": "Diretoria Técnica De Almoxarifado E Patrimônio, pronto para retirada",
+    "slug": "diretoria-tecnica-de-almoxarifado-e-patrimonio-pronto-para-retirada"
+  },
+  {
+    "texto": "Diretoria Técnica de Arquivo e Protocolo, em separação",
+    "slug": "diretoria-tecnica-de-arquivo-e-protocolo-em-separacao"
+  },
+  {
+    "texto": "Diretoria Técnica de Arquivo e Protocolo, pronto para retirada",
+    "slug": "diretoria-tecnica-de-arquivo-e-protocolo-pronto-para-retirada"
+  },
+  {
+    "texto": "ARQUIVO, em separação",
+    "slug": "arquivo-em-separacao"
+  },
+  {
+    "texto": "ARQUIVO, pronto para retirada",
+    "slug": "arquivo-pronto-para-retirada"
+  },
+  {
+    "texto": "Diretoria Técnica De Arquivo E Protocolo, em separação",
+    "slug": "diretoria-tecnica-de-arquivo-e-protocolo-em-separacao"
+  },
+  {
+    "texto": "Diretoria Técnica De Arquivo E Protocolo, pronto para retirada",
+    "slug": "diretoria-tecnica-de-arquivo-e-protocolo-pronto-para-retirada"
+  },
+  {
+    "texto": "Diretoria Técnica de Informática, em separação",
+    "slug": "diretoria-tecnica-de-informatica-em-separacao"
+  },
+  {
+    "texto": "Diretoria Técnica de Informática, pronto para retirada",
+    "slug": "diretoria-tecnica-de-informatica-pronto-para-retirada"
+  },
+  {
+    "texto": "Diretoria Técnica De Informática, em separação",
+    "slug": "diretoria-tecnica-de-informatica-em-separacao"
+  },
+  {
+    "texto": "Diretoria Técnica De Informática, pronto para retirada",
+    "slug": "diretoria-tecnica-de-informatica-pronto-para-retirada"
+  },
+  {
+    "texto": "Diretoria Técnica de Manutenção, em separação",
+    "slug": "diretoria-tecnica-de-manutencao-em-separacao"
+  },
+  {
+    "texto": "Diretoria Técnica de Manutenção, pronto para retirada",
+    "slug": "diretoria-tecnica-de-manutencao-pronto-para-retirada"
+  },
+  {
+    "texto": "Diretoria Técnica De Manutenção, em separação",
+    "slug": "diretoria-tecnica-de-manutencao-em-separacao"
+  },
+  {
+    "texto": "Diretoria Técnica De Manutenção, pronto para retirada",
+    "slug": "diretoria-tecnica-de-manutencao-pronto-para-retirada"
+  },
+  {
+    "texto": "Diretoria Técnica de Transporte, em separação",
+    "slug": "diretoria-tecnica-de-transporte-em-separacao"
+  },
+  {
+    "texto": "Diretoria Técnica de Transporte, pronto para retirada",
+    "slug": "diretoria-tecnica-de-transporte-pronto-para-retirada"
+  },
+  {
+    "texto": "Diretoria Técnica De Transporte, em separação",
+    "slug": "diretoria-tecnica-de-transporte-em-separacao"
+  },
+  {
+    "texto": "Diretoria Técnica De Transporte, pronto para retirada",
+    "slug": "diretoria-tecnica-de-transporte-pronto-para-retirada"
+  },
+  {
+    "texto": "Superintendência de Administração, em separação",
+    "slug": "superintendencia-de-administracao-em-separacao"
+  },
+  {
+    "texto": "Superintendência de Administração, pronto para retirada",
+    "slug": "superintendencia-de-administracao-pronto-para-retirada"
+  },
+  {
+    "texto": "Superintendência De Administração, em separação",
+    "slug": "superintendencia-de-administracao-em-separacao"
+  },
+  {
+    "texto": "Superintendência De Administração, pronto para retirada",
+    "slug": "superintendencia-de-administracao-pronto-para-retirada"
+  },
+  {
+    "texto": "Superintendência de Execução Orçamentária, Financeira e de Contabilidade (SEOFC), em separação",
+    "slug": "superintendencia-de-execucao-orcamentaria-financeira-e-de-contabilidade-seofc-em-separacao"
+  },
+  {
+    "texto": "Superintendência de Execução Orçamentária, Financeira e de Contabilidade (SEOFC), pronto para retirada",
+    "slug": "superintendencia-de-execucao-orcamentaria-financeira-e-de-contabilidade-seofc-pronto-para-retirada"
+  },
+  {
+    "texto": "Superintendência De Execução Orçamentária Contabilidade Fundos, em separação",
+    "slug": "superintendencia-de-execucao-orcamentaria-contabilidade-fundos-em-separacao"
+  },
+  {
+    "texto": "Superintendência De Execução Orçamentária Contabilidade Fundos, pronto para retirada",
+    "slug": "superintendencia-de-execucao-orcamentaria-contabilidade-fundos-pronto-para-retirada"
+  },
+  {
+    "texto": "CMAS Conselho Municipal de Assistência Social, em separação",
+    "slug": "cmas-conselho-municipal-de-assistencia-social-em-separacao"
+  },
+  {
+    "texto": "CMAS Conselho Municipal de Assistência Social, pronto para retirada",
+    "slug": "cmas-conselho-municipal-de-assistencia-social-pronto-para-retirada"
+  },
+  {
+    "texto": "Cmas, em separação",
+    "slug": "cmas-em-separacao"
+  },
+  {
+    "texto": "Cmas, pronto para retirada",
+    "slug": "cmas-pronto-para-retirada"
+  },
+  {
+    "texto": "CMDCA Conselho Municipal dos Direitos da Criança e do Adolescente, em separação",
+    "slug": "cmdca-conselho-municipal-dos-direitos-da-crianca-e-do-adolescente-em-separacao"
+  },
+  {
+    "texto": "CMDCA Conselho Municipal dos Direitos da Criança e do Adolescente, pronto para retirada",
+    "slug": "cmdca-conselho-municipal-dos-direitos-da-crianca-e-do-adolescente-pronto-para-retirada"
+  },
+  {
+    "texto": "Cmdca, em separação",
+    "slug": "cmdca-em-separacao"
+  },
+  {
+    "texto": "Cmdca, pronto para retirada",
+    "slug": "cmdca-pronto-para-retirada"
+  },
+  {
+    "texto": "CMDI Conselho Municipal de Proteção à Pessoa Idosa, em separação",
+    "slug": "cmdi-conselho-municipal-de-protecao-a-pessoa-idosa-em-separacao"
+  },
+  {
+    "texto": "CMDI Conselho Municipal de Proteção à Pessoa Idosa, pronto para retirada",
+    "slug": "cmdi-conselho-municipal-de-protecao-a-pessoa-idosa-pronto-para-retirada"
+  },
+  {
+    "texto": "Cmdi, em separação",
+    "slug": "cmdi-em-separacao"
+  },
+  {
+    "texto": "Cmdi, pronto para retirada",
+    "slug": "cmdi-pronto-para-retirada"
+  },
+  {
+    "texto": "CT Anil Bequimão, em separação",
+    "slug": "ct-anil-bequimao-em-separacao"
+  },
+  {
+    "texto": "CT Anil Bequimão, pronto para retirada",
+    "slug": "ct-anil-bequimao-pronto-para-retirada"
+  },
+  {
+    "texto": "Anil Bequimão, em separação",
+    "slug": "anil-bequimao-em-separacao"
+  },
+  {
+    "texto": "Anil Bequimão, pronto para retirada",
+    "slug": "anil-bequimao-pronto-para-retirada"
+  },
+  {
+    "texto": "CT Centro Alemanha, em separação",
+    "slug": "ct-centro-alemanha-em-separacao"
+  },
+  {
+    "texto": "CT Centro Alemanha, pronto para retirada",
+    "slug": "ct-centro-alemanha-pronto-para-retirada"
+  },
+  {
+    "texto": "Centro Alemanha, em separação",
+    "slug": "centro-alemanha-em-separacao"
+  },
+  {
+    "texto": "Centro Alemanha, pronto para retirada",
+    "slug": "centro-alemanha-pronto-para-retirada"
+  },
+  {
+    "texto": "CT Cidade Operária Cidade Olímpica, em separação",
+    "slug": "ct-cidade-operaria-cidade-olimpica-em-separacao"
+  },
+  {
+    "texto": "CT Cidade Operária Cidade Olímpica, pronto para retirada",
+    "slug": "ct-cidade-operaria-cidade-olimpica-pronto-para-retirada"
+  },
+  {
+    "texto": "Cidade Operária Cidade Olímpica, em separação",
+    "slug": "cidade-operaria-cidade-olimpica-em-separacao"
+  },
+  {
+    "texto": "Cidade Operária Cidade Olímpica, pronto para retirada",
+    "slug": "cidade-operaria-cidade-olimpica-pronto-para-retirada"
+  },
+  {
+    "texto": "CT Cohab Cohatrac, em separação",
+    "slug": "ct-cohab-cohatrac-em-separacao"
+  },
+  {
+    "texto": "CT Cohab Cohatrac, pronto para retirada",
+    "slug": "ct-cohab-cohatrac-pronto-para-retirada"
+  },
+  {
+    "texto": "Cohab Cohatrac, em separação",
+    "slug": "cohab-cohatrac-em-separacao"
+  },
+  {
+    "texto": "Cohab Cohatrac, pronto para retirada",
+    "slug": "cohab-cohatrac-pronto-para-retirada"
+  },
+  {
+    "texto": "CT Itaqui Bacanga, em separação",
+    "slug": "ct-itaqui-bacanga-em-separacao"
+  },
+  {
+    "texto": "CT Itaqui Bacanga, pronto para retirada",
+    "slug": "ct-itaqui-bacanga-pronto-para-retirada"
+  },
+  {
+    "texto": "Itaqui Bacanga, em separação",
+    "slug": "itaqui-bacanga-em-separacao"
+  },
+  {
+    "texto": "Itaqui Bacanga, pronto para retirada",
+    "slug": "itaqui-bacanga-pronto-para-retirada"
+  },
+  {
+    "texto": "CT João Paulo Coroadinho, em separação",
+    "slug": "ct-joao-paulo-coroadinho-em-separacao"
+  },
+  {
+    "texto": "CT João Paulo Coroadinho, pronto para retirada",
+    "slug": "ct-joao-paulo-coroadinho-pronto-para-retirada"
+  },
+  {
+    "texto": "Coroadinho João Paulo, em separação",
+    "slug": "coroadinho-joao-paulo-em-separacao"
+  },
+  {
+    "texto": "Coroadinho João Paulo, pronto para retirada",
+    "slug": "coroadinho-joao-paulo-pronto-para-retirada"
+  },
+  {
+    "texto": "CT São Francisco Cohama, em separação",
+    "slug": "ct-sao-francisco-cohama-em-separacao"
+  },
+  {
+    "texto": "CT São Francisco Cohama, pronto para retirada",
+    "slug": "ct-sao-francisco-cohama-pronto-para-retirada"
+  },
+  {
+    "texto": "São Francisco Cohama, em separação",
+    "slug": "sao-francisco-cohama-em-separacao"
+  },
+  {
+    "texto": "São Francisco Cohama, pronto para retirada",
+    "slug": "sao-francisco-cohama-pronto-para-retirada"
+  },
+  {
+    "texto": "CT São Raimundo São Cristovão, em separação",
+    "slug": "ct-sao-raimundo-sao-cristovao-em-separacao"
+  },
+  {
+    "texto": "CT São Raimundo São Cristovão, pronto para retirada",
+    "slug": "ct-sao-raimundo-sao-cristovao-pronto-para-retirada"
+  },
+  {
+    "texto": "São Cristóvão São Raimundo, em separação",
+    "slug": "sao-cristovao-sao-raimundo-em-separacao"
+  },
+  {
+    "texto": "São Cristóvão São Raimundo, pronto para retirada",
+    "slug": "sao-cristovao-sao-raimundo-pronto-para-retirada"
+  },
+  {
+    "texto": "CT Vila Luizão Turu, em separação",
+    "slug": "ct-vila-luizao-turu-em-separacao"
+  },
+  {
+    "texto": "CT Vila Luizão Turu, pronto para retirada",
+    "slug": "ct-vila-luizao-turu-pronto-para-retirada"
+  },
+  {
+    "texto": "Vila Luizão Turu, em separação",
+    "slug": "vila-luizao-turu-em-separacao"
+  },
+  {
+    "texto": "Vila Luizão Turu, pronto para retirada",
+    "slug": "vila-luizao-turu-pronto-para-retirada"
+  },
+  {
+    "texto": "CT Zona Rural, em separação",
+    "slug": "ct-zona-rural-em-separacao"
+  },
+  {
+    "texto": "CT Zona Rural, pronto para retirada",
+    "slug": "ct-zona-rural-pronto-para-retirada"
+  },
+  {
+    "texto": "Ct Zona Rural, em separação",
+    "slug": "ct-zona-rural-em-separacao"
+  },
+  {
+    "texto": "Ct Zona Rural, pronto para retirada",
+    "slug": "ct-zona-rural-pronto-para-retirada"
+  },
+  {
+    "texto": "Procad PCF, em separação",
+    "slug": "procad-pcf-em-separacao"
+  },
+  {
+    "texto": "Procad PCF, pronto para retirada",
+    "slug": "procad-pcf-pronto-para-retirada"
+  },
+  {
+    "texto": "Procad Pcf, em separação",
+    "slug": "procad-pcf-em-separacao"
+  },
+  {
+    "texto": "Procad Pcf, pronto para retirada",
+    "slug": "procad-pcf-pronto-para-retirada"
+  },
+  {
+    "texto": "Recepção, em separação",
+    "slug": "recepcao-em-separacao"
+  },
+  {
+    "texto": "Recepção, pronto para retirada",
+    "slug": "recepcao-pronto-para-retirada"
+  },
+  {
+    "texto": "Sub Solo, em separação",
+    "slug": "sub-solo-em-separacao"
+  },
+  {
+    "texto": "Sub Solo, pronto para retirada",
+    "slug": "sub-solo-pronto-para-retirada"
+  },
+  {
+    "texto": "Casa do Bairro, em separação",
+    "slug": "casa-do-bairro-em-separacao"
+  },
+  {
+    "texto": "Casa do Bairro, pronto para retirada",
+    "slug": "casa-do-bairro-pronto-para-retirada"
+  },
+  {
+    "texto": "Casa Do Bairro, em separação",
+    "slug": "casa-do-bairro-em-separacao"
+  },
+  {
+    "texto": "Casa Do Bairro, pronto para retirada",
+    "slug": "casa-do-bairro-pronto-para-retirada"
+  },
+  {
+    "texto": "Circo Escola, em separação",
+    "slug": "circo-escola-em-separacao"
+  },
+  {
+    "texto": "Circo Escola, pronto para retirada",
+    "slug": "circo-escola-pronto-para-retirada"
+  },
+  {
+    "texto": "Núcleo Intersetorial de Medidas em Meio Aberto, em separação",
+    "slug": "nucleo-intersetorial-de-medidas-em-meio-aberto-em-separacao"
+  },
+  {
+    "texto": "Núcleo Intersetorial de Medidas em Meio Aberto, pronto para retirada",
+    "slug": "nucleo-intersetorial-de-medidas-em-meio-aberto-pronto-para-retirada"
+  },
+  {
+    "texto": "Núcleo Intersetorial De Atendimento Socioeducativo Em Meio Aberto, em separação",
+    "slug": "nucleo-intersetorial-de-atendimento-socioeducativo-em-meio-aberto-em-separacao"
+  },
+  {
+    "texto": "Núcleo Intersetorial De Atendimento Socioeducativo Em Meio Aberto, pronto para retirada",
+    "slug": "nucleo-intersetorial-de-atendimento-socioeducativo-em-meio-aberto-pronto-para-retirada"
+  },
+  {
+    "texto": "Furo de Estoque, em separação",
+    "slug": "furo-de-estoque-em-separacao"
+  },
+  {
+    "texto": "Furo de Estoque, pronto para retirada",
+    "slug": "furo-de-estoque-pronto-para-retirada"
+  },
+  {
+    "texto": "Furo De Estoque [SISTEMA], em separação",
+    "slug": "furo-de-estoque-sistema-em-separacao"
+  },
+  {
+    "texto": "Furo De Estoque [SISTEMA], pronto para retirada",
+    "slug": "furo-de-estoque-sistema-pronto-para-retirada"
+  },
+  {
+    "texto": "Corredor 2° Andar, em separação",
+    "slug": "corredor-2-andar-em-separacao"
+  },
+  {
+    "texto": "Corredor 2° Andar, pronto para retirada",
+    "slug": "corredor-2-andar-pronto-para-retirada"
+  },
+  {
+    "texto": "Scfv Coordenação Do Serviço De Convivência, em separação",
+    "slug": "scfv-coordenacao-do-servico-de-convivencia-em-separacao"
+  },
+  {
+    "texto": "Scfv Coordenação Do Serviço De Convivência, pronto para retirada",
+    "slug": "scfv-coordenacao-do-servico-de-convivencia-pronto-para-retirada"
+  },
+  {
+    "texto": "Coordenação De Recursos Humanos Diretoria Técnica De Folha De Pagamento, em separação",
+    "slug": "coordenacao-de-recursos-humanos-diretoria-tecnica-de-folha-de-pagamento-em-separacao"
+  },
+  {
+    "texto": "Coordenação De Recursos Humanos Diretoria Técnica De Folha De Pagamento, pronto para retirada",
+    "slug": "coordenacao-de-recursos-humanos-diretoria-tecnica-de-folha-de-pagamento-pronto-para-retirada"
+  },
+  {
+    "texto": "Secretaria Adjunta De Proteção Social, em separação",
+    "slug": "secretaria-adjunta-de-protecao-social-em-separacao"
+  },
+  {
+    "texto": "Secretaria Adjunta De Proteção Social, pronto para retirada",
+    "slug": "secretaria-adjunta-de-protecao-social-pronto-para-retirada"
+  },
+  {
+    "texto": "Superintendência De Gestão De Benefícios Socioassistenciais E Transferência De Renda, em separação",
+    "slug": "superintendencia-de-gestao-de-beneficios-socioassistenciais-e-transferencia-de-renda-em-separacao"
+  },
+  {
+    "texto": "Superintendência De Gestão De Benefícios Socioassistenciais E Transferência De Renda, pronto para retirada",
+    "slug": "superintendencia-de-gestao-de-beneficios-socioassistenciais-e-transferencia-de-renda-pronto-para-retirada"
+  },
+  {
+    "texto": "Corredor Do Terreo, em separação",
+    "slug": "corredor-do-terreo-em-separacao"
+  },
+  {
+    "texto": "Corredor Do Terreo, pronto para retirada",
+    "slug": "corredor-do-terreo-pronto-para-retirada"
+  },
+  {
+    "texto": "Serviço De Proteção A Adolescentes E Cumprimento De Medidas Socioeducativas De Liberdade Assistida E Prestação De Serviço à Comunidade, em separação",
+    "slug": "servico-de-protecao-a-adolescentes-e-cumprimento-de-medidas-socioeducativas-de-liberdade-assistida-e-prestacao-de-servico-a-comunidade-em-separacao"
+  },
+  {
+    "texto": "Serviço De Proteção A Adolescentes E Cumprimento De Medidas Socioeducativas De Liberdade Assistida E Prestação De Serviço à Comunidade, pronto para retirada",
+    "slug": "servico-de-protecao-a-adolescentes-e-cumprimento-de-medidas-socioeducativas-de-liberdade-assistida-e-prestacao-de-servico-a-comunidade-pronto-para-retirada"
+  },
+  {
+    "texto": "Superintendência De Proteção Social Especial De Alta Complexidade Coordenação Dos Serviços De Acolhimento Familiar E Institucional, em separação",
+    "slug": "superintendencia-de-protecao-social-especial-de-alta-complexidade-coordenacao-dos-servicos-de-acolhimento-familiar-e-institucional-em-separacao"
+  },
+  {
+    "texto": "Superintendência De Proteção Social Especial De Alta Complexidade Coordenação Dos Serviços De Acolhimento Familiar E Institucional, pronto para retirada",
+    "slug": "superintendencia-de-protecao-social-especial-de-alta-complexidade-coordenacao-dos-servicos-de-acolhimento-familiar-e-institucional-pronto-para-retirada"
+  },
+  {
+    "texto": "Diretoria Técnica De Acolhimento Institucional Diretoria Técnica Da Central De Acolhimento Diretoria Técnica De Acolhimento Em Família Acolhedora (Superintendência De Alta Complexidade), em separação",
+    "slug": "diretoria-tecnica-de-acolhimento-institucional-diretoria-tecnica-da-central-de-acolhimento-diretoria-tecnica-de-acolhimento-em-familia-acolhedora-superintendencia-de-alta-complexidade-em-separacao"
+  },
+  {
+    "texto": "Superintendência De Gestão Suas Coordenação De Regulação Do Suas Coordenação De Rede Socioassistencial Privada, em separação",
+    "slug": "superintendencia-de-gestao-suas-coordenacao-de-regulacao-do-suas-coordenacao-de-rede-socioassistencial-privada-em-separacao"
+  },
+  {
+    "texto": "Superintendência De Gestão Suas Coordenação De Regulação Do Suas Coordenação De Rede Socioassistencial Privada, pronto para retirada",
+    "slug": "superintendencia-de-gestao-suas-coordenacao-de-regulacao-do-suas-coordenacao-de-rede-socioassistencial-privada-pronto-para-retirada"
+  },
+  {
+    "texto": "Paif Coordenação Do Serviço De Proteção E Atendimento Integral à Família, em separação",
+    "slug": "paif-coordenacao-do-servico-de-protecao-e-atendimento-integral-a-familia-em-separacao"
+  },
+  {
+    "texto": "Paif Coordenação Do Serviço De Proteção E Atendimento Integral à Família, pronto para retirada",
+    "slug": "paif-coordenacao-do-servico-de-protecao-e-atendimento-integral-a-familia-pronto-para-retirada"
+  },
+  {
+    "texto": "Coordenação Aepeti (Programa De Erradicação Do Trabalho Infantil), em separação",
+    "slug": "coordenacao-aepeti-programa-de-erradicacao-do-trabalho-infantil-em-separacao"
+  },
+  {
+    "texto": "Coordenação Aepeti (Programa De Erradicação Do Trabalho Infantil), pronto para retirada",
+    "slug": "coordenacao-aepeti-programa-de-erradicacao-do-trabalho-infantil-pronto-para-retirada"
+  },
+  {
+    "texto": "Serviço Gerais, em separação",
+    "slug": "servico-gerais-em-separacao"
+  },
+  {
+    "texto": "Serviço Gerais, pronto para retirada",
+    "slug": "servico-gerais-pronto-para-retirada"
+  },
+  {
+    "texto": "Coordenação Do Serviço De Proteção Social Básica No Domicílio, em separação",
+    "slug": "coordenacao-do-servico-de-protecao-social-basica-no-domicilio-em-separacao"
+  },
+  {
+    "texto": "Coordenação Do Serviço De Proteção Social Básica No Domicílio, pronto para retirada",
+    "slug": "coordenacao-do-servico-de-protecao-social-basica-no-domicilio-pronto-para-retirada"
+  },
+  {
+    "texto": "Coordenação Do Serviço De Proteção Social Especial De Média Complexidade Para Pessoas Com Deficiência E Idosas, em separação",
+    "slug": "coordenacao-do-servico-de-protecao-social-especial-de-media-complexidade-para-pessoas-com-deficiencia-e-idosas-em-separacao"
+  },
+  {
+    "texto": "Coordenação Do Serviço De Proteção Social Especial De Média Complexidade Para Pessoas Com Deficiência E Idosas, pronto para retirada",
+    "slug": "coordenacao-do-servico-de-protecao-social-especial-de-media-complexidade-para-pessoas-com-deficiencia-e-idosas-pronto-para-retirada"
+  },
+  {
+    "texto": "Mezainino, em separação",
+    "slug": "mezainino-em-separacao"
+  },
+  {
+    "texto": "Mezainino, pronto para retirada",
+    "slug": "mezainino-pronto-para-retirada"
+  },
+  {
+    "texto": "1° Andar, em separação",
+    "slug": "1-andar-em-separacao"
+  },
+  {
+    "texto": "1° Andar, pronto para retirada",
+    "slug": "1-andar-pronto-para-retirada"
+  },
+  {
+    "texto": "Residência Inclusiva, em separação",
+    "slug": "residencia-inclusiva-em-separacao"
+  },
+  {
+    "texto": "Residência Inclusiva, pronto para retirada",
+    "slug": "residencia-inclusiva-pronto-para-retirada"
+  },
+  {
+    "texto": "Igas, em separação",
+    "slug": "igas-em-separacao"
+  },
+  {
+    "texto": "Igas, pronto para retirada",
+    "slug": "igas-pronto-para-retirada"
+  },
+  {
+    "texto": "Sadem, em separação",
+    "slug": "sadem-em-separacao"
+  },
+  {
+    "texto": "Sadem, pronto para retirada",
+    "slug": "sadem-pronto-para-retirada"
+  },
+  {
+    "texto": "Coordenação De Gestão E Educação Permanente (Superintendência Gsuas), em separação",
+    "slug": "coordenacao-de-gestao-e-educacao-permanente-superintendencia-gsuas-em-separacao"
+  },
+  {
+    "texto": "Coordenação De Gestão E Educação Permanente (Superintendência Gsuas), pronto para retirada",
+    "slug": "coordenacao-de-gestao-e-educacao-permanente-superintendencia-gsuas-pronto-para-retirada"
+  },
+  {
+    "texto": "Coordenação De Planejamento E Vigilância Socioassistencial (Superintendência Sgsuas), em separação",
+    "slug": "coordenacao-de-planejamento-e-vigilancia-socioassistencial-superintendencia-sgsuas-em-separacao"
+  },
+  {
+    "texto": "Coordenação De Planejamento E Vigilância Socioassistencial (Superintendência Sgsuas), pronto para retirada",
+    "slug": "coordenacao-de-planejamento-e-vigilancia-socioassistencial-superintendencia-sgsuas-pronto-para-retirada"
+  },
+  {
+    "texto": "Casa De Passagem, em separação",
+    "slug": "casa-de-passagem-em-separacao"
+  },
+  {
+    "texto": "Casa De Passagem, pronto para retirada",
+    "slug": "casa-de-passagem-pronto-para-retirada"
+  },
+  {
+    "texto": "MSE, em separação",
+    "slug": "mse-em-separacao"
+  },
+  {
+    "texto": "MSE, pronto para retirada",
+    "slug": "mse-pronto-para-retirada"
+  },
+  {
+    "texto": "Auditório 2° Andar, em separação",
+    "slug": "auditorio-2-andar-em-separacao"
+  },
+  {
+    "texto": "Auditório 2° Andar, pronto para retirada",
+    "slug": "auditorio-2-andar-pronto-para-retirada"
+  },
+  {
+    "texto": "Superintendência De Proteção Social Especial De Média Complexidade, em separação",
+    "slug": "superintendencia-de-protecao-social-especial-de-media-complexidade-em-separacao"
+  },
+  {
+    "texto": "Superintendência De Proteção Social Especial De Média Complexidade, pronto para retirada",
+    "slug": "superintendencia-de-protecao-social-especial-de-media-complexidade-pronto-para-retirada"
+  },
+  {
+    "texto": "Corredor Do Subsolo, em separação",
+    "slug": "corredor-do-subsolo-em-separacao"
+  },
+  {
+    "texto": "Corredor Do Subsolo, pronto para retirada",
+    "slug": "corredor-do-subsolo-pronto-para-retirada"
+  },
+  {
+    "texto": "Superintendência De Articulação Institucional Coordenação De Ações Afirmativas E Direitos Humanos Diretoria Técnica De Ações Afirmativas E Direitos Humanos, em separação",
+    "slug": "superintendencia-de-articulacao-institucional-coordenacao-de-acoes-afirmativas-e-direitos-humanos-diretoria-tecnica-de-acoes-afirmativas-e-direitos-humanos-em-separacao"
+  },
+  {
+    "texto": "Superintendência De Articulação Institucional Coordenação De Ações Afirmativas E Direitos Humanos Diretoria Técnica De Ações Afirmativas E Direitos Humanos, pronto para retirada",
+    "slug": "superintendencia-de-articulacao-institucional-coordenacao-de-acoes-afirmativas-e-direitos-humanos-diretoria-tecnica-de-acoes-afirmativas-e-direitos-humanos-pronto-para-retirada"
+  },
+  {
+    "texto": "SUBPREFEITURA, em separação",
+    "slug": "subprefeitura-em-separacao"
+  },
+  {
+    "texto": "SUBPREFEITURA, pronto para retirada",
+    "slug": "subprefeitura-pronto-para-retirada"
+  },
+  {
+    "texto": "SUPERINTENDÊNCIA DE ADMINISTRÇÃO SA. 24 06 2026 Entrega para dia 1 de julho de 2026, em separação",
+    "slug": "superintendencia-de-administrcao-sa-24-06-2026-entrega-para-dia-1-de-julho-de-2026-em-separacao"
+  },
+  {
+    "texto": "SUPERINTENDÊNCIA DE ADMINISTRÇÃO SA. 24 06 2026 Entrega para dia 1 de julho de 2026, pronto para retirada",
+    "slug": "superintendencia-de-administrcao-sa-24-06-2026-entrega-para-dia-1-de-julho-de-2026-pronto-para-retirada"
+  },
+  {
+    "texto": "AEPETI, em separação",
+    "slug": "aepeti-em-separacao"
+  },
+  {
+    "texto": "AEPETI, pronto para retirada",
+    "slug": "aepeti-pronto-para-retirada"
+  },
+  {
+    "texto": "COORDENAÇÃO SERVIÇO BÁSICA NO DOMÍCILIO PCF, em separação",
+    "slug": "coordenacao-servico-basica-no-domicilio-pcf-em-separacao"
+  },
+  {
+    "texto": "COORDENAÇÃO SERVIÇO BÁSICA NO DOMÍCILIO PCF, pronto para retirada",
+    "slug": "coordenacao-servico-basica-no-domicilio-pcf-pronto-para-retirada"
+  },
+  {
+    "texto": "Superintendência De Execução Orçamentária, Financeira E Contabilidade, em separação",
+    "slug": "superintendencia-de-execucao-orcamentaria-financeira-e-contabilidade-em-separacao"
+  },
+  {
+    "texto": "Superintendência De Execução Orçamentária, Financeira E Contabilidade, pronto para retirada",
+    "slug": "superintendencia-de-execucao-orcamentaria-financeira-e-contabilidade-pronto-para-retirada"
+  }
+]

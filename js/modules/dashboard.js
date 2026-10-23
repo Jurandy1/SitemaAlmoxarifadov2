@@ -513,13 +513,34 @@ function nomeParaFala(nome) {
         .trim();
 }
 
+// ─── Motor de som da TV ───────────────────────────────────────────
+// A TV (TCL) só deixa tocar som que nasce de um toque no controle. Com o player de áudio comum,
+// a frase do "Ativar Som" tocava, mas as seguintes (que chegam sozinhas) eram bloqueadas.
+// Agora o toque liga o motor de áudio do navegador (Web Audio) e ele FICA ligado: um som
+// inaudível roda o tempo todo e as frases gravadas (tv-voz/*.wav) entram nesse mesmo motor,
+// sem precisar de outro toque. Frase sem arquivo gravado usa a voz do Google pelo player comum.
 let tvVozLiberada = false;
 let tvAvisoEl = null;
+let tvCtx = null;
+let tvManterVivo = null;
+let tvTocando = false;
+let tvFraseAtual = '';
+const tvBuffers = new Map(); // slug → AudioBuffer já decodificado
+const tvDebug = (() => { try { return /[?&]debugvoz=1/.test(location.search); } catch (_) { return false; } })();
 
-function audioTvParado() {
-    const audio = tvAudioEl;
-    if (!audio) return true;
-    return audio.paused || audio.ended;
+function logVoz(msg) {
+    if (!tvDebug) return;
+    let el = document.getElementById('tv-voz-debug');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'tv-voz-debug';
+        el.style.cssText = 'position:fixed;right:12px;bottom:12px;z-index:100001;max-width:46vw;background:rgba(15,23,42,.92);color:#a7f3d0;font:600 16px/1.35 monospace;padding:10px 12px;border-radius:10px;white-space:pre-wrap;pointer-events:none';
+        document.body.appendChild(el);
+    }
+    const hora = new Date().toLocaleTimeString('pt-BR');
+    const linhas = (el.textContent ? el.textContent.split('\n') : []).slice(-11);
+    linhas.push(`${hora} ${msg}`);
+    el.textContent = linhas.join('\n');
 }
 
 function mostrarAvisoVoz(forcar) {
@@ -543,68 +564,14 @@ function esconderAvisoVoz() {
     if (tvAvisoEl) tvAvisoEl.style.display = 'none';
 }
 
-let tvAudioEl = null;
-
-function garantirTvAudio() {
-    if (!tvAudioEl) {
-        tvAudioEl = new Audio();
-        tvAudioEl.preload = 'auto';
-        tvAudioEl.volume = 1;
-        try {
-            tvAudioEl.setAttribute('playsinline', 'true');
-            tvAudioEl.setAttribute('webkit-playsinline', 'true');
-        } catch (_) {}
-    }
-    return tvAudioEl;
-}
-
 function slugFala(texto) {
     return String(texto || '')
         .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[̀-ͯ]/g, '')
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-|-$/g, '');
 }
-
-let tvVozIndex = null;
-let tvSessao = false;
-let tvCadeia = 0;
-let tvFraseAtual = '';
-let tvUrlIndice = 0;
-let tvIntervalo = false;
-let tvFalhas = 0;
-
-function silencioTv() {
-    const taxa = 8000;
-    const amostras = taxa;
-    const dados = new Uint8Array(44 + amostras);
-    const view = new DataView(dados.buffer);
-    const texto = (offset, valor) => {
-        for (let i = 0; i < valor.length; i++) dados[offset + i] = valor.charCodeAt(i);
-    };
-    texto(0, 'RIFF');
-    view.setUint32(4, 36 + amostras, true);
-    texto(8, 'WAVE');
-    texto(12, 'fmt ');
-    view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true);
-    view.setUint16(22, 1, true);
-    view.setUint32(24, taxa, true);
-    view.setUint32(28, taxa, true);
-    view.setUint16(32, 1, true);
-    view.setUint16(34, 8, true);
-    texto(36, 'data');
-    view.setUint32(40, amostras, true);
-    for (let i = 44; i < dados.length; i++) dados[i] = 128;
-    let binario = '';
-    for (let i = 0; i < dados.length; i += 4096) {
-        binario += String.fromCharCode.apply(null, dados.subarray(i, Math.min(i + 4096, dados.length)));
-    }
-    return `data:audio/wav;base64,${btoa(binario)}`;
-}
-
-const tvSilencio = silencioTv();
 
 function mostrarLegendaTv(texto) {
     let el = document.getElementById('tv-voz-legenda');
@@ -620,6 +587,7 @@ function mostrarLegendaTv(texto) {
     el._tvTimer = setTimeout(() => { el.style.display = 'none'; }, 8000);
 }
 
+let tvVozIndex = null;
 async function carregarIndiceVoz() {
     if (tvVozIndex) return tvVozIndex;
     try {
@@ -632,178 +600,169 @@ async function carregarIndiceVoz() {
     return tvVozIndex;
 }
 
+// Arquivo gravado que melhor combina com a frase (nome exato ou o maior pedaço do nome que tiver arquivo)
 function melhorSlugVoz(texto) {
     let slug = '';
     try { slug = slugFala(texto); } catch (_) { slug = String(texto || '').toLowerCase().replace(/[^a-z0-9]+/g, '-'); }
     const lista = (tvVozIndex || []).map((item) => String(item).replace(/\.wav$/i, ''));
-    if (!lista.length || lista.includes(slug)) return slug;
+    if (lista.includes(slug)) return slug;
     let melhor = '';
     const sufixo = slug.endsWith('-em-separacao')
         ? '-em-separacao'
         : (slug.endsWith('-pronto-para-retirada') ? '-pronto-para-retirada' : '');
     const nucleo = sufixo ? slug.slice(0, -sufixo.length) : slug;
-    const cabe = (texto, pedaco) => texto === pedaco
-        || texto.startsWith(`${pedaco}-`)
-        || texto.endsWith(`-${pedaco}`)
-        || texto.includes(`-${pedaco}-`);
+    const cabe = (t, pedaco) => t === pedaco || t.startsWith(`${pedaco}-`) || t.endsWith(`-${pedaco}`) || t.includes(`-${pedaco}-`);
     lista.forEach((item) => {
         if (sufixo && !item.endsWith(sufixo)) return;
         const nome = sufixo ? item.slice(0, -sufixo.length) : item;
         if (nome && cabe(nucleo, nome) && nome.length > melhor.length) melhor = item;
     });
-    return melhor || slug;
+    return melhor;
 }
 
-function urlsDaFrase(texto) {
-    const q = encodeURIComponent(texto);
+// Liga o motor de áudio. Precisa ser chamado DENTRO do toque/OK do controle.
+function ligarMotorNoGesto() {
+    const Ctor = window.AudioContext || window.webkitAudioContext;
+    if (!Ctor) {
+        logVoz('sem Web Audio neste navegador');
+        return false;
+    }
+    try {
+        if (!tvCtx || tvCtx.state === 'closed') tvCtx = new Ctor();
+        if (tvCtx.state !== 'running') tvCtx.resume();
+        // Um "tique" mudo dentro do gesto destrava o motor em todos os navegadores
+        const buf = tvCtx.createBuffer(1, 1, 22050);
+        const src = tvCtx.createBufferSource();
+        src.buffer = buf;
+        src.connect(tvCtx.destination);
+        src.start(0);
+        // Som inaudível contínuo: a TV não desliga o áudio por falta de uso
+        if (!tvManterVivo) {
+            const osc = tvCtx.createOscillator();
+            const ganho = tvCtx.createGain();
+            ganho.gain.value = 0.0001;
+            osc.frequency.value = 30;
+            osc.connect(ganho);
+            ganho.connect(tvCtx.destination);
+            osc.start();
+            tvManterVivo = osc;
+        }
+        logVoz(`motor ligado (${tvCtx.state})`);
+        return true;
+    } catch (e) {
+        logVoz('erro ao ligar motor: ' + (e?.message || e));
+        return false;
+    }
+}
+
+async function bufferDaFrase(slug) {
+    if (tvBuffers.has(slug)) return tvBuffers.get(slug);
+    const res = await fetch(new URL(`tv-voz/${slug}.wav`, document.baseURI).href);
+    if (!res.ok) throw new Error(`arquivo ${res.status}`);
+    const dados = await res.arrayBuffer();
+    // decodeAudioData com callback: TVs antigas não devolvem promessa
+    const buf = await new Promise((ok, falha) => {
+        const p = tvCtx.decodeAudioData(dados, ok, falha);
+        if (p && typeof p.then === 'function') p.then(ok, falha);
+    });
+    tvBuffers.set(slug, buf);
+    return buf;
+}
+
+function tocarBuffer(buf) {
+    return new Promise((ok) => {
+        const src = tvCtx.createBufferSource();
+        src.buffer = buf;
+        src.connect(tvCtx.destination);
+        let feito = false;
+        const fim = () => { if (!feito) { feito = true; ok(true); } };
+        src.onended = fim;
+        setTimeout(fim, (buf.duration + 1.5) * 1000); // TV que não avisa o fim
+        src.start(0);
+    });
+}
+
+// Player comum: voz do Google (frase sem arquivo gravado) ou navegador sem Web Audio
+let tvAudioReserva = null;
+function tocarUrl(url) {
+    return new Promise((ok) => {
+        if (!tvAudioReserva) tvAudioReserva = new Audio();
+        const a = tvAudioReserva;
+        let feito = false;
+        const fim = (r) => { if (!feito) { feito = true; clearTimeout(t); ok(r); } };
+        const t = setTimeout(() => fim(false), 15000);
+        a.onended = () => fim(true);
+        a.onerror = () => fim(false);
+        a.src = url;
+        const p = a.play();
+        if (p && p.catch) p.catch(() => fim(false));
+    });
+}
+
+async function falarFrase(texto) {
+    await carregarIndiceVoz();
     const slug = melhorSlugVoz(texto);
-    const locais = [];
-    if (slug) locais.push(new URL(`tv-voz/${slug}.wav`, document.baseURI).href);
-    locais.push(`https://translate.google.com/translate_tts?ie=UTF-8&tl=pt-BR&client=tw-ob&q=${q}`);
-    locais.push(`https://translate.google.com/translate_tts?ie=UTF-8&tl=pt-BR&client=gtx&q=${q}`);
-    return locais;
+    if (slug && tvCtx) {
+        try {
+            if (tvCtx.state !== 'running') await tvCtx.resume();
+            if (tvCtx.state !== 'running') throw new Error('motor parado (' + tvCtx.state + ')');
+            const buf = await bufferDaFrase(slug);
+            logVoz('tocando ' + slug);
+            await tocarBuffer(buf);
+            return true;
+        } catch (e) {
+            logVoz('falhou ' + slug + ': ' + (e?.message || e));
+            if (tvCtx && tvCtx.state !== 'running') return 'bloqueado';
+        }
+    }
+    if (slug && !tvCtx) return tocarUrl(new URL(`tv-voz/${slug}.wav`, document.baseURI).href);
+    logVoz('sem arquivo, tentando Google: ' + texto);
+    return tocarUrl(`https://translate.google.com/translate_tts?ie=UTF-8&tl=pt-BR&client=tw-ob&q=${encodeURIComponent(texto)}`);
 }
 
-function cortarSessao(devolverFrase) {
-    tvSessao = false;
-    tvCadeia += 1;
-    tvVozLiberada = false;
-    if (devolverFrase && tvFraseAtual) tvNarracaoFila.unshift(tvFraseAtual);
-    tvFraseAtual = '';
-    mostrarAvisoVoz(true);
-}
-
-function seguirCadeia() {
-    if (!tvSessao) return;
-    if (tvFalhas > 4) {
-        cortarSessao(true);
-        return;
-    }
-    if (tvIntervalo) {
-        tvIntervalo = false;
-        tvFraseAtual = '';
-        dispararSrc(tvSilencio);
-        return;
-    }
-    if (tvNarracaoFila.length) {
-        const texto = tvNarracaoFila.shift();
-        tvFraseAtual = texto;
-        tvUrlIndice = 0;
-        tvIntervalo = true;
-        mostrarLegendaTv(texto);
-        dispararSrc(urlsDaFrase(texto)[0]);
-        return;
-    }
-    tvFraseAtual = '';
-    dispararSrc(tvSilencio);
-}
-
-function dispararSrc(src) {
-    const audio = garantirTvAudio();
-    const geracao = ++tvCadeia;
-    let iniciou = false;
-    let pediu = false;
-    let tentouDeNovo = false;
-    audio.onended = null;
-    audio.onerror = null;
-    audio.onplaying = null;
-    audio.oncanplay = null;
-    audio.loop = false;
-    audio.volume = 1;
-    const bloqueado = (erro) => /notallowed|not allowed|autoplay/i.test(String(erro?.name || erro?.message || erro || ''));
-    const falhou = () => {
-        if (geracao !== tvCadeia) return;
-        tvFalhas += 1;
-        if (tvFraseAtual) {
-            const urls = urlsDaFrase(tvFraseAtual);
-            if (tvUrlIndice + 1 < urls.length) {
-                tvUrlIndice += 1;
-                dispararSrc(urls[tvUrlIndice]);
-                return;
+async function processarFilaVoz() {
+    if (tvTocando || !tvVozLiberada) return;
+    tvTocando = true;
+    try {
+        while (tvNarracaoFila.length && tvVozLiberada) {
+            const texto = tvNarracaoFila.shift();
+            tvFraseAtual = texto;
+            mostrarLegendaTv(texto);
+            const r = await falarFrase(texto);
+            if (r === 'bloqueado') {
+                // A TV desligou o motor: devolve a frase e pede o OK de novo
+                tvNarracaoFila.unshift(texto);
+                tvVozLiberada = false;
+                mostrarAvisoVoz(true);
+                break;
             }
-            tvFraseAtual = '';
+            await new Promise((ok) => setTimeout(ok, 500));
         }
-        seguirCadeia();
-    };
-    audio.onplaying = () => {
-        if (geracao !== tvCadeia) return;
-        iniciou = true;
-        tvFalhas = 0;
-        if (tvFraseAtual) {
-            tvVozLiberada = true;
-            esconderAvisoVoz();
-        }
-    };
-    audio.onended = () => {
-        if (geracao !== tvCadeia || !iniciou) return;
-        const durou = Number(audio.duration) || 0;
-        if (durou > 0 && durou < 0.35) {
-            setTimeout(() => {
-                if (geracao === tvCadeia) seguirCadeia();
-            }, 700);
-            return;
-        }
-        seguirCadeia();
-    };
-    audio.onerror = () => {
-        if (geracao !== tvCadeia || !pediu || iniciou) return;
-        const codigo = audio.error && audio.error.code;
-        if (codigo === 1) return;
-        falhou();
-    };
-    audio.src = src;
-    const pedir = () => {
-        if (geracao !== tvCadeia || pediu) return;
-        pediu = true;
-        let play;
-        try { play = audio.play(); } catch (e) {
-            if (bloqueado(e)) cortarSessao(true);
-            else falhou();
-            return;
-        }
-        if (play && typeof play.then === 'function') {
-            play.then(() => {
-                if (geracao !== tvCadeia) return;
-                iniciou = true;
-                tvFalhas = 0;
-                if (tvFraseAtual) {
-                    tvVozLiberada = true;
-                    esconderAvisoVoz();
-                }
-                if (audio.ended && audio.currentTime > 0.05 && geracao === tvCadeia) seguirCadeia();
-            }).catch((e) => {
-                if (geracao !== tvCadeia || iniciou) return;
-                if (bloqueado(e)) {
-                    cortarSessao(true);
-                    return;
-                }
-                if (/abort/i.test(String(e?.name || e?.message || e || '')) && !tentouDeNovo) {
-                    tentouDeNovo = true;
-                    pediu = false;
-                    if (audio.readyState >= 2) pedir();
-                    return;
-                }
-                falhou();
-            });
-        }
-    };
-    audio.oncanplay = () => pedir();
-    pedir();
+    } finally {
+        tvFraseAtual = '';
+        tvTocando = false;
+    }
 }
 
 function soltarNarracaoNoGesto() {
-    tvSessao = true;
+    // Sem Web Audio, segue pelo player comum (comportamento antigo)
+    if (!ligarMotorNoGesto()) {
+        if (!tvAudioReserva) tvAudioReserva = new Audio();
+        try { tvAudioReserva.play().catch(() => {}); } catch (_) {}
+    }
     tvVozLiberada = true;
-    tvFalhas = 0;
-    if (!tvNarracaoFila.length && !tvFraseAtual) tvNarracaoFila.push('Voz da televisão ligada.');
-    seguirCadeia();
+    esconderAvisoVoz();
+    if (!tvNarracaoFila.length && !tvTocando) tvNarracaoFila.push('Voz da televisão ligada.');
+    processarFilaVoz();
 }
 
 function enfileirarNarracaoTV(texto) {
     if (!texto) return;
     if (tvFraseAtual === texto || tvNarracaoFila[tvNarracaoFila.length - 1] === texto) return;
     tvNarracaoFila.push(texto);
-    if (!tvSessao) mostrarAvisoVoz();
+    logVoz('na fila: ' + texto);
+    if (!tvVozLiberada) mostrarAvisoVoz();
+    else processarFilaVoz();
 }
 
 function narrarMudancasStatusTV(materiais) {
@@ -842,20 +801,34 @@ if (typeof window !== 'undefined') {
     let tvToqueEm = 0;
     const noToque = () => {
         if (!document.body?.classList.contains('tv-mode')) return;
-        if (tvSessao && !audioTvParado()) return;
+        // Som já ligado e funcionando: o OK do controle não repete a frase de teste
+        if (tvVozLiberada && tvCtx && tvCtx.state === 'running') return;
         const agora = Date.now();
         if (agora - tvToqueEm < 700) return;
         tvToqueEm = agora;
         soltarNarracaoNoGesto();
     };
     carregarIndiceVoz();
-    window.speechSynthesis?.addEventListener?.('voiceschanged', () => {
-        try { window.speechSynthesis.getVoices(); } catch (_) {}
-    });
-    try { window.speechSynthesis?.getVoices?.(); } catch (_) {}
+    // Diagnóstico (?debugvoz=1): a cada 30 s fala uma frase sozinha, sem toque, para conferir na TV
+    if (tvDebug) {
+        logVoz('diagnóstico de voz ligado');
+        window.tvTesteVoz = (texto) => enfileirarNarracaoTV(texto || 'Cras Centro, em separação');
+        setInterval(() => { if (tvVozLiberada) window.tvTesteVoz(); }, 30000);
+    }
     window.addEventListener('pointerdown', noToque);
     window.addEventListener('touchstart', noToque);
     window.addEventListener('keydown', noToque);
+    // Vigia: se a TV desligar o motor de som, tenta religar; sem jeito, pede o OK de novo
+    setInterval(() => {
+        if (!tvVozLiberada || !tvCtx || tvCtx.state === 'running') return;
+        logVoz('motor parado (' + tvCtx.state + '), religando');
+        Promise.resolve(tvCtx.resume()).catch(() => {}).then(() => {
+            if (tvCtx.state !== 'running') {
+                tvVozLiberada = false;
+                mostrarAvisoVoz(true);
+            } else processarFilaVoz();
+        });
+    }, 15000);
     if (document.body?.classList.contains('tv-mode')) mostrarAvisoVoz();
 }
 
