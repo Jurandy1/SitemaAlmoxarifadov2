@@ -2826,8 +2826,12 @@ function syncReqsFromCache() {
     if (REQS_EXCLUIDOS.has(k)) return;
     seen.add(k);
     const ex = existingById.get(k);
+    if (ex && ex.__statusPending && String(ex.status) === String(mr.status)) ex.__statusPending = false;
     if (ex && ex.__dirty) {
       if (differs(ex, mr)) {
+        // Outro computador mudou a etapa e aqui só houve edição da ficha: adota a etapa do
+        // banco, senão a próxima gravação daqui voltava o pedido para a etapa antiga
+        if (!ex.__statusPending) CAMPOS_ETAPA.forEach((c) => { ex[c] = mr[c]; });
         merged.push(ex);
         return;
       }
@@ -3128,7 +3132,18 @@ function renderVinculos(){
 // ═══════════════════════════════════════════════════════════════════
 function findReq(id){return REQS.find(x=>String(x.id)===String(id))}
 function serializeReqForStore(r){return deepCleanForFirestore({...r,dt:r.dt?.toISOString?.()||r.dt,dtEntrega:r.dtEntrega?.toISOString?.()||r.dtEntrega,parsed:stripVolatileParsed(r.parsed)})}
-async function persistReq(r){
+// Uma gravação por pedido de cada vez, sempre com o estado atual: sem a fila, uma gravação
+// antiga (ex.: edição da ficha) podia terminar depois do "Pronto"/"Entregar" e o banco
+// voltava para a etapa anterior
+const _filaGravacao=new Map();
+function persistReq(r){
+  const k=String(r.id);
+  const p=(_filaGravacao.get(k)||Promise.resolve()).then(()=>gravarReq(r));
+  _filaGravacao.set(k,p);
+  p.then(()=>{if(_filaGravacao.get(k)===p)_filaGravacao.delete(k)});
+  return p;
+}
+async function gravarReq(r){
   try{await DataStore.set('reqs',[serializeReqForStore(r)]);return true}catch(e){
     console.warn('Erro ao salvar requisição:',e);
     const code=String(e?.code||''),msg=String(e?.message||'');
@@ -3136,10 +3151,19 @@ async function persistReq(r){
     return false;
   }
 }
-const debouncedPersistCurrent=debounce(()=>{if(!curId)return;const r=findReq(curId);if(r)persistReq(r)},700);
+// Guarda o id na hora da edição: fechar a ficha antes dos 700 ms não perde a alteração
+let _persistTimer=null;
+function debouncedPersistCurrent(){const id=curId;if(!id)return;clearTimeout(_persistTimer);_persistTimer=setTimeout(()=>{_persistTimer=null;const r=findReq(id);if(r)persistReq(r)},700)}
 function markDirty(r){if(!r)return;r.__dirty=true;r.__dirtyAt=Date.now();}
+// Campos da etapa do pedido (quem mudou por último, neste ou em outro computador, vale)
+const CAMPOS_ETAPA=['status','separador','entreguePor','retiradoPor','dtEntrega','histEntryId','dbAdded'];
+function guardarEtapa(r){const o={dtPronto:r.dtPronto};CAMPOS_ETAPA.forEach(k=>o[k]=r[k]);return o}
+// Muda a etapa e marca como pendente até o banco confirmar
+function mudarEtapa(r,status){r.status=status;r.__statusPending=true;markDirty(r)}
+// Gravação falhou: volta a etapa que está no banco
+function desfazerEtapa(r,antes){Object.assign(r,antes);r.__statusPending=false;renderAll()}
 
-function pegarParaSeparar(reqId){const f=reqId?REQS.find(r=>String(r.id)===String(reqId)&&r.status==='requisitado'):REQS.find(r=>r.status==='requisitado');if(!f)return;showModal('Nome do Separador','Quem vai separar?','',async nm=>{f.separador=nm;f.status='separando';markDirty(f);await persistReq(f);printReq(f.id);toast(displayUnit(f.unidade)+' → Em Separação','green');goTab('es')})}
+function pegarParaSeparar(reqId){const f=reqId?REQS.find(r=>String(r.id)===String(reqId)&&r.status==='requisitado'):REQS.find(r=>r.status==='requisitado');if(!f)return;showModal('Nome do Separador','Quem vai separar?','',async nm=>{const antes=guardarEtapa(f);f.separador=nm;mudarEtapa(f,'separando');if(!(await persistReq(f))){desfazerEtapa(f,antes);return}printReq(f.id);toast(displayUnit(f.unidade)+' → Em Separação','green');goTab('es')})}
 
 function abrirFicha(id, readOnly = false){
   curId=id;const r=findReq(id);if(!r)return;
@@ -3361,36 +3385,48 @@ async function marcarPronto(e){
   Object.values(r.items).forEach(i=>{
     if(i.status==='nao_atendido'&&!String(i.qtdAtendida||'').trim())i.status='nao_atendido';
   });
-  r.status='pronto';
+  const antes=guardarEtapa(r);
+  mudarEtapa(r,'pronto');
   r.dtPronto=new Date();
-  markDirty(r);
-  persistReq(r);
   curId=null;
   document.getElementById('fichaModal').classList.remove('open');
-  toast(displayUnit(r.unidade)+' → Pronto!','green');
   goTab('pe');
+  // Só avisa "Pronto!" depois que o banco confirmou; se falhar, o pedido volta para Em Separação
+  if(await persistReq(r)) toast(displayUnit(r.unidade)+' → Pronto!','green');
+  else desfazerEtapa(r,antes);
 }
 async function marcarProntoLista(id, e){
   if(e && e.preventDefault) e.preventDefault();
   if(e && e.stopPropagation) e.stopPropagation();
   const r=findReq(id);if(!r)return;
   if(!(await confirmar('Tem certeza que deseja marcar como Pronto?', { ok: 'Marcar Pronto' }))) return;
-  r.status='pronto';r.dtPronto=new Date();markDirty(r);persistReq(r);toast(displayUnit(r.unidade)+' → Pronto!','green');renderAll();
+  const antes=guardarEtapa(r);
+  mudarEtapa(r,'pronto');r.dtPronto=new Date();renderAll();
+  if(await persistReq(r)) toast(displayUnit(r.unidade)+' → Pronto!','green');
+  else desfazerEtapa(r,antes);
 }
 // Em Separação → Para Separar (tira o separador; o pedido volta para a fila)
 async function devolverParaSeparar(id){
   const r=findReq(id);if(!r)return;
   if(!(await confirmar('Devolver o pedido de '+displayUnit(r.unidade)+' para "Para Separar"? O separador será retirado.', { ok: 'Devolver' })))return;
-  r.status='requisitado';r.separador=null;markDirty(r);
-  const ok=await persistReq(r);
-  if(ok)toast(displayUnit(r.unidade)+' voltou para Para Separar','green');
+  const antes=guardarEtapa(r);
+  r.separador=null;mudarEtapa(r,'requisitado');
   goTab('ps');
+  if(await persistReq(r))toast(displayUnit(r.unidade)+' voltou para Para Separar','green');
+  else desfazerEtapa(r,antes);
 }
 window.devolverParaSeparar=devolverParaSeparar;
-function voltarSeparacao(id){const r=findReq(id);if(!r)return;r.status='separando';markDirty(r);persistReq(r);toast(displayUnit(r.unidade)+' ↩️ Voltou para Separação','green');goTab('es')}
+async function voltarSeparacao(id){
+  const r=findReq(id);if(!r)return;
+  const antes=guardarEtapa(r);
+  mudarEtapa(r,'separando');goTab('es');
+  if(await persistReq(r))toast(displayUnit(r.unidade)+' ↩️ Voltou para Separação','green');
+  else desfazerEtapa(r,antes);
+}
 
 function entregarReq(id){
   const r0=findReq(id);if(!r0)return;
+  const antes=guardarEtapa(r0);
   const askEntreguePor=()=>{
     showModal('Entregue por (Almoxarifado)','Nome de quem está entregando:',''+(r0.entreguePor||''),nmEntRaw=>{
       const nmEnt=String(nmEntRaw||'').trim();
@@ -3401,6 +3437,10 @@ function entregarReq(id){
         const nm=String(nmRaw||'').trim();
         if(!nm){toast('Informe quem está retirando.','red');return askEntreguePor();}
         const r2=findReq(id);if(!r2)return;
+        // Evita duas entregas ao mesmo tempo (clique duplo / Enter repetido)
+        if(r2.__entregando)return;
+        r2.__entregando=true;
+        try{
         r2.retiradoPor=nm;
         Object.keys(r2.items||{}).forEach((k)=>{
           const it=r2.items[k];
@@ -3413,43 +3453,45 @@ function entregarReq(id){
           else if(s>0&&a<s) it.status='parcial';
           else it.status='atendido';
         });
-      r2.status='entregue';
+      mudarEtapa(r2,'entregue');
       r2.dtEntrega=new Date();
-      markDirty(r2);
       try { console.info("[FM] entregarReq start:", r2.id, "itens:", Object.keys(r2.items||{}).length); } catch (_) {}
-    
+
+      // A entrada do banco histórico tem id fixo por pedido: refazer só sobrescreve.
+      // Um erro aqui não pode impedir o pedido de ir para o Histórico.
       let entryToSave = null;
-      if (!r2.histEntryId) {
-         const entry = addReqToHistDB(r2);
-         r2.histEntryId = entry?.id || null;
-         entryToSave = entry;
-      } else {
-         entryToSave = HIST_DB.find(e => e.id === r2.histEntryId) || null;
-         if (!entryToSave) {
-           const entry = addReqToHistDB(r2);
-           r2.histEntryId = entry?.id || r2.histEntryId;
-           entryToSave = entry;
-         }
+      try { entryToSave = addReqToHistDB(r2); } catch (err) { console.warn('[FM] entregarReq: falha ao montar entrada do banco', err); }
+      if (entryToSave) {
+         r2.histEntryId = entryToSave.id;
+         if (await saveHistEntry(entryToSave)) r2.dbAdded = true;
       }
       try { console.info("[FM] entregarReq histEntry:", r2.histEntryId||null, "entry ok?", !!entryToSave); } catch (_) {}
-      if (entryToSave && (!r2.dbAdded || entryToSave.id === r2.histEntryId)) {
-         const okHist = await saveHistEntry(entryToSave);
-         if (okHist) r2.dbAdded = true;
+      if (!(await persistReq(r2))) {
+        // Não gravou: o pedido continua em Pronto para tentar de novo
+        desfazerEtapa(r2, antes);
+        return;
       }
-      await persistReq(r2);
       try { console.info("[FM] entregarReq done req:", r2.id, "dbAdded:", !!r2.dbAdded); } catch (_) {}
-    
+
       const nItens = Object.values(r2.items).filter(i=>i.status==='atendido'||i.status==='parcial'||i.status==='excedido').length;
       const nZero = Object.values(r2.items).filter(i=>i.status==='sem_estoque'||i.status==='nao_atendido').length;
-      toast(displayUnit(r2.unidade)+' entregue para '+nm+' · '+nItens+' itens → banco | '+nZero+' sem atendimento','green');
-      
+      if (entryToSave) toast(displayUnit(r2.unidade)+' entregue para '+nm+' · '+nItens+' itens → banco | '+nZero+' sem atendimento','green');
+      else toast(displayUnit(r2.unidade)+' entregue, mas não entrou nos relatórios: unidade não cadastrada.','red');
+
       // Abre a impressão do comprovante (via do almoxarifado) com as assinaturas prontas
       printReq(r2.id);
-      
+
       renderAll();
       try { buildPainel(); } catch (_) {}
       try { renderRelatorio(); } catch (_) {}
       if (getUserRole() === 'admin') goTab('hi');
+        }catch(err){
+          console.error('[FM] entregarReq:', err);
+          toast('Erro ao entregar: '+String(err?.message||err),'red');
+          desfazerEtapa(r2, antes);
+        }finally{
+          r2.__entregando=false;
+        }
       })
     });
   };
