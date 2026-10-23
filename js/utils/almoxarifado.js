@@ -10,7 +10,9 @@ import {
   getEstoqueGas,
   getMateriais,
   getUnidades,
-  getEntregas
+  getEntregas,
+  getCurrentDashboardMaterialFilter,
+  setCurrentDashboardMaterialFilter
 } from "./cache.js";
 
 export {
@@ -20,7 +22,9 @@ export {
   getEstoqueGas,
   getMateriais,
   getUnidades,
-  getEntregas
+  getEntregas,
+  getCurrentDashboardMaterialFilter,
+  setCurrentDashboardMaterialFilter
 };
 
 export function getMovimentacoes() {
