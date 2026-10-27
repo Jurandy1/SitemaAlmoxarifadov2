@@ -4,10 +4,10 @@
 // A chave "anon" é pública por natureza (vai no navegador); o acesso é controlado pelas regras (RLS) do banco.
 import { createClient } from "@supabase/supabase-js";
 
-const url = import.meta.env.VITE_SUPABASE_URL || "https://jliieywwbiczumhtgchj.supabase.co";
+const url = import.meta.env.VITE_SUPABASE_URL || "https://zfhlxrywxolkimwjoadq.supabase.co";
 const anonKey =
   import.meta.env.VITE_SUPABASE_ANON_KEY ||
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpsaWlleXd3YmljenVtaHRnY2hqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI2MDUzODAsImV4cCI6MjEwODE4MTM4MH0.8K8d7hUB-NG5PNu0SwIk7Kc5Dnhml7u4WVzvRf2gwLQ";
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpmaGx4cnl3eG9sa2ltd2pvYWRxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMwNjYzNzUsImV4cCI6MjEwODY0MjM3NX0.2n4vz2bCKBWzI3kCoovvW08nez8UFPtRaC60qdNc84Q";
 
 if (!url || !anonKey) {
   throw new Error("[Supabase] Defina VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no .env.local");
