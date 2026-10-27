@@ -278,6 +278,7 @@ const DataStore = {
           parsed: m.parsedData || m.parsed || null,
           items: m.itemsMap || m.items || {},
           status,
+          etapaVersao: Number(m.etapaVersao) || 0,
           separador: m.separador || m.responsavelSeparador || null,
           entreguePor: m.entreguePor || m.responsavelEntregaAlmox || null,
           retiradoPor: m.retiradoPor || m.responsavelRecebimento || null,
@@ -374,6 +375,7 @@ const DataStore = {
           itemsMap: itemsMap || {},
           itens: r.obs || "",
           status,
+          etapaVersao: Number(r.etapaVersao) || 0,
           responsavelLancamento: r.resp || "",
           responsavelSeparador: r.separador || null,
           responsavelEntregaAlmox: r.entreguePor || null,
@@ -1147,7 +1149,7 @@ function handleFile(e){
     tmpParsed._rows=rows;
     if (isDocxFile(file.name)) tmpParsed.formato = 'docx';
     if (isOdtFile(file.name)) tmpParsed.formato = 'odt';
-
+    
     const inferred = inferUnitFromSheet(rows, file.name);
     if (inferred) tmpParsed._unitDetectSource = inferred.source;
 
@@ -1196,7 +1198,7 @@ function handleFile(e){
     uSel.selectedIndex = 0;
     let found = false;
     if (matchedUnit) {
-      for (let i = 0; i < uSel.options.length; i++) {
+    for (let i = 0; i < uSel.options.length; i++) {
         const ov = uSel.options[i].value;
         if (ov === matchedUnit || resolveSelectedUnit(ov) === matchedUnit) {
           uSel.selectedIndex = i;
@@ -1436,10 +1438,9 @@ async function removerItemReq(id) {
   renderEditorReq();
 }
 
-function salvarAlteracoesReq() {
+function aplicarAlteracoesReq() {
   if (!tmpParsed) return;
   rqItens().forEach(({ it }) => { it.status = rqSituacao(it); });
-  toast('Alterações salvas. Clique em Registrar requisição para enviar.', 'green');
 }
 
 function renderEditorReq() {
@@ -1533,7 +1534,7 @@ function renderEditorReq() {
 
 Object.assign(window, {
   removerArquivoReq, limparUnidadeReq, aplicarBuscaReq, filtrarTipoReq, paginaReq, porPaginaReq,
-  verMaisReq, abrirItemReq, editarItemReq, removerItemReq, salvarAlteracoesReq,
+  verMaisReq, abrirItemReq, editarItemReq, removerItemReq, aplicarAlteracoesReq,
 });
 
 function stripVolatileParsed(parsed) {
@@ -2458,6 +2459,7 @@ function detectItemIssues(parsed) {
 
 async function registrar(){
   if (!tmpParsed) { toast('Anexe uma planilha primeiro.', 'red'); return; }
+  aplicarAlteracoesReq();
 
   // ─── VALIDAÇÃO: UNIDADE OBRIGATÓRIA (somente cadastradas) ───
   const uSel = document.getElementById('rU');
@@ -2683,24 +2685,24 @@ function buildHistEntryFromParsed(parsed,fin){
     const catNameCanon = getCanonicalCat(normalizeCat(c.name||'Outros')) || normalizeCat(c.name||'Outros');
     return {
       catName: catNameCanon,
-      items:(c.items||[]).map(it=>{
-        let qty=0;
-        const qaStr = it.qtdAtendida;
-        const qsStr = it.qtdSolicitada;
+    items:(c.items||[]).map(it=>{
+      let qty=0;
+      const qaStr = it.qtdAtendida;
+      const qsStr = it.qtdSolicitada;
         const hasQa = qaStr !== undefined && qaStr !== null && String(qaStr).trim() !== '';
         const hasQs = qsStr !== undefined && qsStr !== null && String(qsStr).trim() !== '';
         const qs = hasQs ? extractNum(qsStr) : null;
         let qa = null;
-
-        // REGRA DE OURO (Fallback): Se inserido direto no "Banco de Dados", tenta a Atendida primeiro, se não tiver, usa Solicitada.
+      
+      // REGRA DE OURO (Fallback): Se inserido direto no "Banco de Dados", tenta a Atendida primeiro, se não tiver, usa Solicitada.
         if (hasQa) {
             qa = extractNum(qaStr);
             qty = qa;
         } else if (hasQs) {
             qty = qs;
             qa = qs;
-        } else if (typeof it.qty === 'number') {
-            qty = it.qty;
+      } else if (typeof it.qty === 'number') {
+          qty = it.qty; 
             qa = it.qty;
         }
         const itemStatus = hasQs
@@ -2714,7 +2716,7 @@ function buildHistEntryFromParsed(parsed,fin){
           itemStatus,
           tipoItem: it.tipo || detectTipo(catNameCanon),
         };
-      }).filter(it=>it.material)
+    }).filter(it=>it.material) 
     };
   }).filter(c=>c.items.length>0);
 
@@ -2798,6 +2800,7 @@ function syncReqsFromCache() {
       parsed: m.parsedData || m.parsed || null,
       items: m.itemsMap || m.items || {},
       status,
+      etapaVersao: Number(m.etapaVersao) || 0,
       separador: m.separador || m.responsavelSeparador || null,
       entreguePor: m.entreguePor || m.responsavelEntregaAlmox || null,
       retiradoPor: m.retiradoPor || m.responsavelRecebimento || null,
@@ -2826,6 +2829,20 @@ function syncReqsFromCache() {
     if (REQS_EXCLUIDOS.has(k)) return;
     seen.add(k);
     const ex = existingById.get(k);
+    const localV = Number(ex?.etapaVersao) || 0;
+    const remotoV = Number(mr.etapaVersao) || 0;
+    // O banco ainda não recebeu a etapa que esta tela acabou de marcar
+    if (ex && localV > remotoV) {
+      merged.push(ex);
+      return;
+    }
+    // Outro computador avançou a etapa: a desta tela já ficou para trás
+    if (ex && remotoV > localV) {
+      ex.__statusPending = false;
+      ex.__dirty = false;
+      merged.push(mr);
+      return;
+    }
     if (ex && ex.__statusPending && String(ex.status) === String(mr.status)) ex.__statusPending = false;
     if (ex && ex.__dirty) {
       if (differs(ex, mr)) {
@@ -3144,7 +3161,12 @@ function persistReq(r){
   return p;
 }
 async function gravarReq(r){
-  try{await DataStore.set('reqs',[serializeReqForStore(r)]);return true}catch(e){
+  try{
+    const vivo=findReq(r.id);
+    const fonte=vivo&&(Number(vivo.etapaVersao)||0)>=(Number(r.etapaVersao)||0)?vivo:r;
+    await DataStore.set('reqs',[serializeReqForStore(fonte)]);
+    return true;
+  }catch(e){
     console.warn('Erro ao salvar requisição:',e);
     const code=String(e?.code||''),msg=String(e?.message||'');
     toast('Erro ao salvar no Firestore. '+(code?code+': ':'')+msg,'red');
@@ -3156,14 +3178,27 @@ let _persistTimer=null;
 function debouncedPersistCurrent(){const id=curId;if(!id)return;clearTimeout(_persistTimer);_persistTimer=setTimeout(()=>{_persistTimer=null;const r=findReq(id);if(r)persistReq(r)},700)}
 function markDirty(r){if(!r)return;r.__dirty=true;r.__dirtyAt=Date.now();}
 // Campos da etapa do pedido (quem mudou por último, neste ou em outro computador, vale)
-const CAMPOS_ETAPA=['status','separador','entreguePor','retiradoPor','dtEntrega','histEntryId','dbAdded'];
+const CAMPOS_ETAPA=['status','etapaVersao','separador','entreguePor','retiradoPor','dtEntrega','histEntryId','dbAdded'];
 function guardarEtapa(r){const o={dtPronto:r.dtPronto};CAMPOS_ETAPA.forEach(k=>o[k]=r[k]);return o}
-// Muda a etapa e marca como pendente até o banco confirmar
-function mudarEtapa(r,status){r.status=status;r.__statusPending=true;markDirty(r)}
+// Muda a etapa e marca como pendente até o banco confirmar. A versão sobe para uma gravação
+// antiga (ficha aberta, outro computador) não conseguir voltar o pedido.
+function mudarEtapa(r,status){
+  clearTimeout(_persistTimer);
+  _persistTimer=null;
+  r.status=status;
+  r.etapaVersao=(Number(r.etapaVersao)||0)+1;
+  r.__statusPending=true;
+  markDirty(r);
+}
 // Gravação falhou: volta a etapa que está no banco
 function desfazerEtapa(r,antes){Object.assign(r,antes);r.__statusPending=false;renderAll()}
+function reverterSeAtual(r,versao,antes){
+  const atual=findReq(r.id)||r;
+  if((Number(atual.etapaVersao)||0)!==versao) return;
+  desfazerEtapa(atual,antes);
+}
 
-function pegarParaSeparar(reqId){const f=reqId?REQS.find(r=>String(r.id)===String(reqId)&&r.status==='requisitado'):REQS.find(r=>r.status==='requisitado');if(!f)return;showModal('Nome do Separador','Quem vai separar?','',async nm=>{const antes=guardarEtapa(f);f.separador=nm;mudarEtapa(f,'separando');if(!(await persistReq(f))){desfazerEtapa(f,antes);return}printReq(f.id);toast(displayUnit(f.unidade)+' → Em Separação','green');goTab('es')})}
+function pegarParaSeparar(reqId){const f=reqId?REQS.find(r=>String(r.id)===String(reqId)&&r.status==='requisitado'):REQS.find(r=>r.status==='requisitado');if(!f)return;showModal('Nome do Separador','Quem vai separar?','',async nm=>{const antes=guardarEtapa(f);f.separador=nm;mudarEtapa(f,'separando');const versao=f.etapaVersao;if(!(await persistReq(f))){reverterSeAtual(f,versao,antes);return}printReq(f.id);toast(displayUnit(f.unidade)+' → Em Separação','green');goTab('es')})}
 
 function abrirFicha(id, readOnly = false){
   curId=id;const r=findReq(id);if(!r)return;
@@ -3387,13 +3422,14 @@ async function marcarPronto(e){
   });
   const antes=guardarEtapa(r);
   mudarEtapa(r,'pronto');
+  const versao=r.etapaVersao;
   r.dtPronto=new Date();
   curId=null;
   document.getElementById('fichaModal').classList.remove('open');
   goTab('pe');
   // Só avisa "Pronto!" depois que o banco confirmou; se falhar, o pedido volta para Em Separação
   if(await persistReq(r)) toast(displayUnit(r.unidade)+' → Pronto!','green');
-  else desfazerEtapa(r,antes);
+  else reverterSeAtual(r,versao,antes);
 }
 async function marcarProntoLista(id, e){
   if(e && e.preventDefault) e.preventDefault();
@@ -3401,9 +3437,9 @@ async function marcarProntoLista(id, e){
   const r=findReq(id);if(!r)return;
   if(!(await confirmar('Tem certeza que deseja marcar como Pronto?', { ok: 'Marcar Pronto' }))) return;
   const antes=guardarEtapa(r);
-  mudarEtapa(r,'pronto');r.dtPronto=new Date();renderAll();
+  mudarEtapa(r,'pronto');const versao=r.etapaVersao;r.dtPronto=new Date();renderAll();
   if(await persistReq(r)) toast(displayUnit(r.unidade)+' → Pronto!','green');
-  else desfazerEtapa(r,antes);
+  else reverterSeAtual(r,versao,antes);
 }
 // Em Separação → Para Separar (tira o separador; o pedido volta para a fila)
 async function devolverParaSeparar(id){
@@ -3411,17 +3447,18 @@ async function devolverParaSeparar(id){
   if(!(await confirmar('Devolver o pedido de '+displayUnit(r.unidade)+' para "Para Separar"? O separador será retirado.', { ok: 'Devolver' })))return;
   const antes=guardarEtapa(r);
   r.separador=null;mudarEtapa(r,'requisitado');
+  const versao=r.etapaVersao;
   goTab('ps');
   if(await persistReq(r))toast(displayUnit(r.unidade)+' voltou para Para Separar','green');
-  else desfazerEtapa(r,antes);
+  else reverterSeAtual(r,versao,antes);
 }
 window.devolverParaSeparar=devolverParaSeparar;
 async function voltarSeparacao(id){
   const r=findReq(id);if(!r)return;
   const antes=guardarEtapa(r);
-  mudarEtapa(r,'separando');goTab('es');
+  mudarEtapa(r,'separando');const versao=r.etapaVersao;goTab('es');
   if(await persistReq(r))toast(displayUnit(r.unidade)+' ↩️ Voltou para Separação','green');
-  else desfazerEtapa(r,antes);
+  else reverterSeAtual(r,versao,antes);
 }
 
 function entregarReq(id){
@@ -3440,6 +3477,7 @@ function entregarReq(id){
         // Evita duas entregas ao mesmo tempo (clique duplo / Enter repetido)
         if(r2.__entregando)return;
         r2.__entregando=true;
+        let versao=0;
         try{
         r2.retiradoPor=nm;
         Object.keys(r2.items||{}).forEach((k)=>{
@@ -3454,9 +3492,10 @@ function entregarReq(id){
           else it.status='atendido';
         });
       mudarEtapa(r2,'entregue');
+      versao=r2.etapaVersao;
       r2.dtEntrega=new Date();
       try { console.info("[FM] entregarReq start:", r2.id, "itens:", Object.keys(r2.items||{}).length); } catch (_) {}
-
+    
       // A entrada do banco histórico tem id fixo por pedido: refazer só sobrescreve.
       // Um erro aqui não pode impedir o pedido de ir para o Histórico.
       let entryToSave = null;
@@ -3468,19 +3507,19 @@ function entregarReq(id){
       try { console.info("[FM] entregarReq histEntry:", r2.histEntryId||null, "entry ok?", !!entryToSave); } catch (_) {}
       if (!(await persistReq(r2))) {
         // Não gravou: o pedido continua em Pronto para tentar de novo
-        desfazerEtapa(r2, antes);
+        reverterSeAtual(r2, versao, antes);
         return;
       }
       try { console.info("[FM] entregarReq done req:", r2.id, "dbAdded:", !!r2.dbAdded); } catch (_) {}
-
+    
       const nItens = Object.values(r2.items).filter(i=>i.status==='atendido'||i.status==='parcial'||i.status==='excedido').length;
       const nZero = Object.values(r2.items).filter(i=>i.status==='sem_estoque'||i.status==='nao_atendido').length;
       if (entryToSave) toast(displayUnit(r2.unidade)+' entregue para '+nm+' · '+nItens+' itens → banco | '+nZero+' sem atendimento','green');
       else toast(displayUnit(r2.unidade)+' entregue, mas não entrou nos relatórios: unidade não cadastrada.','red');
-
+      
       // Abre a impressão do comprovante (via do almoxarifado) com as assinaturas prontas
       printReq(r2.id);
-
+      
       renderAll();
       try { buildPainel(); } catch (_) {}
       try { renderRelatorio(); } catch (_) {}
@@ -3488,7 +3527,7 @@ function entregarReq(id){
         }catch(err){
           console.error('[FM] entregarReq:', err);
           toast('Erro ao entregar: '+String(err?.message||err),'red');
-          desfazerEtapa(r2, antes);
+          reverterSeAtual(r2, versao, antes);
         }finally{
           r2.__entregando=false;
         }
@@ -4548,7 +4587,7 @@ function resolveRegisteredUnit(raw) {
 
   const unidades = getRegisteredUnitsList();
   const norm = (x) => rmAcc(String(x || '')).toUpperCase().replace(/\s+/g, ' ').trim();
-  const normRaw = norm(s);
+    const normRaw = norm(s);
 
   // Nome exato no cadastro vence sigla, alias e fuzzy
   // (ex.: "Cras Estiva" não pode cair na unidade de sigla "ESTIVA", nem em "Cras Estiva Sub Prefeitura")
@@ -4596,8 +4635,8 @@ function resolveRegisteredUnit(raw) {
     const nu = norm(getRegisteredUnitName(u));
     if (rawIsCreas && /^CRAS\b/.test(nu)) return false;
     if (rawIsCras && /^CREAS\b/.test(nu)) return false;
-    return nu.length >= 4 && (normRaw.startsWith(nu) || nu.startsWith(normRaw));
-  });
+      return nu.length >= 4 && (normRaw.startsWith(nu) || nu.startsWith(normRaw));
+    });
   if (prefixHits.length) {
     const rawExtends = prefixHits
       .filter((u) => {
@@ -4625,12 +4664,12 @@ function resolveRegisteredUnit(raw) {
     const nu = norm(getRegisteredUnitName(u));
     if (rawIsCreas && /^CRAS\b/.test(nu)) return false;
     if (rawIsCras && /^CREAS\b/.test(nu)) return false;
-    return nu.length >= 5 && (normRaw.includes(nu) || nu.includes(normRaw));
-  });
+      return nu.length >= 5 && (normRaw.includes(nu) || nu.includes(normRaw));
+    });
   if (contains) return getRegisteredUnitName(contains);
 
   return null;
-}
+  }
 
 function normalizeUnit(raw){
   return resolveRegisteredUnit(raw) || 'Desconhecida';

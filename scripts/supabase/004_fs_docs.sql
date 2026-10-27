@@ -100,6 +100,8 @@ returns jsonb language plpgsql as $$
 declare
   atual jsonb;
   novo jsonb;
+  versao_atual int;
+  versao_patch int;
 begin
   select data into atual from public.fs_docs where col = p_col and id = p_id for update;
   if p_mode = 'update' and atual is null then
@@ -109,6 +111,30 @@ begin
     novo := public.fs_apply('{}'::jsonb, p_data);
   else
     novo := public.fs_apply(coalesce(atual, '{}'::jsonb), p_data);
+  end if;
+  -- Etapa do pedido (Para separar / Em separação / Pronto / Entregue): uma gravação
+  -- antiga não pode cobrir uma etapa mais nova. Itens da ficha continuam sendo salvos.
+  versao_atual := case
+    when jsonb_typeof(atual -> 'etapaVersao') = 'number' then (atual ->> 'etapaVersao')::int
+    else 0
+  end;
+  versao_patch := case
+    when jsonb_typeof(p_data -> 'etapaVersao') = 'number' then (p_data ->> 'etapaVersao')::int
+    else null
+  end;
+  if atual is not null and versao_atual > 0 and (versao_patch is null or versao_patch < versao_atual) then
+    novo := (novo - 'status' - 'etapaVersao' - 'responsavelSeparador' - 'responsavelEntregaAlmox'
+                  - 'responsavelRecebimento' - 'dataEntrega' - 'histEntryId' - 'dbAdded')
+            || jsonb_strip_nulls(jsonb_build_object(
+                 'status', atual -> 'status',
+                 'etapaVersao', atual -> 'etapaVersao',
+                 'responsavelSeparador', atual -> 'responsavelSeparador',
+                 'responsavelEntregaAlmox', atual -> 'responsavelEntregaAlmox',
+                 'responsavelRecebimento', atual -> 'responsavelRecebimento',
+                 'dataEntrega', atual -> 'dataEntrega',
+                 'histEntryId', atual -> 'histEntryId',
+                 'dbAdded', atual -> 'dbAdded'
+               ));
   end if;
   insert into public.fs_docs (col, id, data, updated_at)
   values (p_col, p_id, novo, now())
