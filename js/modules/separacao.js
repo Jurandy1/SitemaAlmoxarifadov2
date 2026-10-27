@@ -1215,6 +1215,7 @@ function handleFile(e){
       uSel.style.borderColor = '';
       uSel.style.boxShadow = '';
     }
+    sincronizarRotuloUnidade();
 
     try {
       const warnEl = document.getElementById('rUWarn');
@@ -1371,8 +1372,13 @@ async function removerArquivoReq() {
 function limparUnidadeReq() {
   const sel = document.getElementById('rU');
   if (!sel) return;
+  const search = document.getElementById('rUSearch');
+  if (search) search.value = '';
+  __rUFilterText = '';
   sel.selectedIndex = 0;
   sel.style.borderColor = ''; sel.style.boxShadow = '';
+  populateUnidadesSelect();
+  fecharListaUnidade();
   ck();
 }
 
@@ -2556,6 +2562,7 @@ async function doRegistrar(finalUnit){
 
   resetarRequisicaoUI();
   document.getElementById('rU').selectedIndex=0;document.getElementById('rO').value='';
+  sincronizarRotuloUnidade();
   setupDataPedidoAuto();
   toast('Requisição registrada! Os dados irão para o Relatório após a Entrega.', 'green');
   goTab('ps');
@@ -8943,6 +8950,127 @@ function populateUnidadesSelect() {
     const match = [...sel.options].find((o) => o.value === previous);
     if (match) sel.value = previous;
   }
+  montarListaUnidade();
+}
+
+function sincronizarRotuloUnidade() {
+  const sel = document.getElementById('rU');
+  const label = document.getElementById('rULabel');
+  const btn = document.getElementById('rUBtn');
+  if (!sel || !label || !btn) return;
+  const opt = sel.options[sel.selectedIndex];
+  const vazio = !String(sel.value || '').trim();
+  label.textContent = vazio ? '— Selecione a unidade cadastrada —' : (opt?.textContent || sel.value);
+  btn.classList.toggle('is-empty', vazio);
+  btn.style.borderColor = sel.style.borderColor || '';
+  btn.style.boxShadow = sel.style.boxShadow || '';
+  document.querySelectorAll('.rq-unit-opt').forEach((el) => {
+    el.classList.toggle('is-on', Number(el.dataset.i) === sel.selectedIndex);
+  });
+}
+
+function montarListaUnidade() {
+  const sel = document.getElementById('rU');
+  const list = document.getElementById('rUList');
+  if (!sel || !list) return;
+  const html = [];
+  const item = (opt) => {
+    if (!opt.value || opt.disabled) return;
+    html.push('<button type="button" class="rq-unit-opt" role="option" data-i="' + opt.index + '">' + esc(opt.textContent || '') + '</button>');
+  };
+  for (const node of sel.children) {
+    if (node.tagName === 'OPTGROUP') {
+      html.push('<div class="rq-unit-group">' + esc(node.label || '') + '</div>');
+      for (const opt of node.children) item(opt);
+    } else if (node.tagName === 'OPTION' && node.disabled) {
+      html.push('<div class="rq-unit-empty">' + esc(node.textContent || '') + '</div>');
+    }
+  }
+  list.innerHTML = html.length ? html.join('') : '<div class="rq-unit-empty">Nenhuma unidade encontrada</div>';
+  sincronizarRotuloUnidade();
+  if (!document.getElementById('rUPanel')?.hidden) posicionarListaUnidade();
+}
+
+function posicionarListaUnidade() {
+  const btn = document.getElementById('rUBtn');
+  const panel = document.getElementById('rUPanel');
+  if (!btn || !panel || panel.hidden) return;
+  const rect = btn.getBoundingClientRect();
+  const gap = 4;
+  const margem = 8;
+  const abaixo = Math.max(0, window.innerHeight - rect.bottom - gap - margem);
+  const acima = Math.max(0, rect.top - gap - margem);
+  const abrirParaCima = acima > abaixo;
+  const altura = Math.max(120, Math.min(360, abrirParaCima ? acima : abaixo));
+  const esquerda = Math.max(margem, Math.min(rect.left, window.innerWidth - margem - 160));
+  const largura = Math.max(160, Math.min(rect.width, window.innerWidth - esquerda - margem));
+  panel.style.left = esquerda + 'px';
+  panel.style.width = largura + 'px';
+  panel.style.maxHeight = altura + 'px';
+  const lista = document.getElementById('rUList');
+  if (lista) lista.style.maxHeight = Math.max(72, altura - 40) + 'px';
+  if (abrirParaCima) {
+    panel.style.top = 'auto';
+    panel.style.bottom = (window.innerHeight - rect.top + gap) + 'px';
+  } else {
+    panel.style.bottom = 'auto';
+    panel.style.top = (rect.bottom + gap) + 'px';
+  }
+}
+
+function abrirListaUnidade() {
+  const panel = document.getElementById('rUPanel');
+  const btn = document.getElementById('rUBtn');
+  if (!panel || !btn) return;
+  panel.hidden = false;
+  btn.setAttribute('aria-expanded', 'true');
+  posicionarListaUnidade();
+  const busca = document.getElementById('rUSearch');
+  if (busca) busca.focus({ preventScroll: true });
+  requestAnimationFrame(posicionarListaUnidade);
+}
+
+function fecharListaUnidade() {
+  const panel = document.getElementById('rUPanel');
+  const btn = document.getElementById('rUBtn');
+  if (panel) panel.hidden = true;
+  if (btn) btn.setAttribute('aria-expanded', 'false');
+}
+
+function alternarListaUnidade() {
+  const panel = document.getElementById('rUPanel');
+  if (!panel || !panel.hidden) fecharListaUnidade();
+  else abrirListaUnidade();
+}
+
+function instalarSeletorUnidade() {
+  const picker = document.getElementById('rUPicker');
+  if (!picker || picker.dataset.ready === '1') return;
+  picker.dataset.ready = '1';
+  document.getElementById('rUBtn')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    alternarListaUnidade();
+  });
+  document.getElementById('rUList')?.addEventListener('click', (e) => {
+    const opt = e.target.closest('.rq-unit-opt');
+    if (!opt) return;
+    const sel = document.getElementById('rU');
+    if (!sel) return;
+    sel.selectedIndex = Number(opt.dataset.i);
+    sel.style.borderColor = '';
+    sel.style.boxShadow = '';
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+    fecharListaUnidade();
+    sincronizarRotuloUnidade();
+  });
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#rUPicker')) fecharListaUnidade();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') fecharListaUnidade();
+  });
+  window.addEventListener('resize', posicionarListaUnidade);
+  document.addEventListener('scroll', posicionarListaUnidade, true);
 }
 
 function filterUnidadesSelect() {
@@ -9227,6 +9355,7 @@ export function initSeparacao() {
     });
   } catch (e) { console.error(e); }
   try { populateUnidadesSelect(); } catch (e) { console.error(e); }
+  try { instalarSeletorUnidade(); } catch (e) { console.error(e); }
   try { applySeparacaoRoleUI(); } catch (e) { console.error(e); }
   try { setupDataPedidoAuto(); } catch (e) { console.error(e); }
   try {
@@ -9243,6 +9372,7 @@ export function initSeparacao() {
       uSel.addEventListener('change', () => {
         uSel.style.borderColor = '';
         uSel.style.boxShadow = '';
+        try { sincronizarRotuloUnidade(); } catch (_) {}
         try { refreshUnitAssistUI(); } catch (_) {}
       });
     }

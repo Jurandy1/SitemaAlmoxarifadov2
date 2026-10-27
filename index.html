@@ -1558,11 +1558,20 @@
                             <div class="rq-top">
                                 <div class="rq-field">
                                     <label class="rq-label" for="rU">Unidade (auto-detectada ou selecione)</label>
-                                    <div class="rq-select">
-                                        <select id="rU" onchange="ck()"><option value="">— Selecione a unidade cadastrada —</option></select>
-                                        <button type="button" class="rq-select-clear" title="Limpar unidade" onclick="limparUnidadeReq()"><i data-lucide="x"></i></button>
+                                    <div class="rq-unit" id="rUPicker">
+                                        <div class="rq-unit-row">
+                                            <button type="button" class="rq-unit-btn" id="rUBtn" aria-haspopup="listbox" aria-expanded="false" aria-controls="rUList">
+                                                <span id="rULabel">— Selecione a unidade cadastrada —</span>
+                                                <i data-lucide="chevron-down"></i>
+                                            </button>
+                                            <button type="button" class="rq-select-clear" title="Limpar unidade" onclick="limparUnidadeReq()"><i data-lucide="x"></i></button>
+                                        </div>
+                                        <select id="rU" class="rq-unit-native" onchange="ck()"><option value="">— Selecione a unidade cadastrada —</option></select>
+                                        <div class="rq-unit-panel" id="rUPanel" hidden>
+                                            <input type="search" id="rUSearch" class="rq-unit-search" placeholder="Buscar unidade..." autocomplete="off" oninput="filterUnidadesSelect()">
+                                            <div id="rUList" class="rq-unit-list" role="listbox"></div>
+                                        </div>
                                     </div>
-                                    <input type="search" id="rUSearch" class="rq-unit-search" placeholder="Buscar unidade na lista..." autocomplete="off" oninput="filterUnidadesSelect()">
                                     <div id="rUWarn" class="rq-warn" style="display:none"></div>
                                     <div id="rUMemo"></div>
                                 </div>
