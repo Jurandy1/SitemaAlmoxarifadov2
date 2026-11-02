@@ -3,7 +3,13 @@ import { Timestamp, serverTimestamp, doc, increment, writeBatch } from "firebase
 import { DOM_ELEMENTS, showAlert } from "../utils/dom-helpers.js";
 import { capitalizeString, formatTimestamp } from "../utils/formatters.js";
 import { COLLECTIONS, db } from "../services/firestore-service.js";
-import { getUserRole } from "../utils/cache.js";
+import {
+    getUserRole,
+    getEstoqueAgua, setEstoqueAgua,
+    getEstoqueGas, setEstoqueGas,
+    getAguaMovimentacoes, setAguaMovimentacoes,
+    getGasMovimentacoes, setGasMovimentacoes,
+} from "../utils/cache.js";
 
 const RESUMO_DOC_ID          = 'resumo-agua';
 const RESUMO_DOC_TIPO        = '__resumo__';
@@ -13,6 +19,90 @@ const RESUMO_GAS_DOC_ID      = 'resumo-gas';
 // Mesmo corte usado em gas-control.js/dashboard.js: movimentações anteriores
 // a esta data não contam no estoque de gás, logo não entram no resumo.
 const GAS_CUTOFF_MS = new Date('2026-04-30T00:00:00.000').getTime();
+
+function _reenableLancamentoButtons() {
+    if (DOM_ELEMENTS.btnSubmitAgua) DOM_ELEMENTS.btnSubmitAgua.disabled = false;
+    if (DOM_ELEMENTS.btnSubmitGas) DOM_ELEMENTS.btnSubmitGas.disabled = false;
+}
+
+/** Fecha o modal de confirmação e libera de novo os botões de lançar. */
+export function cancelarMovimentacaoModal() {
+    if (DOM_ELEMENTS.almoxarifadoResponsavelModal) {
+        DOM_ELEMENTS.almoxarifadoResponsavelModal.style.display = 'none';
+    }
+    if (DOM_ELEMENTS.inputAlmoxResponsavelNome) DOM_ELEMENTS.inputAlmoxResponsavelNome.value = '';
+    showAlert('alert-almox-responsavel', '', 'info', 1);
+    _reenableLancamentoButtons();
+}
+
+/** Ajusta o cache local na hora, para o painel de estoque cair sem esperar o realtime. */
+function _aplicarLancamentoNoCache({ itemType, unidadeId, unidadeNome, tipoUnidade, qtdEntregue, qtdRetorno, dataTemp, nomeAlmoxarifado, responsavelUnidade }) {
+    const agora = Timestamp.now();
+    const pushMov = (tipo, quantidade) => {
+        if (quantidade <= 0) return;
+        const mov = {
+            id: `local_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+            unidadeId, unidadeNome, tipoUnidade,
+            tipo, quantidade,
+            data: dataTemp,
+            responsavel: responsavelUnidade,
+            responsavelAlmoxarifado: nomeAlmoxarifado,
+            registradoEm: agora,
+        };
+        if (itemType === 'agua') {
+            setAguaMovimentacoes([mov, ...(getAguaMovimentacoes() || [])].slice(0, 90));
+        } else {
+            setGasMovimentacoes([mov, ...(getGasMovimentacoes() || [])].slice(0, 300));
+        }
+    };
+    pushMov('entrega', qtdEntregue);
+    pushMov('retorno', qtdRetorno);
+
+    if (itemType === 'agua') {
+        const est = [...(getEstoqueAgua() || [])];
+        const bump = (id, tipo, fieldEnt, fieldRec) => {
+            const idx = est.findIndex(e => e.id === id || e.tipo === tipo);
+            const base = idx >= 0 ? { ...est[idx] } : { id, tipo };
+            if (qtdEntregue > 0) {
+                if (fieldEnt === 'totalSaidas') base.totalSaidas = (parseInt(base.totalSaidas, 10) || 0) + qtdEntregue;
+                else {
+                    base.saldos = { ...(base.saldos || {}) };
+                    const u = { ...(base.saldos[unidadeId] || { entregues: 0, recebidos: 0 }) };
+                    u.entregues = (parseInt(u.entregues, 10) || 0) + qtdEntregue;
+                    base.saldos[unidadeId] = u;
+                }
+            }
+            if (qtdRetorno > 0) {
+                if (fieldRec === 'totalRetornos') base.totalRetornos = (parseInt(base.totalRetornos, 10) || 0) + qtdRetorno;
+                else {
+                    base.saldos = { ...(base.saldos || {}) };
+                    const u = { ...(base.saldos[unidadeId] || { entregues: 0, recebidos: 0 }) };
+                    u.recebidos = (parseInt(u.recebidos, 10) || 0) + qtdRetorno;
+                    base.saldos[unidadeId] = u;
+                }
+            }
+            if (idx >= 0) est[idx] = base; else est.push(base);
+        };
+        bump('resumo-agua', '__resumo__', 'totalSaidas', 'totalRetornos');
+        if (unidadeId) bump('resumo-unidades-agua', '__resumo_unidades__', 'saldos', 'saldos');
+        setEstoqueAgua(est);
+    } else {
+        const est = [...(getEstoqueGas() || [])];
+        const idx = est.findIndex(e => e.id === 'resumo-gas' || e.tipo === '__resumo__');
+        const base = idx >= 0 ? { ...est[idx] } : { id: 'resumo-gas', tipo: '__resumo__', saldos: {} };
+        if (qtdEntregue > 0) base.totalSaidas = (parseInt(base.totalSaidas, 10) || 0) + qtdEntregue;
+        if (qtdRetorno > 0) base.totalRetornos = (parseInt(base.totalRetornos, 10) || 0) + qtdRetorno;
+        if (unidadeId && (qtdEntregue > 0 || qtdRetorno > 0)) {
+            base.saldos = { ...(base.saldos || {}) };
+            const u = { ...(base.saldos[unidadeId] || { entregues: 0, recebidos: 0 }) };
+            if (qtdEntregue > 0) u.entregues = (parseInt(u.entregues, 10) || 0) + qtdEntregue;
+            if (qtdRetorno > 0) u.recebidos = (parseInt(u.recebidos, 10) || 0) + qtdRetorno;
+            base.saldos[unidadeId] = u;
+        }
+        if (idx >= 0) est[idx] = base; else est.push(base);
+        setEstoqueGas(est);
+    }
+}
 
 /**
  * Adiciona ao batch os increments dos docs de resumo (totais e saldos por
@@ -234,6 +324,14 @@ export async function handleFinalMovimentacaoSubmit() {
 
         await batch.commit();
 
+        // Estoque na tela cai na hora (antes do listener realtime)
+        if (dataTemp.toMillis() >= GAS_CUTOFF_MS || itemType === 'agua') {
+            _aplicarLancamentoNoCache({
+                itemType, unidadeId, unidadeNome, tipoUnidade,
+                qtdEntregue, qtdRetorno, dataTemp, nomeAlmoxarifado, responsavelUnidade,
+            });
+        }
+
         showAlert(alertId, `Movimentação salva! ${msgSucesso.join('; ')}.`, 'success');
 
         if (formToReset) formToReset.reset();
@@ -251,6 +349,21 @@ export async function handleFinalMovimentacaoSubmit() {
         if (tipoSelectEl) tipoSelectEl.value = 'troca';
 
         DOM_ELEMENTS.almoxarifadoResponsavelModal.style.display = 'none';
+        _reenableLancamentoButtons();
+
+        try {
+            if (itemType === 'agua') {
+                const { renderEstoqueAgua, onAguaTabChange } = await import("./agua/agua-control.js");
+                renderEstoqueAgua?.();
+                onAguaTabChange?.();
+            } else {
+                const { renderEstoqueGas, onGasTabChange } = await import("./gas/gas-control.js");
+                renderEstoqueGas?.();
+                onGasTabChange?.();
+            }
+        } catch (e) {
+            console.warn('Falha ao re-renderizar estoque após lançamento:', e?.message || e);
+        }
 
     } catch (error) {
         console.error(`Erro final ao salvar movimentação (${itemType}):`, error);
@@ -266,6 +379,7 @@ export async function handleFinalMovimentacaoSubmit() {
 
         showAlert(alertId, `Erro ao salvar movimentação: ${displayMessage}`, 'error');
         showAlert('alert-almox-responsavel', `Erro ao salvar: ${displayMessage}. Tente novamente.`, 'error');
+        _reenableLancamentoButtons();
     } finally {
         btnModal.disabled  = false;
         btnModal.innerHTML = '<i data-lucide="save"></i> Confirmar Movimentação';

@@ -274,7 +274,7 @@ export async function handleGasSubmit(e) {
         return;
     }
 
-    const submitBtn = e.submitter || e.target.querySelector('button[type="submit"]');
+    const submitBtn = e.submitter || e.target.querySelector('button[type="submit"]') || DOM_ELEMENTS.btnSubmitGas;
     if (submitBtn) submitBtn.disabled = true;
 
     try {
@@ -298,7 +298,7 @@ export async function handleGasSubmit(e) {
         // Valida estoque disponível usando o filtro de corte
         const { atual: estoqueAtual } = getGasStockSummaryFiltered();
         if (qtdEntregue > estoqueAtual)
-            throw new Error(`Estoque insuficiente. Disponível: ${estoqueAtual} botijão(ões).`);
+            throw new Error(`Estoque insuficiente para esta saída. Disponível agora: ${estoqueAtual} botijão(ões). Se o físico estiver maior, lance uma Entrada de estoque antes.`);
 
         executeFinalMovimentacao({
             unidadeId, unidadeNome, tipoUnidadeRaw,

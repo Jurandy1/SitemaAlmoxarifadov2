@@ -18,7 +18,7 @@ import { renderDashboard, startDashboardRefresh, stopDashboardRefresh, renderDas
 import { renderUIModules, renderUnidadeControls, initAllListeners, DOM_ELEMENTS, findDOMElements, updateLastUpdateTime, showAlert } from "./modules/control-helpers.js";
 import { switchTab, switchSubTabView, escapeHTML } from "./utils/dom-helpers.js";
 import { executeDelete } from "./utils/db-utils.js";
-import { handleFinalMovimentacaoSubmit } from "./modules/movimentacao-modal-handler.js";
+import { handleFinalMovimentacaoSubmit, cancelarMovimentacaoModal } from "./modules/movimentacao-modal-handler.js";
 import { getTodayDateString } from "./utils/formatters.js";
 import { initPrevisaoListeners } from "./modules/previsao.js"; 
 import { getDebitosAguaResumoList, renderAguaMovimentacoesHistory } from "./modules/agua/agua-control.js";
@@ -131,6 +131,8 @@ function setupApp() {
     // 5. Configurar listener para o modal de movimentação final
     // CORREÇÃO: DOM_ELEMENTOS -> DOM_ELEMENTS
     if (DOM_ELEMENTS.btnSalvarMovimentacaoFinal) DOM_ELEMENTS.btnSalvarMovimentacaoFinal.addEventListener('click', handleFinalMovimentacaoSubmit);
+    const btnCancelMov = document.getElementById('btn-cancelar-movimentacao-final');
+    if (btnCancelMov) btnCancelMov.addEventListener('click', cancelarMovimentacaoModal);
 
     // 6. ADICIONADO: Inicializa os listeners da Previsão (globais)
     initPrevisaoListeners();

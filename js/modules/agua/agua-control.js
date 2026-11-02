@@ -375,12 +375,9 @@ export async function handleAguaSubmit(e) {
         showAlert('alert-agua', "Permissão negada. Usuário Anônimo não pode lançar movimentações.", 'error'); return; 
     }
 
-    // Desabilitar botão para evitar duplo clique e TRAVAR MÚLTIPLOS ENVIOS
-    const submitBtn = e.submitter || e.target.querySelector('button[type="submit"]');
-    if(submitBtn) {
-        submitBtn.disabled = true;
-        // Opcional: mudar texto para "Salvando..."
-    }
+    // Trava só enquanto o modal de confirmação está aberto; o cancelar/sucesso reativam.
+    const submitBtn = e.submitter || e.target.querySelector('button[type="submit"]') || DOM_ELEMENTS.btnSubmitAgua;
+    if (submitBtn) submitBtn.disabled = true;
 
     try {
         const selectValue = DOM_ELEMENTS.selectUnidadeAgua.value; 
@@ -408,11 +405,11 @@ export async function handleAguaSubmit(e) {
             }
             const { estoqueAtual } = calcularEstoqueAguaAtual();
             if (qtdEntregue > estoqueAtual) {
-                throw new Error(`Erro: Estoque insuficiente. Disponível: ${estoqueAtual}`);
+                throw new Error(`Estoque insuficiente para esta saída. Disponível agora: ${estoqueAtual} galão(ões). Se o físico estiver maior, lance uma Entrada de estoque antes.`);
             }
         }
         
-        await executeFinalMovimentacao({
+        executeFinalMovimentacao({
             unidadeId, unidadeNome, tipoUnidadeRaw,
             tipoMovimentacao, qtdEntregue, qtdRetorno,
             data, responsavelUnidade, itemType: 'agua'
@@ -420,11 +417,8 @@ export async function handleAguaSubmit(e) {
 
     } catch (error) {
         showAlert('alert-agua', error.message, 'warning');
-        // Reativa botão apenas em erro
-        if(submitBtn) submitBtn.disabled = false;
+        if (submitBtn) submitBtn.disabled = false;
     }
-    // Nota: Em caso de sucesso, o modal geralmente fecha ou recarrega, 
-    // então o botão pode continuar disabled até lá.
 }
 
 export function renderAguaStatus(newFilter = null) {
