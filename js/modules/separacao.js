@@ -4,7 +4,16 @@ import { getMateriais, getUnidades, getUserRole, getSemcasHistDB, getSemcasAlias
 import { showAlert } from "../utils/dom-helpers.js";
 import { isReady } from "./auth.js";
 import { getFeriadosISOSetCached } from "./feriados.js";
-import { getSafeRows, isDocxFile, isOdtFile, odtToRows, docxToRows } from "./materiais/leitores-arquivos.js";
+import {
+  getSafeRows,
+  isDocxFile,
+  isOdtFile,
+  isPdfFile,
+  odtToRows,
+  docxToRows,
+  SHEET_READ_OPTS,
+  SHEET_MAX_ROWS,
+} from "./materiais/leitores-arquivos.js";
 import { applyItemFixes, showPreRegDialog, closePreRegDialog, skipPreRegDialog, confirmPreRegDialog } from "./materiais/modal-revisao-itens.js";
 import { showUnitConfirmDialog } from "./materiais/modal-confirmar-unidade.js";
 import {
@@ -1111,6 +1120,30 @@ function parseSheet(rows, fileName = ''){
 // ═══════════════════════════════════════════════════════════════════
 // FILE UPLOAD
 // ═══════════════════════════════════════════════════════════════════
+const REQ_FILE_MAX_BYTES = 12 * 1024 * 1024; // 12 MB
+let __reqFileBusy = false;
+
+function _yieldToUI() {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+function _setReqFileLoading(on, msg) {
+  const dzEl = document.getElementById('fdrop');
+  const empty = document.getElementById('rqFileEmpty');
+  if (dzEl) dzEl.classList.toggle('is-loading', !!on);
+  if (empty && on) {
+    empty.dataset.prevHtml = empty.dataset.prevHtml || empty.innerHTML;
+    empty.innerHTML = '<i data-lucide="loader-2" class="rq-spin"></i><div><b>Lendo planilha…</b><span>' + esc(msg || 'Aguarde, isso pode levar alguns segundos') + '</span></div>';
+    try { if (typeof lucide !== 'undefined') lucide.createIcons({ nodes: [empty] }); } catch (_) {}
+  } else if (empty && empty.dataset.prevHtml) {
+    empty.innerHTML = empty.dataset.prevHtml;
+    delete empty.dataset.prevHtml;
+    try { if (typeof lucide !== 'undefined') lucide.createIcons({ nodes: [empty] }); } catch (_) {}
+  }
+  const fi = document.getElementById('fi');
+  if (fi) fi.disabled = !!on;
+}
+
 const dz=document.getElementById('fdrop');
 if (dz) {
   ['dragenter','dragover'].forEach(e=>dz.addEventListener(e,ev=>{ev.preventDefault();dz.classList.add('over')}));
@@ -1118,12 +1151,36 @@ if (dz) {
   dz.addEventListener('drop',e=>{const f=e.dataTransfer.files[0];if(f){const dt=new DataTransfer();dt.items.add(f);document.getElementById('fi').files=dt.files;handleFile({target:{files:[f]}})}});
 }
 
-function handleFile(e){
+async function handleFile(e){
   const file=e.target.files[0];if(!file)return;
+  if (__reqFileBusy) { toast('Aguarde: já estou lendo uma planilha.', 'orange'); return; }
+
+  if (isPdfFile(file.name)) {
+    toast('PDF ainda não é suportado na requisição. Envie .xlsx, .xls, .ods, .docx ou .odt.', 'red');
+    try { e.target.value = ''; } catch (_) {}
+    return;
+  }
+  if (file.size > REQ_FILE_MAX_BYTES) {
+    toast('Arquivo muito grande (máx. 12 MB). Exporte só a aba do pedido ou salve de novo no Excel.', 'red');
+    try { e.target.value = ''; } catch (_) {}
+    return;
+  }
+
   // o nome do arquivo aparece no bloco da planilha (mostrarArquivoReq)
-  document.getElementById('fname').textContent=file.name;
+  const fnameEl = document.getElementById('fname');
+  if (fnameEl) fnameEl.textContent = file.name;
+
+  __reqFileBusy = true;
+  _setReqFileLoading(true, file.name);
+
   const reader=new FileReader();
+  reader.onerror = () => {
+    __reqFileBusy = false;
+    _setReqFileLoading(false);
+    toast('Não consegui ler o arquivo. Tente salvar de novo no Excel (.xlsx).', 'red');
+  };
   reader.onload=async (ev)=>{try{
+    await _yieldToUI();
     const a=new Uint8Array(ev.target.result);
     let rows, wb = null;
 
@@ -1137,12 +1194,22 @@ function handleFile(e){
       rows = await odtToRows(ev.target.result);
       wb = { SheetNames: ['Sheet1'], Sheets: { Sheet1: {} } };
     } else {
-      // ── Excel/ODS: pipeline original ──
-      wb = XLSX.read(a, {type:'array', cellDates: true});
+      // ── Excel/ODS: sheetRows + clamp evitam !ref fantasma travar a aba ──
+      await _yieldToUI();
+      wb = XLSX.read(a, SHEET_READ_OPTS);
       const ws = wb.Sheets[wb.SheetNames[0]];
+      if (!ws) throw new Error('Planilha sem abas legíveis.');
       rows = getSafeRows(ws);
     }
 
+    if (!rows || !rows.length) {
+      throw new Error('Não achei linhas na planilha. Verifique se a primeira aba tem a tabela do pedido.');
+    }
+    if (rows.length >= SHEET_MAX_ROWS) {
+      toast('Li só as primeiras ' + SHEET_MAX_ROWS + ' linhas (planilha muito grande). Confira se todos os itens entraram.', 'orange');
+    }
+
+    await _yieldToUI();
     tmpParsed=parseSheet(rows, file.name);
     tmpParsed.fileName=file.name;
     tmpParsed._wb=wb;
@@ -1244,9 +1311,16 @@ function handleFile(e){
     } catch (_) {}
     try { refreshUnitAssistUI(); } catch (_) {}
     mostrarArquivoReq(file);
+    await _yieldToUI();
     iniciarEditorReq();
     ck();
-  }catch(err){toast('Erro ao ler: '+err.message,'red')}};
+  } catch (err) {
+    console.error('[handleFile]', err);
+    toast('Erro ao ler a planilha: ' + (err?.message || err) + '. Tente salvar como .xlsx e enviar de novo.', 'red');
+  } finally {
+    __reqFileBusy = false;
+    _setReqFileLoading(false);
+  }};
   reader.readAsArrayBuffer(file);
 }
 
@@ -5345,9 +5419,10 @@ function handleHistFiles(e){
           rows = await odtToRows(ev.target.result);
           wb = { SheetNames: ['Sheet1'], Sheets: { Sheet1: {} } };
         } else {
-          // ── Excel/ODS: pipeline original ──
-          wb = XLSX.read(new Uint8Array(ev.target.result),{type:'array', cellDates: true});
+          // ── Excel/ODS: sheetRows + clamp evitam travar em !ref enorme ──
+          wb = XLSX.read(new Uint8Array(ev.target.result), SHEET_READ_OPTS);
           const ws = wb.Sheets[wb.SheetNames[0]];
+          if (!ws) throw new Error('Planilha sem abas legíveis.');
           rows = getSafeRows(ws);
         }
 

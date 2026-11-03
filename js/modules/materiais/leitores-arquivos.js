@@ -1,9 +1,89 @@
 const pad2 = (n) => String(n).padStart(2, "0");
 
-function getSafeRows(ws) {
-  const rawRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
-  return rawRows.map((r) =>
-    r.map((c) => {
+/** Limites para não travar o navegador com planilhas de intervalo “fantasma” (Excel !ref enorme). */
+export const SHEET_MAX_ROWS = 500;
+export const SHEET_MAX_COLS = 40;
+export const SHEET_READ_OPTS = {
+  type: "array",
+  cellDates: true,
+  sheetRows: SHEET_MAX_ROWS,
+};
+
+/**
+ * Corta o !ref da planilha para no máximo maxRows × maxCols.
+ * Planilhas “sujas” às vezes declaram até a linha 1.048.576 — sheet_to_json
+ * aloca tudo isso e o site congela até fechar a aba.
+ */
+function clampSheetRef(ws, maxRows = SHEET_MAX_ROWS, maxCols = SHEET_MAX_COLS) {
+  if (!ws || typeof ws !== "object") return;
+
+  let range;
+  try {
+    range = ws["!ref"]
+      ? XLSX.utils.decode_range(ws["!ref"])
+      : { s: { r: 0, c: 0 }, e: { r: 0, c: 0 } };
+  } catch (_) {
+    range = { s: { r: 0, c: 0 }, e: { r: 0, c: 0 } };
+  }
+
+  const spanR = range.e.r - range.s.r + 1;
+  const spanC = range.e.c - range.s.c + 1;
+
+  if (spanR > maxRows || spanC > maxCols || !ws["!ref"]) {
+    let maxR = range.s.r;
+    let maxC = range.s.c;
+    let found = false;
+    // Poucas células reais + !ref enorme: varrer as chaves é barato e acerta o uso real.
+    for (const key of Object.keys(ws)) {
+      if (key.charAt(0) === "!") continue;
+      let cell;
+      try {
+        cell = XLSX.utils.decode_cell(key);
+      } catch (_) {
+        continue;
+      }
+      if (cell.r > maxR) maxR = cell.r;
+      if (cell.c > maxC) maxC = cell.c;
+      found = true;
+    }
+    if (found) {
+      range.e.r = Math.min(maxR, range.s.r + maxRows - 1);
+      range.e.c = Math.min(maxC, range.s.c + maxCols - 1);
+    } else {
+      range.e.r = Math.min(range.e.r, range.s.r + maxRows - 1);
+      range.e.c = Math.min(range.e.c, range.s.c + maxCols - 1);
+    }
+  }
+
+  if (range.e.r < range.s.r) range.e.r = range.s.r;
+  if (range.e.c < range.s.c) range.e.c = range.s.c;
+  ws["!ref"] = XLSX.utils.encode_range(range);
+}
+
+function trimEmptyTrailingRows(rows) {
+  let end = rows.length;
+  while (end > 0) {
+    const r = rows[end - 1] || [];
+    if (r.some((c) => String(c ?? "").trim() !== "")) break;
+    end--;
+  }
+  return end < rows.length ? rows.slice(0, end) : rows;
+}
+
+function getSafeRows(ws, opts = {}) {
+  const maxRows = opts.maxRows || SHEET_MAX_ROWS;
+  const maxCols = opts.maxCols || SHEET_MAX_COLS;
+  clampSheetRef(ws, maxRows, maxCols);
+
+  const rawRows = XLSX.utils.sheet_to_json(ws, {
+    header: 1,
+    defval: "",
+    blankrows: false,
+  });
+
+  const capped = rawRows.slice(0, maxRows).map((r) => {
+    const row = Array.isArray(r) ? r.slice(0, maxCols) : [];
+    return row.map((c) => {
       if (c instanceof Date) {
         const ud = c.getUTCDate(),
           um = c.getUTCMonth() + 1,
@@ -24,8 +104,10 @@ function getSafeRows(ws) {
         } catch (_) {}
       }
       return c;
-    })
-  );
+    });
+  });
+
+  return trimEmptyTrailingRows(capped);
 }
 
 function isDocxFile(name) {
@@ -34,6 +116,10 @@ function isDocxFile(name) {
 
 function isOdtFile(name) {
   return /\.odt$/i.test(name || "");
+}
+
+function isPdfFile(name) {
+  return /\.pdf$/i.test(name || "");
 }
 
 async function odtToRows(arrayBuffer) {
@@ -100,15 +186,18 @@ async function odtToRows(arrayBuffer) {
     if (el.localName === "table") {
       const trs = el.getElementsByTagNameNS(NS_TABLE, "table-row");
       for (let ri = 0; ri < trs.length; ri++) {
+        if (rows.length >= SHEET_MAX_ROWS) break;
         const tr = trs[ri];
         const cells = tr.getElementsByTagNameNS(NS_TABLE, "table-cell");
         const rowData = [];
         for (let xi = 0; xi < cells.length; xi++) {
+          if (rowData.length >= SHEET_MAX_COLS) break;
           const cell = cells[xi];
-          const repeat = parseInt(cell.getAttribute("table:number-columns-repeated") || "1");
+          const repeat = parseInt(cell.getAttribute("table:number-columns-repeated") || "1", 10);
           const text = extractCellText(cell);
           if (repeat > 10 && !text) continue;
           for (let rp = 0; rp < Math.min(repeat, 6); rp++) {
+            if (rowData.length >= SHEET_MAX_COLS) break;
             rowData.push(text);
           }
         }
@@ -118,7 +207,7 @@ async function odtToRows(arrayBuffer) {
     }
   }
 
-  return rows;
+  return rows.slice(0, SHEET_MAX_ROWS);
 }
 
 async function docxToRows(arrayBuffer) {
@@ -127,8 +216,10 @@ async function docxToRows(arrayBuffer) {
   const doc = new DOMParser().parseFromString(result.value, "text/html");
   const rows = [];
   doc.querySelectorAll("table tr").forEach((tr) => {
+    if (rows.length >= SHEET_MAX_ROWS) return;
     const cells = [];
     tr.querySelectorAll("td, th").forEach((td) => {
+      if (cells.length >= SHEET_MAX_COLS) return;
       cells.push(td.textContent.replace(/\s+/g, " ").trim());
     });
     if (cells.some((c) => c)) rows.push(cells);
@@ -136,9 +227,11 @@ async function docxToRows(arrayBuffer) {
   if (!rows.length) {
     const textResult = await mammoth.extractRawText({ arrayBuffer });
     const lines = textResult.value.split("\n").filter((l) => l.trim());
-    lines.forEach((l) => rows.push([l.trim()]));
+    lines.forEach((l) => {
+      if (rows.length < SHEET_MAX_ROWS) rows.push([l.trim()]);
+    });
   }
-  return rows;
+  return rows.slice(0, SHEET_MAX_ROWS);
 }
 
-export { getSafeRows, isDocxFile, isOdtFile, odtToRows, docxToRows };
+export { getSafeRows, clampSheetRef, isDocxFile, isOdtFile, isPdfFile, odtToRows, docxToRows };
