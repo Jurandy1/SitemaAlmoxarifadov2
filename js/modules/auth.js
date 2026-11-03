@@ -57,6 +57,7 @@ import {
     getUserRole
 } from "../utils/cache.js";
 import { onUserLogout } from "./usuarios.js";
+import { ensureAguaSaidasPreInicial } from "../utils/agua-saldo.js";
 
 // =======================================================================
 // VARIÁVEIS DE ESTADO
@@ -729,6 +730,13 @@ async function initFirestoreListeners(renderDash, renderControls, renderModules)
 
         // Não reconciliar água automaticamente (histórico preservado; saldo via Entrada)
         _reconcileAguaResumos(COLLECTIONS).catch(() => {});
+
+        // Saldo: descontar saídas registradas antes do Estoque Inicial (só leitura)
+        if (inicial) {
+            ensureAguaSaidasPreInicial(() =>
+                scheduleRenders({ dash: true, modules: true }, renderDash, renderControls, renderModules)
+            ).catch(() => {});
+        }
     });
 
     // ── Estoque Gas ───────────────────────────────────────────────────
