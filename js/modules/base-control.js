@@ -98,7 +98,7 @@ export class BaseControl {
         if (this.type === 'agua') {
             // Mesmo cálculo do painel de Água (não sobrescrever com outro número)
             const saldo = calcularSaldoAgua(resumo);
-            estoqueAtual = saldo.estoqueBruto;
+            estoqueAtual = saldo.estoqueAtual;
             saidasExibidas = saldo.totalSaidas;
         }
 

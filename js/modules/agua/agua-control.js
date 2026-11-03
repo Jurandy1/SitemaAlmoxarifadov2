@@ -242,7 +242,7 @@ export function getAguaSaldosUnidades() {
 
 export function renderEstoqueAgua() {
     // Usa cálculo direto do cache
-    const { estoqueInicial, totalEntradas, totalSaidas, estoqueBruto } = calcularEstoqueAguaAtual();
+    const { estoqueInicial, totalEntradas, totalSaidas, estoqueAtual } = calcularEstoqueAguaAtual();
 
     if (DOM_ELEMENTS.estoqueAguaInicialEl) {
         DOM_ELEMENTS.estoqueAguaInicialEl.textContent = estoqueInicial;
@@ -257,13 +257,7 @@ export function renderEstoqueAgua() {
     }
 
     if (DOM_ELEMENTS.estoqueAguaAtualEl) {
-        // Mostra o valor real: se o livro estiver negativo, a Entrada lançada
-        // aparece (o número sobe) em vez de ficar escondida atrás de um 0.
-        DOM_ELEMENTS.estoqueAguaAtualEl.textContent = estoqueBruto;
-        DOM_ELEMENTS.estoqueAguaAtualEl.style.color = estoqueBruto < 0 ? '#dc2626' : '';
-        DOM_ELEMENTS.estoqueAguaAtualEl.title = estoqueBruto < 0
-            ? `Saldo negativo: faltam ${-estoqueBruto} galão(ões) para zerar. Saídas ficam bloqueadas até o saldo ficar positivo.`
-            : '';
+        DOM_ELEMENTS.estoqueAguaAtualEl.textContent = estoqueAtual;
     }
 
     aguaControl.renderEstoque();

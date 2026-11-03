@@ -198,7 +198,7 @@ function renderDashboardAguaSummary() {
         }
 
         // Mesmo cálculo do painel de Água (desconta saídas anteriores ao Inicial)
-        const estoqueAtual = calcularSaldoAgua().estoqueBruto;
+        const estoqueAtual = calcularSaldoAgua().estoqueAtual;
 
         if (estoqueAtual === _lastKnownAguaEstoque &&
             DOM_ELEMENTS.dashboardEstoqueAguaEl &&
