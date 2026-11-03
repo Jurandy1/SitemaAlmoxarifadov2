@@ -2,6 +2,7 @@
 import { getAguaMovimentacoes, getGasMovimentacoes, getEstoqueAgua, getEstoqueGas, getMateriais, getEntregas, getCurrentDashboardMaterialFilter, setCurrentDashboardMaterialFilter } from "../utils/almoxarifado.js";
 import { DOM_ELEMENTS } from "../utils/dom-helpers.js";
 import { formatTimestamp } from "../utils/formatters.js";
+import { calcularSaldoAgua } from "../utils/agua-saldo.js";
 import Chart from 'chart.js/auto';
 
 // ── Corte de data para cálculo do estoque de gás ──────────────────────────
@@ -196,7 +197,8 @@ function renderDashboardAguaSummary() {
             return;
         }
 
-        const estoqueAtual = Math.max(0, estoqueInicial + totalEntradas - totalSaidasHist);
+        // Mesmo cálculo do painel de Água (desconta saídas anteriores ao Inicial)
+        const estoqueAtual = calcularSaldoAgua().estoqueAtual;
 
         if (estoqueAtual === _lastKnownAguaEstoque &&
             DOM_ELEMENTS.dashboardEstoqueAguaEl &&

@@ -3,6 +3,7 @@ import { getUnidades, getUserRole, isEstoqueInicialDefinido } from "../utils/cac
 import { DOM_ELEMENTS, showAlert, renderPermissionsUI } from "../utils/dom-helpers.js";
 import { capitalizeString } from "../utils/formatters.js";
 import { isReady } from "./auth.js";
+import { calcularSaldoAgua } from "../utils/agua-saldo.js";
 
 const RESUMO_DOC_TIPOS = ['__resumo__', 'resumo-acumulado'];
 
@@ -92,11 +93,18 @@ export class BaseControl {
                 .filter(m => m.tipo === 'entrega')
                 .reduce((sum, m) => sum + (parseInt(m.quantidade, 10) || 0), 0);
 
-        const estoqueAtual = Math.max(0, estoqueInicial + totalEntradas - totalSaidas);
+        let estoqueAtual = Math.max(0, estoqueInicial + totalEntradas - totalSaidas);
+        let saidasExibidas = totalSaidas;
+        if (this.type === 'agua') {
+            // Mesmo cálculo do painel de Água (não sobrescrever com outro número)
+            const saldo = calcularSaldoAgua(resumo);
+            estoqueAtual = saldo.estoqueAtual;
+            saidasExibidas = saldo.totalSaidas;
+        }
 
         if (elements.estoqueInicial)  elements.estoqueInicial.textContent  = estoqueInicial;
         if (elements.estoqueEntradas) elements.estoqueEntradas.textContent = `+${totalEntradas}`;
-        if (elements.estoqueSaidas)   elements.estoqueSaidas.textContent   = `-${totalSaidas}`;
+        if (elements.estoqueSaidas)   elements.estoqueSaidas.textContent   = `-${saidasExibidas}`;
         if (elements.estoqueAtual)    elements.estoqueAtual.textContent    = estoqueAtual;
 
         renderPermissionsUI();

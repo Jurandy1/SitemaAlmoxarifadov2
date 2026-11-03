@@ -23,6 +23,7 @@ import { COLLECTIONS } from "../../services/firestore-service.js";
 import { executeFinalMovimentacao } from "../movimentacao-modal-handler.js";
 import { BaseControl, getCachedAguaResumo } from "../base-control.js";
 import { renderPcaAgua } from "./agua-pca.js";
+import { calcularSaldoAgua } from "../../utils/agua-saldo.js";
 
 // VARIÁVEIS DE ESTADO LOCAL
 let debitoAguaMode = 'devendo';
@@ -191,45 +192,8 @@ function isHistoricoImportado(m) {
 // FUNÇÃO UTILITÁRIA: Calcula estoque atual direto do cache (NÃO usa DOM)
 // =========================================================================
 export function calcularEstoqueAguaAtual() {
-    const estoqueAgua = getEstoqueAgua();
-
-    const estoqueInicial = estoqueAgua
-        .filter(e => e.tipo === 'inicial')
-        .reduce((sum, e) => sum + (parseInt(e.quantidade, 10) || 0), 0);
-
-    const totalEntradas = estoqueAgua
-        .filter(e => e.tipo === 'entrada')
-        .reduce((sum, e) => sum + (parseInt(e.quantidade, 10) || 0), 0);
-
-    // O listener de movimentações carrega só as 90 mais recentes (limit(90)):
-    // as saídas TÊM que vir do doc resumo-agua, que acumula o histórico completo.
-    // Somar o cache aqui subconta as saídas e infla o estoque disponível.
-    const resumo = estoqueAgua.find(e =>
-            e.tipo === '__resumo__' || e.tipo === 'resumo-acumulado' ||
-            e.id === 'resumo-agua' || e.id === 'resumo-acumulado')
-        || getCachedAguaResumo();
-
-    let totalSaidas;
-    if (resumo && typeof resumo.totalSaidas === 'number') {
-        totalSaidas = resumo.totalSaidas;
-    } else {
-        // Fallback (resumo ainda não criado/migrado): cache limitado
-        const movs = (getAguaMovimentacoes() || []).filter(m => !isHistoricoImportado(m));
-        totalSaidas = movs
-            .filter(m => m.tipo === 'entrega')
-            .reduce((sum, m) => sum + (parseInt(m.quantidade, 10) || 0), 0);
-    }
-
-    const bruto = estoqueInicial + totalEntradas - totalSaidas;
-    // Saldo operacional nunca fica negativo na liberação de saída
-    const estoqueAtual = Math.max(0, bruto);
-    return {
-        estoqueInicial,
-        totalEntradas,
-        totalSaidas,
-        estoqueAtual,
-        estoqueBruto: bruto,
-    };
+    // Fonte única (desconta saídas registradas antes do Estoque Inicial)
+    return calcularSaldoAgua(getCachedAguaResumo());
 }
 
 /** Saldo disponível para saída (0 se o livro estiver negativo). */
