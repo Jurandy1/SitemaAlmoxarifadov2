@@ -530,72 +530,17 @@ async function _migrateGasResumo(collections) {
 }
 
 // =======================================================================
-// RECONCILIAÇÃO ÚNICA: totais do resumo vs histórico real
+// RECONCILIAÇÃO DE ÁGUA: DESATIVADA
 // -----------------------------------------------------------------------
-// O doc resumo-agua ficou atrasado em relação às entregas reais (saídas
-// gravadas sem o increment correspondente em versões antigas). Isso faz o
-// estoque "não diminuir" de forma confiável / ficar inflado. Roda 1x.
+// O histórico de envio às unidades é a fonte da verdade e não deve ser
+// reescrito. O saldo de estoque o almoxarifado ajusta com Entrada quando
+// precisar — não recalculamos nem sobrescrevemos o resumo automaticamente.
 // =======================================================================
-let _reconcilingAgua = false;
 const RESUMO_AGUA_FIX_LS_KEY = 'semcas_agua_resumo_fix_v1';
 
-async function _reconcileAguaResumos(collections) {
-    if (_reconcilingAgua) return;
-    try {
-        if (typeof localStorage !== 'undefined' && localStorage.getItem(RESUMO_AGUA_FIX_LS_KEY)) return;
-    } catch (_) {}
-
-    _reconcilingAgua = true;
-    try {
-        console.log('[RECONCILE] Recalculando resumo de agua a partir do historico...');
-        const snap = await getDocs(collections.aguaMov);
-        const normName = (x) => String(x || '').toLowerCase().replace(/\s+/g, ' ').trim();
-        const nameToId = new Map((getUnidades() || []).map(u => [normName(u.nome), u.id]));
-
-        let totalSaidas = 0, totalRetornos = 0;
-        const saldos = {};
-        snap.docs.forEach(d => {
-            const m = d.data();
-            if (_isHistImportado(m)) return;
-            const qty = parseInt(m.quantidade, 10) || 0;
-            if (qty <= 0) return;
-            const uid = m.unidadeId || nameToId.get(normName(m.unidadeNome));
-            if (uid) {
-                const s = saldos[uid] || (saldos[uid] = { entregues: 0, recebidos: 0 });
-                if (m.tipo === 'entrega') s.entregues += qty;
-                else if (m.tipo === 'retorno' || m.tipo === 'retirada') s.recebidos += qty;
-            }
-            if (m.tipo === 'entrega') totalSaidas += qty;
-            else if (m.tipo === 'retorno' || m.tipo === 'retirada') totalRetornos += qty;
-        });
-
-        await setDoc(doc(collections.estoqueAgua, RESUMO_DOC_ID), {
-            tipo: '__resumo__',
-            totalSaidas,
-            totalRetornos,
-            atualizadoEm: serverTimestamp(),
-            reconciliadoEm: serverTimestamp(),
-        });
-        await setDoc(doc(collections.estoqueAgua, RESUMO_UNIDADES_DOC_ID), {
-            tipo: '__resumo_unidades__',
-            saldos,
-            atualizadoEm: serverTimestamp(),
-            reconciliadoEm: serverTimestamp(),
-        });
-
-        try { localStorage.setItem(RESUMO_AGUA_FIX_LS_KEY, '1'); } catch (_) {}
-        console.log('[RECONCILE OK] Agua:', { totalSaidas, totalRetornos, unidades: Object.keys(saldos).length });
-    } catch (err) {
-        const code = String(err?.code || '').toLowerCase();
-        const msg  = String(err?.message || '').toLowerCase();
-        if (code === 'permission-denied' || msg.includes('missing or insufficient permissions')) {
-            try { localStorage.setItem(RESUMO_AGUA_FIX_LS_KEY, '1'); } catch (_) {}
-        } else {
-            console.error('[RECONCILE] Erro agua:', err?.message || err);
-        }
-    } finally {
-        _reconcilingAgua = false;
-    }
+async function _reconcileAguaResumos(_collections) {
+    // No-op de propósito: não mexer em água/histórico.
+    try { localStorage.setItem(RESUMO_AGUA_FIX_LS_KEY, '1'); } catch (_) {}
 }
 
 let _reconcilingGas = false;
@@ -782,7 +727,7 @@ async function initFirestoreListeners(renderDash, renderControls, renderModules)
             _migrateAguaSaldosUnidades(COLLECTIONS).catch(() => {});
         }
 
-        // Uma vez: corrige resumo atrasado (estoque que nao diminuia direito)
+        // Não reconciliar água automaticamente (histórico preservado; saldo via Entrada)
         _reconcileAguaResumos(COLLECTIONS).catch(() => {});
     });
 

@@ -280,6 +280,12 @@ export async function handleFinalMovimentacaoSubmit() {
     let msgSucesso = [];
 
     try {
+        // Água: só grava saída se ainda houver saldo (revalida no confirmar)
+        if (itemType === 'agua' && qtdEntregue > 0) {
+            const { assertSaidaAguaPermitida } = await import("./agua/agua-control.js");
+            assertSaidaAguaPermitida(qtdEntregue);
+        }
+
         const timestamp = serverTimestamp();
 
         // Movimentações + resumos gravados num ÚNICO batch atômico:
@@ -373,6 +379,8 @@ export async function handleFinalMovimentacaoSubmit() {
         if (error.message && error.message.toLowerCase().includes('permission-denied')) {
             const collectionName = itemType === 'agua' ? 'controleAgua' : 'controleGas';
             displayMessage = `Erro de Permissão: O seu papel (**Editor**) não tem permissão de **Escrita** (write/create) para a coleção de movimentação (*${collectionName}*). **Verifique se as regras do Firestore estão corretamente publicadas!**`;
+        } else if (error.message && /saldo disponível|estoque insuficiente|estoque inicial/i.test(error.message)) {
+            displayMessage = error.message;
         } else if (error.message) {
             displayMessage = `Erro inesperado: ${error.message}`;
         }

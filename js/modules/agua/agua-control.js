@@ -220,12 +220,38 @@ export function calcularEstoqueAguaAtual() {
             .reduce((sum, m) => sum + (parseInt(m.quantidade, 10) || 0), 0);
     }
 
+    const bruto = estoqueInicial + totalEntradas - totalSaidas;
+    // Saldo operacional nunca fica negativo na liberação de saída
+    const estoqueAtual = Math.max(0, bruto);
     return {
         estoqueInicial,
         totalEntradas,
         totalSaidas,
-        estoqueAtual: estoqueInicial + totalEntradas - totalSaidas
+        estoqueAtual,
+        estoqueBruto: bruto,
     };
+}
+
+/** Saldo disponível para saída (0 se o livro estiver negativo). */
+export function getSaldoDisponivelAgua() {
+    return calcularEstoqueAguaAtual().estoqueAtual;
+}
+
+/** Garante que a quantidade cabe no saldo atual; lança Error se não couber. */
+export function assertSaidaAguaPermitida(qtdEntregue) {
+    const qtd = parseInt(qtdEntregue, 10) || 0;
+    if (qtd <= 0) throw new Error('A quantidade deve ser maior que zero.');
+    if (!isEstoqueInicialDefinido('agua')) {
+        throw new Error('Defina o Estoque Inicial de Água antes de lançar saídas.');
+    }
+    const disponivel = getSaldoDisponivelAgua();
+    if (qtd > disponivel) {
+        if (disponivel <= 0) {
+            throw new Error('Não há saldo disponível de água. Lance uma Entrada de estoque antes de registrar a saída.');
+        }
+        throw new Error(`Estoque insuficiente. Você pediu ${qtd} e só há ${disponivel} galão(ões) disponível(is).`);
+    }
+    return disponivel;
 }
 
 // =========================================================================
@@ -395,20 +421,8 @@ export async function handleAguaSubmit(e) {
             throw new Error('Dados inválidos. Verifique Unidade, Data e Nome de quem Recebeu/Devolveu.');
         }
         
-        if (qtdEntregue <= 0) {
-             throw new Error('A quantidade deve ser maior que zero.');
-        }
-        
-        if (qtdEntregue > 0) {
-            if (!isEstoqueInicialDefinido('agua')) {
-                throw new Error('Defina o Estoque Inicial de Água antes de lançar saídas.');
-            }
-            const { estoqueAtual } = calcularEstoqueAguaAtual();
-            if (qtdEntregue > estoqueAtual) {
-                throw new Error(`Estoque insuficiente para esta saída. Disponível agora: ${estoqueAtual} galão(ões). Se o físico estiver maior, lance uma Entrada de estoque antes.`);
-            }
-        }
-        
+        assertSaidaAguaPermitida(qtdEntregue);
+
         executeFinalMovimentacao({
             unidadeId, unidadeNome, tipoUnidadeRaw,
             tipoMovimentacao, qtdEntregue, qtdRetorno,
