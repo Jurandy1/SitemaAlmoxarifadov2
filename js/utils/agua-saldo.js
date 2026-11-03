@@ -1,26 +1,25 @@
 // =========================================================================
 // SALDO DE ÁGUA — fonte única do cálculo (painel de Água, cards e dashboard)
 // -------------------------------------------------------------------------
-// Saldo = Estoque Inicial + Entradas − Saídas feitas DEPOIS do Inicial.
+// Saldo = Estoque Inicial + Entradas + Ajuste − Saídas.
 //
-// O doc resumo-agua acumula as saídas de TODO o histórico (inclusive as
-// entregas registradas antes de o Estoque Inicial ser definido, que já
-// estavam refletidas na contagem física do Inicial). Contar essas saídas
-// de novo deixava o saldo negativo — e, como a tela mostrava no mínimo 0,
-// as Entradas novas "sumiam" (só pagavam a dívida invisível).
-//
-// Aqui calculamos, só lendo (nada é regravado no histórico nem no resumo),
-// quanto do resumo veio de antes do Inicial e descontamos esse valor.
+// O histórico de movimentações é a fonte da verdade e NÃO é alterado.
+// Se a conta antiga ficou negativa (mais saídas no histórico do que
+// entradas registradas), essa diferença é ignorada: gravamos um único doc
+// de ajuste ("ajuste-saldo-agua") em estoqueAgua que leva o saldo a 0.
+// A partir daí cada Entrada soma e cada Saída diminui normalmente.
 // =========================================================================
-import { getDocs, query, where } from "firebase/firestore";
-import { getEstoqueAgua, getAguaMovimentacoes } from "./cache.js";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { getEstoqueAgua, getAguaMovimentacoes, getUserRole } from "./cache.js";
 import { COLLECTIONS } from "../services/firestore-service.js";
 
-const LS_KEY = 'semcas_agua_saidas_pre_inicial_v1';
-const RECALC_MS = 24 * 60 * 60 * 1000;
+export const AJUSTE_SALDO_AGUA_DOC_ID = 'ajuste-saldo-agua';
 
-let _preInicial = _loadFromStorage(); // { key, value, at }
-let _computing = false;
+// Tudo lançado antes desta data entra no "passado" que é zerado; Entradas
+// a partir dela (inclusive as de hoje) somam normalmente no saldo.
+const INICIO_NOVA_CONTAGEM_MS = new Date('2026-11-03T00:00:00-03:00').getTime();
+
+let _ajustando = false;
 
 function _toMs(v) {
     if (!v) return 0;
@@ -30,8 +29,6 @@ function _toMs(v) {
     return 0;
 }
 
-// Mesmo critério usado para montar o resumo-agua (movimentações importadas
-// do sistema antigo nunca entraram no resumo).
 function _isHistImportado(m) {
     if (!m) return false;
     if (m.origem === 'importador_sql') return true;
@@ -41,132 +38,94 @@ function _isHistImportado(m) {
     return false;
 }
 
-function _loadFromStorage() {
-    try {
-        const raw = globalThis.localStorage?.getItem(LS_KEY);
-        if (!raw) return null;
-        const v = JSON.parse(raw);
-        return v && typeof v.value === 'number' ? v : null;
-    } catch (_) { return null; }
-}
-
-function _saveToStorage(v) {
-    try { globalThis.localStorage?.setItem(LS_KEY, JSON.stringify(v)); } catch (_) {}
-}
-
-function _getInicial(estoque) {
-    const inicials = (estoque || []).filter(e => e.tipo === 'inicial');
-    if (!inicials.length) return null;
-    // Mais antigo = momento da contagem física de referência
-    return inicials.reduce((a, b) => {
-        const ma = _toMs(a.registradoEm) || _toMs(a.data);
-        const mb = _toMs(b.registradoEm) || _toMs(b.data);
-        return (mb && (!ma || mb < ma)) ? b : a;
-    });
-}
-
-function _inicialKey(inicial) {
-    if (!inicial) return '';
-    return `${inicial.id}:${_toMs(inicial.registradoEm) || _toMs(inicial.data)}`;
-}
-
 function _getResumo(estoque) {
     return (estoque || []).find(e =>
         e.tipo === '__resumo__' || e.tipo === 'resumo-acumulado' ||
         e.id === 'resumo-agua' || e.id === 'resumo-acumulado') || null;
 }
 
-/** Saídas (já contadas no resumo) que foram registradas antes do Estoque Inicial. */
-function _getSaidasPreInicial(estoque) {
-    const key = _inicialKey(_getInicial(estoque));
-    if (!key || !_preInicial || _preInicial.key !== key) return 0;
-    return _preInicial.value;
+function _soma(estoque, tipo) {
+    return (estoque || [])
+        .filter(e => e.tipo === tipo)
+        .reduce((sum, e) => sum + (parseInt(e.quantidade, 10) || 0), 0);
 }
 
 /**
  * Calcula o saldo de água a partir do cache.
- * estoqueAtual: o que está disponível para saída (nunca negativo).
- * estoqueBruto: o valor real do livro (pode ficar negativo).
+ * estoqueAtual: disponível para saída (nunca negativo).
+ * estoqueBruto: valor do livro já com o ajuste.
  */
 export function calcularSaldoAgua(fallbackResumo = null) {
     const estoque = getEstoqueAgua() || [];
 
-    const estoqueInicial = estoque
-        .filter(e => e.tipo === 'inicial')
-        .reduce((sum, e) => sum + (parseInt(e.quantidade, 10) || 0), 0);
-
-    const totalEntradas = estoque
-        .filter(e => e.tipo === 'entrada')
-        .reduce((sum, e) => sum + (parseInt(e.quantidade, 10) || 0), 0);
+    const estoqueInicial = _soma(estoque, 'inicial');
+    const totalEntradas  = _soma(estoque, 'entrada');
+    const ajuste         = _soma(estoque, 'ajuste');
 
     const resumo = _getResumo(estoque) || fallbackResumo;
-
     let totalSaidas;
     if (resumo && typeof resumo.totalSaidas === 'number') {
-        totalSaidas = Math.max(0, resumo.totalSaidas - _getSaidasPreInicial(estoque));
+        totalSaidas = resumo.totalSaidas;
     } else {
-        // Resumo ainda não carregado: cache limitado (só as mais recentes),
-        // contando apenas o que foi registrado depois do Inicial.
-        const iniMs = (() => { const i = _getInicial(estoque); return i ? (_toMs(i.registradoEm) || _toMs(i.data)) : 0; })();
+        // Resumo ainda não carregado: cache limitado (só as mais recentes)
         totalSaidas = (getAguaMovimentacoes() || [])
             .filter(m => m.tipo === 'entrega' && !_isHistImportado(m))
-            .filter(m => !iniMs || !_toMs(m.registradoEm) || _toMs(m.registradoEm) >= iniMs)
             .reduce((sum, m) => sum + (parseInt(m.quantidade, 10) || 0), 0);
     }
 
-    const estoqueBruto = estoqueInicial + totalEntradas - totalSaidas;
+    const estoqueBruto = estoqueInicial + totalEntradas + ajuste - totalSaidas;
     return {
         estoqueInicial,
         totalEntradas,
         totalSaidas,
+        ajuste,
         estoqueAtual: Math.max(0, estoqueBruto),
         estoqueBruto,
     };
 }
 
 /**
- * Garante (1x por Estoque Inicial, revalidado a cada 24h) o desconto das
- * saídas anteriores ao Inicial. Somente LEITURA no Firestore.
- * Chama onUpdated() quando o valor muda, para re-renderizar as telas.
+ * Se o passado (antes de INICIO_NOVA_CONTAGEM) deixou o saldo negativo, grava
+ * (só no doc de ajuste, nunca no histórico) o valor que zera esse passado.
+ * Entradas a partir dessa data aparecem no saldo normalmente.
  */
-export async function ensureAguaSaidasPreInicial(onUpdated) {
-    if (_computing) return;
+export async function zerarSaldoNegativoAgua() {
+    if (_ajustando) return;
+    const role = getUserRole();
+    if (role !== 'admin' && role !== 'editor') return;
+
     const estoque = getEstoqueAgua() || [];
-    const inicial = _getInicial(estoque);
-    const key = _inicialKey(inicial);
-    const iniMs = inicial ? (_toMs(inicial.registradoEm) || _toMs(inicial.data)) : 0;
-    if (!key || !iniMs) return; // Inicial ainda sem timestamp do servidor
+    if (!estoque.some(e => e.tipo === 'inicial')) return;
+    // Ajuste é gravado UMA vez e fica congelado: depois dele, Saídas novas
+    // diminuem o saldo normalmente (não podem ser "compensadas" de novo).
+    if (estoque.some(e => e.tipo === 'ajuste' || e.id === AJUSTE_SALDO_AGUA_DOC_ID)) return;
+    // Só com o resumo real carregado (o fallback do cache subconta saídas)
+    const resumo = _getResumo(estoque);
+    if (!resumo || typeof resumo.totalSaidas !== 'number') return;
 
-    const fresh = _preInicial && _preInicial.key === key && (Date.now() - (_preInicial.at || 0)) < RECALC_MS;
-    if (fresh) return;
+    // Déficit do passado: Inicial + Entradas antigas − Saídas do histórico.
+    // Entradas sem registradoEm ainda pendente (recém-lançadas) contam como novas.
+    const entradasAntigas = estoque
+        .filter(e => e.tipo === 'entrada')
+        .filter(e => { const ms = _toMs(e.registradoEm) || _toMs(e.data); return ms && ms < INICIO_NOVA_CONTAGEM_MS; })
+        .reduce((sum, e) => sum + (parseInt(e.quantidade, 10) || 0), 0);
+    const deficitPassado = resumo.totalSaidas - _soma(estoque, 'inicial') - entradasAntigas;
+    const ajusteNecessario = Math.max(0, deficitPassado);
+    if (ajusteNecessario <= 0) return;
 
-    _computing = true;
+    _ajustando = true;
     try {
-        const iniTs = inicial.registradoEm && typeof inicial.registradoEm.toMillis === 'function'
-            ? inicial.registradoEm
-            : inicial.data;
-        // Saídas registradas DEPOIS do Inicial (campo único: índice automático).
-        // Tudo o que o resumo tem além disso é anterior ao Inicial — inclusive
-        // movimentações antigas que nem têm registradoEm.
-        const snapPos = await getDocs(query(COLLECTIONS.aguaMov, where('registradoEm', '>=', iniTs)));
-        let posInicial = 0;
-        snapPos.docs.forEach(d => {
-            const m = d.data();
-            if (m.tipo !== 'entrega' || _isHistImportado(m)) return;
-            posInicial += parseInt(m.quantidade, 10) || 0;
+        const novoAjuste = ajusteNecessario;
+        await setDoc(doc(COLLECTIONS.estoqueAgua, AJUSTE_SALDO_AGUA_DOC_ID), {
+            tipo: 'ajuste',
+            quantidade: novoAjuste,
+            motivo: 'Saldo negativo antigo ignorado (histórico preservado). Contagem recomeça do zero.',
+            atualizadoEm: serverTimestamp(),
         });
-        const resumo = _getResumo(getEstoqueAgua() || []);
-        if (!resumo || typeof resumo.totalSaidas !== 'number') return; // tenta de novo no próximo snapshot
-        const value = Math.max(0, resumo.totalSaidas - posInicial);
-
-        const changed = !_preInicial || _preInicial.key !== key || _preInicial.value !== value;
-        _preInicial = { key, value, at: Date.now() };
-        _saveToStorage(_preInicial);
-        console.info('[AGUA] Saídas anteriores ao Estoque Inicial (descontadas do saldo):', value);
-        if (changed && typeof onUpdated === 'function') onUpdated();
+        console.info('[AGUA] Saldo negativo zerado com ajuste de', novoAjuste);
     } catch (err) {
-        console.warn('[AGUA] Não foi possível calcular saídas anteriores ao Inicial:', err?.message || err);
+        console.warn('[AGUA] Não foi possível zerar o saldo negativo:', err?.message || err);
     } finally {
-        _computing = false;
+        _ajustando = false;
     }
 }
