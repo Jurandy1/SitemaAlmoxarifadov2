@@ -552,7 +552,7 @@ function invalidateAggCache() { _aggCache = null; _aggCacheKey = ''; }
 
 const tdEl = document.getElementById('td');
 if (tdEl) {
-    tdEl.textContent=new Date().toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'short',year:'numeric'});
+    tdEl.textContent=new Date().toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'short',year:'numeric',timeZone:'America/Sao_Paulo'});
 }
 const SL={nao_atendido:'Não Atendido',atendido:'Atendido',parcial:'Parcial',sem_estoque:'Sem Estoque',excedido:'Excedido'};
 const TIPO_CLS={'Expediente':'tipo-expediente','Limpeza':'tipo-limpeza','Higiene':'tipo-higiene','Alimentício':'tipo-alimenticio','Descartável':'tipo-descartavel','Atividades':'tipo-atividades','Outros':'tipo-outros'};
@@ -582,16 +582,24 @@ function jsArg(v){
 function sl(s){return SL[s]||'Não Atendido'}
 function bc2(s){return'badge-status badge-'+(s||'nao_atendido')}
 function rc2(s){return'row-'+(s||'nao_atendido')}
-function fdt(d){return d.toLocaleDateString('pt-BR')+' '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}
-function today(){return new Date().toLocaleDateString('pt-BR')}
+// Horários sempre no fuso de Brasília, independente do relógio/fuso do computador
+const TZ_BR='America/Sao_Paulo';
+function dataBR(d){return d.toLocaleDateString('pt-BR',{timeZone:TZ_BR})}
+function horaBR(d){return d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',timeZone:TZ_BR})}
+// Pedidos antigos eram gravados com hora fixa 12:00 (sem a hora real): mostra só a data
+function semHoraReal(d){return d.getHours()===12&&d.getMinutes()===0&&d.getSeconds()===0&&d.getMilliseconds()===0}
+function fdt(d){
+  if(!(d instanceof Date))d=d?new Date(d?.toDate?d.toDate():d):null;
+  if(!d||isNaN(d.getTime()))return'';
+  return semHoraReal(d)?dataBR(d):dataBR(d)+' '+horaBR(d);
+}
+function today(){return dataBR(new Date())}
+// AAAA-MM-DD de hoje em Brasília
+function hojeISOBR(){return new Date().toLocaleDateString('en-CA',{timeZone:TZ_BR})}
 function setupDataPedidoAuto() {
   const input = document.getElementById('rDate');
   if (!input) return;
-  const hoje = new Date();
-  const ano = hoje.getFullYear();
-  const mes = String(hoje.getMonth() + 1).padStart(2, '0');
-  const dia = String(hoje.getDate()).padStart(2, '0');
-  input.value = `${ano}-${mes}-${dia}`;
+  input.value = hojeISOBR();
   input.readOnly = true;
   input.style.background = '#f1f5f9';
   input.style.cursor = 'not-allowed';
@@ -1403,7 +1411,7 @@ function rqBadge(st) {
 function mostrarArquivoReq(file) {
   const total = rqItens().length;
   const agora = new Date();
-  const quando = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const quando = dataBR(agora) + ' ' + horaBR(agora);
   const nome = document.getElementById('rqFileName');
   const meta = document.getElementById('rqFileMeta');
   if (nome) nome.textContent = file?.name || tmpParsed?.fileName || 'Planilha';
@@ -1675,7 +1683,7 @@ function buildPreviewReqObject() {
   const fy = new Date().getFullYear();
   const per = (tmpParsed && tmpParsed._rows) ? bestPeriod(tmpParsed._rows, tmpParsed.fileName) : parsePeriodFromFileName(tmpParsed.fileName);
   const fin = finalizePeriod(per, fy);
-  const dtReq = fin?.ws ? new Date(fin.ws + 'T12:00:00') : new Date();
+  const dtReq = new Date();
   
   return {
     id: 'preview_temp', unidade, tipos: tmpParsed.tipos, formato: tmpParsed.formato,
@@ -2595,9 +2603,14 @@ async function doRegistrar(finalUnit){
   const per = (tmpParsed && tmpParsed._rows) ? bestPeriod(tmpParsed._rows, tmpParsed.fileName) : parsePeriodFromFileName(tmpParsed.fileName);
   const fin = finalizePeriod(per, fy);
   const rDateVal = document.getElementById('rDate')?.value;
-  const dtReq = rDateVal
-    ? new Date(rDateVal + 'T12:00:00')
-    : (fin?.ws ? new Date(fin.ws + 'T12:00:00') : new Date());
+  // Data/hora reais do envio (antes ficava sempre 12:00 do dia escolhido)
+  const agoraReq = new Date();
+  let dtReq = agoraReq;
+  if (rDateVal && rDateVal !== hojeISOBR()) {
+    const [yy, mm, dd] = rDateVal.split('-').map(Number);
+    dtReq = new Date(agoraReq);
+    dtReq.setFullYear(yy, mm - 1, dd);
+  }
   const req={id:nextId++,unidade,tipos:tmpParsed.tipos,formato:tmpParsed.formato,
     resp:document.getElementById('rR').value||'Admin',
     obs:document.getElementById('rO').value,dt:dtReq,
@@ -3333,7 +3346,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.getElement
 
 function buildFichaHTML(r,isPrint){
   const d=r.parsed,items=r.items;
-  const fmtDateOnly=(v)=>{const dt=v instanceof Date?v:(typeof v==='string'?new Date(v):null);return dt&& !isNaN(dt.getTime())?dt.toLocaleDateString('pt-BR'):''};
+  const fmtDateOnly=(v)=>{const dt=v instanceof Date?v:(typeof v==='string'?new Date(v):null);return dt&& !isNaN(dt.getTime())?dataBR(dt):''};
   const pedido=fmtDateOnly(r.dt)||today();
   const entrega=fmtDateOnly(r.dtEntrega)||'—';
   const perLbl=r.periodLabel?esc(r.periodLabel):'';
