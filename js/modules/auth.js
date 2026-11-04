@@ -17,6 +17,7 @@ import {
     query,
     orderBy,
     limit,
+    where,
     getDoc,
     getDocs,
     doc,
@@ -698,12 +699,30 @@ async function initFirestoreListeners(renderDash, renderControls, renderModules)
         __scheduleStatusSummaryPublish();
     });
 
-    // ── Materiais: limit(200) ─────────────────────────────────────────
-    addListener(query(COLLECTIONS.materiais, orderBy("registradoEm", "desc"), limit(200)), snap => {
-        const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        try { console.info("[FM] materiais listener:", data.length, "docs"); } catch (_) {}
+    // ── Materiais: limit(200) + todos os pedidos em aberto ─────────────
+    // O limit(200) por registradoEm deixava de fora pedidos ainda na fila
+    // (Requisitado / Separando / Pronto) quando outros eram salvos depois:
+    // a planilha enviada não aparecia em "Separar". O segundo listener traz
+    // TODOS os pedidos em aberto, sem limite, e os dois são unidos por id.
+    let _matsRecentes = [];
+    let _matsAbertos = [];
+    const _publicarMateriais = () => {
+        const byId = new Map();
+        _matsRecentes.forEach(m => byId.set(m.id, m));
+        _matsAbertos.forEach(m => byId.set(m.id, m));
+        const data = [...byId.values()].sort((a, b) =>
+            (b.registradoEm?.toMillis?.() || 0) - (a.registradoEm?.toMillis?.() || 0));
+        try { console.info("[FM] materiais listener:", data.length, "docs (abertos:", _matsAbertos.length + ")"); } catch (_) {}
         setMateriais(data);
         scheduleRenders({ dash: true, modules: true }, renderDash, renderControls, renderModules);
+    };
+    addListener(query(COLLECTIONS.materiais, orderBy("registradoEm", "desc"), limit(200)), snap => {
+        _matsRecentes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        _publicarMateriais();
+    });
+    addListener(query(COLLECTIONS.materiais, where("status", "in", ["requisitado", "separacao", "retirada"])), snap => {
+        _matsAbertos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        _publicarMateriais();
     });
 
     // ── Estoque Agua ──────────────────────────────────────────────────
