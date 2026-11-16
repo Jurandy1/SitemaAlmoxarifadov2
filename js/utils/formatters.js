@@ -96,7 +96,10 @@ function normalizeString(str) {
  */
 function capitalizeString(str) {
     if (!str) return '';
-    return str.toLowerCase().replace(/\b\w/g, char => char.toUpperCase());
+    // \b\w (sem /u) só enxerga [A-Za-z0-9_]: depois de uma letra acentuada (ã, ç, õ...)
+    // ele enxerga uma "fronteira de palavra" falsa e capitaliza a letra seguinte errado
+    // (ex.: "coordenação" virava "coordenaçãO"). \p{L} com /u reconhece letras acentuadas.
+    return str.toLowerCase().replace(/(^|[^\p{L}])(\p{L})/gu, (_, before, letter) => before + letter.toUpperCase());
 }
 
 
