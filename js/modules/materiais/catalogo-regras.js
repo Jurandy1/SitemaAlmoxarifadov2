@@ -12,6 +12,64 @@ export function chaveMaterial(nome) {
   return semAcento(nome).trim().replace(/\s+/g, " ").toUpperCase().replace(/[^A-Z0-9\s\/().-]/g, "").trim();
 }
 
+const PALAVRAS_NEUTRAS = new Set(["A", "AS", "COM", "DA", "DAS", "DE", "DO", "DOS", "E", "EM", "PARA", "POR"]);
+
+function tokensMaterial(nome) {
+  const singular = (t) => {
+    if (/^[A-Z]{5,}EIS$/.test(t)) return t.slice(0, -3) + "EL";
+    if (/^[A-Z]{5,}OES$/.test(t)) return t.slice(0, -3) + "AO";
+    if (/^[A-Z]{5,}AES$/.test(t)) return t.slice(0, -3) + "AO";
+    if (/^[A-Z]{5,}NS$/.test(t)) return t.slice(0, -2) + "M";
+    if (/^[A-Z]{4,}S$/.test(t)) return t.slice(0, -1);
+    return t;
+  };
+  return chaveMaterial(nome)
+    .replace(/[\/().-]+/g, " ")
+    .split(/\s+/)
+    .filter((t) => t && !PALAVRAS_NEUTRAS.has(t))
+    .map(singular);
+}
+
+function diceConjuntos(a, b) {
+  const sa = new Set(a), sb = new Set(b);
+  if (!sa.size || !sb.size) return 0;
+  let iguais = 0;
+  for (const x of sa) if (sb.has(x)) iguais++;
+  return (2 * iguais) / (sa.size + sb.size);
+}
+
+function bigramas(s) {
+  const x = chaveMaterial(s).replace(/\s+/g, " ");
+  if (x.length < 2) return x ? [x] : [];
+  const out = [];
+  for (let i = 0; i < x.length - 1; i++) out.push(x.slice(i, i + 2));
+  return out;
+}
+
+// Partes como A4, 250G, 20L e 12X30 diferenciam materiais parecidos e não podem
+// ser ignoradas pela sugestão ("Papel A4" não deve virar "Papel A3").
+function especificacoes(tokens) {
+  return new Set(tokens.filter((t) => /\d/.test(t)));
+}
+
+/**
+ * Nota de 0 a 1 para sugerir que duas grafias representam o mesmo material.
+ * É deliberadamente conservadora: serve para revisão humana, nunca para juntar automaticamente.
+ */
+export function pontuarSimilaridadeMaterial(a, b) {
+  const ka = chaveMaterial(a), kb = chaveMaterial(b);
+  if (!ka || !kb) return 0;
+  if (ka === kb) return 1;
+  const ta = tokensMaterial(ka), tb = tokensMaterial(kb);
+  const ea = especificacoes(ta), eb = especificacoes(tb);
+  if (ea.size && eb.size && ![...ea].some((x) => eb.has(x))) return 0.25;
+  const palavras = diceConjuntos(ta, tb);
+  const escrita = diceConjuntos(bigramas(ka), bigramas(kb));
+  let nota = palavras * 0.68 + escrita * 0.32;
+  if (ea.size || eb.size) nota += diceConjuntos(ea, eb) * 0.06;
+  return Math.max(0, Math.min(1, nota));
+}
+
 // Chave de comparação de um nome de categoria: "1 - Material de Expediente" → "MATERIAL DE EXPEDIENTE"
 export function chaveCategoria(nome) {
   return semAcento(nome)

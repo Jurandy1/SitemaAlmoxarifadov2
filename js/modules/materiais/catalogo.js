@@ -4,7 +4,7 @@
  * - Corrigir é mexer no catálogo: renomear, juntar um código em outro (mescladoEm) ou trocar a
  *   categoria do material. Como os pedidos guardam o código, a correção vale para todos de uma vez.
  */
-import { getDocs, query, doc, getDoc, setDoc, writeBatch, serverTimestamp } from "firebase/firestore";
+import { getDocs, query, doc, getDoc, setDoc, writeBatch, serverTimestamp, arrayUnion } from "firebase/firestore";
 import { COLLECTIONS, db } from "../../services/firestore-service.js";
 import {
   chaveMaterial,
@@ -108,7 +108,8 @@ async function proximoCodigo(colecao, mapa, fmt) {
 async function criarMaterial(nome, categoriaId) {
   const id = await proximoCodigo(COLLECTIONS.catalogoMateriais, _c.mats, codigoMaterial);
   const k = chaveMaterial(nome);
-  const d = { codigo: id, nome: String(nome).trim(), categoriaId, variantes: [k], ocorrencias: 0, criadoEm: serverTimestamp() };
+  const forma = String(nome).trim();
+  const d = { codigo: id, nome: forma, categoriaId, variantes: [k], formasEscritas: [forma], ocorrencias: 0, criadoEm: serverTimestamp() };
   await setDoc(doc(COLLECTIONS.catalogoMateriais, id), d);
   _c.mats.set(id, { ...d, id });
   _c.varMat.set(k, id);
@@ -126,11 +127,15 @@ export async function garantirCodigos(itens, secaoDoItem = () => "") {
     await carregarCatalogo();
     if (!_c.carregado) return;
     const lista = Array.isArray(itens) ? itens : Object.values(itens || {});
+    const novasFormas = new Map();
     for (const it of lista) {
       if (!it || !String(it.material || "").trim()) continue;
-      const k = chaveMaterial(it.material);
+      const forma = String(it.material).trim();
+      const k = chaveMaterial(forma);
       let m = it.materialId ? materialPorId(it.materialId) : null;
-      if (!m || !(m.variantes || []).includes(k)) {
+      // O código é a identidade do item. Uma grafia nova da planilha não pode trocar um
+      // material já codificado nem criar outro código; ela vira apenas uma nova variante.
+      if (!m) {
         const id = _c.varMat.get(k);
         if (id) m = materialPorId(id);
         else {
@@ -142,6 +147,26 @@ export async function garantirCodigos(itens, secaoDoItem = () => "") {
       if (!m) continue;
       it.materialId = m.id;
       it.categoriaId = categoriaPorId(m.categoriaId)?.id || m.categoriaId;
+      if (!(m.variantes || []).includes(k) || !(m.formasEscritas || []).includes(forma)) {
+        const pendente = novasFormas.get(m.id) || { chaves: new Set(), formas: new Set() };
+        pendente.chaves.add(k);
+        pendente.formas.add(forma);
+        novasFormas.set(m.id, pendente);
+        m.variantes = [...new Set([...(m.variantes || []), k])];
+        m.formasEscritas = [...new Set([...(m.formasEscritas || []), forma])];
+        _c.varMat.set(k, m.id);
+      }
+    }
+    if (novasFormas.size) {
+      const b = writeBatch(db);
+      for (const [id, x] of novasFormas) {
+        b.set(doc(COLLECTIONS.catalogoMateriais, id), {
+          variantes: arrayUnion(...x.chaves),
+          formasEscritas: arrayUnion(...x.formas),
+          atualizadoEm: serverTimestamp(),
+        }, { merge: true });
+      }
+      await b.commit();
     }
   } catch (e) {
     console.warn("[Catálogo] itens salvos sem código", e);
@@ -159,8 +184,9 @@ export async function renomearMaterial(id, nome) {
   if (!m || !novo) throw new Error("Código ou nome inválido");
   const k = chaveMaterial(novo);
   const variantes = [...new Set([...(m.variantes || []), k])];
-  await gravar(COLLECTIONS.catalogoMateriais, m.id, { nome: novo, variantes });
-  Object.assign(m, { nome: novo, variantes });
+  const formasEscritas = [...new Set([...(m.formasEscritas || []), novo])];
+  await gravar(COLLECTIONS.catalogoMateriais, m.id, { nome: novo, variantes, formasEscritas });
+  Object.assign(m, { nome: novo, variantes, formasEscritas });
   _c.varMat.set(k, m.id);
   _aoAlterar({ tipo: "material", ids: [m.id], nome: novo, variantes });
   return m;
@@ -172,15 +198,56 @@ export async function juntarMateriais(deId, paraId) {
   if (!de || !para) throw new Error("Código não encontrado");
   if (de.id === para.id) throw new Error("Os dois códigos já são o mesmo material");
   const variantes = [...new Set([...(para.variantes || []), ...(de.variantes || [])])];
+  const formasEscritas = [...new Set([para.nome, de.nome, ...(para.formasEscritas || []), ...(de.formasEscritas || [])].filter(Boolean))];
   const b = writeBatch(db);
-  b.set(doc(COLLECTIONS.catalogoMateriais, para.id), { variantes, atualizadoEm: serverTimestamp() }, { merge: true });
+  b.set(doc(COLLECTIONS.catalogoMateriais, para.id), { variantes, formasEscritas, atualizadoEm: serverTimestamp() }, { merge: true });
   b.set(doc(COLLECTIONS.catalogoMateriais, de.id), { mescladoEm: para.id, atualizadoEm: serverTimestamp() }, { merge: true });
   await b.commit();
   para.variantes = variantes;
+  para.formasEscritas = formasEscritas;
   de.mescladoEm = para.id;
   reindexar();
   _aoAlterar({ tipo: "material", ids: [de.id, para.id], nome: para.nome, variantes: de.variantes || [] });
   return para;
+}
+
+export async function ignorarSugestaoMaterial(aId, bId) {
+  const a = materialPorId(aId), b = materialPorId(bId);
+  if (!a || !b || a.id === b.id) throw new Error("Códigos inválidos");
+  const batch = writeBatch(db);
+  batch.set(doc(COLLECTIONS.catalogoMateriais, a.id), { naoMesclarCom: arrayUnion(b.id), atualizadoEm: serverTimestamp() }, { merge: true });
+  batch.set(doc(COLLECTIONS.catalogoMateriais, b.id), { naoMesclarCom: arrayUnion(a.id), atualizadoEm: serverTimestamp() }, { merge: true });
+  await batch.commit();
+  a.naoMesclarCom = [...new Set([...(a.naoMesclarCom || []), b.id])];
+  b.naoMesclarCom = [...new Set([...(b.naoMesclarCom || []), a.id])];
+}
+
+// Liga uma forma antiga (item sem materialId) a um código existente. Os pedidos antigos
+// continuam intactos; relatórios e próximos salvamentos passam a resolver o nome pelo catálogo.
+export async function vincularFormaMaterial(id, nome) {
+  const m = materialPorId(id);
+  const forma = String(nome || "").trim();
+  const k = chaveMaterial(forma);
+  if (!m || !k) throw new Error("Código ou forma escrita inválida");
+  const dono = materialPorNome(forma);
+  if (dono && dono.id !== m.id) throw new Error(`Esta forma já está vinculada a ${dono.id}`);
+  await gravar(COLLECTIONS.catalogoMateriais, m.id, {
+    variantes: arrayUnion(k),
+    formasEscritas: arrayUnion(forma),
+  });
+  m.variantes = [...new Set([...(m.variantes || []), k])];
+  m.formasEscritas = [...new Set([...(m.formasEscritas || []), forma])];
+  _c.varMat.set(k, m.id);
+  _aoAlterar({ tipo: "material", ids: [m.id], nome: m.nome, variantes: [k] });
+  return m;
+}
+
+export async function ignorarFormaSugerida(id, nome) {
+  const m = materialPorId(id);
+  const k = chaveMaterial(nome);
+  if (!m || !k) throw new Error("Código ou forma escrita inválida");
+  await gravar(COLLECTIONS.catalogoMateriais, m.id, { sugestoesIgnoradas: arrayUnion(k) });
+  m.sugestoesIgnoradas = [...new Set([...(m.sugestoesIgnoradas || []), k])];
 }
 
 export async function mudarCategoriaMaterial(id, categoriaId) {

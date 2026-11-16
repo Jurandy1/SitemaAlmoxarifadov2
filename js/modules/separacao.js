@@ -15,6 +15,7 @@ import {
   SHEET_MAX_ROWS,
 } from "./materiais/leitores-arquivos.js";
 import { applyItemFixes, showPreRegDialog, closePreRegDialog, skipPreRegDialog, confirmPreRegDialog } from "./materiais/modal-revisao-itens.js";
+import { SPLIT_RULES } from "./materiais/catalogo-itens.js";
 import { showUnitConfirmDialog } from "./materiais/modal-confirmar-unidade.js";
 import {
   configureRelatorioPainel,
@@ -29,7 +30,10 @@ import {
   invalidatePainelData,
 } from "./materiais/relatorio-painel.js";
 import { invalidateReportCaches } from "../utils/db-utils.js";
-import { garantirCodigos, configurarCatalogo } from "./materiais/catalogo.js";
+import {
+  garantirCodigos, configurarCatalogo, carregarCatalogo, getCatalogo,
+  listarMateriais, materialPorId, materialPorNome, categoriaPorId, juntarMateriais, vincularFormaMaterial,
+} from "./materiais/catalogo.js";
 import { configurarCatalogoUi, renderItensComCodigo, renderCategoriasComCodigo } from "./materiais/catalogo-ui.js";
 
 let __stylesInjected = false;
@@ -271,6 +275,8 @@ const DataStore = {
           id: m.id,
           v2Id: m.v2Id || null,
           unidade: m.unidade || m.unidadeNome || "Unidade",
+          unidadeId: m.unidadeId || "",
+          tipoUnidade: m.tipoUnidade || "",
           tipos: m.tipos || m.tiposMaterial || (m.tipoMaterial ? [m.tipoMaterial] : ["Outros"]),
           formato: m.formato || "padrao",
           resp: m.resp || m.lancadoPor || m.responsavelLancamento || "",
@@ -350,10 +356,11 @@ const DataStore = {
               : internalStatus;
         const unidadeNome = r.unidade || "Unidade";
         const unidades = getUnidades() || [];
-        const u = unidades.find(
-          (x) =>
-            String(x.nome || x.unidadeNome || "").toLowerCase() === String(unidadeNome).toLowerCase()
-        );
+        const u = unidades.find((x) => r.unidadeId && String(x.id) === String(r.unidadeId)) ||
+          unidades.find((x) =>
+            String(x.nome || x.unidadeNome || "").toLowerCase() === String(unidadeNome).toLowerCase() &&
+            (!r.tipoUnidade || String(x.tipo || x.tipoUnidade || "").toUpperCase() === String(r.tipoUnidade).toUpperCase())
+          );
         const unidadeId = u?.id || r.unidadeId || "";
         const tipoUnidade = u?.tipo || u?.tipoUnidade || r.tipoUnidade || "";
         const tiposMaterial = Array.isArray(r.tipos) ? r.tipos : [];
@@ -609,12 +616,16 @@ function setupDataPedidoAuto() {
 }
 function tipoPill(t){return`<span class="tipo-pill ${TIPO_CLS[t]||'tipo-outros'}">${t}</span>`}
 function tiposPills(a){return(a||[]).map(tipoPill).join(' ')}
-function displayUnit(unidade){
+function displayUnit(unidade, tipoUnidade = ''){
   if(!unidade)return'Unidade';
   const units=getUnidades()||[];
   const norm=s=>rmAcc(String(s||'')).toLowerCase().trim().replace(/\s+/g,' ');
   const target=norm(unidade);
-  const u=units.find(x=>norm(x?.nome||x?.unidadeNome||'')===target);
+  const tipoAlvo=String(tipoUnidade||'').toUpperCase().trim();
+  const u=units.find(x=>
+    norm(x?.nome||x?.unidadeNome||'')===target &&
+    (!tipoAlvo || String(x?.tipoUnidade||x?.tipo||'').toUpperCase().trim()===tipoAlvo)
+  );
   if(u?.tipo){
     let tipo=String(u.tipo).toUpperCase().trim();
     if(tipo==='SEMCAS')tipo='SEDE';
@@ -1676,8 +1687,9 @@ function omitUndefinedShallow(obj) {
 function buildPreviewReqObject() {
   if (!tmpParsed) return null;
   const uSel=document.getElementById('rU');
-  const unidade = resolveSelectedUnit(uSel?.value || '') || '';
-  if (!unidade) return null;
+  const unidadeRegistro = resolveSelectedUnitRecord(uSel?.value || '');
+  const unidade = getRegisteredUnitName(unidadeRegistro);
+  if (!unidadeRegistro || !unidade) return null;
   const itemsMap={};tmpParsed.categories.forEach(c=>c.items.forEach(it=>{itemsMap[it.id]={...it}}));
   const parsedSafe = stripVolatileParsed(tmpParsed);
   const fy = new Date().getFullYear();
@@ -1686,7 +1698,9 @@ function buildPreviewReqObject() {
   const dtReq = new Date();
   
   return {
-    id: 'preview_temp', unidade, tipos: tmpParsed.tipos, formato: tmpParsed.formato,
+    id: 'preview_temp', unidade, unidadeId: unidadeRegistro.id || '',
+    tipoUnidade: unidadeRegistro.tipoUnidade || unidadeRegistro.tipo || '',
+    tipos: tmpParsed.tipos, formato: tmpParsed.formato,
     resp: document.getElementById('rR').value||'Admin',
     obs: document.getElementById('rO').value, dt: dtReq,
     fileName: tmpParsed.fileName, parsed: parsedSafe, items: itemsMap,
@@ -1705,7 +1719,7 @@ function previewReq() {
   const statsEl = document.getElementById('fichaStats');
   if (!titleEl || !bodyEl || !modalEl || !statsEl) { toast('Tela de pré-visualização indisponível.', 'red'); return; }
   
-  titleEl.innerHTML='<i data-lucide="eye"></i> Pré-visualização: '+esc(displayUnit(req.unidade));
+  titleEl.innerHTML='<i data-lucide="eye"></i> Pré-visualização: '+esc(displayUnit(req.unidade, req.tipoUnidade));
   
   const actions = document.getElementById('fichaModalActions');
   const legend = document.getElementById('fichaModalLegend');
@@ -2473,6 +2487,7 @@ function detectItemIssues(parsed) {
                   { material: autoDisplayName(normMat(name1), name1), unidade: item.unidade },
                   { material: autoDisplayName(normMat(name2), name2), unidade: item.unidade }
                 ],
+                autoAccept: true,
                 reason: '2 numerações no mesmo item'
               });
               return;
@@ -2490,6 +2505,7 @@ function detectItemIssues(parsed) {
                   { material: autoDisplayName(normMat(name1), name1), unidade: item.unidade },
                   { material: autoDisplayName(normMat(name2), name2), unidade: item.unidade }
                 ],
+                autoAccept: true,
                 reason: '2 tamanhos no mesmo item'
               });
               return;
@@ -2497,12 +2513,16 @@ function detectItemIssues(parsed) {
             
             const name1 = base + ' ' + v1.toUpperCase();
             const name2 = base + ' ' + v2.toUpperCase();
+            const qualificadoresConfiaveis =
+              (KNOWN_COLORS.test(v1) && KNOWN_COLORS.test(v2)) ||
+              (KNOWN_SIZES.test(v1) && KNOWN_SIZES.test(v2));
             issues.push({
               type: 'split', catIdx, itemIdx, original: rawMat, item,
               splits: [
                 { material: autoDisplayName(normMat(name1), name1), unidade: item.unidade },
                 { material: autoDisplayName(normMat(name2), name2), unidade: item.unidade }
               ],
+              autoAccept: qualificadoresConfiaveis,
               reason: '2 tipos/variações separados por "E"'
             });
             return;
@@ -2567,7 +2587,10 @@ async function registrar(){
   const finalUnit = selectedUnit;
 
   // ─── POPUP DE CONFIRMAÇÃO DE UNIDADE ───
-  const continueWithUnit = await showUnitConfirmDialog(finalUnit, { esc });
+  const confirmRecord = resolveSelectedUnitRecord(finalUnit);
+  const confirmName = getRegisteredUnitName(confirmRecord);
+  const confirmType = String(confirmRecord?.tipoUnidade || confirmRecord?.tipo || '').toUpperCase();
+  const continueWithUnit = await showUnitConfirmDialog(confirmType ? `${confirmName} — ${confirmType}` : confirmName, { esc });
   if (!continueWithUnit) return; // usuário clicou "Não / Corrigir"
 
   // ─── AUTO-PADRONIZAÇÃO SILENCIOSA (caso/acento) ───
@@ -2592,8 +2615,9 @@ async function registrar(){
 
 async function doRegistrar(finalUnit){
   const uSel=document.getElementById('rU');
-  const unidade = resolveSelectedUnit(finalUnit || uSel?.value || '');
-  if (!unidade) {
+  const unidadeRegistro = resolveSelectedUnitRecord(finalUnit || uSel?.value || '');
+  const unidade = getRegisteredUnitName(unidadeRegistro);
+  if (!unidadeRegistro || !unidade) {
     toast('Unidade inválida. Selecione uma unidade cadastrada.', 'red');
     return;
   }
@@ -2611,7 +2635,9 @@ async function doRegistrar(finalUnit){
     dtReq = new Date(agoraReq);
     dtReq.setFullYear(yy, mm - 1, dd);
   }
-  const req={id:nextId++,unidade,tipos:tmpParsed.tipos,formato:tmpParsed.formato,
+  const req={id:nextId++,unidade,unidadeId:unidadeRegistro.id || '',
+    tipoUnidade:unidadeRegistro.tipoUnidade || unidadeRegistro.tipo || '',
+    tipos:tmpParsed.tipos,formato:tmpParsed.formato,
     resp:document.getElementById('rR').value||'Admin',
     obs:document.getElementById('rO').value,dt:dtReq,
     fileName:tmpParsed.fileName,parsed:parsedSafe,items:itemsMap,
@@ -2882,6 +2908,8 @@ function syncReqsFromCache() {
       id: m.id,
       v2Id: m.v2Id || null,
       unidade: m.unidade || m.unidadeNome || "Unidade",
+      unidadeId: m.unidadeId || "",
+      tipoUnidade: m.tipoUnidade || "",
       tipos: m.tipos || m.tiposMaterial || (m.tipoMaterial ? [m.tipoMaterial] : ["Outros"]),
       formato: m.formato || "padrao",
       resp: m.resp || m.lancadoPor || m.responsavelLancamento || "",
@@ -3171,7 +3199,7 @@ function renderVinculos(){
   HIST_ALIASES = getSemcasAliases() || HIST_ALIASES || {};
   const busca = (document.getElementById('vincBusca')?.value||'').toLowerCase();
   const modo = document.getElementById('vincFiltro')?.value || 'pendentes';
-  const unidades = (getUnidades() || []).filter(u => (u?.atendeMateriais ?? true) === true);
+  const unidades = getRegisteredUnitsList();
   const unitByName = new Map(unidades.map(u => [String(u.nome||u.unidadeNome||'').toLowerCase(), u]));
   const hist = getSemcasHistDB() || [];
   const cand = new Map();
@@ -4576,6 +4604,7 @@ const ABRIGO_REGEX = /abrigo|casa|resid[eê]ncia|acolher|rep[uú]blica|luz e vid
 function isAbrigo(name) { return ABRIGO_REGEX.test(name); }
 
 const UNIT_MAP=[
+  [/^sub\s*[- ]?prefeitura(?:\s+estiva)?$/i,                    'Cras Estiva (Sub Prefeitura)'],
   [/resid[eê]ncia\s+inclusiva|^RI$/i,                           'Residência Inclusiva'],
   [/acolher\s+e\s+amar|acolher\s*amar|acolher\s+e\s+cuidar/i,  'Acolher e Amar'],
   [/casa\s+de\s+acolhida|^CAT$/i,                               'CAT – Casa de Acolhida Temporária'],
@@ -4596,8 +4625,16 @@ const UNIT_MAP=[
   [/spse.*m[eé]dia\s*complex/i,                                 'SuperintendêNcia De ProteçãO Social Especial De MéDia Complexidade'],
   [/transfer[eê]ncia\s+de\s+renda/i,                           'Diretoria Técnica De Cadastro úNico E TransferêNcia De Renda'],
 ];
+const LEGACY_MERGED_MATERIAL_UNITS = new Set(['SUBPREFEITURA']);
+
+function isLegacyMergedMaterialUnit(u) {
+  return LEGACY_MERGED_MATERIAL_UNITS.has(registeredUnitKey(getRegisteredUnitName(u)));
+}
+
 function getRegisteredUnitsList() {
-  return (getUnidades() || []).filter((u) => (u?.atendeMateriais ?? true) !== false && !u?.duplicataDe);
+  return (getUnidades() || []).filter((u) =>
+    (u?.atendeMateriais ?? true) !== false && !u?.duplicataDe && !isLegacyMergedMaterialUnit(u)
+  );
 }
 
 function getRegisteredUnitName(u) {
@@ -4612,6 +4649,10 @@ function parseUnitSelectValue(raw) {
 }
 
 function resolveSelectedUnit(selectValue) {
+  return getRegisteredUnitName(resolveSelectedUnitRecord(selectValue));
+}
+
+function resolveSelectedUnitRecord(selectValue) {
   const { nome, tipo } = parseUnitSelectValue(selectValue);
   if (!nome) return null;
   const list = getRegisteredUnitsList();
@@ -4620,12 +4661,14 @@ function resolveSelectedUnit(selectValue) {
       registeredUnitKey(getRegisteredUnitName(u)) === registeredUnitKey(nome) &&
       String(u.tipo || '').toUpperCase() === tipo
     );
-    if (hit) return getRegisteredUnitName(hit);
+    if (hit) return hit;
   }
   // Escolha manual na lista: nome cadastrado exato, sem alias/fuzzy
   const exact = list.find((u) => registeredUnitKey(getRegisteredUnitName(u)) === registeredUnitKey(nome));
-  if (exact) return getRegisteredUnitName(exact);
-  return resolveRegisteredUnit(nome);
+  if (exact) return exact;
+  const resolvedName = resolveRegisteredUnit(nome);
+  if (!resolvedName) return null;
+  return list.find((u) => registeredUnitKey(getRegisteredUnitName(u)) === registeredUnitKey(resolvedName)) || null;
 }
 
 function registeredUnitKey(name) {
@@ -5359,7 +5402,7 @@ function populateDbUnitSelect() {
   if (!sel) return;
 
   const previous = sel.value || "";
-  const unidades = (getUnidades() || []).filter((u) => (u?.atendeMateriais ?? true) === true);
+  const unidades = getRegisteredUnitsList();
   if (!unidades.length) return;
 
   const groups = new Map();
@@ -6256,6 +6299,8 @@ function buildDetailRow(rid,r,colspan){
 let _fixSearchTerm = '';
 let _fixView = 'sugestoes'; // sugestoes | todos | regras | categorias
 let _fixPage = 1;
+let _fixCodeFilter = 'todos';
+let _fixVariationFilter = 'todas';
 const FIX_PAGE_SIZE = 50;
 // Expose for oninput handlers
 try { Object.defineProperty(window, '_fixSearchTerm', { get(){return _fixSearchTerm}, set(v){_fixSearchTerm=v}, configurable:true }); } catch(_){}
@@ -6468,14 +6513,22 @@ function getCanonicalMat(material) {
 }
 
 function scanAllItems() {
-  const items = new Map(); // normMat key → { names: Map<original, count>, totalQty, units, files, cats }
-  const addItem = (mat, qty, unitName, fileName, catName) => {
+  const items = new Map(); // normMat key → nomes, códigos encontrados, ocorrências e origens
+  const addItem = (it, qty, unitName, fileName, catName) => {
+    const mat = String(it?.material || '').trim();
     const key = normMat(mat);
     if (!key || key.length < 2) return;
-    if (!items.has(key)) items.set(key, { names: new Map(), totalQty: 0, units: new Set(), files: new Set(), cats: new Set() });
+    if (!items.has(key)) items.set(key, { names: new Map(), nameMaterialIds: new Map(), materialIds: new Set(), semCodigo: 0, totalQty: 0, units: new Set(), files: new Set(), cats: new Set() });
     const entry = items.get(key);
-    const trimmed = mat.trim();
-    entry.names.set(trimmed, (entry.names.get(trimmed) || 0) + 1);
+    entry.names.set(mat, (entry.names.get(mat) || 0) + 1);
+    if (it?.materialId) {
+      const materialId = String(it.materialId);
+      entry.materialIds.add(materialId);
+      const idsDoNome = entry.nameMaterialIds.get(mat) || new Set();
+      idsDoNome.add(materialId);
+      entry.nameMaterialIds.set(mat, idsDoNome);
+    }
+    else entry.semCodigo++;
     entry.totalQty += qty || 0;
     if (unitName) entry.units.add(unitName);
     if (fileName) entry.files.add(fileName);
@@ -6487,7 +6540,7 @@ function scanAllItems() {
     (e.units || []).forEach(u => {
       (u.categories || []).forEach(c => {
         (c.items || []).forEach(it => {
-          addItem(it.material, it.qty, u.unitName, e.fileName, c.catName);
+          addItem(it, it.qty, u.unitName, e.fileName, c.catName);
         });
       });
     });
@@ -6496,7 +6549,7 @@ function scanAllItems() {
   // Scan REQS
   (REQS || []).forEach(r => {
     Object.values(r.items || {}).forEach(it => {
-      addItem(it.material, extractNum(it.qtdSolicitada), r.unidade, r.fileName, it.tipo);
+      addItem(it, extractNum(it.qtdSolicitada), r.unidade, r.fileName, it.tipo);
     });
   });
 
@@ -6606,6 +6659,95 @@ async function applyMatFixBulk(keys, canonicalName) {
   }
 }
 
+function normalizarCodigoMaterial(valor) {
+  const n = String(valor || '').replace(/\D/g, '');
+  return n ? 'MAT-' + n.padStart(4, '0') : '';
+}
+
+function codigosDaSugestao(data) {
+  const ids = new Set();
+  (data?.materialIds || []).forEach(id => {
+    const m = materialPorId(id);
+    if (m?.id) ids.add(m.id);
+  });
+  if (!ids.size) {
+    for (const nome of data?.names?.keys?.() || []) {
+      const m = materialPorNome(nome);
+      if (m?.id) ids.add(m.id);
+    }
+  }
+  return [...ids].map(id => materialPorId(id)).filter(Boolean);
+}
+
+function badgeCodigoSugestao(m) {
+  return m
+    ? '<span title="' + esc(m.nome) + '" style="display:inline-block;padding:1px 6px;border-radius:5px;background:#dbeafe;color:#1d4ed8;font:700 10px/1.6 ui-monospace,Consolas,monospace">' + esc(m.id) + '</span>'
+    : '<span style="font-size:9px;color:#94a3b8">SEM CÓDIGO</span>';
+}
+
+function codigosDoNomeSugestao(data, nome) {
+  const diretos = [...(data?.nameMaterialIds?.get(nome) || [])]
+    .map(id => materialPorId(id)).filter(Boolean);
+  if (diretos.length) return [...new Map(diretos.map(m => [m.id, m])).values()];
+  const porNome = materialPorNome(nome);
+  return porNome ? [porNome] : [];
+}
+
+function seletorCodigoSugestao(id, candidatos) {
+  const encontrados = [...new Map((candidatos || []).map(m => [m.id, m])).values()];
+  const idsEncontrados = new Set(encontrados.map(m => m.id));
+  const demais = listarMateriais().filter(m => !m.mescladoEm && !idsEncontrados.has(m.id)).sort((a, b) => a.id.localeCompare(b.id));
+  const valorInicial = encontrados.length === 1 ? encontrados[0].id : '';
+  const opcao = (m) => '<option value="' + esc(m.id) + '"' + (m.id === valorInicial ? ' selected' : '') + '>' + esc(m.nome) + ' — ' + esc(m.id) + '</option>';
+  let h = '<select class="input" id="' + id + '" style="flex:1;min-width:260px;font-size:12px;padding:6px 10px">';
+  h += '<option value=""' + (valorInicial ? '' : ' selected') + ' disabled>Selecione o nome e o código corretos</option>';
+  if (encontrados.length) h += '<optgroup label="Itens encontrados nesta sugestão">' + encontrados.map(opcao).join('') + '</optgroup>';
+  if (demais.length) h += '<optgroup label="Outros itens cadastrados">' + demais.map(opcao).join('') + '</optgroup>';
+  return h + '</select>';
+}
+
+async function applyMatFixByCode(keys, codigoRaw) {
+  if (getUserRole() !== 'admin') { toast('Permissão negada: apenas Admin.', 'red'); return; }
+  await carregarCatalogo();
+  const codigo = normalizarCodigoMaterial(codigoRaw);
+  const alvo = materialPorId(codigo);
+  if (!alvo) { toast('Código não encontrado: ' + (codigo || codigoRaw), 'red'); return; }
+  const itens = scanAllItems();
+  const codigosParaJuntar = new Set();
+  const nomesParaVincular = new Set();
+  keys.forEach(key => {
+    const data = itens.get(key);
+    (data?.materialIds || []).forEach(id => {
+      const atual = materialPorId(id);
+      if (atual?.id && atual.id !== alvo.id) codigosParaJuntar.add(atual.id);
+    });
+    for (const nome of data?.names?.keys?.() || []) {
+      nomesParaVincular.add(nome);
+      const donoDaForma = materialPorNome(nome);
+      if (donoDaForma?.id && donoDaForma.id !== alvo.id) codigosParaJuntar.add(donoDaForma.id);
+    }
+  });
+  const resumo = [
+    codigosParaJuntar.size ? codigosParaJuntar.size + ' código(s) serão juntados em ' + alvo.id : '',
+    nomesParaVincular.size + ' forma(s) escrita(s) serão vinculadas',
+  ].filter(Boolean).join('\n');
+  if (!confirm('Usar ' + alvo.id + ' · ' + alvo.nome + ' como item correto?\n\n' + resumo + '\n\nOs nomes originais das planilhas serão preservados.')) return;
+  try {
+    for (const id of codigosParaJuntar) await juntarMateriais(id, alvo.id);
+    for (const nome of nomesParaVincular) await vincularFormaMaterial(alvo.id, nome);
+    keys.forEach(key => { MAT_ALIASES[key] = alvo.nome; });
+    await saveMatAliases();
+    invalidateAggCache();
+    invalidatePainelData();
+    toast('Sugestão ajustada pelo código ' + alvo.id + '.', 'green');
+    renderCorrecaoItens();
+  } catch (e) {
+    console.error(e);
+    toast('Não foi possível ajustar pelo código: ' + String(e?.message || e), 'red');
+  }
+}
+window.applyMatFixByCode = applyMatFixByCode;
+
 async function removeMatFix(key) {
   if (getUserRole() !== 'admin') { toast('Permissão negada: apenas Admin.', 'red'); return; }
   delete MAT_ALIASES[key];
@@ -6626,12 +6768,23 @@ async function clearAllMatFixes() {
 
 function setFixView(v) { _fixView = v; _fixPage = 1; renderCorrecaoItens(); }
 function fixGoPage(pg) { _fixPage = pg; renderCorrecaoItens(); }
+function setFixItemFilter(tipo, valor) {
+  if (tipo === 'codigo') _fixCodeFilter = valor;
+  if (tipo === 'variacao') _fixVariationFilter = valor;
+  _fixPage = 1;
+  renderCorrecaoItens();
+}
+window.setFixItemFilter = setFixItemFilter;
 
 function renderCorrecaoItens() {
   // Re-sync data
   if (window.__semcasHistDB && window.__semcasHistDB.length > 0) HIST_DB = window.__semcasHistDB;
   if (getSemcasHistDB() && getSemcasHistDB().length > 0) HIST_DB = getSemcasHistDB();
   applyAliasesToHistDB();
+  const estadoCatalogo = getCatalogo();
+  if (!estadoCatalogo.carregado && !estadoCatalogo.carregando) {
+    carregarCatalogo().then((c) => { if (c?.carregado) renderCorrecaoItens(); }).catch(() => {});
+  }
 
   const tabEl = document.getElementById('tab-rel');
   if (!tabEl) return;
@@ -6690,6 +6843,11 @@ function renderCorrecaoItens() {
   h += '<datalist id="catList">';
   catalogValues.forEach(v => { h += '<option value="' + esc(v) + '">'; });
   h += '</datalist>';
+  h += '<datalist id="catCodeList">';
+  listarMateriais().filter(m => !m.mescladoEm).sort((a,b) => a.id.localeCompare(b.id)).forEach(m => {
+    h += '<option value="' + esc(m.id) + '">' + esc(m.nome) + '</option>';
+  });
+  h += '</datalist>';
 
   h += '<div style="display:flex;gap:0;margin-bottom:16px;border:1.5px solid var(--border);border-radius:8px;overflow:hidden">'
     + '<button class="fix-tab' + (_fixView === 'sugestoes' ? ' act' : '') + '" onclick="setFixView(\'sugestoes\')">' + lc('sparkles') + ' Sugestões' + (nSugestoes ? ' (' + nSugestoes + ')' : '') + '</button>'
@@ -6700,7 +6858,7 @@ function renderCorrecaoItens() {
     + '<button class="fix-tab' + (_fixView === 'codcat' ? ' act' : '') + '" onclick="setFixView(\'codcat\')">' + lc('hash') + ' Categorias com código</button>'
     + '</div>';
 
-  h += '<div style="margin-bottom:12px;display:flex;align-items:center;gap:6px"><span style="flex-shrink:0">' + lc('search') + '</span><input class="input" id="fixSearch" placeholder="' + ((_fixView === 'codigos' || _fixView === 'codcat') ? 'Buscar por código (ex.: 4 ou MAT-0004) ou nome...' : 'Buscar item por nome...') + '" value="' + esc(_fixSearchTerm) + '" '
+  h += '<div style="margin-bottom:12px;display:flex;align-items:center;gap:6px"><span style="flex-shrink:0">' + lc('search') + '</span><input class="input" id="fixSearch" placeholder="' + ((_fixView === 'codigos' || _fixView === 'codcat' || _fixView === 'sugestoes' || _fixView === 'todos') ? 'Buscar por código (ex.: 4 ou MAT-0004) ou nome...' : 'Buscar item por nome...') + '" value="' + esc(_fixSearchTerm) + '" '
     + 'oninput="_fixSearchTerm=this.value;renderCorrecaoItens()" style="max-width:400px;font-size:13px"></div>';
 
   const searchLo = rmAcc(_fixSearchTerm || '').toLowerCase();
@@ -6736,7 +6894,7 @@ function renderFixSugestoes(withVariations, pendingSimilar, items, searchLo) {
 
   // ─── AUTO-DETECTED VARIATIONS ───
   let filteredVars = withVariations;
-  if (searchLo) filteredVars = filteredVars.filter(v => rmAcc(v.key).toLowerCase().includes(searchLo) || v.namesArr.some(([n]) => rmAcc(n).toLowerCase().includes(searchLo)));
+  if (searchLo) filteredVars = filteredVars.filter(v => rmAcc(v.key).toLowerCase().includes(searchLo) || v.namesArr.some(([n]) => rmAcc(n).toLowerCase().includes(searchLo)) || codigosDaSugestao(v).some(m => m.id.toLowerCase().includes(searchLo)));
 
   if (filteredVars.length) {
     h += '<div class="pan-section"><h2>Variações Detectadas (' + filteredVars.length + ')</h2>'
@@ -6746,24 +6904,29 @@ function renderFixSugestoes(withVariations, pendingSimilar, items, searchLo) {
       const bestName = autoDisplayName(v.key, v.namesArr[0][0]); // Catalog or most frequent
       const totalOccur = v.namesArr.reduce((s, [, c]) => s + c, 0);
       const id = 'var_' + idx;
+      const idCode = id + '_code';
+      const codigos = codigosDaSugestao(v);
       h += '<div style="background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px">'
         + '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">'
-        + '<div><span style="font-weight:800;font-size:13px">' + esc(bestName) + '</span>'
+        + '<div><span style="font-weight:800;font-size:13px">' + esc(bestName) + '</span> '
+        + (codigos.length ? codigos.map(badgeCodigoSugestao).join(' ') : badgeCodigoSugestao(null))
         + ' <span style="font-size:10px;color:var(--muted)">' + v.namesArr.length + ' variações · ' + totalOccur + ' ocorrências · ' + v.units.size + ' unid.</span></div>'
-        + '<button class="btn btn-g btn-sm" onclick="applyMatFixBulk([\'' + esc(v.key).replace(/'/g, "\\'") + '\'],document.getElementById(\'' + id + '\').value)">Unificar</button>'
+        + '<button class="btn btn-g btn-sm" onclick="applyMatFixByCode([\'' + esc(v.key).replace(/'/g, "\\'") + '\'],document.getElementById(\'' + idCode + '\').value)">Usar item selecionado</button>'
         + '</div>';
 
-      h += '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">';
+      h += '<div style="margin-top:8px;display:grid;gap:4px">';
       v.namesArr.forEach(([name, count]) => {
-        h += '<span style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:600">' + esc(name) + ' <span style="opacity:.6">(' + count + 'x)</span></span>';
+        const codigosNome = codigosDoNomeSugestao(v, name);
+        h += '<div style="display:grid;grid-template-columns:minmax(180px,1fr) minmax(110px,auto) auto;gap:8px;align-items:center;background:#fff;border:1px solid #e2e8f0;padding:5px 8px;border-radius:6px;font-size:11px">'
+          + '<b>' + esc(name) + '</b>'
+          + '<span>' + (codigosNome.length ? codigosNome.map(badgeCodigoSugestao).join(' ') : badgeCodigoSugestao(null)) + '</span>'
+          + '<span style="color:#64748b">' + count + 'x</span></div>';
       });
       h += '</div>';
 
-      const hasCatalog = !!MATERIAL_CATALOG[v.key];
       h += '<div style="margin-top:8px;display:flex;gap:6px;align-items:center">'
-        + '<label style="font-size:10px;font-weight:700;color:#475569;white-space:nowrap">Nome correto:</label>'
-        + '<input class="input" id="' + id + '" value="' + esc(bestName) + '" list="catList" style="flex:1;font-size:12px;padding:6px 10px' + (hasCatalog ? ';border-color:#10b981;background:#f0fdf4' : '') + '">'
-        + (hasCatalog ? '<span style="font-size:9px;color:#10b981;font-weight:700;white-space:nowrap">Catálogo</span>' : '')
+        + '<label style="font-size:10px;font-weight:700;color:#475569;white-space:nowrap">Item correto:</label>'
+        + seletorCodigoSugestao(idCode, codigos)
         + '</div></div>';
     });
 
@@ -6773,7 +6936,7 @@ function renderFixSugestoes(withVariations, pendingSimilar, items, searchLo) {
 
   // ─── FUZZY SIMILAR GROUPS ───
   let filteredSimilar = pendingSimilar;
-  if (searchLo) filteredSimilar = filteredSimilar.filter(group => group.some(k => rmAcc(k).toLowerCase().includes(searchLo)));
+  if (searchLo) filteredSimilar = filteredSimilar.filter(group => group.some(k => rmAcc(k).toLowerCase().includes(searchLo) || codigosDaSugestao(items.get(k)).some(m => m.id.toLowerCase().includes(searchLo))));
 
   if (filteredSimilar.length) {
     h += '<div class="pan-section"><h2>Itens Possivelmente Iguais (' + filteredSimilar.length + ')</h2>'
@@ -6788,29 +6951,31 @@ function renderFixSugestoes(withVariations, pendingSimilar, items, searchLo) {
         const bTotal = [...b.data.names.values()].reduce((s, v) => s + v, 0);
         return bTotal - aTotal;
       })[0];
-      const bestDisplayName = best ? [...best.data.names.keys()][0] : '';
+      const codigosGrupo = [...new Map(groupItems.flatMap(gi => codigosDaSugestao(gi.data)).map(m => [m.id, m])).values()];
+      const idCode = id + '_code';
 
       h += '<div style="background:#fefce8;border:1px solid #fde047;border-radius:10px;padding:12px;margin-bottom:8px">'
         + '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">'
         + '<span style="font-weight:800;font-size:12px;color:#92400e">Grupo de ' + group.length + ' itens similares</span>'
-        + '<button class="btn btn-g btn-sm" onclick="applyMatFixBulk([' + group.map(k => "'" + esc(k).replace(/'/g, "\\'") + "'").join(',') + '],document.getElementById(\'' + id + '\').value)">Unificar Todos</button>'
+        + '<button class="btn btn-g btn-sm" onclick="applyMatFixByCode([' + group.map(k => "'" + esc(k).replace(/'/g, "\\'") + "'").join(',') + '],document.getElementById(\'' + idCode + '\').value)">Usar item selecionado</button>'
         + '</div>';
 
       h += '<div style="margin-top:6px;display:flex;flex-direction:column;gap:3px">';
       groupItems.forEach(gi => {
         const displayNames = [...gi.data.names.keys()];
         const totalOccur = [...gi.data.names.values()].reduce((s, v) => s + v, 0);
-        h += '<div style="display:flex;align-items:center;gap:6px;font-size:11px;padding:3px 0">'
+        const codigosItem = codigosDaSugestao(gi.data);
+        h += '<div style="display:grid;grid-template-columns:minmax(180px,1fr) minmax(110px,auto) auto;align-items:center;gap:8px;font-size:11px;padding:5px 8px;background:#fff;border:1px solid #f3e8c8;border-radius:6px">'
           + '<span style="font-weight:700">' + esc(displayNames[0]) + '</span>'
-          + (displayNames.length > 1 ? ' <span style="color:var(--muted);font-size:9px">(+' + (displayNames.length - 1) + ' variação)</span>' : '')
-          + ' <span style="color:var(--muted);font-size:10px">' + totalOccur + ' ocorrências · ' + gi.data.units.size + ' unid.</span>'
+          + '<span>' + (codigosItem.length ? codigosItem.map(badgeCodigoSugestao).join(' ') : badgeCodigoSugestao(null)) + '</span>'
+          + '<span style="color:var(--muted);font-size:10px">' + (displayNames.length > 1 ? '+' + (displayNames.length - 1) + ' variação · ' : '') + totalOccur + ' ocorrências · ' + gi.data.units.size + ' unid.</span>'
           + '</div>';
       });
       h += '</div>';
 
       h += '<div style="margin-top:8px;display:flex;gap:6px;align-items:center">'
-        + '<label style="font-size:10px;font-weight:700;color:#475569;white-space:nowrap">Nome correto:</label>'
-        + '<input class="input" id="' + id + '" value="' + esc(bestDisplayName) + '" style="flex:1;font-size:12px;padding:6px 10px">'
+        + '<label style="font-size:10px;font-weight:700;color:#475569;white-space:nowrap">Item correto:</label>'
+        + seletorCodigoSugestao(idCode, codigosGrupo)
         + '</div></div>';
     });
 
@@ -6830,10 +6995,10 @@ function renderFixTodos(items, searchLo) {
     const canonical = MAT_ALIASES[key] || null;
     const displayName = canonical || [...val.names.keys()][0] || key;
     const totalOccur = [...val.names.values()].reduce((s, v) => s + v, 0);
-    return { key, displayName, canonical, totalOccur, nVariations: val.names.size, nUnits: val.units.size, totalQty: val.totalQty, cats: [...val.cats] };
+    return { key, displayName, canonical, codigos: codigosDaSugestao(val), totalOccur, nVariations: val.names.size, nUnits: val.units.size, totalQty: val.totalQty, cats: [...val.cats] };
   });
 
-  if (searchLo) list = list.filter(r => rmAcc(r.displayName).toLowerCase().includes(searchLo) || rmAcc(r.key).toLowerCase().includes(searchLo));
+  if (searchLo) list = list.filter(r => rmAcc(r.displayName).toLowerCase().includes(searchLo) || rmAcc(r.key).toLowerCase().includes(searchLo) || r.codigos.some(m => m.id.toLowerCase().includes(searchLo)));
   list.sort((a, b) => b.totalOccur - a.totalOccur);
 
   const total = list.length;
@@ -6849,13 +7014,14 @@ function renderFixTodos(items, searchLo) {
     + '<span style="font-size:11px;color:#475569;font-weight:700;align-self:center;margin-right:4px">COPIAR:</span>'
     + '<button class="btn btn-s btn-sm" style="font-size:10px" onclick="copyItemsList(\'names\')">Apenas nomes</button>'
     + '<button class="btn btn-s btn-sm" style="font-size:10px" onclick="copyItemsList(\'detailed\')">Detalhado (TSV)</button>'
-    + '<button class="btn btn-s btn-sm" style="font-size:10px" onclick="copyItemsList(\'variations\')">Com variações</button>'
+    + '<button class="btn btn-s btn-sm" style="font-size:10px" onclick="copyItemsList(\'variations\')">Catálogo + variações</button>'
     + '<button class="btn btn-s btn-sm" style="font-size:10px" onclick="copyItemsList(\'csv\')">CSV (excel)</button>'
     + '<button class="btn btn-s btn-sm" style="font-size:10px" onclick="copyItemsList(\'json\')">JSON</button>'
     + '</div>';
 
   h += '<div class="tbl-wrap"><table class="rel-table"><thead><tr>'
     + '<th>Item</th>'
+    + '<th>Código</th>'
     + '<th style="text-align:center">Ocorr.</th>'
     + '<th style="text-align:center">Variações</th>'
     + '<th style="text-align:center">Unidades</th>'
@@ -6867,6 +7033,7 @@ function renderFixTodos(items, searchLo) {
     const hasFix = !!r.canonical;
     h += '<tr>'
       + '<td style="font-weight:700">' + esc(r.displayName) + (hasFix ? ' <span style="font-size:9px;color:#10b981;font-weight:800">CORRIGIDO</span>' : '') + '</td>'
+      + '<td style="white-space:nowrap">' + (r.codigos.length ? r.codigos.map(badgeCodigoSugestao).join(' ') : badgeCodigoSugestao(null)) + '</td>'
       + '<td style="text-align:center;color:var(--muted)">' + r.totalOccur + '</td>'
       + '<td style="text-align:center">' + (r.nVariations > 1 ? '<span style="color:#f59e0b;font-weight:700">' + r.nVariations + '</span>' : '<span style="color:#10b981">1</span>') + '</td>'
       + '<td style="text-align:center;color:var(--muted)">' + r.nUnits + '</td>'
@@ -6899,21 +7066,109 @@ function renderFixTodos(items, searchLo) {
 // ═══════════════════════════════════════════════════════════════════
 // COPIAR ITENS CADASTRADOS — diversos formatos
 // ═══════════════════════════════════════════════════════════════════
-function copyItemsList(format) {
+async function copyItemsList(format) {
+  await carregarCatalogo();
   const items = scanAllItems();
-  if (!items.size) { toast('Nenhum item para copiar.', 'red'); return; }
-  
-  const list = [...items.entries()].map(([key, val]) => {
-    const canonical = MAT_ALIASES[key] || null;
-    const displayName = canonical || [...val.names.keys()][0] || key;
-    const totalOccur = [...val.names.values()].reduce((s, v) => s + v, 0);
-    const variations = [...val.names.entries()].sort((a, b) => b[1] - a[1]);
+  const grouped = new Map();
+
+  const ensure = (key, base = {}) => {
+    if (!grouped.has(key)) grouped.set(key, {
+      key,
+      code: base.code || '',
+      displayName: base.displayName || key,
+      canonical: base.canonical || null,
+      totalOccur: 0,
+      totalQty: 0,
+      units: new Set(),
+      cats: new Set(),
+      historicalVariations: new Map(),
+      catalogVariations: new Set(),
+      splitTargets: [],
+    });
+    return grouped.get(key);
+  };
+
+  // Primeiro agrega as ocorrências antigas, juntando grafias que já pertencem
+  // ao mesmo código MAT. Assim a exportação não repete o mesmo item padrão.
+  for (const [historyKey, val] of items.entries()) {
+    const catalogMatches = codigosDaSugestao(val);
+    const catalogItem = catalogMatches.length === 1 ? catalogMatches[0] : null;
+    const canonical = MAT_ALIASES[historyKey] || null;
+    const displayName = catalogItem?.nome || canonical || [...val.names.keys()][0] || historyKey;
+    const groupKey = catalogItem?.id || ('NOME:' + normMat(displayName));
+    const row = ensure(groupKey, { code: catalogItem?.id, displayName, canonical });
+
+    row.code ||= catalogItem?.id || '';
+    row.displayName = catalogItem?.nome || row.displayName;
+    row.canonical ||= canonical;
+    row.totalOccur += [...val.names.values()].reduce((s, v) => s + v, 0);
+    row.totalQty += val.totalQty || 0;
+    val.units.forEach((v) => row.units.add(v));
+    val.cats.forEach((v) => row.cats.add(v));
+    val.names.forEach((count, name) => {
+      row.historicalVariations.set(name, (row.historicalVariations.get(name) || 0) + count);
+    });
+  }
+
+  // Depois inclui TODO o catálogo, mesmo que o item não apareça no histórico
+  // carregado nesta tela. formasEscritas são as variações legíveis cadastradas.
+  listarMateriais().filter((m) => !m.mescladoEm).forEach((m) => {
+    const row = ensure(m.id, { code: m.id, displayName: m.nome });
+    row.code = m.id;
+    row.displayName = m.nome;
+    const categoria = categoriaPorId(m.categoriaId)?.nome;
+    if (categoria) row.cats.add(categoria);
+    const formas = (m.formasEscritas || []).filter(Boolean);
+    (formas.length ? formas : (m.variantes || [])).forEach((v) => row.catalogVariations.add(String(v).trim()));
+    row.catalogVariations.add(m.nome);
+  });
+
+  // Regras por nome também são variações já padronizadas, mesmo quando ainda
+  // não possuem uma formaEscrita legível no documento do catálogo.
+  for (const [variation, standard] of Object.entries(MAT_ALIASES || {})) {
+    const row = [...grouped.values()].find((r) => normMat(r.displayName) === normMat(standard));
+    if (row) row.catalogVariations.add(variation);
+  }
+
+  const splitByName = new Map(SPLIT_RULES.map((rule) => [normMat(rule.corrected), rule.splits]));
+  const list = [...grouped.values()].map((row) => {
+    const allNames = new Set([row.displayName, ...row.catalogVariations, ...row.historicalVariations.keys()]);
+    for (const name of allNames) {
+      const targets = splitByName.get(normMat(name));
+      if (targets?.length) row.splitTargets = targets;
+    }
+    const variations = [...allNames]
+      .filter(Boolean)
+      .map((name) => ({
+        name,
+        count: row.historicalVariations.get(name) || 0,
+        cataloged: row.catalogVariations.has(name) || normMat(name) === normMat(row.displayName),
+        historical: row.historicalVariations.has(name),
+      }))
+      .sort((a, b) => b.count - a.count || rmAcc(a.name).localeCompare(rmAcc(b.name)));
     return {
-      key, displayName, canonical, totalOccur,
-      nVariations: val.names.size, nUnits: val.units.size,
-      totalQty: val.totalQty || 0, cats: [...val.cats], variations
+      ...row,
+      nVariations: variations.length,
+      nUnits: row.units.size,
+      cats: [...row.cats],
+      variations,
+      standardized: variations.some((v) => normMat(v.name) !== normMat(row.displayName)),
     };
   });
+
+  // As regras de separação também entram na cópia, mesmo quando a combinação
+  // ainda não apareceu no histórico desta unidade.
+  SPLIT_RULES.forEach((rule) => {
+    if (list.some((r) => normMat(r.displayName) === normMat(rule.corrected))) return;
+    list.push({
+      key: 'SPLIT:' + normMat(rule.corrected), code: '', displayName: rule.corrected,
+      canonical: null, totalOccur: 0, totalQty: 0, nVariations: 1, nUnits: 0,
+      cats: [], variations: [{ name: rule.corrected, count: 0, cataloged: true, historical: false }],
+      standardized: true, splitTargets: rule.splits,
+    });
+  });
+
+  if (!list.length) { toast('Nenhum item para copiar.', 'red'); return; }
   list.sort((a, b) => rmAcc(a.displayName).localeCompare(rmAcc(b.displayName)));
   
   let text = '';
@@ -6925,46 +7180,54 @@ function copyItemsList(format) {
   
   else if (format === 'detailed') {
     // TSV para colar no Google Sheets / Excel
-    text = 'Nome Padrão\tOcorrências\tVariações\tUnidades que usam\tCategorias\tJá corrigido?\n';
+    text = 'Código\tNome Padrão\tOcorrências\tQtd. variações\tVariações cadastradas/históricas\tUnidades que usam\tCategorias\tPadronizado?\tSeparar na folha em\n';
     list.forEach(r => {
       text += [
+        r.code || '',
         r.displayName,
         r.totalOccur,
         r.nVariations,
+        r.variations.map((v) => v.name).join(' | '),
         r.nUnits,
         r.cats.join(' | '),
-        r.canonical ? 'SIM' : 'NÃO'
+        r.standardized || r.canonical ? 'SIM' : 'NÃO',
+        r.splitTargets.join(' | ')
       ].join('\t') + '\n';
     });
   }
   
   else if (format === 'variations') {
-    // Com todas as variações encontradas
-    text = 'Nome Padrão\tVariações Encontradas\tOcorrências\n';
+    // Uma linha por forma cadastrada/histórica: ideal para colar em uma folha.
+    text = 'Código\tNome Padrão\tVariação do item\tOrigem da variação\tOcorrências\tPadronização\tSeparar na folha em\tCategoria\n';
     list.forEach(r => {
-      const varsStr = r.variations.map(([n, c]) => n + ' (' + c + 'x)').join(' | ');
-      text += r.displayName + '\t' + varsStr + '\t' + r.totalOccur + '\n';
+      r.variations.forEach((v) => {
+        const source = v.cataloged && v.historical ? 'CATÁLOGO + HISTÓRICO' : v.cataloged ? 'CATÁLOGO' : 'HISTÓRICO';
+        const standardization = normMat(v.name) === normMat(r.displayName) ? 'NOME PADRÃO' : 'PADRONIZAR COMO ' + r.displayName;
+        text += [r.code || '', r.displayName, v.name, source, v.count, standardization, r.splitTargets.join(' | '), r.cats.join(' | ')].join('\t') + '\n';
+      });
     });
   }
   
   else if (format === 'csv') {
     // CSV (vírgulas, com aspas)
     const esc = s => '"' + String(s).replace(/"/g, '""') + '"';
-    text = 'Nome,Ocorrencias,Variacoes,Unidades,Categorias,Corrigido\n';
+    text = 'Codigo,Nome Padrao,Ocorrencias,Qtd Variacoes,Variacoes cadastradas e historicas,Unidades,Categorias,Padronizado,Separar na folha em\n';
     list.forEach(r => {
-      text += [esc(r.displayName), r.totalOccur, r.nVariations, r.nUnits, esc(r.cats.join('; ')), r.canonical ? 'SIM' : 'NAO'].join(',') + '\n';
+      text += [esc(r.code || ''), esc(r.displayName), r.totalOccur, r.nVariations, esc(r.variations.map((v) => v.name).join('; ')), r.nUnits, esc(r.cats.join('; ')), r.standardized || r.canonical ? 'SIM' : 'NAO', esc(r.splitTargets.join('; '))].join(',') + '\n';
     });
   }
   
   else if (format === 'json') {
     // JSON estruturado
     const data = list.map(r => ({
+      codigo: r.code || null,
       nome: r.displayName,
       ocorrencias: r.totalOccur,
-      variacoes: r.variations.map(([n, c]) => ({ nome: n, vezes: c })),
+      variacoes: r.variations.map((v) => ({ nome: v.name, vezes: v.count, catalogada: v.cataloged, historica: v.historical })),
       unidades: r.nUnits,
       categorias: r.cats,
-      corrigido: !!r.canonical
+      padronizado: !!(r.standardized || r.canonical),
+      separarNaFolhaEm: r.splitTargets,
     }));
     text = JSON.stringify(data, null, 2);
   }
@@ -8952,8 +9215,7 @@ function populateUnidadesSelect() {
     Sistema: "",
   };
   const q = rmAcc(String(__rUFilterText || "")).toUpperCase().replace(/\s+/g, " ").trim();
-  const unidades = (getUnidades() || [])
-    .filter((u) => (u?.atendeMateriais ?? true) === true && !u?.duplicataDe)
+  const unidades = getRegisteredUnitsList()
     .filter((u) => {
       if (!q) return true;
       const nome = String(u?.nome || u?.unidadeNome || "").trim();

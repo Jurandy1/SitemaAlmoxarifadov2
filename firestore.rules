@@ -60,6 +60,20 @@ service cloud.firestore {
         allow write: if isEditorOrAdmin();
       }
 
+      // O catálogo é alimentado também durante o salvamento de pedidos. Editores podem
+      // registrar novas grafias/códigos; somente administradores podem excluir registros.
+      match /catalogoMateriais/{docId} {
+        allow read: if request.auth != null;
+        allow create, update: if isEditorOrAdmin();
+        allow delete: if isAdmin();
+      }
+
+      match /catalogoCategorias/{docId} {
+        allow read: if request.auth != null;
+        allow create, update: if isEditorOrAdmin();
+        allow delete: if isAdmin();
+      }
+
       match /controleMateriais/{docId} {
         allow read: if request.auth != null;
         allow create: if isAdmin();

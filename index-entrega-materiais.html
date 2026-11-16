@@ -1,0 +1,3567 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SEMCAS Almoxarifado — Entrega de Materiais</title>
+
+  <!-- Google Fonts: Inter & Sora -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Sora:wght@400;600;700;800&family=DM+Sans:wght@400;500;700;800&display=swap" rel="stylesheet">
+
+  <!-- Lucide Icons via unpkg -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    /* =========================================================
+       DESIGN TOKENS & RESET
+       ========================================================= */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --primary-900: #0c2f6e;
+      --primary-800: #1e3a8a;
+      --primary-700: #1e40af;
+      --primary-600: #2563eb;
+      --primary-500: #3b82f6;
+      --primary-100: #dbeafe;
+      --primary-50:  #eff6ff;
+
+      --accent-purple: #7c3aed;
+      --accent-purple-light: #f3e8ff;
+      --accent-amber: #d97706;
+      --accent-amber-light: #fef3c7;
+      --accent-emerald: #059669;
+      --accent-emerald-light: #d1fae5;
+      --accent-rose: #e11d48;
+      --accent-rose-light: #ffe4e6;
+
+      --gray-900: #0f172a;
+      --gray-800: #1e293b;
+      --gray-700: #334155;
+      --gray-600: #475569;
+      --gray-500: #64748b;
+      --gray-400: #94a3b8;
+      --gray-300: #cbd5e1;
+      --gray-200: #e2e8f0;
+      --gray-100: #f1f5f9;
+      --gray-50:  #f8fafc;
+      --white:    #ffffff;
+
+      --sidebar-width: 260px;
+      --topbar-height: 48px;
+
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --radius-xl: 18px;
+
+      --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.05);
+      --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
+      --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.08), 0 2px 4px -1px rgba(15, 23, 42, 0.04);
+      --shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -2px rgba(15, 23, 42, 0.04);
+      --shadow-xl: 0 20px 25px -5px rgba(15, 23, 42, 0.12);
+
+      --transition: 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: #f1f5f9;
+      color: var(--gray-700);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Scrollbars elegantes */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--gray-300); border-radius: 999px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--gray-400); }
+
+    /* =========================================================
+       BARRA INSTITUCIONAL SUPERIOR (TOPBAR)
+       ========================================================= */
+    .topbar {
+      height: var(--topbar-height);
+      background: linear-gradient(90deg, #0a2558 0%, #1e40af 35%, #1d4ed8 70%, #0a2558 100%);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+    }
+
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+    }
+
+    .topbar-menu-toggle {
+      display: none;
+      background: rgba(255, 255, 255, 0.12);
+      border: none;
+      color: #fff;
+      padding: 6px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+    }
+
+    .topbar-brand {
+      font-weight: 800;
+      color: #fff;
+      letter-spacing: -0.2px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .topbar-brand-badge {
+      background: rgba(255, 255, 255, 0.18);
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+    }
+
+    .topbar-sep {
+      color: rgba(255, 255, 255, 0.45);
+      font-weight: 300;
+    }
+
+    .topbar-dept {
+      font-weight: 600;
+      color: #bfdbfe;
+    }
+
+    .topbar-slogan {
+      color: #93c5fd;
+      font-size: 12px;
+      font-weight: 400;
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-size: 12px;
+    }
+
+    .topbar-date {
+      color: #dbeafe;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .tv-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      color: #fff;
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: var(--transition);
+      cursor: pointer;
+    }
+    .tv-btn:hover {
+      background: rgba(255, 255, 255, 0.22);
+      transform: translateY(-1px);
+    }
+
+    .topbar-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      padding: 3px 10px;
+      border-radius: 999px;
+      color: #34d399;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 8px #10b981;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(1.15); }
+    }
+
+    /* =========================================================
+       LAYOUT GERAL (SIDEBAR + MAIN)
+       ========================================================= */
+    .app-layout {
+      display: flex;
+      flex: 1;
+      position: relative;
+    }
+
+    /* =========================================================
+       SIDEBAR (MENU COMPLETO)
+       ========================================================= */
+    .sidebar {
+      width: var(--sidebar-width);
+      background: #ffffff;
+      border-right: 1px solid var(--gray-200);
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      top: var(--topbar-height);
+      bottom: 0;
+      left: 0;
+      z-index: 900;
+      box-shadow: 2px 0 10px rgba(15, 23, 42, 0.03);
+      transition: transform var(--transition);
+    }
+
+    .sidebar-brand-box {
+      padding: 16px 18px 12px;
+      border-bottom: 1px solid var(--gray-200);
+      background: linear-gradient(180deg, #fafcff 0%, #ffffff 100%);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .sidebar-crest {
+      width: 44px;
+      height: 44px;
+      background: linear-gradient(135deg, var(--primary-700), var(--primary-900));
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      box-shadow: 0 4px 10px rgba(30, 64, 175, 0.3);
+      flex-shrink: 0;
+    }
+
+    .sidebar-brand-title {
+      font-family: 'Sora', sans-serif;
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--gray-900);
+      line-height: 1.2;
+    }
+
+    .sidebar-brand-sub {
+      font-size: 11px;
+      color: var(--gray-500);
+      margin-top: 2px;
+      font-weight: 500;
+    }
+
+    .sidebar-nav {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .nav-section-title {
+      font-size: 10.5px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--gray-400);
+      padding: 0 8px;
+      margin-bottom: 4px;
+    }
+
+    .nav-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .nav-btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 9px 12px;
+      border-radius: var(--radius-md);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--gray-600);
+      background: transparent;
+      border: 1px solid transparent;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all var(--transition);
+      position: relative;
+    }
+
+    .nav-btn-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .nav-btn i, .nav-btn .lucide {
+      width: 17px;
+      height: 17px;
+      color: var(--gray-500);
+      transition: color var(--transition);
+      flex-shrink: 0;
+    }
+
+    .nav-btn:hover {
+      background: var(--gray-100);
+      color: var(--gray-900);
+    }
+    .nav-btn:hover i, .nav-btn:hover .lucide {
+      color: var(--gray-900);
+    }
+
+    /* ITEM ATIVO: Entrega de Materiais */
+    .nav-btn.active {
+      background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+      color: var(--primary-700);
+      font-weight: 700;
+      border-color: #bfdbfe;
+      box-shadow: 0 1px 3px rgba(37, 99, 235, 0.12);
+    }
+
+    .nav-btn.active::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 3.5px;
+      height: 22px;
+      background: var(--primary-600);
+      border-radius: 0 4px 4px 0;
+    }
+
+    .nav-btn.active i, .nav-btn.active .lucide {
+      color: var(--primary-600) !important;
+    }
+
+    .nav-pill {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: #e2e8f0;
+      color: var(--gray-600);
+    }
+
+    .nav-pill.pill-active {
+      background: #dbeafe;
+      color: var(--primary-700);
+      border: 1px solid #bfdbfe;
+    }
+
+    /* USER FOOTER */
+    .sidebar-footer {
+      padding: 14px 16px;
+      border-top: 1px solid var(--gray-200);
+      background: var(--gray-50);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .user-profile {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .user-avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #1e40af 0%, #0c2f6e 100%);
+      color: #fff;
+      font-weight: 700;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 6px rgba(30, 64, 175, 0.25);
+      flex-shrink: 0;
+    }
+
+    .user-info {
+      min-width: 0;
+    }
+
+    .user-name {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--gray-900);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .user-role {
+      font-size: 10.5px;
+      color: var(--gray-500);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .sidebar-actions {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .icon-action-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      padding: 6px;
+      border-radius: var(--radius-sm);
+      color: var(--gray-500);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: var(--transition);
+    }
+
+    .icon-action-btn:hover {
+      background: var(--gray-200);
+      color: var(--gray-800);
+    }
+
+    /* =========================================================
+       MAIN CONTENT WRAPPER
+       ========================================================= */
+    .main {
+      margin-left: var(--sidebar-width);
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      background: #f8fafc;
+    }
+
+    /* =========================================================
+       PAGE HEADER
+       ========================================================= */
+    .page-header {
+      background: #ffffff;
+      border-bottom: 1px solid var(--gray-200);
+      padding: 22px 32px 18px;
+    }
+
+    .page-header-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .page-eyebrow {
+      font-size: 11.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--primary-600);
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .page-title-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .page-icon-badge {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, #1e40af 0%, #2563eb 100%);
+      color: #fff;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.28);
+    }
+
+    .page-title {
+      font-family: 'Sora', sans-serif;
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--gray-900);
+      letter-spacing: -0.4px;
+    }
+
+    .page-desc {
+      font-size: 13px;
+      color: var(--gray-500);
+      margin-top: 4px;
+    }
+
+    .page-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    /* BOTÕES GERAIS */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: var(--radius-md);
+      font-size: 12.5px;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all var(--transition);
+      border: 1px solid transparent;
+      white-space: nowrap;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-700) 100%);
+      color: #fff;
+      box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+    }
+    .btn-primary:hover {
+      background: linear-gradient(135deg, var(--primary-500) 0%, var(--primary-600) 100%);
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background: #ffffff;
+      color: var(--gray-700);
+      border-color: var(--gray-300);
+      box-shadow: var(--shadow-xs);
+    }
+    .btn-secondary:hover {
+      background: var(--gray-50);
+      border-color: var(--gray-400);
+      color: var(--gray-900);
+    }
+
+    .btn-success {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: #fff;
+      box-shadow: 0 2px 6px rgba(16, 185, 129, 0.25);
+    }
+    .btn-success:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
+    }
+
+    .btn-warning {
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      color: #fff;
+      box-shadow: 0 2px 6px rgba(245, 158, 11, 0.25);
+    }
+    .btn-warning:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(245, 158, 11, 0.35);
+    }
+
+    .btn-sm {
+      padding: 6px 12px;
+      font-size: 11.5px;
+      border-radius: var(--radius-sm);
+    }
+
+    /* =========================================================
+       CONTEÚDO PRINCIPAL (ENTREGA DE MATERIAIS)
+       ========================================================= */
+    .content-body {
+      padding: 24px 32px 40px;
+      max-width: 1400px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    /* SUB-MENU PRINCIPAL DO ALMOXARIFADO (Entrega vs Painel) */
+    .mat-main-nav {
+      display: flex;
+      align-items: center;
+      background: #0f172a;
+      border-radius: var(--radius-lg);
+      padding: 4px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 16px rgba(15, 23, 42, 0.12);
+    }
+
+    .mat-main-tab {
+      flex: 1;
+      padding: 12px 20px;
+      border: none;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all var(--transition);
+      background: transparent;
+      color: #94a3b8;
+    }
+
+    .mat-main-tab:hover {
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .mat-main-tab.active {
+      background: #1e40af;
+      color: #ffffff;
+      box-shadow: 0 2px 8px rgba(30, 64, 175, 0.4);
+    }
+
+    /* BARRA DE FERRAMENTAS RÁPIDA (Backup / Restaurar) */
+    .mat-quick-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .mat-badge-info {
+      font-size: 12px;
+      color: var(--gray-500);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* ABAS DE FLUXO DA SEPARAÇÃO */
+    .flow-tabs-card {
+      background: #ffffff;
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+      margin-bottom: 24px;
+    }
+
+    .flow-tabs {
+      display: flex;
+      background: #ffffff;
+      border-bottom: 1px solid var(--gray-200);
+      overflow-x: auto;
+    }
+
+    .flow-tab {
+      padding: 14px 20px;
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--gray-500);
+      border-bottom: 3px solid transparent;
+      white-space: nowrap;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all var(--transition);
+      user-select: none;
+    }
+
+    .flow-tab:hover {
+      color: var(--gray-900);
+      background: var(--gray-50);
+    }
+
+    .flow-tab.active {
+      color: var(--primary-700);
+      border-bottom-color: var(--primary-600);
+      background: #fafcff;
+    }
+
+    .flow-badge {
+      font-size: 10px;
+      font-weight: 800;
+      padding: 2px 7px;
+      border-radius: 999px;
+      min-width: 20px;
+      text-align: center;
+    }
+    .flow-badge.badge-zero { background: var(--gray-200); color: var(--gray-600); }
+    .flow-badge.badge-has  { background: #ef4444; color: #fff; }
+    .flow-badge.badge-blue { background: #3b82f6; color: #fff; }
+    .flow-badge.badge-amber{ background: #f59e0b; color: #fff; }
+    .flow-badge.badge-green{ background: #10b981; color: #fff; }
+
+    /* ÁREAS DAS VISÕES (VIEWS) */
+    .flow-view {
+      display: none;
+      padding: 24px;
+    }
+
+    .flow-view.active {
+      display: block;
+      animation: fadeIn 0.2s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* CARD DE CONTEÚDO */
+    .section-card {
+      background: #ffffff;
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      box-shadow: var(--shadow-xs);
+      margin-bottom: 20px;
+    }
+
+    .section-title {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--gray-900);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .section-desc {
+      font-size: 12.5px;
+      color: var(--gray-500);
+      margin-bottom: 20px;
+    }
+
+    /* FORMULÁRIO DE REQUISIÇÃO */
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .form-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--gray-700);
+    }
+
+    .form-input, .form-select {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1.5px solid var(--gray-200);
+      border-radius: var(--radius-md);
+      font-size: 13px;
+      font-family: inherit;
+      color: var(--gray-800);
+      background: #ffffff;
+      transition: all var(--transition);
+      outline: none;
+    }
+
+    .form-input:focus, .form-select:focus {
+      border-color: var(--primary-600);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+
+    /* UPLOAD DROP ZONE */
+    .drop-zone {
+      border: 2px dashed #93c5fd;
+      border-radius: var(--radius-lg);
+      padding: 26px;
+      text-align: center;
+      background: #f8fafc;
+      cursor: pointer;
+      transition: all var(--transition);
+      margin-bottom: 16px;
+    }
+
+    .drop-zone:hover {
+      border-color: var(--primary-600);
+      background: #eff6ff;
+    }
+
+    .drop-zone-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: #dbeafe;
+      color: var(--primary-700);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 10px;
+    }
+
+    .drop-zone-title {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--gray-800);
+    }
+
+    .drop-zone-hint {
+      font-size: 11.5px;
+      color: var(--gray-500);
+      margin-top: 3px;
+    }
+
+    .attached-file-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #d1fae5;
+      border: 1px solid #6ee7b7;
+      color: #065f46;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      margin-top: 10px;
+    }
+
+    /* TABELA DE ITENS / PREVIEW */
+    .table-container {
+      overflow-x: auto;
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-md);
+      margin-top: 14px;
+      background: #ffffff;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12.5px;
+      text-align: left;
+    }
+
+    .data-table th {
+      background: #f8fafc;
+      padding: 10px 14px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--gray-500);
+      border-bottom: 2px solid var(--gray-200);
+    }
+
+    .data-table td {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--gray-100);
+      color: var(--gray-700);
+      vertical-align: middle;
+    }
+
+    .data-table tr:hover td {
+      background: #f8fafc;
+    }
+
+    /* CARDS DA FILA (PARA SEPARAR / EM SEPARAÇÃO / PRONTO) */
+    .queue-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .queue-card {
+      background: #ffffff;
+      border: 1.5px solid var(--gray-200);
+      border-radius: var(--radius-lg);
+      padding: 18px 20px;
+      box-shadow: var(--shadow-xs);
+      transition: all var(--transition);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      position: relative;
+    }
+
+    .queue-card:hover {
+      border-color: #cbd5e1;
+      box-shadow: var(--shadow-md);
+    }
+
+    /* DESTAQUE VIP DO PRIMEIRO DA FILA */
+    .queue-card.first-in-queue {
+      border-color: #93c5fd;
+      background: linear-gradient(180deg, #f0f7ff 0%, #ffffff 100%);
+      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.1);
+    }
+
+    .queue-card.first-in-queue::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 5px;
+      background: var(--primary-600);
+      border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+    }
+
+    .queue-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .queue-card-title-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .unit-tag {
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--gray-900);
+    }
+
+    .badge-protocol {
+      font-size: 11px;
+      font-family: 'DM Sans', monospace;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: var(--gray-100);
+      color: var(--gray-600);
+      border: 1px solid var(--gray-200);
+    }
+
+    .badge-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 9px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .badge-first {
+      background: #eff6ff;
+      color: #1d4ed8;
+      border: 1px solid #bfdbfe;
+    }
+
+    .badge-in-progress {
+      background: #fef3c7;
+      color: #b45309;
+      border: 1px solid #fde68a;
+    }
+
+    .badge-ready {
+      background: #d1fae5;
+      color: #065f46;
+      border: 1px solid #a7f3d0;
+    }
+
+    .badge-delivered {
+      background: #e0e7ff;
+      color: #3730a3;
+      border: 1px solid #c7d2fe;
+    }
+
+    .queue-card-meta {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 10px;
+      font-size: 12px;
+      color: var(--gray-600);
+      background: var(--gray-50);
+      padding: 10px 14px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--gray-100);
+    }
+
+    .queue-card-meta-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .queue-card-meta-item b {
+      color: var(--gray-800);
+    }
+
+    /* BARRA DE PROGRESSO */
+    .progress-bar-container {
+      width: 100%;
+      height: 8px;
+      background: var(--gray-200);
+      border-radius: 999px;
+      overflow: hidden;
+      margin: 4px 0 2px;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #3b82f6 0%, #10b981 100%);
+      transition: width 0.4s ease;
+    }
+
+    .queue-card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      border-top: 1px solid var(--gray-100);
+      padding-top: 10px;
+    }
+
+    .card-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-left: auto;
+    }
+
+    /* =========================================================
+       MODAL DA FICHA A4 (OFICIAL SEMCAS)
+       ========================================================= */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.7);
+      backdrop-filter: blur(4px);
+      z-index: 99999;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      overflow-y: auto;
+    }
+
+    .modal-overlay.open {
+      display: flex;
+      animation: modalFade 0.2s ease;
+    }
+
+    @keyframes modalFade {
+      from { opacity: 0; transform: scale(0.98); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+
+    .modal-container {
+      background: #ffffff;
+      border-radius: var(--radius-xl);
+      max-width: 900px;
+      width: 100%;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: var(--shadow-xl);
+      overflow: hidden;
+    }
+
+    .modal-header {
+      background: #0f172a;
+      color: #ffffff;
+      padding: 14px 22px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .modal-header-title {
+      font-size: 14px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .modal-body {
+      padding: 24px;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    /* FICHA A4 INSTITUCIONAL */
+    .sheet-a4 {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      padding: 30px;
+      border-radius: 4px;
+      box-shadow: 0 2px 14px rgba(0, 0, 0, 0.06);
+      font-size: 12px;
+      color: #0f172a;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .sheet-header {
+      border-bottom: 2.5px solid #0f172a;
+      padding-bottom: 12px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .sheet-header-crest {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .sheet-crest-symbol {
+      width: 48px;
+      height: 48px;
+      border-radius: 8px;
+      background: #1e3a8a;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      font-weight: 800;
+    }
+
+    .sheet-header-text h1 {
+      font-size: 14px;
+      font-weight: 800;
+      color: #0f172a;
+      text-transform: uppercase;
+      letter-spacing: -0.2px;
+    }
+    .sheet-header-text h2 {
+      font-size: 11px;
+      font-weight: 600;
+      color: #475569;
+    }
+    .sheet-header-text h3 {
+      font-size: 10px;
+      color: #64748b;
+    }
+
+    .sheet-doc-tag {
+      text-align: right;
+    }
+    .sheet-doc-tag b {
+      font-size: 13px;
+      color: var(--primary-700);
+      display: block;
+    }
+    .sheet-doc-tag span {
+      font-size: 10px;
+      color: var(--gray-500);
+    }
+
+    .sheet-info-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr;
+      gap: 8px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 10px 14px;
+      margin-bottom: 16px;
+      font-size: 11.5px;
+    }
+
+    .sheet-info-grid div span {
+      color: var(--gray-500);
+      display: block;
+      font-size: 10px;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+    .sheet-info-grid div b {
+      color: var(--gray-900);
+      font-size: 12px;
+    }
+
+    .sheet-category-header {
+      background: #0f172a;
+      color: #ffffff;
+      padding: 4px 10px;
+      font-size: 10.5px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-radius: 4px 4px 0 0;
+      margin-top: 12px;
+    }
+
+    .sheet-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+      margin-bottom: 4px;
+    }
+
+    .sheet-table th {
+      background: #f1f5f9;
+      padding: 6px 8px;
+      font-size: 9.5px;
+      font-weight: 800;
+      text-transform: uppercase;
+      color: #475569;
+      border-bottom: 2px solid #cbd5e1;
+      text-align: center;
+    }
+    .sheet-table th:nth-child(2) { text-align: left; }
+
+    .sheet-table td {
+      padding: 6px 8px;
+      border-bottom: 1px solid #e2e8f0;
+      vertical-align: middle;
+    }
+
+    /* BADGES INTERATIVOS DE STATUS NA FICHA */
+    .status-badge-interactive {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 9.5px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      cursor: pointer;
+      user-select: none;
+      transition: all var(--transition);
+      border: 1px solid transparent;
+    }
+
+    .status-atendido {
+      background: #d1fae5;
+      color: #065f46;
+      border-color: #6ee7b7;
+    }
+    .status-parcial {
+      background: #fef3c7;
+      color: #92400e;
+      border-color: #fcd34d;
+    }
+    .status-sem_estoque {
+      background: #fee2e2;
+      color: #991b1b;
+      border-color: #fca5a5;
+    }
+    .status-nao_atendido {
+      background: #ede9fe;
+      color: #5b21b6;
+      border-color: #c4b5fd;
+    }
+
+    .sheet-input-qty {
+      width: 55px;
+      text-align: center;
+      padding: 3px 5px;
+      font-size: 11px;
+      font-weight: 700;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      font-family: inherit;
+    }
+
+    /* ASSINATURAS DA FICHA */
+    .sheet-signatures {
+      margin-top: 26px;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 18px;
+      font-size: 10px;
+    }
+
+    .sheet-sig-box {
+      text-align: center;
+    }
+    .sheet-sig-line {
+      border-bottom: 1px solid #0f172a;
+      min-height: 22px;
+      margin-bottom: 4px;
+      font-weight: 600;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .sheet-sig-caption {
+      font-size: 9.5px;
+      color: #64748b;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    /* MODAL DE ENTREGA */
+    .modal-mini {
+      max-width: 460px;
+    }
+
+    /* TOAST FEEDBACK */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #0f172a;
+      color: #ffffff;
+      padding: 12px 20px;
+      border-radius: var(--radius-md);
+      font-size: 13px;
+      font-weight: 600;
+      box-shadow: var(--shadow-xl);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      z-index: 100000;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      border-left: 4px solid #10b981;
+    }
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    /* PAINEL DO ALMOXARIFADO (ANALYTICS) */
+    .analytics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .kpi-card {
+      background: #ffffff;
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-lg);
+      padding: 18px 20px;
+      box-shadow: var(--shadow-xs);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .kpi-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    .kpi-title {
+      font-size: 11.5px;
+      color: var(--gray-500);
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .kpi-value {
+      font-family: 'Sora', sans-serif;
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--gray-900);
+      margin-top: 2px;
+    }
+
+    .kpi-trend {
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      margin-top: 2px;
+    }
+    .trend-up { color: #10b981; }
+
+    /* RESPONSIVIDADE */
+    @media (max-width: 900px) {
+      .sidebar {
+        transform: translateX(-100%);
+      }
+      .sidebar.open {
+        transform: translateX(0);
+      }
+      .main {
+        margin-left: 0;
+      }
+      .topbar-menu-toggle {
+        display: block;
+      }
+      .topbar-slogan {
+        display: none;
+      }
+      .content-body {
+        padding: 16px;
+      }
+      .page-header {
+        padding: 16px;
+      }
+    }
+
+    @media print {
+      .topbar, .sidebar, .page-header, .mat-main-nav, .mat-quick-bar, .flow-tabs, .modal-header, .no-print {
+        display: none !important;
+      }
+      body {
+        background: #ffffff !important;
+      }
+      .main {
+        margin-left: 0 !important;
+      }
+      .sheet-a4 {
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        max-width: 100% !important;
+      }
+      .modal-overlay {
+        position: static !important;
+        background: transparent !important;
+        padding: 0 !important;
+      }
+      .modal-container {
+        box-shadow: none !important;
+        max-width: 100% !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- =========================================================
+       1. TOPBAR INSTITUCIONAL (PREFEITURA DE SÃO LUÍS - SEMCAS)
+       ========================================================= -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <button class="topbar-menu-toggle" id="menuToggle" aria-label="Abrir Menu">
+        <i data-lucide="menu"></i>
+      </button>
+      <div class="topbar-brand">
+        <span>Prefeitura de São Luís</span>
+        <span class="topbar-brand-badge">SEMCAS</span>
+      </div>
+      <span class="topbar-sep">›</span>
+      <span class="topbar-dept">Almoxarifado Central</span>
+      <span class="topbar-sep">›</span>
+      <span class="topbar-slogan">Secretaria Municipal da Criança e Assistência Social</span>
+    </div>
+
+    <div class="topbar-right">
+      <div class="topbar-date" id="topbarLiveDate">
+        <i data-lucide="calendar"></i>
+        <span>Carregando data...</span>
+      </div>
+      <a href="#" class="tv-btn" onclick="showToast('Modo TV sincronizado com o painel central'); return false;">
+        <i data-lucide="monitor"></i>
+        <span>Modo TV</span>
+      </a>
+      <div class="topbar-status">
+        <span class="status-dot"></span>
+        <span>Sistema Online</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- =========================================================
+       LAYOUT PRINCIPAL
+       ========================================================= -->
+  <div class="app-layout">
+
+    <!-- =========================================================
+         2. MENU LATERAL COMPLETO (SIDEBAR INSTITUCIONAL)
+         ========================================================= -->
+    <aside class="sidebar" id="sidebar">
+      <!-- Brasão e Identidade -->
+      <div class="sidebar-brand-box">
+        <div class="sidebar-crest">
+          <i data-lucide="boxes" style="width:24px;height:24px;"></i>
+        </div>
+        <div>
+          <div class="sidebar-brand-title">SEMCAS Almoxarifado</div>
+          <div class="sidebar-brand-sub">São Luís — MA</div>
+        </div>
+      </div>
+
+      <!-- Navegação Completa -->
+      <nav class="sidebar-nav">
+        <!-- Grupo Principal -->
+        <div>
+          <div class="nav-section-title">Principal</div>
+          <ul class="nav-list">
+            <li>
+              <a href="#" class="nav-btn" onclick="showToast('Visualizando módulo de Entrega de Materiais'); return false;">
+                <div class="nav-btn-left">
+                  <i data-lucide="home"></i>
+                  <span>Início</span>
+                </div>
+              </a>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Grupo Operacional -->
+        <div>
+          <div class="nav-section-title">Operacional</div>
+          <ul class="nav-list">
+            <li>
+              <a href="#" class="nav-btn" onclick="showToast('Módulo de Controle de Água'); return false;">
+                <div class="nav-btn-left">
+                  <i data-lucide="droplet"></i>
+                  <span>Controle de Água</span>
+                </div>
+              </a>
+            </li>
+            <li>
+              <a href="#" class="nav-btn" onclick="showToast('Módulo de Controle de Gás'); return false;">
+                <div class="nav-btn-left">
+                  <i data-lucide="flame"></i>
+                  <span>Controle de Gás</span>
+                </div>
+              </a>
+            </li>
+            <li>
+              <!-- ITEM ATIVO: Entrega de Materiais -->
+              <a href="#" class="nav-btn active">
+                <div class="nav-btn-left">
+                  <i data-lucide="truck"></i>
+                  <span>Entrega Materiais</span>
+                </div>
+                <span class="nav-pill pill-active">Ativo</span>
+              </a>
+            </li>
+            <li>
+              <a href="#" class="nav-btn" onclick="showToast('Módulo de Assistência Social'); return false;">
+                <div class="nav-btn-left">
+                  <i data-lucide="handshake"></i>
+                  <span>Assistência Social</span>
+                </div>
+              </a>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Grupo Administrativo -->
+        <div>
+          <div class="nav-section-title">Administrativo</div>
+          <ul class="nav-list">
+            <li>
+              <a href="#" class="nav-btn" onclick="showToast('Gestão de Unidades SEMCAS'); return false;">
+                <div class="nav-btn-left">
+                  <i data-lucide="building"></i>
+                  <span>Gestão Unidades</span>
+                </div>
+              </a>
+            </li>
+            <li>
+              <a href="#" class="nav-btn" onclick="showToast('Gestão de Usuários e Permissões'); return false;">
+                <div class="nav-btn-left">
+                  <i data-lucide="users"></i>
+                  <span>Gestão Usuários</span>
+                </div>
+              </a>
+            </li>
+            <li>
+              <a href="#" class="nav-btn" onclick="showToast('Calendário de Feriados Municipais'); return false;">
+                <div class="nav-btn-left">
+                  <i data-lucide="calendar-days"></i>
+                  <span>Feriados</span>
+                </div>
+              </a>
+            </li>
+            <li>
+              <a href="#" class="nav-btn" onclick="showToast('Relatórios Consolidados'); return false;">
+                <div class="nav-btn-left">
+                  <i data-lucide="file-text"></i>
+                  <span>Relatórios</span>
+                </div>
+              </a>
+            </li>
+          </ul>
+        </div>
+      </nav>
+
+      <!-- Perfil do Usuário no Rodapé -->
+      <div class="sidebar-footer">
+        <div class="user-profile">
+          <div class="user-avatar">AD</div>
+          <div class="user-info">
+            <div class="user-name">Admin Almoxarifado</div>
+            <div class="user-role">Gestor Central SEMCAS</div>
+          </div>
+        </div>
+        <div class="sidebar-actions">
+          <button class="icon-action-btn" title="Trocar Senha" onclick="showToast('Alteração de senha');">
+            <i data-lucide="key-round" style="width:16px;height:16px;"></i>
+          </button>
+          <button class="icon-action-btn" title="Encerrar Sessão" onclick="showToast('Sessão ativa institucional');">
+            <i data-lucide="log-out" style="width:16px;height:16px;"></i>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- =========================================================
+         3. CONTEÚDO PRINCIPAL (ENTREGA DE MATERIAIS)
+         ========================================================= -->
+    <main class="main">
+
+      <!-- CABEÇALHO DA PÁGINA -->
+      <div class="page-header">
+        <div class="page-header-inner">
+          <div>
+            <div class="page-eyebrow">
+              <i data-lucide="layers" style="width:14px;height:14px;"></i>
+              <span>Operacional &bull; Suprimentos &bull; SEMCAS</span>
+            </div>
+            <div class="page-title-row">
+              <div class="page-icon-badge">
+                <i data-lucide="truck" style="width:22px;height:22px;"></i>
+              </div>
+              <h1 class="page-title">Entrega de Materiais</h1>
+            </div>
+            <p class="page-desc">Fluxo completo de requisições, triagem inteligente, separação, fichas A4 oficiais e protocolo de entrega.</p>
+          </div>
+
+          <div class="page-header-actions">
+            <button class="btn btn-secondary btn-sm" onclick="exportDataBackup()">
+              <i data-lucide="download"></i>
+              <span>Exportar Backup</span>
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="showToast('Selecione o arquivo JSON de backup...');">
+              <i data-lucide="upload"></i>
+              <span>Restaurar</span>
+            </button>
+            <button class="btn btn-primary btn-sm" onclick="switchFlowTab('req');">
+              <i data-lucide="plus-circle"></i>
+              <span>Nova Requisição</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- CORPO PRINCIPAL COM AS VISÕES DO MÓDULO -->
+      <div class="content-body">
+
+        <!-- SUB-MENU SUPERIOR DO MÓDULO: Entrega de Materiais vs Painel do Almoxarifado -->
+        <div class="mat-main-nav">
+          <button class="mat-main-tab active" id="tabBtnEntrega" onclick="switchMainView('entrega')">
+            <i data-lucide="truck"></i>
+            <span>Entrega de Materiais</span>
+          </button>
+          <button class="mat-main-tab" id="tabBtnPainel" onclick="switchMainView('painel')">
+            <i data-lucide="bar-chart-3"></i>
+            <span>Painel do Almoxarifado (Analytics)</span>
+          </button>
+        </div>
+
+        <!-- =====================================================
+             VISÃO 1: FLUXO DE ENTREGA DE MATERIAIS
+             ===================================================== -->
+        <div id="viewEntregaSection">
+
+          <!-- CARD PRINCIPAL DE ABAS DO FLUXO -->
+          <div class="flow-tabs-card">
+            <!-- Barra de Abas com Contadores Dinâmicos -->
+            <div class="flow-tabs">
+              <div class="flow-tab active" id="flowTab-req" onclick="switchFlowTab('req')">
+                <i data-lucide="clipboard-list"></i>
+                <span>Requisição</span>
+              </div>
+              <div class="flow-tab" id="flowTab-ps" onclick="switchFlowTab('ps')">
+                <i data-lucide="package"></i>
+                <span>Para Separar</span>
+                <span class="flow-badge badge-amber" id="badgePS">2</span>
+              </div>
+              <div class="flow-tab" id="flowTab-es" onclick="switchFlowTab('es')">
+                <i data-lucide="wrench"></i>
+                <span>Em Separação</span>
+                <span class="flow-badge badge-blue" id="badgeES">2</span>
+              </div>
+              <div class="flow-tab" id="flowTab-pe" onclick="switchFlowTab('pe')">
+                <i data-lucide="check-circle"></i>
+                <span>Pronto p/ Entrega</span>
+                <span class="flow-badge badge-green" id="badgePE">2</span>
+              </div>
+              <div class="flow-tab" id="flowTab-hi" onclick="switchFlowTab('hi')">
+                <i data-lucide="history"></i>
+                <span>Histórico</span>
+                <span class="flow-badge badge-zero" id="badgeHI">3</span>
+              </div>
+              <div class="flow-tab" id="flowTab-db" onclick="switchFlowTab('db')">
+                <i data-lucide="database"></i>
+                <span>Banco de Dados</span>
+              </div>
+              <div class="flow-tab" id="flowTab-padrao" onclick="switchFlowTab('padrao')">
+                <i data-lucide="settings-2"></i>
+                <span>Padronização</span>
+              </div>
+            </div>
+
+            <!-- ---------------------------------------------------
+                 ABA 1: REGISTRAR NOVA REQUISIÇÃO (Alimentada com dados)
+                 --------------------------------------------------- -->
+            <div class="flow-view active" id="view-req">
+              <div class="section-card">
+                <div class="section-title">
+                  <i data-lucide="file-plus" class="text-blue-600"></i>
+                  <span>Registrar Nova Requisição de Materiais</span>
+                </div>
+                <p class="section-desc">Selecione a unidade solicitante e anexe a planilha do pedido. Os itens, quantidades e categorias são identificados automaticamente.</p>
+
+                <!-- Grid de Unidade e Informações -->
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label class="form-label" for="reqUnitSelect">Unidade Solicitante (Alimentada)</label>
+                    <select class="form-select" id="reqUnitSelect" onchange="checkReqForm()">
+                      <option value="">— Selecione a unidade —</option>
+                      <optgroup label="CRAS (Centro de Ref. de Assistência Social)">
+                        <option value="CRAS Turu" selected>CRAS Turu</option>
+                        <option value="CRAS Bacanga">CRAS Bacanga</option>
+                        <option value="CRAS Centro">CRAS Centro</option>
+                        <option value="CRAS Maracanã">CRAS Maracanã</option>
+                        <option value="CRAS Coroadinho">CRAS Coroadinho</option>
+                        <option value="CRAS Cidade Operária">CRAS Cidade Operária</option>
+                      </optgroup>
+                      <optgroup label="CREAS (Especializado)">
+                        <option value="CREAS Centro">CREAS Centro</option>
+                        <option value="CREAS Cidade Operária">CREAS Cidade Operária</option>
+                        <option value="CREAS Coroadinho">CREAS Coroadinho</option>
+                      </optgroup>
+                      <optgroup label="Conselhos Tutelares">
+                        <option value="CT Bacanga">CT Bacanga</option>
+                        <option value="CT Centro">CT Centro</option>
+                        <option value="CT Tirirical">CT Tirirical</option>
+                      </optgroup>
+                      <optgroup label="Acolhimento & Abrigos">
+                        <option value="Casa Lar da Criança">Casa Lar da Criança</option>
+                        <option value="Abrigo Luz e Vida">Abrigo Luz e Vida</option>
+                        <option value="Casa da Mulher">Casa da Mulher</option>
+                      </optgroup>
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label">Arquivo / Planilha do Pedido</label>
+                    <div style="display:flex;align-items:center;gap:8px;padding-top:4px;">
+                      <span class="badge-status badge-ready">
+                        <i data-lucide="check-check"></i> Planilha Alimentada
+                      </span>
+                      <span style="font-size:12px;color:var(--gray-600);font-weight:600;">Pedido_CRAS_Turu_Outubro2026.xlsx</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Dropzone com Arquivo Fake Já Anexado -->
+                <div class="drop-zone" onclick="showToast('Arquivo simulado já carregado. Você pode arrastar outro se desejar.');">
+                  <div class="drop-zone-icon">
+                    <i data-lucide="file-spreadsheet"></i>
+                  </div>
+                  <div class="drop-zone-title">Planilha anexada e validada pelo sistema</div>
+                  <div class="drop-zone-hint">Extensões compatíveis: .xlsx, .xls, .ods, .docx ou .pdf com tabelas</div>
+                  <div>
+                    <span class="attached-file-badge">
+                      <i data-lucide="paperclip"></i>
+                      <span>Requisicao_CRAS_Turu_2026.xlsx &bull; 42 itens detectados (18.4 KB)</span>
+                    </span>
+                  </div>
+                </div>
+
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label class="form-label" for="reqLancadoPor">Lançado por (Operador)</label>
+                    <input type="text" class="form-input" id="reqLancadoPor" value="Carlos Mendes (Almoxarife)">
+                  </div>
+                  <div class="form-group" style="grid-column: 1 / -1;">
+                    <label class="form-label" for="reqObservacoes">Observações da Requisição</label>
+                    <input type="text" class="form-input" id="reqObservacoes" value="Prioridade para suprir oficinas pedagógicas infantis e atendimento da recepção.">
+                  </div>
+                </div>
+
+                <!-- Tabela com Preview dos Itens Carregados (3 Linhas Fakes) -->
+                <div style="margin-top: 18px;">
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                    <span style="font-size:12.5px;font-weight:700;color:var(--gray-800);display:flex;align-items:center;gap:6px;">
+                      <i data-lucide="list-checks" style="width:16px;height:16px;color:var(--primary-600)"></i>
+                      Pré-visualização dos Itens Detectados na Planilha (Amostra Alimentada)
+                    </span>
+                    <span style="font-size:11.5px;color:var(--gray-500);">3 de 42 itens exibidos</span>
+                  </div>
+
+                  <div class="table-container">
+                    <table class="data-table">
+                      <thead>
+                        <tr>
+                          <th>Item / Material</th>
+                          <th>Categoria</th>
+                          <th>Unid. Medida</th>
+                          <th style="text-align:center;">Qtd. Solicitada</th>
+                          <th style="text-align:center;">Estoque Atual</th>
+                          <th>Status Estoque</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td><b>PAPEL SULFITE A4 75G RESMA 500 FLS</b></td>
+                          <td><span class="badge-status badge-protocol">Expediente</span></td>
+                          <td>Resma</td>
+                          <td style="text-align:center;"><b>10</b></td>
+                          <td style="text-align:center;color:#059669;font-weight:700;">145 disp.</td>
+                          <td><span class="badge-status badge-ready">Totalmente Disponível</span></td>
+                        </tr>
+                        <tr>
+                          <td><b>CANETA ESFEROGRÁFICA AZUL 1.0MM CAIXA</b></td>
+                          <td><span class="badge-status badge-protocol">Expediente</span></td>
+                          <td>Caixa c/ 50</td>
+                          <td style="text-align:center;"><b>2</b></td>
+                          <td style="text-align:center;color:#059669;font-weight:700;">38 disp.</td>
+                          <td><span class="badge-status badge-ready">Totalmente Disponível</span></td>
+                        </tr>
+                        <tr>
+                          <td><b>ÁLCOOL EM GEL 70% FRASCO 500ML</b></td>
+                          <td><span class="badge-status badge-protocol">Higiene / Limpeza</span></td>
+                          <td>Frasco</td>
+                          <td style="text-align:center;"><b>15</b></td>
+                          <td style="text-align:center;color:#d97706;font-weight:700;">12 disp.</td>
+                          <td><span class="badge-status badge-in-progress">Atendimento Parcial (12)</span></td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <!-- Botões de Ação da Requisição -->
+                <div style="display:flex;gap:10px;margin-top:20px;flex-wrap:wrap;">
+                  <button class="btn btn-secondary" onclick="openFichaModal('CRAS Turu', 'REQ-2026-089', '21/10/2026', 'Carlos Mendes')">
+                    <i data-lucide="eye"></i>
+                    <span>Visualizar Ficha A4 Prévia</span>
+                  </button>
+                  <button class="btn btn-primary" style="flex:1;" onclick="submitNewRequisicao()">
+                    <i data-lucide="file-check"></i>
+                    <span>Registrar e Enviar para Separação</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- ---------------------------------------------------
+                 ABA 2: PARA SEPARAR (Fila de Espera Alimentada - 2 Linhas)
+                 --------------------------------------------------- -->
+            <div class="flow-view" id="view-ps">
+              <div class="section-card">
+                <div class="section-title">
+                  <i data-lucide="package" class="text-amber-500"></i>
+                  <span>Fila de Requisições Aguardando Separação</span>
+                </div>
+                <p class="section-desc">O primeiro pedido da fila recebe destaque prioritário. O separador clica em "Pegar para Separar", insere seu nome e a requisição passa automaticamente para o status "Em Separação".</p>
+
+                <div class="queue-grid">
+                  <!-- CARD 1: PRIMEIRO DA FILA (DESTAQUE VIP) -->
+                  <div class="queue-card first-in-queue" id="card-req-089">
+                    <div class="queue-card-header">
+                      <div class="queue-card-title-group">
+                        <span class="unit-tag">CRAS Turu</span>
+                        <span class="badge-protocol">#REQ-2026-089</span>
+                        <span class="badge-status badge-first">
+                          <i data-lucide="flame"></i> 1º DA FILA (PRIORIDADE)
+                        </span>
+                      </div>
+                      <span class="badge-status badge-in-progress">Aguardando Separador</span>
+                    </div>
+
+                    <div class="queue-card-meta">
+                      <div class="queue-card-meta-item">
+                        <i data-lucide="calendar" style="width:14px;height:14px;"></i>
+                        <span>Data: <b>Hoje às 08:30</b></span>
+                      </div>
+                      <div class="queue-card-meta-item">
+                        <i data-lucide="boxes" style="width:14px;height:14px;"></i>
+                        <span>Itens: <b>18 itens requisitados</b></span>
+                      </div>
+                      <div class="queue-card-meta-item">
+                        <i data-lucide="user" style="width:14px;height:14px;"></i>
+                        <span>Solicitante: <b>Coord. Francisca Silva</b></span>
+                      </div>
+                      <div class="queue-card-meta-item">
+                        <i data-lucide="tag" style="width:14px;height:14px;"></i>
+                        <span>Destino: <b>Expediente e Limpeza</b></span>
+                      </div>
+                    </div>
+
+                    <div style="font-size:12px;color:var(--gray-600);background:#fff;padding:8px 12px;border-radius:6px;border:1px dashed #cbd5e1;">
+                      <b style="color:var(--gray-800)">Obs:</b> Urgência para reposição das salas de atendimento às famílias vulneráveis.
+                    </div>
+
+                    <div class="queue-card-footer">
+                      <button class="btn btn-secondary btn-sm" onclick="openFichaModal('CRAS Turu', 'REQ-2026-089', '21/10/2026', 'Aguardando')">
+                        <i data-lucide="file-text"></i>
+                        <span>Ver Ficha</span>
+                      </button>
+                      <div class="card-actions">
+                        <button class="btn btn-warning btn-sm" onclick="pegarParaSeparar('CRAS Turu', 'REQ-2026-089')">
+                          <i data-lucide="hand"></i>
+                          <span>Pegar para Separar Agora</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- CARD 2: SEGUNDO DA FILA -->
+                  <div class="queue-card" id="card-req-088">
+                    <div class="queue-card-header">
+                      <div class="queue-card-title-group">
+                        <span class="unit-tag">CREAS Cidade Operária</span>
+                        <span class="badge-protocol">#REQ-2026-088</span>
+                        <span class="badge-status badge-protocol">2º da Fila</span>
+                      </div>
+                      <span class="badge-status badge-protocol">Aguardando</span>
+                    </div>
+
+                    <div class="queue-card-meta">
+                      <div class="queue-card-meta-item">
+                        <i data-lucide="calendar" style="width:14px;height:14px;"></i>
+                        <span>Data: <b>Ontem às 16:45</b></span>
+                      </div>
+                      <div class="queue-card-meta-item">
+                        <i data-lucide="boxes" style="width:14px;height:14px;"></i>
+                        <span>Itens: <b>12 itens requisitados</b></span>
+                      </div>
+                      <div class="queue-card-meta-item">
+                        <i data-lucide="user" style="width:14px;height:14px;"></i>
+                        <span>Solicitante: <b>Marcos André (Chefe Unid.)</b></span>
+                      </div>
+                      <div class="queue-card-meta-item">
+                        <i data-lucide="tag" style="width:14px;height:14px;"></i>
+                        <span>Destino: <b>Material Didático</b></span>
+                      </div>
+                    </div>
+
+                    <div class="queue-card-footer">
+                      <button class="btn btn-secondary btn-sm" onclick="openFichaModal('CREAS Cidade Operária', 'REQ-2026-088', '20/10/2026', 'Aguardando')">
+                        <i data-lucide="file-text"></i>
+                        <span>Ver Ficha</span>
+                      </button>
+                      <div class="card-actions">
+                        <button class="btn btn-secondary btn-sm" onclick="pegarParaSeparar('CREAS Cidade Operária', 'REQ-2026-088')">
+                          <i data-lucide="hand"></i>
+                          <span>Pegar para Separar</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ---------------------------------------------------
+                 ABA 3: EM SEPARAÇÃO (Alimentada - 2 Linhas em andamento)
+                 --------------------------------------------------- -->
+            <div class="flow-view" id="view-es">
+              <div class="section-card">
+                <div class="section-title">
+                  <i data-lucide="wrench" class="text-blue-600"></i>
+                  <span>Pedidos Sendo Separados no Momento</span>
+                </div>
+                <p class="section-desc">Acompanhe a conferência física nas prateleiras. O separador pode editar quantidades, apontar faltas ou parciais na ficha A4 e marcar como pronto quando concluir.</p>
+
+                <div class="queue-grid">
+                  <!-- CARD 1 EM SEPARAÇÃO -->
+                  <div class="queue-card" style="border-left: 5px solid #2563eb;">
+                    <div class="queue-card-header">
+                      <div class="queue-card-title-group">
+                        <span class="unit-tag">CT Bacanga (Conselho Tutelar)</span>
+                        <span class="badge-protocol">#REQ-2026-087</span>
+                        <span class="badge-status badge-in-progress">Em Separação</span>
+                      </div>
+                      <span style="font-size:12px;font-weight:700;color:var(--primary-700);">
+                        Separador: <b>Carlos Eduardo</b>
+                      </span>
+                    </div>
+
+                    <div class="queue-card-meta">
+                      <div class="queue-card-meta-item">
+                        <i data-lucide="clock" style="width:14px;height:14px;"></i>
+                        <span>Iniciado: <b>Hoje às 09:15 (Há 42 min)</b></span>
+                      </div>
+                      <div class="queue-card-meta-item">
+                        <i data-lucide="package-check" style="width:14px;height:14px;"></i>
+                        <span>Conferência: <b>14 de 16 itens prontos</b></span>
+                      </div>
+                      <div class="queue-card-meta-item">
+                        <i data-lucide="check-square" style="width:14px;height:14px;"></i>
+                        <span>Progresso: <b>87% concluído</b></span>
+                      </div>
+                    </div>
+
+                    <!-- Barra de Progresso Realista -->
+                    <div>
+                      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--gray-600);margin-bottom:2px;">
+                        <span>Separação Física do Estoque</span>
+                        <b>87%</b>
+                      </div>
+                      <div class="progress-bar-container">
+                        <div class="progress-bar-fill" style="width: 87%;"></div>
+                      </div>
+                    </div>
+
+                    <div class="queue-card-footer">
+                      <div style="display:flex;gap:8px;">
+                        <button class="btn btn-secondary btn-sm" onclick="openFichaModal('CT Bacanga', 'REQ-2026-087', '21/10/2026', 'Carlos Eduardo')">
+                          <i data-lucide="edit-3"></i>
+                          <span>Abrir e Editar Ficha A4</span>
+                        </button>
+                      </div>
+                      <div class="card-actions">
+                        <button class="btn btn-success btn-sm" onclick="marcarComoPronto('CT Bacanga', 'REQ-2026-087')">
+                          <i data-lucide="check-circle-2"></i>
+                          <span>Concluir e Enviar p/ Entrega</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- CARD 2 EM SEPARAÇÃO -->
+                  <div class="queue-card" style="border-left: 5px solid #3b82f6;">
+                    <div class="queue-card-header">
+                      <div class="queue-card-title-group">
+                        <span class="unit-tag">CRAS Maracanã</span>
+                        <span class="badge-protocol">#REQ-2026-086</span>
+                        <span class="badge-status badge-in-progress">Em Separação</span>
+                      </div>
+                      <span style="font-size:12px;font-weight:700;color:var(--primary-700);">
+                        Separadora: <b>Ana Paula Santos</b>
+                      </span>
+                    </div>
+
+                    <div class="queue-card-meta">
+                      <div class="queue-card-meta-item">
+                        <i data-lucide="clock" style="width:14px;height:14px;"></i>
+                        <span>Iniciado: <b>Hoje às 10:10 (Há 15 min)</b></span>
+                      </div>
+                      <div class="queue-card-meta-item">
+                        <i data-lucide="package-check" style="width:14px;height:14px;"></i>
+                        <span>Conferência: <b>5 de 10 itens prontos</b></span>
+                      </div>
+                      <div class="queue-card-meta-item">
+                        <i data-lucide="check-square" style="width:14px;height:14px;"></i>
+                        <span>Progresso: <b>50% concluído</b></span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--gray-600);margin-bottom:2px;">
+                        <span>Separação Física do Estoque</span>
+                        <b>50%</b>
+                      </div>
+                      <div class="progress-bar-container">
+                        <div class="progress-bar-fill" style="width: 50%;"></div>
+                      </div>
+                    </div>
+
+                    <div class="queue-card-footer">
+                      <div style="display:flex;gap:8px;">
+                        <button class="btn btn-secondary btn-sm" onclick="openFichaModal('CRAS Maracanã', 'REQ-2026-086', '21/10/2026', 'Ana Paula Santos')">
+                          <i data-lucide="edit-3"></i>
+                          <span>Abrir e Editar Ficha A4</span>
+                        </button>
+                      </div>
+                      <div class="card-actions">
+                        <button class="btn btn-success btn-sm" onclick="marcarComoPronto('CRAS Maracanã', 'REQ-2026-086')">
+                          <i data-lucide="check-circle-2"></i>
+                          <span>Concluir e Enviar p/ Entrega</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ---------------------------------------------------
+                 ABA 4: PRONTO PARA ENTREGA (Alimentada - 2 Linhas)
+                 --------------------------------------------------- -->
+            <div class="flow-view" id="view-pe">
+              <div class="section-card">
+                <div class="section-title">
+                  <i data-lucide="check-circle" class="text-emerald-600"></i>
+                  <span>Pedidos Prontos e Embalados Aguardando Retirada</span>
+                </div>
+                <p class="section-desc">Caixas identificadas e armazenadas no setor de expedição. Quando o motorista ou representante da unidade comparecer, clique em "Registrar Entrega".</p>
+
+                <div class="queue-grid">
+                  <!-- CARD 1 PRONTO -->
+                  <div class="queue-card" style="border-left: 5px solid #10b981;">
+                    <div class="queue-card-header">
+                      <div class="queue-card-title-group">
+                        <span class="unit-tag">Abrigo de Idosos Luz e Vida</span>
+                        <span class="badge-protocol">#REQ-2026-085</span>
+                        <span class="badge-status badge-ready">
+                          <i data-lucide="check"></i> Pronto p/ Retirada
+                        </span>
+                      </div>
+                      <span class="badge-status badge-protocol">Local: Prateleira Expedição B-02</span>
+                    </div>
+
+                    <div class="queue-card-meta">
+                      <div class="queue-card-meta-item">
+                        <i data-lucide="check-circle" style="width:14px;height:14px;"></i>
+                        <span>Concluído por: <b>Marcos Silva</b></span>
+                      </div>
+                      <div class="queue-card-meta-item">
+                        <i data-lucide="calendar" style="width:14px;height:14px;"></i>
+                        <span>Pronto em: <b>21/10 às 09:40</b></span>
+                      </div>
+                      <div class="queue-card-meta-item">
+                        <i data-lucide="package" style="width:14px;height:14px;"></i>
+                        <span>Volumes: <b>3 caixas lacradas</b></span>
+                      </div>
+                      <div class="queue-card-meta-item">
+                        <i data-lucide="pie-chart" style="width:14px;height:14px;"></i>
+                        <span>Atendimento: <b>100% dos 24 itens</b></span>
+                      </div>
+                    </div>
+
+                    <div class="queue-card-footer">
+                      <button class="btn btn-secondary btn-sm" onclick="openFichaModal('Abrigo Luz e Vida', 'REQ-2026-085', '21/10/2026', 'Marcos Silva')">
+                        <i data-lucide="printer"></i>
+                        <span>Imprimir Ficha de Entrega</span>
+                      </button>
+                      <div class="card-actions">
+                        <button class="btn btn-primary btn-sm" onclick="openEntregaModal('Abrigo de Idosos Luz e Vida', 'REQ-2026-085')">
+                          <i data-lucide="truck"></i>
+                          <span>Registrar Retirada / Entrega</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- CARD 2 PRONTO -->
+                  <div class="queue-card" style="border-left: 5px solid #10b981;">
+                    <div class="queue-card-header">
+                      <div class="queue-card-title-group">
+                        <span class="unit-tag">CRAS Coroadinho</span>
+                        <span class="badge-protocol">#REQ-2026-084</span>
+                        <span class="badge-status badge-ready">
+                          <i data-lucide="check"></i> Pronto p/ Retirada
+                        </span>
+                      </div>
+                      <span class="badge-status badge-protocol">Local: Prateleira Expedição A-05</span>
+                    </div>
+
+                    <div class="queue-card-meta">
+                      <div class="queue-card-meta-item">
+                        <i data-lucide="check-circle" style="width:14px;height:14px;"></i>
+                        <span>Concluído por: <b>Carlos Eduardo</b></span>
+                      </div>
+                      <div class="queue-card-meta-item">
+                        <i data-lucide="calendar" style="width:14px;height:14px;"></i>
+                        <span>Pronto em: <b>20/10 às 17:15</b></span>
+                      </div>
+                      <div class="queue-card-meta-item">
+                        <i data-lucide="package" style="width:14px;height:14px;"></i>
+                        <span>Volumes: <b>2 volumes</b></span>
+                      </div>
+                      <div class="queue-card-meta-item">
+                        <i data-lucide="pie-chart" style="width:14px;height:14px;"></i>
+                        <span>Atendimento: <b>93% (14 de 15 itens)</b></span>
+                      </div>
+                    </div>
+
+                    <div class="queue-card-footer">
+                      <button class="btn btn-secondary btn-sm" onclick="openFichaModal('CRAS Coroadinho', 'REQ-2026-084', '20/10/2026', 'Carlos Eduardo')">
+                        <i data-lucide="printer"></i>
+                        <span>Imprimir Ficha de Entrega</span>
+                      </button>
+                      <div class="card-actions">
+                        <button class="btn btn-primary btn-sm" onclick="openEntregaModal('CRAS Coroadinho', 'REQ-2026-084')">
+                          <i data-lucide="truck"></i>
+                          <span>Registrar Retirada / Entrega</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ---------------------------------------------------
+                 ABA 5: HISTÓRICO DE ENTREGAS FINALIZADAS (Alimentada - 3 Linhas)
+                 --------------------------------------------------- -->
+            <div class="flow-view" id="view-hi">
+              <div class="section-card">
+                <div class="section-title">
+                  <i data-lucide="history" class="text-purple-600"></i>
+                  <span>Histórico Geral de Entregas Realizadas</span>
+                </div>
+                <p class="section-desc">Auditoria completa com comprovante de retirada, quem recebeu, matrícula institucional e índice de atendimento.</p>
+
+                <div class="table-container">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>N° Protocolo</th>
+                        <th>Unidade Destino</th>
+                        <th>Data da Entrega</th>
+                        <th>Quem Retirou</th>
+                        <th>Entregue por (Almox.)</th>
+                        <th style="text-align:center;">Qtd. Itens</th>
+                        <th>Status Entrega</th>
+                        <th style="text-align:right;">Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td><span class="badge-protocol">#REQ-2026-083</span></td>
+                        <td><b>CRAS Bacanga</b></td>
+                        <td>20/10/2026 às 14:30</td>
+                        <td>
+                          <div><b>Raimundo Nonato</b></div>
+                          <div style="font-size:10.5px;color:var(--gray-500)">Matr. 84.192-3 &bull; Motorista SEMCAS</div>
+                        </td>
+                        <td>Carlos Eduardo</td>
+                        <td style="text-align:center;"><b>18 / 18</b> (100%)</td>
+                        <td><span class="badge-status badge-ready">Atendido Total</span></td>
+                        <td style="text-align:right;">
+                          <button class="btn btn-secondary btn-sm" onclick="openFichaModal('CRAS Bacanga', 'REQ-2026-083', '20/10/2026', 'Carlos Eduardo')">
+                            <i data-lucide="receipt"></i> Ficha A4
+                          </button>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td><span class="badge-protocol">#REQ-2026-082</span></td>
+                        <td><b>CREAS Centro</b></td>
+                        <td>19/10/2026 às 10:15</td>
+                        <td>
+                          <div><b>Maria Luíza Farias</b></div>
+                          <div style="font-size:10.5px;color:var(--gray-500)">RG 1.284.992 SSP/MA &bull; Assist. Adm.</div>
+                        </td>
+                        <td>Marcos Silva</td>
+                        <td style="text-align:center;"><b>20 / 22</b> (91%)</td>
+                        <td><span class="badge-status badge-in-progress">Atendido Parcial</span></td>
+                        <td style="text-align:right;">
+                          <button class="btn btn-secondary btn-sm" onclick="openFichaModal('CREAS Centro', 'REQ-2026-082', '19/10/2026', 'Marcos Silva')">
+                            <i data-lucide="receipt"></i> Ficha A4
+                          </button>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td><span class="badge-protocol">#REQ-2026-081</span></td>
+                        <td><b>Casa Lar da Criança</b></td>
+                        <td>18/10/2026 às 16:40</td>
+                        <td>
+                          <div><b>João Pedro Castro</b></div>
+                          <div style="font-size:10.5px;color:var(--gray-500)">Matr. 91.004-8 &bull; Equipe Logística</div>
+                        </td>
+                        <td>Carlos Eduardo</td>
+                        <td style="text-align:center;"><b>35 / 35</b> (100%)</td>
+                        <td><span class="badge-status badge-ready">Atendido Total</span></td>
+                        <td style="text-align:right;">
+                          <button class="btn btn-secondary btn-sm" onclick="openFichaModal('Casa Lar da Criança', 'REQ-2026-081', '18/10/2026', 'Carlos Eduardo')">
+                            <i data-lucide="receipt"></i> Ficha A4
+                          </button>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- ---------------------------------------------------
+                 ABA 6: BANCO DE DADOS & IMPORTAÇÕES
+                 --------------------------------------------------- -->
+            <div class="flow-view" id="view-db">
+              <div class="section-card">
+                <div class="section-title">
+                  <i data-lucide="database" class="text-blue-600"></i>
+                  <span>Banco de Dados de Planilhas e Remessas Históricas</span>
+                </div>
+                <p class="section-desc">Estatísticas gerais de arquivos integrados e acervo documental por unidade municipal.</p>
+
+                <!-- Cards Estatísticos -->
+                <div class="analytics-grid" style="margin-bottom:20px;">
+                  <div class="kpi-card">
+                    <div class="kpi-icon" style="background:#2563eb;">
+                      <i data-lucide="file-spreadsheet"></i>
+                    </div>
+                    <div>
+                      <div class="kpi-title">Arquivos Carregados</div>
+                      <div class="kpi-value">142</div>
+                    </div>
+                  </div>
+                  <div class="kpi-card">
+                    <div class="kpi-icon" style="background:#10b981;">
+                      <i data-lucide="truck"></i>
+                    </div>
+                    <div>
+                      <div class="kpi-title">Envios e Remessas</div>
+                      <div class="kpi-value">38</div>
+                    </div>
+                  </div>
+                  <div class="kpi-card">
+                    <div class="kpi-icon" style="background:#7c3aed;">
+                      <i data-lucide="building"></i>
+                    </div>
+                    <div>
+                      <div class="kpi-title">Unidades no Acervo</div>
+                      <div class="kpi-value">28</div>
+                    </div>
+                  </div>
+                  <div class="kpi-card">
+                    <div class="kpi-icon" style="background:#d97706;">
+                      <i data-lucide="layers"></i>
+                    </div>
+                    <div>
+                      <div class="kpi-title">Linhas de Registros</div>
+                      <div class="kpi-value">2.450</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Lista de Planilhas Integradas (Alimentada) -->
+                <div style="font-size:13px;font-weight:700;color:var(--gray-800);margin-bottom:8px;">Planilhas Recentes Catalogadas:</div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(260px, 1fr));gap:12px;">
+                  <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;">
+                    <div style="font-weight:700;font-size:12.5px;color:var(--gray-900);">CRAS_Turu_Outubro2026.xlsx</div>
+                    <div style="font-size:11px;color:var(--gray-500);margin-top:2px;">42 itens &bull; Importado em 21/10/2026</div>
+                    <span class="badge-status badge-ready" style="margin-top:6px;">Ano: 2026</span>
+                  </div>
+                  <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;">
+                    <div style="font-weight:700;font-size:12.5px;color:var(--gray-900);">CREAS_CidadeOperaria_Set2026.xlsx</div>
+                    <div style="font-size:11px;color:var(--gray-500);margin-top:2px;">28 itens &bull; Importado em 15/09/2026</div>
+                    <span class="badge-status badge-ready" style="margin-top:6px;">Ano: 2026</span>
+                  </div>
+                  <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;">
+                    <div style="font-weight:700;font-size:12.5px;color:var(--gray-900);">CT_Bacanga_Expediente_Ago2026.xlsx</div>
+                    <div style="font-size:11px;color:var(--gray-500);margin-top:2px;">19 itens &bull; Importado em 10/08/2026</div>
+                    <span class="badge-status badge-ready" style="margin-top:6px;">Ano: 2026</span>
+                  </div>
+                  <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;">
+                    <div style="font-weight:700;font-size:12.5px;color:var(--gray-900);">SEMCAS_Sede_RemessaGeral_2026.xlsx</div>
+                    <div style="font-size:11px;color:var(--gray-500);margin-top:2px;">85 itens &bull; Importado em 02/07/2026</div>
+                    <span class="badge-status badge-ready" style="margin-top:6px;">Ano: 2026</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ---------------------------------------------------
+                 ABA 7: PADRONIZAÇÃO DE ITENS (DE-PARA / ALIASES)
+                 --------------------------------------------------- -->
+            <div class="flow-view" id="view-padrao">
+              <div class="section-card">
+                <div class="section-title">
+                  <i data-lucide="settings-2" class="text-blue-600"></i>
+                  <span>Dicionário e Padronização de Itens (De-Para)</span>
+                </div>
+                <p class="section-desc">Mapeamento que unifica diferentes nomenclaturas escritas nas planilhas para o código padrão do Almoxarifado Central.</p>
+
+                <div class="table-container">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>Texto Encontrado na Planilha Externa</th>
+                        <th>&rarr;</th>
+                        <th>Material Padronizado no Catálogo Oficial</th>
+                        <th>Categoria Oficial</th>
+                        <th>Ação</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td><code style="background:#f1f5f9;padding:2px 6px;border-radius:4px;">PAPEL SULFITE A4 REPORT 75G</code></td>
+                        <td><i data-lucide="arrow-right" style="width:14px;height:14px;color:var(--primary-600)"></i></td>
+                        <td><b>PAPEL SULFITE A4 75G RESMA 500 FLS</b></td>
+                        <td><span class="badge-status badge-protocol">Expediente</span></td>
+                        <td><span class="badge-status badge-ready">Ativo</span></td>
+                      </tr>
+                      <tr>
+                        <td><code style="background:#f1f5f9;padding:2px 6px;border-radius:4px;">CANETA ESFEROGRAFICA BIC AZUL</code></td>
+                        <td><i data-lucide="arrow-right" style="width:14px;height:14px;color:var(--primary-600)"></i></td>
+                        <td><b>CANETA ESFEROGRÁFICA AZUL 1.0MM CAIXA</b></td>
+                        <td><span class="badge-status badge-protocol">Expediente</span></td>
+                        <td><span class="badge-status badge-ready">Ativo</span></td>
+                      </tr>
+                      <tr>
+                        <td><code style="background:#f1f5f9;padding:2px 6px;border-radius:4px;">ALCOOL EM GEL 70 PORCENTO</code></td>
+                        <td><i data-lucide="arrow-right" style="width:14px;height:14px;color:var(--primary-600)"></i></td>
+                        <td><b>ÁLCOOL EM GEL 70% FRASCO 500ML</b></td>
+                        <td><span class="badge-status badge-protocol">Higiene / Limpeza</span></td>
+                        <td><span class="badge-status badge-ready">Ativo</span></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+          </div><!-- /flow-tabs-card -->
+        </div><!-- /viewEntregaSection -->
+
+        <!-- =====================================================
+             VISÃO 2: PAINEL DO ALMOXARIFADO (ANALYTICS COMPLETO)
+             ===================================================== -->
+        <div id="viewPainelSection" style="display:none;">
+
+          <!-- ═══ SUB-MENU DO PAINEL: Visão Geral | Itens Consumidos | Atendimento | Frequência ═══ -->
+          <div style="display:flex;gap:0;background:#fff;border:1px solid #e2e8f0;border-radius:var(--radius-lg);overflow:hidden;margin-bottom:16px;box-shadow:var(--shadow-sm)">
+            <button class="pan-sub-tab active" data-pansub="geral" onclick="switchPanSub('geral')" style="flex:1;padding:13px 10px;border:none;cursor:pointer;font-family:inherit;font-size:12.5px;font-weight:700;background:#2563eb;color:#fff;transition:all var(--transition);display:flex;align-items:center;justify-content:center;gap:7px">
+              <i data-lucide="layout-dashboard"></i> Visão Geral
+            </button>
+            <button class="pan-sub-tab" data-pansub="itens" onclick="switchPanSub('itens')" style="flex:1;padding:13px 10px;border:none;cursor:pointer;font-family:inherit;font-size:12.5px;font-weight:700;background:transparent;color:#64748b;transition:all var(--transition);display:flex;align-items:center;justify-content:center;gap:7px">
+              <i data-lucide="package"></i> Itens Consumidos
+            </button>
+            <button class="pan-sub-tab" data-pansub="atendimento" onclick="switchPanSub('atendimento')" style="flex:1;padding:13px 10px;border:none;cursor:pointer;font-family:inherit;font-size:12.5px;font-weight:700;background:transparent;color:#64748b;transition:all var(--transition);display:flex;align-items:center;justify-content:center;gap:7px">
+              <i data-lucide="check-circle"></i> Atendimento
+            </button>
+            <button class="pan-sub-tab" data-pansub="frequencia" onclick="switchPanSub('frequencia')" style="flex:1;padding:13px 10px;border:none;cursor:pointer;font-family:inherit;font-size:12.5px;font-weight:700;background:transparent;color:#64748b;transition:all var(--transition);display:flex;align-items:center;justify-content:center;gap:7px">
+              <i data-lucide="calendar-days"></i> Frequência
+            </button>
+          </div>
+
+          <!-- ═══ FILTROS DO RELATÓRIO (COMPLETO) ═══ -->
+          <div id="panFilters" style="background:#fff;border:1px solid #e2e8f0;border-radius:var(--radius-lg);padding:18px 20px;margin-bottom:16px;box-shadow:var(--shadow-sm)">
+            <!-- Header dos Filtros com Presets de Data -->
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+              <span style="font-size:13px;font-weight:800;color:#475569;display:flex;align-items:center;gap:8px">
+                <i data-lucide="filter" style="width:16px;height:16px;color:var(--primary-600)"></i>
+                Filtros do Relatório
+              </span>
+              <div style="display:flex;gap:6px;flex-wrap:wrap">
+                <button class="btn btn-secondary btn-sm" type="button" onclick="applyPanPreset('30d')">30 dias</button>
+                <button class="btn btn-secondary btn-sm" type="button" onclick="applyPanPreset('mes')">Mês atual</button>
+                <button class="btn btn-secondary btn-sm" type="button" onclick="applyPanPreset('trimestre')">Trimestre</button>
+                <button class="btn btn-secondary btn-sm" type="button" onclick="applyPanPreset('ano')">Ano</button>
+                <button class="btn btn-secondary btn-sm" type="button" onclick="clearPanFilters()" style="display:inline-flex;align-items:center;gap:4px">
+                  <i data-lucide="x" style="width:12px;height:12px;"></i> Limpar
+                </button>
+              </div>
+            </div>
+
+            <!-- Chips de Tipo de Unidade (Alimentados) -->
+            <div id="panTipoChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">
+              <button class="btn btn-sm" style="background:#dbeafe;color:#1e40af;border:1px solid #93c5fd;font-size:10.5px;padding:4px 10px;border-radius:999px;font-weight:700;cursor:pointer" onclick="filterByTipo('CRAS')">CRAS <span style="font-size:9px;opacity:.7">(6)</span></button>
+              <button class="btn btn-sm" style="background:#fce7f3;color:#9d174d;border:1px solid #f9a8d4;font-size:10.5px;padding:4px 10px;border-radius:999px;font-weight:700;cursor:pointer" onclick="filterByTipo('CREAS')">CREAS <span style="font-size:9px;opacity:.7">(3)</span></button>
+              <button class="btn btn-sm" style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d;font-size:10.5px;padding:4px 10px;border-radius:999px;font-weight:700;cursor:pointer" onclick="filterByTipo('CT')">Conselhos Tutelares <span style="font-size:9px;opacity:.7">(3)</span></button>
+              <button class="btn btn-sm" style="background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;font-size:10.5px;padding:4px 10px;border-radius:999px;font-weight:700;cursor:pointer" onclick="filterByTipo('Abrigo')">Abrigos e Acolhimento <span style="font-size:9px;opacity:.7">(3)</span></button>
+              <button class="btn btn-sm" style="background:#e0e7ff;color:#3730a3;border:1px solid #a5b4fc;font-size:10.5px;padding:4px 10px;border-radius:999px;font-weight:700;cursor:pointer" onclick="filterByTipo('Sede')">Sede SEMCAS <span style="font-size:9px;opacity:.7">(1)</span></button>
+            </div>
+
+            <!-- Grid de Campos dos Filtros -->
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(155px, 1fr));gap:12px;align-items:end">
+              <div class="form-group">
+                <label class="form-label" style="font-size:10.5px">De</label>
+                <input type="date" class="form-input" id="panDateFrom" value="2026-01-01" style="font-size:12px;padding:7px 10px" onchange="refreshPainel()">
+              </div>
+              <div class="form-group">
+                <label class="form-label" style="font-size:10.5px">Até</label>
+                <input type="date" class="form-input" id="panDateTo" value="2026-10-21" style="font-size:12px;padding:7px 10px" onchange="refreshPainel()">
+              </div>
+              <div class="form-group">
+                <label class="form-label" style="font-size:10.5px">Tipo de Unidade</label>
+                <select class="form-select" id="panTipoSel" style="font-size:12px;padding:7px 10px" onchange="refreshPainel()">
+                  <option value="">— Todos —</option>
+                  <option value="CRAS">CRAS</option>
+                  <option value="CREAS">CREAS</option>
+                  <option value="CT">Conselho Tutelar</option>
+                  <option value="Abrigo">Abrigo / Acolhimento</option>
+                  <option value="Sede">Sede SEMCAS</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" style="font-size:10.5px">Unidade</label>
+                <select class="form-select" id="panUnitSel" style="font-size:12px;padding:7px 10px" onchange="refreshPainel()">
+                  <option value="">— Todas —</option>
+                  <option value="CRAS Turu">CRAS Turu</option>
+                  <option value="CRAS Bacanga">CRAS Bacanga</option>
+                  <option value="CRAS Maracanã">CRAS Maracanã</option>
+                  <option value="CRAS Coroadinho">CRAS Coroadinho</option>
+                  <option value="CREAS Centro">CREAS Centro</option>
+                  <option value="CREAS Cidade Operária">CREAS Cidade Operária</option>
+                  <option value="CT Bacanga">CT Bacanga</option>
+                  <option value="CT Centro">CT Centro</option>
+                  <option value="Abrigo Luz e Vida">Abrigo Luz e Vida</option>
+                  <option value="Casa Lar da Criança">Casa Lar da Criança</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" style="font-size:10.5px">Categoria</label>
+                <select class="form-select" id="panCatSel" style="font-size:12px;padding:7px 10px" onchange="refreshPainel()">
+                  <option value="">— Todas —</option>
+                  <option value="Expediente">Expediente / Papelaria</option>
+                  <option value="Limpeza">Higiene / Limpeza</option>
+                  <option value="Copa">Copa / Descartáveis</option>
+                  <option value="Informática">Informática / TI</option>
+                  <option value="EPI">EPI / Segurança</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" style="font-size:10.5px">Material (busca)</label>
+                <input class="form-input" id="panItemQ" placeholder="ex: papel A4" style="font-size:12px;padding:7px 10px" onkeydown="if(event.key==='Enter'){event.preventDefault();refreshPainel()}">
+              </div>
+              <div class="form-group">
+                <label class="form-label" style="font-size:10.5px">Cobertura</label>
+                <select class="form-select" id="panCoverage" style="font-size:12px;padding:7px 10px" onchange="refreshPainel()">
+                  <option value="all">Todas as linhas</option>
+                  <option value="full">Só com solicitado+atendido</option>
+                  <option value="delivery_only">Só entrega registrada (antigos)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- ═══ CONTEÚDO DAS SUB-ABAS (ÁREA DINÂMICA) ═══ -->
+
+          <!-- ──────── SUB-ABA 1: VISÃO GERAL ──────── -->
+          <div id="panView-geral" class="pan-view-content">
+            <!-- KPIs Resumo Geral -->
+            <div class="analytics-grid">
+              <div class="kpi-card">
+                <div class="kpi-icon" style="background:#2563eb;">
+                  <i data-lucide="clipboard-check"></i>
+                </div>
+                <div>
+                  <div class="kpi-title">Pedidos Atendidos (Mês)</div>
+                  <div class="kpi-value">184</div>
+                  <div class="kpi-trend trend-up">
+                    <i data-lucide="trending-up" style="width:14px;height:14px;"></i>
+                    <span>+12% vs mês anterior</span>
+                  </div>
+                </div>
+              </div>
+              <div class="kpi-card">
+                <div class="kpi-icon" style="background:#10b981;">
+                  <i data-lucide="check-circle-2"></i>
+                </div>
+                <div>
+                  <div class="kpi-title">Taxa de Atendimento</div>
+                  <div class="kpi-value">94.2%</div>
+                  <div class="kpi-trend trend-up">
+                    <i data-lucide="check" style="width:14px;height:14px;"></i>
+                    <span>Alta eficiência</span>
+                  </div>
+                </div>
+              </div>
+              <div class="kpi-card">
+                <div class="kpi-icon" style="background:#f59e0b;">
+                  <i data-lucide="clock-4"></i>
+                </div>
+                <div>
+                  <div class="kpi-title">Tempo Médio Separação</div>
+                  <div class="kpi-value">48 min</div>
+                  <div class="kpi-trend" style="color:var(--gray-500)">
+                    <span>Dentro da meta operacional</span>
+                  </div>
+                </div>
+              </div>
+              <div class="kpi-card">
+                <div class="kpi-icon" style="background:#7c3aed;">
+                  <i data-lucide="boxes"></i>
+                </div>
+                <div>
+                  <div class="kpi-title">Itens Distribuídos</div>
+                  <div class="kpi-value">14.820</div>
+                  <div class="kpi-trend trend-up">
+                    <i data-lucide="package" style="width:14px;height:14px;"></i>
+                    <span>28 unidades atendidas</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tabela Resumo Unidades -->
+            <div class="section-card">
+              <div class="section-title" style="font-size:14px;">
+                <i data-lucide="building"></i>
+                <span>Resumo por Unidade (Período Filtrado)</span>
+              </div>
+              <div class="table-container" style="margin-top:12px;">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Unidade</th>
+                      <th>Tipo</th>
+                      <th style="text-align:center;">Pedidos</th>
+                      <th style="text-align:center;">Itens Solicitados</th>
+                      <th style="text-align:center;">Itens Atendidos</th>
+                      <th style="text-align:center;">% Atendimento</th>
+                      <th>Último Pedido</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><b>CRAS Turu</b></td>
+                      <td><span class="badge-status" style="background:#dbeafe;color:#1e40af;border:1px solid #93c5fd;">CRAS</span></td>
+                      <td style="text-align:center;"><b>24</b></td>
+                      <td style="text-align:center;">312</td>
+                      <td style="text-align:center;color:#059669;font-weight:700;">298</td>
+                      <td style="text-align:center;"><b style="color:#059669">95.5%</b></td>
+                      <td>21/10/2026</td>
+                    </tr>
+                    <tr>
+                      <td><b>CREAS Centro</b></td>
+                      <td><span class="badge-status" style="background:#fce7f3;color:#9d174d;border:1px solid #f9a8d4;">CREAS</span></td>
+                      <td style="text-align:center;"><b>18</b></td>
+                      <td style="text-align:center;">245</td>
+                      <td style="text-align:center;color:#059669;font-weight:700;">220</td>
+                      <td style="text-align:center;"><b style="color:#d97706">89.8%</b></td>
+                      <td>19/10/2026</td>
+                    </tr>
+                    <tr>
+                      <td><b>Casa Lar da Criança</b></td>
+                      <td><span class="badge-status" style="background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;">Abrigo</span></td>
+                      <td style="text-align:center;"><b>22</b></td>
+                      <td style="text-align:center;">410</td>
+                      <td style="text-align:center;color:#059669;font-weight:700;">410</td>
+                      <td style="text-align:center;"><b style="color:#059669">100%</b></td>
+                      <td>18/10/2026</td>
+                    </tr>
+                    <tr>
+                      <td><b>CT Bacanga</b></td>
+                      <td><span class="badge-status" style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d;">CT</span></td>
+                      <td style="text-align:center;"><b>15</b></td>
+                      <td style="text-align:center;">186</td>
+                      <td style="text-align:center;color:#059669;font-weight:700;">178</td>
+                      <td style="text-align:center;"><b style="color:#059669">95.7%</b></td>
+                      <td>21/10/2026</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- ──────── SUB-ABA 2: ITENS CONSUMIDOS ──────── -->
+          <div id="panView-itens" class="pan-view-content" style="display:none;">
+            <div class="section-card">
+              <div class="section-title" style="font-size:14px;">
+                <i data-lucide="package"></i>
+                <span>Top Materiais Mais Consumidos no Período</span>
+              </div>
+              <p class="section-desc">Ranking de materiais ordenados por quantidade total distribuída, com indicação da unidade maior consumidora.</p>
+              <div class="table-container" style="margin-top:10px;">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th style="width:50px;">#</th>
+                      <th>Material</th>
+                      <th>Categoria</th>
+                      <th style="text-align:center;">Qtd. Total</th>
+                      <th>Consumo Visual</th>
+                      <th>Maior Consumidor</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><b style="color:var(--primary-600)">1º</b></td>
+                      <td><b>PAPEL SULFITE A4 75G RESMA 500 FLS</b></td>
+                      <td><span class="badge-status badge-protocol">Expediente</span></td>
+                      <td style="text-align:center;"><b>840</b></td>
+                      <td>
+                        <div class="progress-bar-container" style="height:10px;width:100%">
+                          <div class="progress-bar-fill" style="width:100%;background:linear-gradient(90deg,#2563eb,#3b82f6);"></div>
+                        </div>
+                      </td>
+                      <td>CRAS Turu (120)</td>
+                    </tr>
+                    <tr>
+                      <td><b style="color:var(--primary-600)">2º</b></td>
+                      <td><b>ÁLCOOL EM GEL 70% FRASCO 500ML</b></td>
+                      <td><span class="badge-status badge-protocol">Limpeza</span></td>
+                      <td style="text-align:center;"><b>420</b></td>
+                      <td>
+                        <div class="progress-bar-container" style="height:10px;width:100%">
+                          <div class="progress-bar-fill" style="width:50%;background:linear-gradient(90deg,#10b981,#34d399);"></div>
+                        </div>
+                      </td>
+                      <td>Casa Lar da Criança (85)</td>
+                    </tr>
+                    <tr>
+                      <td><b style="color:var(--primary-600)">3º</b></td>
+                      <td><b>CANETA ESFEROGRÁFICA AZUL 1.0MM CAIXA</b></td>
+                      <td><span class="badge-status badge-protocol">Expediente</span></td>
+                      <td style="text-align:center;"><b>350</b></td>
+                      <td>
+                        <div class="progress-bar-container" style="height:10px;width:100%">
+                          <div class="progress-bar-fill" style="width:41%;background:linear-gradient(90deg,#8b5cf6,#a78bfa);"></div>
+                        </div>
+                      </td>
+                      <td>CREAS Centro (50)</td>
+                    </tr>
+                    <tr>
+                      <td><b style="color:var(--primary-600)">4º</b></td>
+                      <td><b>DETERGENTE LÍQUIDO NEUTRO 500ML</b></td>
+                      <td><span class="badge-status badge-protocol">Limpeza</span></td>
+                      <td style="text-align:center;"><b>290</b></td>
+                      <td>
+                        <div class="progress-bar-container" style="height:10px;width:100%">
+                          <div class="progress-bar-fill" style="width:34%;background:linear-gradient(90deg,#f59e0b,#fbbf24);"></div>
+                        </div>
+                      </td>
+                      <td>Abrigo Luz e Vida (60)</td>
+                    </tr>
+                    <tr>
+                      <td><b style="color:var(--primary-600)">5º</b></td>
+                      <td><b>PASTA SUSPENSA KRAFT COM GRAMPO</b></td>
+                      <td><span class="badge-status badge-protocol">Expediente</span></td>
+                      <td style="text-align:center;"><b>240</b></td>
+                      <td>
+                        <div class="progress-bar-container" style="height:10px;width:100%">
+                          <div class="progress-bar-fill" style="width:28%;background:linear-gradient(90deg,#ef4444,#f87171);"></div>
+                        </div>
+                      </td>
+                      <td>Conselhos Tutelares (75)</td>
+                    </tr>
+                    <tr>
+                      <td><b style="color:var(--primary-600)">6º</b></td>
+                      <td><b>COPO DESCARTÁVEL 200ML PCT C/ 100</b></td>
+                      <td><span class="badge-status badge-protocol">Copa</span></td>
+                      <td style="text-align:center;"><b>210</b></td>
+                      <td>
+                        <div class="progress-bar-container" style="height:10px;width:100%">
+                          <div class="progress-bar-fill" style="width:25%;background:linear-gradient(90deg,#06b6d4,#22d3ee);"></div>
+                        </div>
+                      </td>
+                      <td>CRAS Maracanã (35)</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- ──────── SUB-ABA 3: ATENDIMENTO ──────── -->
+          <div id="panView-atendimento" class="pan-view-content" style="display:none;">
+            <div class="section-card">
+              <div class="section-title" style="font-size:14px;">
+                <i data-lucide="check-circle"></i>
+                <span>Análise de Atendimento por Unidade</span>
+              </div>
+              <p class="section-desc">Proporção entre itens solicitados vs atendidos, com análise de cobertura e faltas recorrentes por unidade.</p>
+
+              <!-- KPI Atendimento -->
+              <div class="analytics-grid" style="margin-bottom:16px;">
+                <div class="kpi-card">
+                  <div class="kpi-icon" style="background:#059669;">
+                    <i data-lucide="check-check"></i>
+                  </div>
+                  <div>
+                    <div class="kpi-title">Atendimento Total</div>
+                    <div class="kpi-value">68%</div>
+                    <div class="kpi-trend trend-up"><span>das requisições atendidas 100%</span></div>
+                  </div>
+                </div>
+                <div class="kpi-card">
+                  <div class="kpi-icon" style="background:#d97706;">
+                    <i data-lucide="alert-triangle"></i>
+                  </div>
+                  <div>
+                    <div class="kpi-title">Atendimento Parcial</div>
+                    <div class="kpi-value">26%</div>
+                    <div class="kpi-trend" style="color:#d97706"><span>faltou ao menos 1 item</span></div>
+                  </div>
+                </div>
+                <div class="kpi-card">
+                  <div class="kpi-icon" style="background:#dc2626;">
+                    <i data-lucide="x-circle"></i>
+                  </div>
+                  <div>
+                    <div class="kpi-title">Sem Estoque</div>
+                    <div class="kpi-value">6%</div>
+                    <div class="kpi-trend" style="color:#dc2626"><span>itens indisponíveis</span></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Tabela de Atendimento -->
+              <div class="table-container" style="margin-top:10px;">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Unidade</th>
+                      <th style="text-align:center;">Total Pedidos</th>
+                      <th style="text-align:center;">Atendido Total</th>
+                      <th style="text-align:center;">Atendido Parcial</th>
+                      <th style="text-align:center;">Sem Estoque</th>
+                      <th>Barra de Cobertura</th>
+                      <th style="text-align:center;">% Geral</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><b>CRAS Turu</b></td>
+                      <td style="text-align:center;">24</td>
+                      <td style="text-align:center;"><span class="badge-status badge-ready">18</span></td>
+                      <td style="text-align:center;"><span class="badge-status badge-in-progress">5</span></td>
+                      <td style="text-align:center;"><span class="badge-status" style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5">1</span></td>
+                      <td>
+                        <div style="display:flex;gap:2px;height:14px;border-radius:4px;overflow:hidden;width:100%">
+                          <div style="width:75%;background:#10b981;"></div>
+                          <div style="width:21%;background:#f59e0b;"></div>
+                          <div style="width:4%;background:#ef4444;"></div>
+                        </div>
+                      </td>
+                      <td style="text-align:center;"><b style="color:#059669">95.5%</b></td>
+                    </tr>
+                    <tr>
+                      <td><b>CREAS Centro</b></td>
+                      <td style="text-align:center;">18</td>
+                      <td style="text-align:center;"><span class="badge-status badge-ready">11</span></td>
+                      <td style="text-align:center;"><span class="badge-status badge-in-progress">5</span></td>
+                      <td style="text-align:center;"><span class="badge-status" style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5">2</span></td>
+                      <td>
+                        <div style="display:flex;gap:2px;height:14px;border-radius:4px;overflow:hidden;width:100%">
+                          <div style="width:61%;background:#10b981;"></div>
+                          <div style="width:28%;background:#f59e0b;"></div>
+                          <div style="width:11%;background:#ef4444;"></div>
+                        </div>
+                      </td>
+                      <td style="text-align:center;"><b style="color:#d97706">89.8%</b></td>
+                    </tr>
+                    <tr>
+                      <td><b>Casa Lar da Criança</b></td>
+                      <td style="text-align:center;">22</td>
+                      <td style="text-align:center;"><span class="badge-status badge-ready">22</span></td>
+                      <td style="text-align:center;"><span class="badge-status badge-protocol">0</span></td>
+                      <td style="text-align:center;"><span class="badge-status badge-protocol">0</span></td>
+                      <td>
+                        <div style="display:flex;gap:2px;height:14px;border-radius:4px;overflow:hidden;width:100%">
+                          <div style="width:100%;background:#10b981;"></div>
+                        </div>
+                      </td>
+                      <td style="text-align:center;"><b style="color:#059669">100%</b></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- ──────── SUB-ABA 4: FREQUÊNCIA ──────── -->
+          <div id="panView-frequencia" class="pan-view-content" style="display:none;">
+            <div class="section-card">
+              <div class="section-title" style="font-size:14px;">
+                <i data-lucide="calendar-days"></i>
+                <span>Frequência de Pedidos por Mês e Unidade</span>
+              </div>
+              <p class="section-desc">Visão mensal de quantas requisições cada unidade gerou, incluindo intervalo médio entre pedidos.</p>
+
+              <!-- Mini KPIs Frequência -->
+              <div class="analytics-grid" style="margin-bottom:16px;">
+                <div class="kpi-card">
+                  <div class="kpi-icon" style="background:#6366f1;">
+                    <i data-lucide="repeat-2"></i>
+                  </div>
+                  <div>
+                    <div class="kpi-title">Freq. Média</div>
+                    <div class="kpi-value">2.3x/mês</div>
+                    <div class="kpi-trend" style="color:var(--gray-500)"><span>por unidade</span></div>
+                  </div>
+                </div>
+                <div class="kpi-card">
+                  <div class="kpi-icon" style="background:#0891b2;">
+                    <i data-lucide="timer"></i>
+                  </div>
+                  <div>
+                    <div class="kpi-title">Intervalo Médio</div>
+                    <div class="kpi-value">13 dias</div>
+                    <div class="kpi-trend" style="color:var(--gray-500)"><span>entre pedidos</span></div>
+                  </div>
+                </div>
+                <div class="kpi-card">
+                  <div class="kpi-icon" style="background:#e11d48;">
+                    <i data-lucide="alert-circle"></i>
+                  </div>
+                  <div>
+                    <div class="kpi-title">Unid. Sem Pedido (30d)</div>
+                    <div class="kpi-value">3</div>
+                    <div class="kpi-trend" style="color:#e11d48"><span>atenção necessária</span></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Tabela de Frequência Mensal -->
+              <div class="table-container" style="margin-top:10px;">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Unidade</th>
+                      <th style="text-align:center;">Jul</th>
+                      <th style="text-align:center;">Ago</th>
+                      <th style="text-align:center;">Set</th>
+                      <th style="text-align:center;">Out</th>
+                      <th style="text-align:center;">Total</th>
+                      <th style="text-align:center;">Intervalo Médio</th>
+                      <th>Tendência</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><b>CRAS Turu</b></td>
+                      <td style="text-align:center;"><span style="background:#dbeafe;padding:3px 8px;border-radius:4px;font-weight:700;font-size:11px;color:#1e40af;">3</span></td>
+                      <td style="text-align:center;"><span style="background:#dbeafe;padding:3px 8px;border-radius:4px;font-weight:700;font-size:11px;color:#1e40af;">2</span></td>
+                      <td style="text-align:center;"><span style="background:#dbeafe;padding:3px 8px;border-radius:4px;font-weight:700;font-size:11px;color:#1e40af;">3</span></td>
+                      <td style="text-align:center;"><span style="background:#bbf7d0;padding:3px 8px;border-radius:4px;font-weight:700;font-size:11px;color:#065f46;">4</span></td>
+                      <td style="text-align:center;"><b>12</b></td>
+                      <td style="text-align:center;">10 dias</td>
+                      <td><span style="color:#10b981;font-weight:700;display:flex;align-items:center;gap:4px"><i data-lucide="trending-up" style="width:14px;height:14px;"></i> Crescente</span></td>
+                    </tr>
+                    <tr>
+                      <td><b>CREAS Centro</b></td>
+                      <td style="text-align:center;"><span style="background:#dbeafe;padding:3px 8px;border-radius:4px;font-weight:700;font-size:11px;color:#1e40af;">2</span></td>
+                      <td style="text-align:center;"><span style="background:#dbeafe;padding:3px 8px;border-radius:4px;font-weight:700;font-size:11px;color:#1e40af;">2</span></td>
+                      <td style="text-align:center;"><span style="background:#dbeafe;padding:3px 8px;border-radius:4px;font-weight:700;font-size:11px;color:#1e40af;">2</span></td>
+                      <td style="text-align:center;"><span style="background:#dbeafe;padding:3px 8px;border-radius:4px;font-weight:700;font-size:11px;color:#1e40af;">2</span></td>
+                      <td style="text-align:center;"><b>8</b></td>
+                      <td style="text-align:center;">15 dias</td>
+                      <td><span style="color:#94a3b8;font-weight:700;display:flex;align-items:center;gap:4px"><i data-lucide="minus" style="width:14px;height:14px;"></i> Estável</span></td>
+                    </tr>
+                    <tr>
+                      <td><b>Casa Lar da Criança</b></td>
+                      <td style="text-align:center;"><span style="background:#bbf7d0;padding:3px 8px;border-radius:4px;font-weight:700;font-size:11px;color:#065f46;">4</span></td>
+                      <td style="text-align:center;"><span style="background:#dbeafe;padding:3px 8px;border-radius:4px;font-weight:700;font-size:11px;color:#1e40af;">3</span></td>
+                      <td style="text-align:center;"><span style="background:#dbeafe;padding:3px 8px;border-radius:4px;font-weight:700;font-size:11px;color:#1e40af;">3</span></td>
+                      <td style="text-align:center;"><span style="background:#dbeafe;padding:3px 8px;border-radius:4px;font-weight:700;font-size:11px;color:#1e40af;">3</span></td>
+                      <td style="text-align:center;"><b>13</b></td>
+                      <td style="text-align:center;">9 dias</td>
+                      <td><span style="color:#f59e0b;font-weight:700;display:flex;align-items:center;gap:4px"><i data-lucide="trending-down" style="width:14px;height:14px;"></i> Leve queda</span></td>
+                    </tr>
+                    <tr>
+                      <td><b>CT Bacanga</b></td>
+                      <td style="text-align:center;"><span style="background:#dbeafe;padding:3px 8px;border-radius:4px;font-weight:700;font-size:11px;color:#1e40af;">1</span></td>
+                      <td style="text-align:center;"><span style="background:#dbeafe;padding:3px 8px;border-radius:4px;font-weight:700;font-size:11px;color:#1e40af;">2</span></td>
+                      <td style="text-align:center;"><span style="background:#dbeafe;padding:3px 8px;border-radius:4px;font-weight:700;font-size:11px;color:#1e40af;">1</span></td>
+                      <td style="text-align:center;"><span style="background:#dbeafe;padding:3px 8px;border-radius:4px;font-weight:700;font-size:11px;color:#1e40af;">2</span></td>
+                      <td style="text-align:center;"><b>6</b></td>
+                      <td style="text-align:center;">20 dias</td>
+                      <td><span style="color:#94a3b8;font-weight:700;display:flex;align-items:center;gap:4px"><i data-lucide="minus" style="width:14px;height:14px;"></i> Estável</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /viewPainelSection -->
+
+      </div><!-- /content-body -->
+
+    </main>
+  </div><!-- /app-layout -->
+
+  <!-- =========================================================
+       4. MODAL OFICIAL: FICHA A4 DE SEPARAÇÃO E CONFERÊNCIA
+       ========================================================= -->
+  <div class="modal-overlay" id="fichaModalOverlay">
+    <div class="modal-container">
+      <div class="modal-header">
+        <div class="modal-header-title">
+          <i data-lucide="file-text"></i>
+          <span>Ficha Oficial de Separação e Conferência A4 — SEMCAS</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button class="btn btn-secondary btn-sm" onclick="printFichaNow()">
+            <i data-lucide="printer"></i>
+            <span>Imprimir Ficha</span>
+          </button>
+          <button class="btn btn-secondary btn-sm" onclick="closeFichaModal()">
+            <i data-lucide="x"></i>
+            <span>Fechar</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="modal-body">
+        <div class="sheet-a4" id="printableSheet">
+          <!-- Cabeçalho Oficial -->
+          <div class="sheet-header">
+            <div class="sheet-header-crest">
+              <div class="sheet-crest-symbol">
+                <i data-lucide="landmark" style="width:28px;height:28px;"></i>
+              </div>
+              <div class="sheet-header-text">
+                <h1>Prefeitura de São Luís</h1>
+                <h2>Secretaria Municipal da Criança e Assistência Social — SEMCAS</h2>
+                <h3>Coordenação Geral do Almoxarifado Central &bull; Gestão de Suprimentos</h3>
+              </div>
+            </div>
+            <div class="sheet-doc-tag">
+              <b id="fichaProtocoloTag">#REQ-2026-089</b>
+              <span id="fichaDataTag">Emissão: 21/10/2026</span>
+            </div>
+          </div>
+
+          <!-- Informações da Unidade e Requisição -->
+          <div class="sheet-info-grid">
+            <div>
+              <span>Unidade Requisitante</span>
+              <b id="fichaUnidadeNome">CRAS Turu</b>
+            </div>
+            <div>
+              <span>Separador Responsável</span>
+              <b id="fichaSeparadorNome">Carlos Eduardo</b>
+            </div>
+            <div>
+              <span>Status Operacional</span>
+              <b style="color:#2563eb;">Em Separação / Ficha Ativa</b>
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;font-size:11px;color:var(--gray-500);">
+            <span>Clique no status para alternar: <b>Atendido &rarr; Parcial &rarr; Sem Estoque &rarr; Não Atendido</b></span>
+            <span>Unidade de Conferência Física</span>
+          </div>
+
+          <!-- Grupo 1: Material de Expediente -->
+          <div class="sheet-category-header">1. Material de Expediente e Papelaria</div>
+          <table class="sheet-table">
+            <thead>
+              <tr>
+                <th style="width:40px;">Item</th>
+                <th>Descrição do Material</th>
+                <th style="width:60px;">Unid.</th>
+                <th style="width:70px;">Qtd. Sol.</th>
+                <th style="width:80px;">Qtd. Atend.</th>
+                <th style="width:110px;">Status</th>
+                <th>Observação</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="text-align:center;">01</td>
+                <td><b>PAPEL SULFITE A4 75G RESMA 500 FLS</b></td>
+                <td style="text-align:center;">Resma</td>
+                <td style="text-align:center;"><b>10</b></td>
+                <td style="text-align:center;">
+                  <input type="number" class="sheet-input-qty" value="10" min="0" onchange="showToast('Quantidade conferida')">
+                </td>
+                <td style="text-align:center;">
+                  <span class="status-badge-interactive status-atendido" onclick="toggleItemStatus(this)">Atendido</span>
+                </td>
+                <td style="font-size:10px;color:var(--gray-600)">Conferido prateleira A-12</td>
+              </tr>
+              <tr>
+                <td style="text-align:center;">02</td>
+                <td><b>CANETA ESFEROGRÁFICA AZUL 1.0MM CAIXA</b></td>
+                <td style="text-align:center;">Caixa</td>
+                <td style="text-align:center;"><b>2</b></td>
+                <td style="text-align:center;">
+                  <input type="number" class="sheet-input-qty" value="2" min="0" onchange="showToast('Quantidade conferida')">
+                </td>
+                <td style="text-align:center;">
+                  <span class="status-badge-interactive status-atendido" onclick="toggleItemStatus(this)">Atendido</span>
+                </td>
+                <td style="font-size:10px;color:var(--gray-600)">Caixa lacrada</td>
+              </tr>
+              <tr>
+                <td style="text-align:center;">03</td>
+                <td><b>PASTA SUSPENSA KRAFT COM GRAMPO</b></td>
+                <td style="text-align:center;">Unid</td>
+                <td style="text-align:center;"><b>25</b></td>
+                <td style="text-align:center;">
+                  <input type="number" class="sheet-input-qty" value="25" min="0" onchange="showToast('Quantidade conferida')">
+                </td>
+                <td style="text-align:center;">
+                  <span class="status-badge-interactive status-atendido" onclick="toggleItemStatus(this)">Atendido</span>
+                </td>
+                <td style="font-size:10px;color:var(--gray-600)">Pacote conferido</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- Grupo 2: Higiene e Limpeza -->
+          <div class="sheet-category-header">2. Produtos de Higiene, Limpeza e Copa</div>
+          <table class="sheet-table">
+            <thead>
+              <tr>
+                <th style="width:40px;">Item</th>
+                <th>Descrição do Material</th>
+                <th style="width:60px;">Unid.</th>
+                <th style="width:70px;">Qtd. Sol.</th>
+                <th style="width:80px;">Qtd. Atend.</th>
+                <th style="width:110px;">Status</th>
+                <th>Observação</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="text-align:center;">04</td>
+                <td><b>ÁLCOOL EM GEL 70% FRASCO 500ML</b></td>
+                <td style="text-align:center;">Frasco</td>
+                <td style="text-align:center;"><b>15</b></td>
+                <td style="text-align:center;">
+                  <input type="number" class="sheet-input-qty" value="12" min="0" onchange="showToast('Quantidade ajustada')">
+                </td>
+                <td style="text-align:center;">
+                  <span class="status-badge-interactive status-parcial" onclick="toggleItemStatus(this)">Parcial (12)</span>
+                </td>
+                <td style="font-size:10px;color:#d97706">Saldo restrito no almoxarifado</td>
+              </tr>
+              <tr>
+                <td style="text-align:center;">05</td>
+                <td><b>DETERGENTE LÍQUIDO NEUTRO 500ML</b></td>
+                <td style="text-align:center;">Frasco</td>
+                <td style="text-align:center;"><b>10</b></td>
+                <td style="text-align:center;">
+                  <input type="number" class="sheet-input-qty" value="10" min="0" onchange="showToast('Quantidade conferida')">
+                </td>
+                <td style="text-align:center;">
+                  <span class="status-badge-interactive status-atendido" onclick="toggleItemStatus(this)">Atendido</span>
+                </td>
+                <td style="font-size:10px;color:var(--gray-600)">Lote conferido</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- Assinaturas Oficiais Institucionais -->
+          <div class="sheet-signatures">
+            <div class="sheet-sig-box">
+              <div class="sheet-sig-line">Carlos Eduardo</div>
+              <div class="sheet-sig-caption">Separador Almoxarifado</div>
+            </div>
+            <div class="sheet-sig-box">
+              <div class="sheet-sig-line">Marcos Silva &bull; Matr. 71.209</div>
+              <div class="sheet-sig-caption">Conferência / Chefe de Seção</div>
+            </div>
+            <div class="sheet-sig-box">
+              <div class="sheet-sig-line">Assinatura e Matrícula</div>
+              <div class="sheet-sig-caption">Recebedor na Unidade</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================
+       5. MODAL DE REGISTRAR ENTREGA / RETIRADA
+       ========================================================= -->
+  <div class="modal-overlay" id="entregaModalOverlay">
+    <div class="modal-container modal-mini">
+      <div class="modal-header">
+        <div class="modal-header-title">
+          <i data-lucide="truck"></i>
+          <span>Protocolo de Entrega / Retirada</span>
+        </div>
+        <button class="icon-action-btn" onclick="closeEntregaModal()" style="color:#fff;">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <div style="background:#f8fafc;padding:10px 14px;border-radius:8px;border:1px solid #e2e8f0;margin-bottom:14px;">
+          <div style="font-size:11px;color:var(--gray-500);text-transform:uppercase;font-weight:700;">Unidade Destino</div>
+          <div style="font-size:14px;font-weight:800;color:var(--gray-900);" id="entregaModalUnidade">Abrigo de Idosos Luz e Vida</div>
+          <div style="font-size:12px;color:var(--primary-700);font-weight:600;" id="entregaModalProtocolo">Protocolo #REQ-2026-085</div>
+        </div>
+
+        <div class="form-group" style="margin-bottom:12px;">
+          <label class="form-label" for="retiradoNome">Nome de Quem Está Retirando</label>
+          <input type="text" class="form-input" id="retiradoNome" placeholder="Ex: João da Silva" value="Raimundo Nonato Soares">
+        </div>
+
+        <div class="form-group" style="margin-bottom:12px;">
+          <label class="form-label" for="retiradoDoc">Documento (RG, CPF ou Matrícula)</label>
+          <input type="text" class="form-input" id="retiradoDoc" placeholder="Ex: Matr. 88.421 ou RG 1.942.112" value="Matr. 84.192-3 &bull; Motorista Oficial">
+        </div>
+
+        <div class="form-group" style="margin-bottom:14px;">
+          <label class="form-label" for="retiradoObs">Observação da Entrega</label>
+          <input type="text" class="form-input" id="retiradoObs" value="Carga conferida e entregue em 3 caixas lacradas.">
+        </div>
+
+        <button class="btn btn-success" style="width:100%;padding:12px;" onclick="confirmarEntregaRealizada()">
+          <i data-lucide="check-circle-2"></i>
+          <span>Confirmar e Finalizar Entrega</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST DE NOTIFICAÇÃO -->
+  <div class="toast" id="systemToast">
+    <i data-lucide="check-circle" style="width:18px;height:18px;color:#10b981;"></i>
+    <span id="toastMessage">Operação realizada com sucesso!</span>
+  </div>
+
+  <!-- =========================================================
+       SCRIPTS JAVASCRIPT DINÂMICOS
+       ========================================================= -->
+  <script>
+    // Inicialização dos ícones Lucide
+    document.addEventListener("DOMContentLoaded", () => {
+      lucide.createIcons();
+      updateLiveDate();
+    });
+
+    // Atualiza a data e dia da semana na topbar
+    function updateLiveDate() {
+      const now = new Date();
+      const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+      const strDate = now.toLocaleDateString('pt-BR', options);
+      const cap = strDate.charAt(0).toUpperCase() + strDate.slice(1);
+      const el = document.getElementById("topbarLiveDate");
+      if (el) {
+        el.innerHTML = `<i data-lucide="calendar"></i> <span>${cap}</span>`;
+        lucide.createIcons();
+      }
+    }
+
+    // Toggle menu mobile
+    const menuBtn = document.getElementById("menuToggle");
+    const sidebar = document.getElementById("sidebar");
+    if (menuBtn && sidebar) {
+      menuBtn.addEventListener("click", () => {
+        sidebar.classList.toggle("open");
+      });
+    }
+
+    // Alternar visão principal: Entrega de Materiais vs Painel do Almoxarifado
+    function switchMainView(view) {
+      const vEntrega = document.getElementById("viewEntregaSection");
+      const vPainel = document.getElementById("viewPainelSection");
+      const bEntrega = document.getElementById("tabBtnEntrega");
+      const bPainel = document.getElementById("tabBtnPainel");
+
+      if (view === 'entrega') {
+        vEntrega.style.display = "block";
+        vPainel.style.display = "none";
+        bEntrega.classList.add("active");
+        bPainel.classList.remove("active");
+      } else {
+        vEntrega.style.display = "none";
+        vPainel.style.display = "block";
+        bEntrega.classList.remove("active");
+        bPainel.classList.add("active");
+      }
+      lucide.createIcons();
+    }
+
+    // Alternar sub-abas do Painel do Almoxarifado (Visão Geral, Itens Consumidos, Atendimento, Frequência)
+    function switchPanSub(subKey) {
+      const subButtons = document.querySelectorAll(".pan-sub-tab");
+      subButtons.forEach(btn => {
+        const isTarget = btn.getAttribute("data-pansub") === subKey;
+        btn.classList.toggle("active", isTarget);
+        if (isTarget) {
+          btn.style.background = "#2563eb";
+          btn.style.color = "#fff";
+        } else {
+          btn.style.background = "transparent";
+          btn.style.color = "#64748b";
+        }
+      });
+
+      const contents = document.querySelectorAll(".pan-view-content");
+      contents.forEach(cnt => {
+        cnt.style.display = "none";
+      });
+
+      const targetContent = document.getElementById("panView-" + subKey);
+      if (targetContent) {
+        targetContent.style.display = "block";
+      }
+
+      const titles = {
+        geral: "Visão Geral",
+        itens: "Itens Consumidos",
+        atendimento: "Atendimento",
+        frequencia: "Frequência"
+      };
+      showToast(`Aba analítica alterada para: ${titles[subKey] || subKey}`);
+      lucide.createIcons();
+    }
+
+    // Filtros do Painel do Almoxarifado
+    function filterByTipo(tipo) {
+      const sel = document.getElementById("panTipoSel");
+      if (sel) sel.value = tipo;
+      showToast(`Filtrado por tipo: ${tipo}`);
+      refreshPainel();
+    }
+
+    function applyPanPreset(preset) {
+      const de = document.getElementById("panDateFrom");
+      const ate = document.getElementById("panDateTo");
+      const hoje = new Date();
+      const pad = n => String(n).padStart(2, '0');
+      const fmt = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+
+      if (ate) ate.value = fmt(hoje);
+
+      if (preset === '30d') {
+        const d = new Date();
+        d.setDate(d.getDate() - 30);
+        if (de) de.value = fmt(d);
+        showToast("Período definido para os últimos 30 dias.");
+      } else if (preset === 'mes') {
+        const d = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+        if (de) de.value = fmt(d);
+        showToast("Período definido para o mês atual.");
+      } else if (preset === 'trimestre') {
+        const d = new Date();
+        d.setMonth(d.getMonth() - 3);
+        if (de) de.value = fmt(d);
+        showToast("Período definido para o último trimestre.");
+      } else if (preset === 'ano') {
+        const d = new Date(hoje.getFullYear(), 0, 1);
+        if (de) de.value = fmt(d);
+        showToast("Período definido para o ano corrente.");
+      }
+      refreshPainel();
+    }
+
+    function clearPanFilters() {
+      if (document.getElementById("panDateFrom")) document.getElementById("panDateFrom").value = "2026-01-01";
+      if (document.getElementById("panDateTo")) document.getElementById("panDateTo").value = "2026-10-21";
+      if (document.getElementById("panTipoSel")) document.getElementById("panTipoSel").value = "";
+      if (document.getElementById("panUnitSel")) document.getElementById("panUnitSel").value = "";
+      if (document.getElementById("panCatSel")) document.getElementById("panCatSel").value = "";
+      if (document.getElementById("panItemQ")) document.getElementById("panItemQ").value = "";
+      if (document.getElementById("panCoverage")) document.getElementById("panCoverage").value = "all";
+      showToast("Filtros do relatório limpos!");
+      refreshPainel();
+    }
+
+    function refreshPainel() {
+      // Feedback interativo simulando atualização dos dados
+      lucide.createIcons();
+    }
+
+    // Alternar as abas do fluxo de separação
+    function switchFlowTab(tabId) {
+      const allTabs = document.querySelectorAll(".flow-tab");
+      const allViews = document.querySelectorAll(".flow-view");
+
+      allTabs.forEach(t => t.classList.remove("active"));
+      allViews.forEach(v => v.classList.remove("active"));
+
+      const targetTab = document.getElementById(`flowTab-${tabId}`);
+      const targetView = document.getElementById(`view-${tabId}`);
+
+      if (targetTab) targetTab.classList.add("active");
+      if (targetView) targetView.classList.add("active");
+
+      lucide.createIcons();
+    }
+
+    // Feedback visual via Toast
+    let toastTimeout;
+    function showToast(msg) {
+      const toast = document.getElementById("systemToast");
+      const toastMsg = document.getElementById("toastMessage");
+      if (!toast || !toastMsg) return;
+
+      toastMsg.innerText = msg;
+      toast.classList.add("show");
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        toast.classList.remove("show");
+      }, 3500);
+    }
+
+    // Backup simulado
+    function exportDataBackup() {
+      const data = {
+        sistema: "SEMCAS Almoxarifado",
+        modulo: "Entrega de Materiais",
+        timestamp: new Date().toISOString(),
+        total_requisicoes: 5,
+        status: "Ativo"
+      };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `backup_materiais_semcas_${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast("Backup JSON gerado e baixado com sucesso!");
+    }
+
+    // Ações de fluxo (Pegar para separar)
+    function pegarParaSeparar(unidade, protocolo) {
+      showToast(`Você assumiu a separação do pedido ${protocolo} (${unidade})!`);
+      // Simula a migração de status
+      const card = document.getElementById(`card-${protocolo.toLowerCase().replace('#', '').replace('-', '')}`);
+      if (card) {
+        card.style.opacity = '0.5';
+        card.style.pointerEvents = 'none';
+      }
+      setTimeout(() => {
+        switchFlowTab('es');
+        showToast(`Pedido ${protocolo} movido para 'Em Separação' com sucesso!`);
+      }, 700);
+    }
+
+    // Concluir e marcar pronto
+    function marcarComoPronto(unidade, protocolo) {
+      showToast(`Separação do ${protocolo} (${unidade}) concluída!`);
+      setTimeout(() => {
+        switchFlowTab('pe');
+        showToast(`Pedido ${protocolo} pronto para entrega na expedição!`);
+      }, 700);
+    }
+
+    // Modal de Ficha A4
+    function openFichaModal(unidade, protocolo, data, separador) {
+      const overlay = document.getElementById("fichaModalOverlay");
+      const elUni = document.getElementById("fichaUnidadeNome");
+      const elProt = document.getElementById("fichaProtocoloTag");
+      const elData = document.getElementById("fichaDataTag");
+      const elSep = document.getElementById("fichaSeparadorNome");
+
+      if (elUni) elUni.innerText = unidade || "CRAS Turu";
+      if (elProt) elProt.innerText = protocolo || "#REQ-2026-089";
+      if (elData) elData.innerText = "Emissão: " + (data || "21/10/2026");
+      if (elSep) elSep.innerText = separador || "Carlos Eduardo";
+
+      if (overlay) {
+        overlay.classList.add("open");
+        lucide.createIcons();
+      }
+    }
+
+    function closeFichaModal() {
+      const overlay = document.getElementById("fichaModalOverlay");
+      if (overlay) overlay.classList.remove("open");
+    }
+
+    function printFichaNow() {
+      window.print();
+    }
+
+    // Alternar status do item na ficha ao clicar no badge
+    function toggleItemStatus(el) {
+      if (el.classList.contains("status-atendido")) {
+        el.className = "status-badge-interactive status-parcial";
+        el.innerText = "Parcial";
+      } else if (el.classList.contains("status-parcial")) {
+        el.className = "status-badge-interactive status-sem_estoque";
+        el.innerText = "Sem Estoque";
+      } else if (el.classList.contains("status-sem_estoque")) {
+        el.className = "status-badge-interactive status-nao_atendido";
+        el.innerText = "Não Atendido";
+      } else {
+        el.className = "status-badge-interactive status-atendido";
+        el.innerText = "Atendido";
+      }
+      showToast(`Status do item alterado para '${el.innerText}'`);
+    }
+
+    // Modal de Entrega
+    function openEntregaModal(unidade, protocolo) {
+      const overlay = document.getElementById("entregaModalOverlay");
+      const elUni = document.getElementById("entregaModalUnidade");
+      const elProt = document.getElementById("entregaModalProtocolo");
+
+      if (elUni) elUni.innerText = unidade;
+      if (elProt) elProt.innerText = "Protocolo " + protocolo;
+
+      if (overlay) {
+        overlay.classList.add("open");
+        lucide.createIcons();
+      }
+    }
+
+    function closeEntregaModal() {
+      const overlay = document.getElementById("entregaModalOverlay");
+      if (overlay) overlay.classList.remove("open");
+    }
+
+    function confirmarEntregaRealizada() {
+      const nome = document.getElementById("retiradoNome").value;
+      closeEntregaModal();
+      showToast(`Entrega registrada com sucesso para ${nome}!`);
+      setTimeout(() => {
+        switchFlowTab('hi');
+      }, 600);
+    }
+
+    // Submissão de nova requisição
+    function submitNewRequisicao() {
+      const unit = document.getElementById("reqUnitSelect").value;
+      if (!unit) {
+        showToast("Por favor, selecione uma unidade cadastrada.");
+        return;
+      }
+      showToast(`Requisição para ${unit} registrada com sucesso!`);
+      setTimeout(() => {
+        switchFlowTab('ps');
+      }, 700);
+    }
+
+    function checkReqForm() {
+      // Callback de mudança
+    }
+
+    // Fechar modais com tecla ESC
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        closeFichaModal();
+        closeEntregaModal();
+      }
+    });
+  </script>
+</body>
+</html>

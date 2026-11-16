@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite --config vite.config.js --host 0.0.0.0 --port 5173",
     "build": "vite build",
-    "preview": "vite preview --host --port 4174"
+    "preview": "vite preview --host --port 4174",
+    "test": "node --test"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.0",

@@ -1,0 +1,133 @@
+﻿Mês;Data;Categoria;Item;Solicitado;Atendido;Origem;Status;Unidade (como registrada)
+2026-09;2026-09-23;Higiene;PAPEL HIGIENICO;5;0;sistema;entregue;Cohab/Cohatrac
+2026-09;2026-09-23;Higiene;ALCOOL EM GEL;3;0;sistema;entregue;Cohab/Cohatrac
+2026-09;2026-09-23;Higiene;MASCARA;5;0;sistema;entregue;Cohab/Cohatrac
+2026-09;2026-09-23;Higiene;TOUCA;0;0;sistema;entregue;Cohab/Cohatrac
+2026-09;2026-09-23;Higiene;LUVA DESCARTAVEL;0;0;sistema;entregue;Cohab/Cohatrac
+2026-09;2026-09-23;Higiene;PROTETOR FACIAL;0;0;sistema;entregue;Cohab/Cohatrac
+2026-09;2026-09-23;Higiene;SABONETE LAVAR MAO;5;0;sistema;entregue;Cohab/Cohatrac
+2026-09;2026-09-23;Expediente;RESMA DE PAPEL A4;5;1;sistema;entregue;Cohab/Cohatrac
+2026-09;2026-09-23;Expediente;CANETA AZUL E PRETA;5;0;sistema;entregue;Cohab/Cohatrac
+2026-09;2026-09-23;Expediente;ESCARCELA;5;0;sistema;entregue;Cohab/Cohatrac
+2026-09;2026-09-23;Expediente;CLIPS Nº 4/0;3;0;sistema;entregue;Cohab/Cohatrac
+2026-09;2026-09-23;Expediente;GRAMPO;2;0;sistema;entregue;Cohab/Cohatrac
+2026-09;2026-09-23;Expediente;CLIPS Nº 8/0;3;1;sistema;entregue;Cohab/Cohatrac
+2026-09;2026-09-23;Expediente;FITA GOMADA;0;0;sistema;entregue;Cohab/Cohatrac
+2026-09;2026-09-23;Expediente;FITA DUREX;0;1;sistema;entregue;Cohab/Cohatrac
+2026-09;2026-09-23;Expediente;PASTA AZ;5;0;sistema;entregue;Cohab/Cohatrac
+2026-09;2026-09-23;Expediente;GRAMPEADOR;3;0;sistema;entregue;Cohab/Cohatrac
+2026-09;2026-09-23;Expediente;PERFURADOR;0;0;sistema;entregue;Cohab/Cohatrac
+2026-09;2026-09-23;Expediente;CORRETIVO;6;0;sistema;entregue;Cohab/Cohatrac
+2026-09;2026-09-23;Expediente;MARCADOR DE TEXTO;6;0;sistema;entregue;Cohab/Cohatrac
+2026-09;2026-09-23;Limpeza;SABAO EM PO;10;0;sistema;entregue;Cohab/Cohatrac
+2026-09;2026-09-23;Limpeza;AGUA SANITARIA;10;0;sistema;entregue;Cohab/Cohatrac
+2026-09;2026-09-23;Limpeza;DETERGENTE MULTIUSO;5;0;sistema;entregue;Cohab/Cohatrac
+2026-09;2026-09-23;Limpeza;DESINFETANTE;10;0;sistema;entregue;Cohab/Cohatrac
+2026-09;2026-09-23;Limpeza;BOM AR;2;0;sistema;entregue;Cohab/Cohatrac
+2026-09;2026-09-23;Limpeza;PAR LUVA;4;0;sistema;entregue;Cohab/Cohatrac
+2026-09;2026-09-23;Limpeza;PANO DE CHAO;4;0;sistema;entregue;Cohab/Cohatrac
+2026-09;2026-09-23;Limpeza;PANO DE PRATO;4;0;sistema;entregue;Cohab/Cohatrac
+2026-09;2026-09-23;Limpeza;PALHA DE ACO;2;0;sistema;entregue;Cohab/Cohatrac
+2026-09;2026-09-23;Limpeza;ESPONJA DE LAVAR LOUCA;4;0;sistema;entregue;Cohab/Cohatrac
+2026-09;2026-09-23;Limpeza;PEDRA SANITARIA;10;0;sistema;entregue;Cohab/Cohatrac
+2026-09;2026-09-23;Limpeza;SACO DE LIXO PEQUENO 20L;20;0;sistema;entregue;Cohab/Cohatrac
+2026-09;2026-09-23;Limpeza;SACO DE LIXO GRANDE 100L;15;0;sistema;entregue;Cohab/Cohatrac
+2026-09;2026-09-23;Limpeza;PAPEL TOALHA;4;0;sistema;entregue;Cohab/Cohatrac
+2026-09;2026-09-23;Limpeza;BALDE;2;0;sistema;entregue;Cohab/Cohatrac
+2026-09;2026-09-23;Limpeza;PA DE LIXO;2;0;sistema;entregue;Cohab/Cohatrac
+2026-09;2026-09-23;Limpeza;SABAO EM PEDRA;5;0;sistema;entregue;Cohab/Cohatrac
+2026-09;2026-09-23;Limpeza;VASSOURA;3;0;sistema;entregue;Cohab/Cohatrac
+2026-09;2026-09-23;Limpeza;CAIXA DE FOSFORO;2;0;sistema;entregue;Cohab/Cohatrac
+2026-09;2026-09-23;Limpeza;FLANELA;4;0;sistema;entregue;Cohab/Cohatrac
+2026-09;2026-09-23;Limpeza;PANO MULTIUSO;1;0;sistema;entregue;Cohab/Cohatrac
+2026-09;2026-09-23;Descartável;COPO DESCARTAVEL PARA AGUA;5;0;sistema;entregue;Cohab/Cohatrac
+2026-09;2026-09-23;Descartável;COPO DESCARTAVEL PARA CAFE;2;0;sistema;entregue;Cohab/Cohatrac
+2026-09;2026-09-23;Descartável;PRATO DESCARTAVEL;0;0;sistema;entregue;Cohab/Cohatrac
+2026-10;2026-10-14;Higiene;PAPEL HIGIENICO;5;1;sistema;entregue;Cohab/Cohatrac
+2026-10;2026-10-14;Higiene;ALCOOL EM GEL;3;0;sistema;entregue;Cohab/Cohatrac
+2026-10;2026-10-14;Higiene;MASCARA;5;0;sistema;entregue;Cohab/Cohatrac
+2026-10;2026-10-14;Higiene;TOUCA;0;0;sistema;entregue;Cohab/Cohatrac
+2026-10;2026-10-14;Higiene;LUVA DESCARTAVEL;0;0;sistema;entregue;Cohab/Cohatrac
+2026-10;2026-10-14;Higiene;PROTETOR FACIAL;0;0;sistema;entregue;Cohab/Cohatrac
+2026-10;2026-10-14;Higiene;SABONETE LAVAR MAO;5;0;sistema;entregue;Cohab/Cohatrac
+2026-10;2026-10-14;Expediente;RESMA DE PAPEL A4;5;1;sistema;entregue;Cohab/Cohatrac
+2026-10;2026-10-14;Expediente;CANETA AZUL E PRETA;5;0;sistema;entregue;Cohab/Cohatrac
+2026-10;2026-10-14;Expediente;ESCARCELA;5;0;sistema;entregue;Cohab/Cohatrac
+2026-10;2026-10-14;Expediente;CLIPS Nº 4/0;3;0;sistema;entregue;Cohab/Cohatrac
+2026-10;2026-10-14;Expediente;GRAMPO;2;1;sistema;entregue;Cohab/Cohatrac
+2026-10;2026-10-14;Expediente;CLIPS Nº 8/0;3;1;sistema;entregue;Cohab/Cohatrac
+2026-10;2026-10-14;Expediente;FITA GOMADA;0;0;sistema;entregue;Cohab/Cohatrac
+2026-10;2026-10-14;Expediente;FITA DUREX;0;1;sistema;entregue;Cohab/Cohatrac
+2026-10;2026-10-14;Expediente;PASTA AZ;5;0;sistema;entregue;Cohab/Cohatrac
+2026-10;2026-10-14;Expediente;GRAMPEADOR;3;0;sistema;entregue;Cohab/Cohatrac
+2026-10;2026-10-14;Expediente;PERFURADOR;0;0;sistema;entregue;Cohab/Cohatrac
+2026-10;2026-10-14;Expediente;CORRETIVO;6;0;sistema;entregue;Cohab/Cohatrac
+2026-10;2026-10-14;Expediente;MARCADOR DE TEXTO;6;1;sistema;entregue;Cohab/Cohatrac
+2026-10;2026-10-14;Limpeza;SABAO EM PO;10;0;sistema;entregue;Cohab/Cohatrac
+2026-10;2026-10-14;Limpeza;AGUA SANITARIA;10;0;sistema;entregue;Cohab/Cohatrac
+2026-10;2026-10-14;Limpeza;DETERGENTE MULTIUSO;5;0;sistema;entregue;Cohab/Cohatrac
+2026-10;2026-10-14;Limpeza;DESINFETANTE;10;0;sistema;entregue;Cohab/Cohatrac
+2026-10;2026-10-14;Limpeza;BOM AR;2;0;sistema;entregue;Cohab/Cohatrac
+2026-10;2026-10-14;Limpeza;PAR LUVA;4;0;sistema;entregue;Cohab/Cohatrac
+2026-10;2026-10-14;Limpeza;PANO DE CHAO;4;0;sistema;entregue;Cohab/Cohatrac
+2026-10;2026-10-14;Limpeza;PANO DE PRATO;4;0;sistema;entregue;Cohab/Cohatrac
+2026-10;2026-10-14;Limpeza;PALHA DE ACO;2;0;sistema;entregue;Cohab/Cohatrac
+2026-10;2026-10-14;Limpeza;ESPONJA DE LAVAR LOUCA;4;0;sistema;entregue;Cohab/Cohatrac
+2026-10;2026-10-14;Limpeza;PEDRA SANITARIA;10;0;sistema;entregue;Cohab/Cohatrac
+2026-10;2026-10-14;Limpeza;SACO DE LIXO PEQUENO 20L;20;0;sistema;entregue;Cohab/Cohatrac
+2026-10;2026-10-14;Limpeza;SACO DE LIXO GRANDE 100L;15;0;sistema;entregue;Cohab/Cohatrac
+2026-10;2026-10-14;Limpeza;PAPEL TOALHA;4;0;sistema;entregue;Cohab/Cohatrac
+2026-10;2026-10-14;Limpeza;BALDE;2;0;sistema;entregue;Cohab/Cohatrac
+2026-10;2026-10-14;Limpeza;PA DE LIXO;2;0;sistema;entregue;Cohab/Cohatrac
+2026-10;2026-10-14;Limpeza;SABAO EM PEDRA;5;0;sistema;entregue;Cohab/Cohatrac
+2026-10;2026-10-14;Limpeza;VASSOURA;3;0;sistema;entregue;Cohab/Cohatrac
+2026-10;2026-10-14;Limpeza;CAIXA DE FOSFORO;2;0;sistema;entregue;Cohab/Cohatrac
+2026-10;2026-10-14;Limpeza;FLANELA;4;0;sistema;entregue;Cohab/Cohatrac
+2026-10;2026-10-14;Limpeza;PANO MULTIUSO;1;0;sistema;entregue;Cohab/Cohatrac
+2026-10;2026-10-14;Descartável;COPO DESCARTAVEL PARA AGUA;5;0;sistema;entregue;Cohab/Cohatrac
+2026-10;2026-10-14;Descartável;COPO DESCARTAVEL PARA CAFE;2;1;sistema;entregue;Cohab/Cohatrac
+2026-10;2026-10-14;Descartável;PRATO DESCARTAVEL;0;0;sistema;entregue;Cohab/Cohatrac
+2026-10;2026-10-21;Higiene;PAPEL HIGIENICO;5;0;sistema;retirada;Cohab/Cohatrac
+2026-10;2026-10-21;Higiene;ALCOOL EM GEL;3;0;sistema;retirada;Cohab/Cohatrac
+2026-10;2026-10-21;Higiene;MASCARA;5;0;sistema;retirada;Cohab/Cohatrac
+2026-10;2026-10-21;Higiene;TOUCA;0;0;sistema;retirada;Cohab/Cohatrac
+2026-10;2026-10-21;Higiene;LUVA DESCARTAVEL;0;0;sistema;retirada;Cohab/Cohatrac
+2026-10;2026-10-21;Higiene;PROTETOR FACIAL;0;0;sistema;retirada;Cohab/Cohatrac
+2026-10;2026-10-21;Higiene;SABONETE LAVAR MAO;5;0;sistema;retirada;Cohab/Cohatrac
+2026-10;2026-10-21;Expediente;RESMA DE PAPEL A4;5;1;sistema;retirada;Cohab/Cohatrac
+2026-10;2026-10-21;Expediente;CANETA AZUL E PRETA;5;5;sistema;retirada;Cohab/Cohatrac
+2026-10;2026-10-21;Expediente;ESCARCELA;5;5;sistema;retirada;Cohab/Cohatrac
+2026-10;2026-10-21;Expediente;CLIPS Nº 4/0;3;0;sistema;retirada;Cohab/Cohatrac
+2026-10;2026-10-21;Expediente;GRAMPO;2;1;sistema;retirada;Cohab/Cohatrac
+2026-10;2026-10-21;Expediente;CLIPS Nº 8/0;3;2;sistema;retirada;Cohab/Cohatrac
+2026-10;2026-10-21;Expediente;FITA GOMADA;0;0;sistema;retirada;Cohab/Cohatrac
+2026-10;2026-10-21;Expediente;FITA DUREX;0;1;sistema;retirada;Cohab/Cohatrac
+2026-10;2026-10-21;Expediente;PASTA AZ;5;5;sistema;retirada;Cohab/Cohatrac
+2026-10;2026-10-21;Expediente;GRAMPEADOR;3;1;sistema;retirada;Cohab/Cohatrac
+2026-10;2026-10-21;Expediente;PERFURADOR;0;0;sistema;retirada;Cohab/Cohatrac
+2026-10;2026-10-21;Expediente;CORRETIVO;6;3;sistema;retirada;Cohab/Cohatrac
+2026-10;2026-10-21;Expediente;MARCADOR DE TEXTO;6;5;sistema;retirada;Cohab/Cohatrac
+2026-10;2026-10-21;Limpeza;SABAO EM PO;10;0;sistema;retirada;Cohab/Cohatrac
+2026-10;2026-10-21;Limpeza;AGUA SANITARIA;10;0;sistema;retirada;Cohab/Cohatrac
+2026-10;2026-10-21;Limpeza;DETERGENTE MULTIUSO;5;0;sistema;retirada;Cohab/Cohatrac
+2026-10;2026-10-21;Limpeza;DESINFETANTE;10;0;sistema;retirada;Cohab/Cohatrac
+2026-10;2026-10-21;Limpeza;BOM AR;2;0;sistema;retirada;Cohab/Cohatrac
+2026-10;2026-10-21;Limpeza;PAR LUVA;4;0;sistema;retirada;Cohab/Cohatrac
+2026-10;2026-10-21;Limpeza;PANO DE CHAO;4;0;sistema;retirada;Cohab/Cohatrac
+2026-10;2026-10-21;Limpeza;PANO DE PRATO;4;0;sistema;retirada;Cohab/Cohatrac
+2026-10;2026-10-21;Limpeza;PALHA DE ACO;2;0;sistema;retirada;Cohab/Cohatrac
+2026-10;2026-10-21;Limpeza;ESPONJA DE LAVAR LOUCA;4;0;sistema;retirada;Cohab/Cohatrac
+2026-10;2026-10-21;Limpeza;PEDRA SANITARIA;10;0;sistema;retirada;Cohab/Cohatrac
+2026-10;2026-10-21;Limpeza;SACO DE LIXO PEQUENO 20L;20;0;sistema;retirada;Cohab/Cohatrac
+2026-10;2026-10-21;Limpeza;SACO DE LIXO GRANDE 100L;15;0;sistema;retirada;Cohab/Cohatrac
+2026-10;2026-10-21;Limpeza;PAPEL TOALHA;4;0;sistema;retirada;Cohab/Cohatrac
+2026-10;2026-10-21;Limpeza;BALDE;2;0;sistema;retirada;Cohab/Cohatrac
+2026-10;2026-10-21;Limpeza;PA DE LIXO;2;0;sistema;retirada;Cohab/Cohatrac
+2026-10;2026-10-21;Limpeza;SABAO EM PEDRA;5;0;sistema;retirada;Cohab/Cohatrac
+2026-10;2026-10-21;Limpeza;VASSOURA;3;0;sistema;retirada;Cohab/Cohatrac
+2026-10;2026-10-21;Limpeza;CAIXA DE FOSFORO;2;0;sistema;retirada;Cohab/Cohatrac
+2026-10;2026-10-21;Limpeza;FLANELA;4;0;sistema;retirada;Cohab/Cohatrac
+2026-10;2026-10-21;Limpeza;PANO MULTIUSO;1;0;sistema;retirada;Cohab/Cohatrac
+2026-10;2026-10-21;Descartável;COPO DESCARTAVEL PARA AGUA;5;0;sistema;retirada;Cohab/Cohatrac
+2026-10;2026-10-21;Descartável;COPO DESCARTAVEL PARA CAFE;2;1;sistema;retirada;Cohab/Cohatrac
+2026-10;2026-10-21;Descartável;PRATO DESCARTAVEL;0;0;sistema;retirada;Cohab/Cohatrac

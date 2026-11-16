@@ -207,7 +207,7 @@ function showPreRegDialog(issues, onConfirm, deps) {
   issues.forEach((f) => {
     if      (f.type === "blocked") f.accepted = true;
     else if (f.type === "rename")  f.accepted = true;
-    else if (f.type === "split")   f.accepted = false;
+    else if (f.type === "split")   f.accepted = !!f.autoAccept;
     else if (f.type === "choose") {
       f.accepted = !!f.suggested;
       f.chosen   = f.suggested || null;
@@ -343,14 +343,14 @@ function showPreRegDialog(issues, onConfirm, deps) {
         <div style="background:#f8fafc;border:1.5px solid #94a3b8;border-radius:10px;
                     padding:12px;margin-bottom:10px">
           <div style="display:flex;align-items:flex-start;gap:8px">
-            <input type="checkbox" id="${checkId}"
+            <input type="checkbox" id="${checkId}" ${fix.accepted ? "checked" : ""}
                    onchange="this.closest('[data-fix]').dataset.accepted=this.checked"
                    style="margin-top:3px;flex-shrink:0">
-            <div style="flex:1" data-fix data-accepted="false">
+            <div style="flex:1" data-fix data-accepted="${fix.accepted ? "true" : "false"}">
               <div style="font-size:10px;color:#475569;font-weight:700;margin-bottom:4px">
                 SEPARAR ITEM
                 <span style="font-weight:400;color:#94a3b8">
-                  (desmarcado por padrão — marque somente se necessário)
+                  (${fix.autoAccept ? "marcado automaticamente — desmarque se não forem itens separados" : "desmarcado por padrão — marque somente se necessário"})
                 </span>
               </div>
               <div style="font-size:11px;color:#64748b;margin-bottom:6px">
