@@ -172,6 +172,10 @@
                     <i data-lucide="file-text"></i>
                     <span>Relatórios</span>
                 </button>
+                <button class="nav-btn nav-item" data-tab="auditoria">
+                    <i data-lucide="shield-check"></i>
+                    <span>Auditoria</span>
+                </button>
                 </div>
             </nav>
 
@@ -2715,6 +2719,86 @@ Ou cole o texto do calendário (com '1º de janeiro', etc.)"></textarea>
                 </div>
             </div>
 
+
+            <!-- ============================================= -->
+            <!-- PAINEL AUDITORIA (ID: content-auditoria) -->
+            <!-- ============================================= -->
+            <div id="content-auditoria" class="fade-in hidden">
+                <div class="flex items-center gap-3 mb-5">
+                    <div class="flex items-center justify-center w-10 h-10 rounded-xl bg-rose-100">
+                        <i data-lucide="shield-check" class="w-5 h-5 text-rose-700"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-bold text-gray-900 tracking-tight">Auditoria de exclusões</h2>
+                        <p class="text-xs text-gray-500">Quem excluiu, quando, de qual IP e de qual computador</p>
+                    </div>
+                </div>
+                <div id="alert-auditoria" class="alert mb-4"></div>
+
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 mb-6">
+                    <div class="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+                        <div>
+                            <label for="aud-de" class="form-label text-xs">De</label>
+                            <input type="date" id="aud-de" class="form-input">
+                        </div>
+                        <div>
+                            <label for="aud-ate" class="form-label text-xs">Até</label>
+                            <input type="date" id="aud-ate" class="form-input">
+                        </div>
+                        <div>
+                            <label for="aud-colecao" class="form-label text-xs">O que foi excluído</label>
+                            <select id="aud-colecao" class="form-select">
+                                <option value="controleMateriais">Requisições de materiais</option>
+                                <option value="">Tudo</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="aud-busca" class="form-label text-xs">Usuário, IP ou computador</label>
+                            <input type="text" id="aud-busca" class="form-input" placeholder="ex.: maria@ ou 189.">
+                        </div>
+                        <button type="button" id="btn-aud-buscar" class="btn-primary">
+                            <i data-lucide="search"></i>
+                            <span>Buscar</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 mb-6">
+                    <div class="overflow-x-auto border border-gray-200 rounded-lg max-h-[40rem]">
+                        <table class="table w-full text-sm">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th>Data/hora (Brasília)</th>
+                                    <th>Usuário</th>
+                                    <th>O que foi excluído</th>
+                                    <th>IP</th>
+                                    <th>Computador</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-auditoria" class="divide-y divide-gray-100">
+                                <tr><td colspan="6" class="text-center py-10 text-gray-400">Clique em Buscar.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="flex justify-between items-center mt-3 text-xs text-gray-500">
+                        <span id="aud-contagem"></span>
+                        <button type="button" id="btn-aud-mais" class="btn-secondary hidden">Carregar mais</button>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                    <h3 class="text-lg font-semibold mb-1">Nome deste computador</h3>
+                    <p class="text-xs text-gray-500 mb-3">O navegador não informa o nome da máquina. Dê um nome aqui (ex.: "Almox - Balcão") em cada computador para ele aparecer na auditoria. Código deste navegador: <b id="aud-disp-id"></b></p>
+                    <div class="flex flex-col sm:flex-row gap-3">
+                        <input type="text" id="aud-disp-nome" class="form-input sm:max-w-sm" maxlength="60" placeholder="Nome do computador">
+                        <button type="button" id="btn-aud-disp-salvar" class="btn-secondary">
+                            <i data-lucide="save"></i>
+                            <span>Salvar nome</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
 
                 </div> <!-- Fim max-w-7xl -->
 

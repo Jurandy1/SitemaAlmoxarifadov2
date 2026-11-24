@@ -26,6 +26,7 @@ import { getDebitosGasResumoList } from "./modules/gas/gas-control.js";
 import { isReady } from "./modules/auth.js";
 import { initSocialListeners } from "./modules/social-control.js"; // NOVO
 import { initFeriadosListeners } from "./modules/feriados.js";
+import { initAuditoriaListeners } from "./modules/auditoria.js";
 import { getUserRole } from "./utils/cache.js";
 import { initTooltips } from "./utils/tooltip-manager.js";
 import { mountChatWidget } from "./chat-widget.js";
@@ -141,6 +142,7 @@ function setupApp() {
     initSocialListeners();
 
     initFeriadosListeners();
+    initAuditoriaListeners();
     
     // 8. ADICIONADO: Listeners do Modal de Login
     const __tryEmailLogin = async () => {

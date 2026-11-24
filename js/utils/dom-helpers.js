@@ -487,6 +487,7 @@ function switchTab(tabName) {
         usuarios: 'Contas de acesso e permissões',
         feriados: 'Calendário de feriados e pontos facultativos',
         relatorio: 'Relatórios para impressão',
+        auditoria: 'Quem excluiu o quê, quando e de onde',
     };
     if (pageDescEl && DESCRICOES[tabName]) pageDescEl.textContent = DESCRICOES[tabName];
 
@@ -648,7 +649,7 @@ async function openConfirmDeleteModal(id, type, details = null, alertElementId =
  * Aplica as permissões de UI com base no role do usuário.
  */
 // Menus só de administrador
-const ADMIN_ONLY_TABS = new Set(['gestao', 'usuarios', 'feriados', 'relatorio', 'painel']);
+const ADMIN_ONLY_TABS = new Set(['gestao', 'usuarios', 'feriados', 'relatorio', 'painel', 'auditoria']);
 
 function renderPermissionsUI() {
     if (!domReady) return;
