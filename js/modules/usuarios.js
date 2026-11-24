@@ -6,12 +6,10 @@ import {
   setDoc,
   serverTimestamp,
 } from "firebase/firestore";
-import { createUserWithEmailAndPassword, getAuth } from "firebase/auth";
-import { initializeApp, deleteApp } from "firebase/app";
+import { supabase } from "../compat/supabase-client.js";
 import { DOM_ELEMENTS, showAlert } from "../utils/dom-helpers.js";
 import { getUserRole } from "../utils/cache.js";
 import { COLLECTIONS, auth } from "../services/firestore-service.js";
-import { firebaseConfig } from "../firebase-config.js";
 import { isReady } from "./auth.js";
 
 
@@ -148,32 +146,16 @@ async function handleCreateUser(e) {
   btn.disabled = true;
   btn.innerHTML = '<div class="loading-spinner-small mx-auto"></div>';
 
-  let secondaryApp = null;
-  let createdUser = null;
-
   try {
-    // Usa uma instância Auth secundária para não trocar a sessão atual do admin
-    const appName = `SecondaryAuthApp_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-    secondaryApp = initializeApp(firebaseConfig, appName);
-    const secondaryAuth = getAuth(secondaryApp);
-
-    const cred = await createUserWithEmailAndPassword(secondaryAuth, email, password);
-    createdUser = cred.user;
-    const uid = createdUser.uid;
-
-    try {
-      await setDoc(doc(COLLECTIONS.userRoles, uid), {
-        uid,
-        email,
-        role,
-        createdAt: serverTimestamp(),
-      });
-    } catch (roleErr) {
-      try {
-        await createdUser.delete();
-      } catch (_) {}
-      throw roleErr;
-    }
+    // A conta é criada no banco já confirmada (scripts/supabase/007_criar_usuario.sql).
+    // O signUp comum deixava a conta presa esperando confirmação de e-mail.
+    const { error } = await supabase.rpc("admin_criar_usuario", {
+      p_email: email,
+      p_senha: password,
+      p_papel: role,
+      p_roles_col: COLLECTIONS.userRoles.path,
+    });
+    if (error) throw error;
 
     showAlert("alert-add-user", `Usuário '${email}' criado como '${role}'. Passe a senha inicial para a pessoa: ela vai criar uma senha própria no primeiro acesso.`, "success");
     DOM_ELEMENTS.formAddUser.reset();
@@ -181,20 +163,19 @@ async function handleCreateUser(e) {
     renderUsuariosTable();
   } catch (err) {
     console.error("Erro ao criar usuário:", err);
-    let msg = err?.message || "Falha ao criar usuário.";
-    if (err?.code === "auth/email-already-in-use") msg = "Este e-mail já está em uso.";
-    if (err?.code === "auth/weak-password") msg = "Senha fraca. Use uma senha com pelo menos 6 caracteres.";
-    if (err?.code === "auth/invalid-email") msg = "E-mail inválido.";
-    if (err?.code === "auth/operation-not-allowed") msg = "Login por e-mail/senha não está habilitado no Firebase Authentication.";
-    if (err?.code === "permission-denied") msg = "Permissão negada no Firestore para salvar role do usuário.";
+    const raw = String(err?.message || "");
+    let msg = raw || "Falha ao criar usuário.";
+    if (/email-already-in-use/.test(raw)) msg = "Este e-mail já está cadastrado. Se a pessoa esqueceu a senha, use a troca de senha.";
+    else if (/weak-password/.test(raw)) msg = "Senha fraca. Use uma senha com pelo menos 6 caracteres.";
+    else if (/invalid-email/.test(raw)) msg = "E-mail inválido.";
+    else if (/permission-denied/.test(raw)) msg = "Apenas administradores podem criar usuários.";
+    else if (/admin_criar_usuario/.test(raw) && /(not find|does not exist|schema cache)/i.test(raw))
+      msg = "Falta instalar a função no banco: rode scripts/supabase/007_criar_usuario.sql no SQL Editor do Supabase.";
     showAlert("alert-add-user", `Erro: ${msg}`, "error");
   } finally {
     btn.disabled = false;
     btn.innerHTML = '<i data-lucide="user-plus"></i> Adicionar Usuário';
     if (lucide?.createIcons) lucide.createIcons();
-    if (secondaryApp) {
-      try { await deleteApp(secondaryApp); } catch (_) {}
-    }
   }
 }
 

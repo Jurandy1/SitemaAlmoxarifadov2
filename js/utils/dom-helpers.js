@@ -651,6 +651,16 @@ async function openConfirmDeleteModal(id, type, details = null, alertElementId =
 // Menus só de administrador
 const ADMIN_ONLY_TABS = new Set(['gestao', 'usuarios', 'feriados', 'relatorio', 'painel', 'auditoria']);
 
+// Auditoria: além de ser admin, o banco precisa liberar (public.pode_ver_auditoria).
+// Começa fechado; js/modules/auditoria.js consulta o banco e chama setAuditoriaPermitida.
+let auditoriaPermitida = false;
+function setAuditoriaPermitida(valor) {
+    const novo = valor === true;
+    if (novo === auditoriaPermitida) return;
+    auditoriaPermitida = novo;
+    renderPermissionsUI();
+}
+
 function renderPermissionsUI() {
     if (!domReady) return;
     const role = getUserRole();
@@ -675,6 +685,7 @@ function renderPermissionsUI() {
         if (!isAdmin && ADMIN_ONLY_TABS.has(tab)) {
             isVisible = false;
         }
+        if (tab === 'auditoria' && !auditoriaPermitida) isVisible = false;
         btn.classList.toggle('hidden', !isVisible);
     });
 
@@ -687,6 +698,7 @@ function renderPermissionsUI() {
         if (!isAdmin && ADMIN_ONLY_TABS.has(tabName)) {
              isDisabled = true;
         }
+        if (tabName === 'auditoria' && !auditoriaPermitida) isDisabled = true;
          pane.classList.toggle('disabled-by-role', isDisabled);
     });
 
@@ -807,6 +819,7 @@ function renderPermissionsUI() {
             if (!allowedAnonTabs.has(currentTab)) shouldRedirect = true;
         }
         if (!isAdmin && ADMIN_ONLY_TABS.has(currentTab)) shouldRedirect = true;
+        if (currentTab === 'auditoria' && !auditoriaPermitida) shouldRedirect = true;
 
         if (shouldRedirect) {
             switchTab('inicio');
@@ -830,6 +843,7 @@ function escapeHTML(input) {
 
 
 export {
+    setAuditoriaPermitida,
     DOM_ELEMENTS,
     findDOMElements,
     showAlert,

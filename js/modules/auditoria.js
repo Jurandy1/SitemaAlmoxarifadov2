@@ -5,13 +5,38 @@ import {
   getDispositivoAtual,
   DISPOSITIVO_NOME_KEY,
 } from "../compat/supabase-client.js";
-import { showAlert } from "../utils/dom-helpers.js";
-import { getUserRole } from "../utils/cache.js";
+import { onAuthStateChanged } from "firebase/auth";
+import { showAlert, setAuditoriaPermitida } from "../utils/dom-helpers.js";
+import { auth } from "../services/firestore-service.js";
 
 const PAGINA = 100;
 let _linhas = [];
 let _fim = false;
 let _carregando = false;
+let _permitido = false;
+let _checagem = 0;
+
+// O banco decide quem vê a auditoria (admin que não esteja em auditoria_bloqueados).
+async function atualizarPermissao(user) {
+  const minha = ++_checagem;
+  let ok = false;
+  if (user && !user.isAnonymous) {
+    try {
+      const { data, error } = await supabase.rpc("pode_ver_auditoria");
+      ok = !error && data === true;
+    } catch (_) {
+      ok = false;
+    }
+  }
+  if (minha !== _checagem) return; // outra checagem mais nova já respondeu
+  _permitido = ok;
+  if (!ok) {
+    _linhas = [];
+    const tb = $("table-auditoria");
+    if (tb) tb.innerHTML = "";
+  }
+  setAuditoriaPermitida(ok);
+}
 
 const NOMES_COLECAO = {
   controleMateriais: "Requisição de materiais",
@@ -58,8 +83,8 @@ function fimDoDia(isoDate) {
 
 async function buscar(reiniciar) {
   if (_carregando) return;
-  if (getUserRole() !== "admin") {
-    showAlert("alert-auditoria", "Apenas administradores podem ver a auditoria.", "error");
+  if (!_permitido) {
+    showAlert("alert-auditoria", "Você não tem acesso à auditoria.", "error");
     return;
   }
   _carregando = true;
@@ -216,6 +241,8 @@ export function initAuditoriaListeners() {
     const rest = e.target.closest("[data-aud-restaurar]");
     if (rest) return restaurar(rest.dataset.audRestaurar);
   });
+
+  onAuthStateChanged(auth, (user) => atualizarPermissao(user));
 
   // Carrega automaticamente ao abrir o menu
   document.querySelector('.nav-btn[data-tab="auditoria"]')?.addEventListener("click", () => {
