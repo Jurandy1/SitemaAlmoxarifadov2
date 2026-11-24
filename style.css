@@ -1574,6 +1574,10 @@ button .loading-spinner-small { margin: 0; }
    DISABLED BY ROLE
    ===================================================== */
 .disabled-by-role { opacity: .45; pointer-events: none; user-select: none; }
+/* Menu escondido por permissão: a regra de layout do menu (display:flex) não pode reexibir o botão */
+#main-sidebar .nav-btn.hidden { display: none !important; }
+/* Auditoria sem permissão: não mostra nem o conteúdo apagado */
+#content-auditoria.disabled-by-role { display: none !important; }
 
 /* =====================================================
    ACTIONS CELL
