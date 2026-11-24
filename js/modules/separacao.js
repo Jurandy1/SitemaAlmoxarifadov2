@@ -2682,6 +2682,7 @@ async function doRegistrar(finalUnit){
 }
 
 async function cancelarReq(id){
+  if (getUserRole() !== 'admin') { toast('Permissão negada: apenas Admin pode excluir pedidos.', 'red'); return; }
   if(!(await confirmar('Deseja excluir este pedido? Ele será removido do sistema.', { ok: 'Excluir', perigo: true }))) return;
   const key = String(id);
   try {
